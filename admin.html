@@ -2659,8 +2659,16 @@
                 const displayName = user.name || record.userName || 'Unknown Student';
                 const displayEmail = user.email || record.userEmail || '';
 
-                // Initials for avatar
+                // Initials for avatar fallback
                 const initials = displayName.substring(0, 2).toUpperCase();
+
+                // Avatar HTML - check for profile pic with multiple possible keys
+                const profilePicUrl = user.profilePhoto || user.profilePic || user.profile_pic || user.profileImage || user.photoURL || user.avatar || user.image || user.profile_picture;
+
+                let avatarHtml = `<div class="user-avatar-sm">${initials}</div>`;
+                if (profilePicUrl) {
+                    avatarHtml = `<img src="${profilePicUrl}" class="user-avatar-sm" alt="${initials}" style="object-fit: cover; width: 36px; height: 36px; border-radius: 50%;">`;
+                }
 
                 // --- FIX FOR ROLL NUMBER DISPLAY ---
                 // Explicitly check for classRoll and univRoll
@@ -2669,22 +2677,22 @@
 
                 html += `<tr>
                     <td>
-                        <div class="user-cell">
-                            <div class="user-avatar-sm">${initials}</div>
-                            <div class="user-details">
-                                <span class="user-name">${displayName}</span>
-                                <span class="user-roll">${displayEmail}</span>
+                        <div class="user-cell" style="display: flex; align-items: center; gap: 12px; height: 100%;">
+                            ${avatarHtml}
+                            <div class="student-info-container" style="display: flex; flex-direction: column; justify-content: center; align-items: flex-start; min-width: 150px;">
+                                <div style="font-weight: 700; color: #111827; font-size: 0.95rem; line-height: 1.4; display: block;">${displayName}</div>
+                                <div style="font-size: 0.8rem; color: #6b7280; line-height: 1.4; display: block;">${displayEmail}</div>
                             </div>
                         </div>
                     </td>
                     <td>
-                        <div class="user-details">
-                            <span class="user-name" style="font-weight: 500; color: var(--gray-700);">${classRoll}</span>
-                            <span class="user-roll">${univRoll}</span>
+                        <div style="display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-weight: 600; color: #374151; font-size: 0.9rem;">${classRoll}</div>
+                            <div style="font-size: 0.8rem; color: #6b7280;">${univRoll}</div>
                         </div>
                     </td>
-                    <td style="font-weight: 500;">${record.time}</td>
-                    <td>
+                    <td style="font-weight: 500; vertical-align: middle;">${record.time}</td>
+                    <td style="vertical-align: middle;">
                         <span class="device-pill ${deviceType}">
                             <i class="${deviceIcon}"></i> ${deviceType === 'mobile' ? 'Mobile' : 'Desktop'}
                         </span>
