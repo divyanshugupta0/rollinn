@@ -1,0 +1,45 @@
+<!-- Mobile Coordinates Section -->
+<div class="section-title">
+    <i class="fas fa-map-marker-alt"></i>
+    Manage Location
+</div>
+
+<div class="form-group">
+    <label for="mobile-coordinates">Mobile Coordinates:</label>
+    <div class="coordinates-group">
+        <div class="coordinates-input">
+            <input type="text" id="mobile-coordinates" class="coordinates-readonly" 
+                   placeholder="Coordinates will appear here after fetching from mobile" 
+                   readonly>
+        </div>
+        <button id="fetch-coordinates-btn" class="fetch-btn" onclick="fetchMobileCoordinates()">
+            <i class="fas fa-mobile-alt"></i>
+            Fetch Coordinates
+        </button>
+    </div>
+    <small class="small-label">Click "Fetch Coordinates" to send a location verification email and capture GPS coordinates from a mobile device.</small>
+</div>
+
+<!-- Email Input Modal -->
+<div id="location-email-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Send Location Verification</h3>
+            <button class="modal-close" onclick="closeLocationEmailModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="target-email">Enter email address:</label>
+                <input type="email" id="target-email" placeholder="user@example.com" required>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button onclick="closeLocationEmailModal()">Cancel</button>
+            <button onclick="sendLocationEmail()" class="fetch-btn">Send Email</button>
+        </div>
+    </div>
+</div>
+
+<!-- Include CSS and JS -->
+<link rel="stylesheet" href="mobile-coordinates.css">
+<script src="mobile-coordinates.js"></script>

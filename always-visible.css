@@ -1,0 +1,31 @@
+/* Ensure login container is properly positioned */
+.login-container {
+    position: absolute;
+    z-index: 1000;
+    background-color: white;
+    left: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    transition: none !important;
+    transform-style: flat !important;
+}
+
+/* Remove hover effects from login container */
+.login-container:hover {
+    transform: translateX(-50%) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Hide dashboard sections by default */
+#dashboardSection,
+#attendanceSection,
+#classesSection,
+#reportsSection,
+#settingsSection {
+    display: none;
+}
+
+/* Hide sidebar by default */
+.sidebar {
+    display: none;
+}

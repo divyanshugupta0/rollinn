@@ -1,0 +1,68 @@
+/* Accessibility Settings CSS */
+/* Applied automatically when settings are toggled */
+
+/* Large Text Mode */
+body.large-text * {
+    font-size: 1.2em !important;
+}
+
+body.large-text h1, body.large-text h2, body.large-text h3, body.large-text h4 {
+    font-size: 1.4em !important;
+}
+
+body.large-text .btn, body.large-text button {
+    font-size: 1.2em !important;
+    padding: 12px 20px !important;
+}
+
+body.large-text input, body.large-text select, body.large-text textarea {
+    font-size: 1.1em !important;
+    padding: 10px !important;
+}
+
+body.large-text .card-body, body.large-text .tab-content {
+    font-size: 1.2em !important;
+}
+
+body.large-text table {
+    font-size: 1.1em !important;
+}
+
+/* High Contrast Mode */
+body.high-contrast {
+    background-color: #000 !important;
+    color: #fff !important;
+}
+
+body.high-contrast .card {
+    background-color: #222 !important;
+    border: 2px solid #fff !important;
+    color: #fff !important;
+}
+
+body.high-contrast .btn, body.high-contrast button {
+    background-color: #fff !important;
+    color: #000 !important;
+    border: 2px solid #fff !important;
+}
+
+body.high-contrast .primary-btn {
+    background-color: #ffff00 !important;
+    color: #000 !important;
+}
+
+/* Mobile Optimization */
+body.mobile-optimized .card {
+    margin: 5px;
+    padding: 10px;
+}
+
+body.mobile-optimized .btn, body.mobile-optimized button {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+body.mobile-optimized .form-group input {
+    padding: 12px;
+    font-size: 16px;
+}

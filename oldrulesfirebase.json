@@ -1,0 +1,80 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": true,
+    "users": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["email", "classRoll", "univRoll", "section"],
+      "$uid": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "deviceLogins": {
+      ".read": true,
+      ".write": true,
+      "$uid": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "deviceLocks": {
+      ".read": true,
+      ".write": true
+    },
+    "attendance": {
+      ".read": true,
+      ".write": true,
+      "$date": {
+        ".read": true,
+        ".write": true,
+        "$uid": {
+          ".read": true,
+          ".write": true
+        }
+      }
+    },
+    "user_attendance": {
+      ".read": true,
+      ".write": true
+    },
+    "attendance_by_location": {
+      ".read": true,
+      ".write": true
+    },
+    "locations": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["section", "expiresAt"]
+    },
+    "notifications": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["timestamp"]
+    },
+    "passwordResetRequests": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["email", "status"]
+    },
+    "profileRequests": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["timestamp", "status"]
+    },
+    "modificationRequests": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["timestamp", "status"]
+    },
+    "adminSettings": {
+      ".read": true,
+      ".write": true
+    },
+    "accessibility_settings": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
