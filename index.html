@@ -1772,10 +1772,12 @@
         /* ===== REDESIGNED LOGIN PAGE STYLES ===== */
         .login-card {
             display: flex;
-            min-height: 600px;
+            min-height: min(600px, 90vh);
+            max-height: 90vh;
             background: var(--bg-primary);
             border-radius: 24px;
             overflow: hidden;
+            overflow-y: auto;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             animation: slideUp 0.6s ease-out;
         }
