@@ -228,6 +228,140 @@ function rejectModificationRequest(requestId, request, reason) {
         });
 }
 
+let sidebarBadgesInitialized = false;
+const SIDEBAR_BADGE_KEYS = {
+    notifications: 'adminNotificationsLastSeen',
+    profile: 'adminProfileRequestsLastSeen'
+};
+
+function getLastSeen(key) {
+    try {
+        const raw = localStorage.getItem(key);
+        const value = Number(raw);
+        return Number.isFinite(value) ? value : 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
+function setLastSeen(key, value) {
+    try {
+        const nextValue = Number.isFinite(value) ? value : Date.now();
+        localStorage.setItem(key, String(nextValue));
+    } catch (e) {
+        // Ignore storage errors (e.g., privacy mode)
+    }
+}
+
+function setSidebarBadge(badgeEl, count) {
+    if (!badgeEl) return;
+    const value = Number(count) || 0;
+    if (value <= 0) {
+        badgeEl.textContent = '';
+        badgeEl.classList.add('is-hidden');
+        return;
+    }
+    badgeEl.textContent = value > 99 ? '99+' : String(value);
+    badgeEl.classList.remove('is-hidden');
+}
+
+function markNotificationsSeen() {
+    setLastSeen(SIDEBAR_BADGE_KEYS.notifications, Date.now());
+    setSidebarBadge(document.getElementById('notification-badge'), 0);
+}
+
+function markProfileRequestsSeen() {
+    setLastSeen(SIDEBAR_BADGE_KEYS.profile, Date.now());
+    setSidebarBadge(document.getElementById('profile-badge'), 0);
+}
+
+function initSidebarBadges() {
+    if (sidebarBadgesInitialized) return;
+    sidebarBadgesInitialized = true;
+
+    const notificationBadge = document.getElementById('notification-badge');
+    const profileBadge = document.getElementById('profile-badge');
+    if (!notificationBadge && !profileBadge) return;
+
+    // Initialize Firebase if not already initialized
+    if (typeof firebase === 'undefined' || !firebase.apps.length) {
+        const firebaseConfig = {
+            apiKey: "AIzaSyD_An-qb0XTLpaLdrOftAEOqsshGpPbv1w",
+            authDomain: "firefly-64eef.firebaseapp.com",
+            databaseURL: "https://firefly-64eef-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "firefly-64eef",
+            storageBucket: "firefly-64eef.firebasestorage.app",
+            messagingSenderId: "563239732954",
+            appId: "1:563239732954:web:1774bfd1f7aceedeb707e3",
+            measurementId: "G-RKL3BV2H03"
+        };
+        firebase.initializeApp(firebaseConfig);
+    }
+
+    const db = firebase.database();
+
+    // Notifications badge (unread)
+    const notificationsRef = db.ref('notifications').orderByChild('timestamp').limitToLast(200);
+    notificationsRef.on('value', (snapshot) => {
+        const lastSeen = getLastSeen(SIDEBAR_BADGE_KEYS.notifications);
+        let unreadCount = 0;
+        snapshot.forEach(child => {
+            const notif = child.val() || {};
+            const timestamp = Number(notif.timestamp) || 0;
+            if (timestamp > lastSeen && notif.read !== true) {
+                unreadCount += 1;
+            }
+        });
+        setSidebarBadge(notificationBadge, unreadCount);
+    }, () => {
+        setSidebarBadge(notificationBadge, 0);
+    });
+
+    // Profile requests badge (pending)
+    let profileRequestsCount = 0;
+    let profileUpdateCount = 0;
+
+    const updateProfileBadge = () => {
+        setSidebarBadge(profileBadge, profileRequestsCount + profileUpdateCount);
+    };
+
+    db.ref('profileRequests').on('value', (snapshot) => {
+        const lastSeen = getLastSeen(SIDEBAR_BADGE_KEYS.profile);
+        let count = 0;
+        snapshot.forEach(child => {
+            const data = child.val() || {};
+            const status = String(data.status || 'pending').toLowerCase();
+            const timestamp = Number(data.timestamp) || 0;
+            if (status === 'pending' && timestamp > lastSeen) {
+                count += 1;
+            }
+        });
+        profileRequestsCount = count;
+        updateProfileBadge();
+    }, () => {
+        profileRequestsCount = 0;
+        updateProfileBadge();
+    });
+
+    db.ref('profile_update_requests').on('value', (snapshot) => {
+        const lastSeen = getLastSeen(SIDEBAR_BADGE_KEYS.profile);
+        let count = 0;
+        snapshot.forEach(child => {
+            const data = child.val() || {};
+            const status = String(data.status || 'pending').toLowerCase();
+            const timestamp = Number(data.timestamp) || 0;
+            if (status === 'pending' && timestamp > lastSeen) {
+                count += 1;
+            }
+        });
+        profileUpdateCount = count;
+        updateProfileBadge();
+    }, () => {
+        profileUpdateCount = 0;
+        updateProfileBadge();
+    });
+}
+
 // Add refresh button functionality
 function setupRefreshButton() {
     // Add refresh button functionality to both template and active sections
@@ -250,6 +384,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Setup refresh button
     setupRefreshButton();
+
+    // Initialize sidebar badges
+    initSidebarBadges();
 
     // Add global click handler for dynamically added buttons
     document.addEventListener('click', (e) => {
@@ -1609,6 +1746,8 @@ function initNotificationsSection() {
     const notificationsList = document.getElementById('notifications-list');
     if (!notificationsList) return;
 
+    markNotificationsSeen();
+
     addNotificationStyles();
 
     const db = firebase.database();
@@ -2212,6 +2351,8 @@ function initProfileRequestsSection() {
         console.error("Could not find profile-requests-list element");
         return;
     }
+
+    markProfileRequestsSeen();
 
     // Show loading state
     profileRequestsList.innerHTML = '<tr><td colspan="5" class="loading">Loading profile requests...</td></tr>';

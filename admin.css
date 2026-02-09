@@ -184,6 +184,8 @@ input[type="email"],
 input[type="password"],
 input[type="text"],
 input[type="date"],
+input[type="number"],
+input[type="datetime-local"],
 select {
     width: 100%;
     padding: 14px 18px;
@@ -193,6 +195,66 @@ select {
     transition: var(--transition);
     background-color: var(--gray-50);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+select.multi-select {
+    min-height: 110px;
+    padding: 10px 12px;
+}
+
+.field-hint {
+    margin-top: 6px;
+    font-size: 0.82rem;
+    color: var(--gray-500);
+}
+
+.section-picker {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.section-picker select {
+    flex: 1;
+}
+
+.section-picker .small {
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+}
+
+.selected-sections {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.section-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--gray-100);
+    color: var(--gray-700);
+    font-size: 0.85rem;
+    border: 1px solid var(--gray-200);
+}
+
+.section-chip .chip-remove {
+    border: none;
+    background: transparent;
+    color: var(--gray-500);
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+}
+
+.section-chip .chip-remove:hover {
+    color: var(--danger-color);
 }
 
 input:focus,
@@ -1224,6 +1286,10 @@ button.delete-btn:hover {
     position: relative;
     z-index: 1;
     animation: badgePulse 2s infinite;
+}
+
+.menu-item-badge.is-hidden {
+    display: none;
 }
 
 .menu-item-badge.pending {
@@ -3756,6 +3822,7 @@ input[type="email"],
 input[type="password"],
 input[type="text"],
 input[type="date"],
+input[type="number"],
 select {
     width: 100%;
     padding: 14px 18px;

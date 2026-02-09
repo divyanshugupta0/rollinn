@@ -2661,7 +2661,7 @@
                         <a href="#" id="register-link" class="action-link register-action">
                             <i class="fas fa-user-plus"></i> Create Account
                         </a>
-                        <a href="admin.html" id="admin-link" class="action-link admin-action">
+                        <a href="./admin" id="admin-link" class="action-link admin-action">
                             <i class="fas fa-user-shield"></i> Admin Portal
                         </a>
                     </div>
@@ -2819,7 +2819,7 @@
                                 <label for="reg-section">Section</label>
                                 <div class="input-with-icon">
                                     <i class="fas fa-layer-group"></i>
-                                    <input type="text" id="reg-section" placeholder="Enter your section">
+                                    <input type="text" id="reg-section" placeholder="Enter your section" autocapitalize="characters">
                                 </div>
                             </div>
                         </div>
@@ -3121,33 +3121,64 @@
         window.currentUser = null;
         window.currentPosition = null;
         window.attendedClasses = new Set();
+        let registrationLiveStatus = null;
+        let isRegistering = false;
+
+        function lockRegisterButton(message) {
+            const registerBtn = document.getElementById('register-btn');
+            if (!registerBtn) return;
+            if (!registerBtn.dataset.defaultHtml) {
+                registerBtn.dataset.defaultHtml = registerBtn.innerHTML;
+            }
+            registerBtn.disabled = true;
+            registerBtn.innerHTML = message || '<i class="fas fa-lock"></i> Registrations Closed';
+        }
+
+        function unlockRegisterButton() {
+            const registerBtn = document.getElementById('register-btn');
+            if (!registerBtn) return;
+            const defaultHtml = registerBtn.dataset.defaultHtml || registerBtn.innerHTML;
+            registerBtn.disabled = false;
+            registerBtn.innerHTML = defaultHtml;
+        }
+
+        function updateRegistrationUI(isLive) {
+            registrationLiveStatus = isLive === true;
+            const registerLink = document.getElementById('register-link');
+            if (registerLink) {
+                registerLink.style.display = registrationLiveStatus ? 'block' : 'none';
+            }
+            if (registrationLiveStatus) {
+                unlockRegisterButton();
+            } else {
+                lockRegisterButton('<i class="fas fa-lock"></i> Registrations Closed');
+            }
+        }
 
         // Check accessibility settings on page load
         function checkAccessibilitySettings() {
             get(ref(database, 'accessibility_settings/registrationLive'))
                 .then((snapshot) => {
                     const registrationLive = snapshot.exists() ? snapshot.val() : true;
-                    const registerLink = document.getElementById('register-link');
-
-                    if (registerLink) {
-                        registerLink.style.display = registrationLive ? 'block' : 'none';
-                    }
+                    updateRegistrationUI(registrationLive);
                 })
                 .catch((error) => {
                     console.error('Error checking accessibility settings:', error);
-                    // Show register link by default on error
-                    const registerLink = document.getElementById('register-link');
-                    if (registerLink) {
-                        registerLink.style.display = 'block';
-                    }
+                    updateRegistrationUI(false);
                 });
         }
 
         // Call on page load
-        document.addEventListener('DOMContentLoaded', checkAccessibilitySettings);
+        document.addEventListener('DOMContentLoaded', () => {
+            lockRegisterButton('<i class="fas fa-spinner fa-spin"></i> Checking availability...');
+            checkAccessibilitySettings();
+        });
 
         // Auth State Observer for Missing Photo Check
         onAuthStateChanged(auth, (user) => {
+            if (user && isRegistering) {
+                return;
+            }
             if (user) {
                 // User is signed in
                 console.log("Auth check: User is signed in", user.uid);
@@ -3446,6 +3477,11 @@
 
         // Register functionality
         registerBtn.addEventListener('click', () => {
+            if (registrationLiveStatus !== true) {
+                showRegisterStatus('Registrations are currently closed. Please try later.', 'error');
+                lockRegisterButton('<i class="fas fa-lock"></i> Registrations Closed');
+                return;
+            }
             const name = regName.value;
             const email = regEmail.value;
             const classRoll = document.getElementById('reg-class-roll').value;
@@ -3578,6 +3614,7 @@
                     console.log("Final values before user creation - name:", nameValue, "classRoll:", classRollValue, "univRoll:", univRollValue);
 
                     // If all checks pass, create the user
+                    isRegistering = true;
                     createUserWithEmailAndPassword(auth, email, password)
                         .then((userCredential) => {
                             const user = userCredential.user;
@@ -3639,10 +3676,21 @@
                                                 .then((snapshot) => {
                                                     console.log("VERIFICATION - Final user data:", snapshot.val());
 
-                                                    showRegisterStatus('Registration successful! Reloading page...', 'success');
-                                                    setTimeout(() => {
-                                                        window.location.reload();
-                                                    }, 2000);
+                                                    showRegisterStatus('Registration successful! Please sign in.', 'success');
+                                                    signOut(auth)
+                                                        .then(() => {
+                                                            showLoginSection();
+                                                            showLoginStatus('Account created. Please sign in.', 'success');
+                                                        })
+                                                        .catch(() => {
+                                                            showLoginSection();
+                                                            showLoginStatus('Account created. Please sign in.', 'success');
+                                                        })
+                                                        .finally(() => {
+                                                            registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
+                                                            registerBtn.disabled = false;
+                                                            isRegistering = false;
+                                                        });
                                                 })
                                                 .catch(error => {
                                                     console.error("Verification error:", error);
@@ -3654,6 +3702,8 @@
                                             // Reset register button
                                             registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
                                             registerBtn.disabled = false;
+                                            isRegistering = false;
+                                            signOut(auth).catch(() => {});
                                         });
                                 })
                                 .catch((error) => {
@@ -3662,6 +3712,8 @@
                                     // Reset register button
                                     registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
                                     registerBtn.disabled = false;
+                                    isRegistering = false;
+                                    signOut(auth).catch(() => {});
                                 });
                         })
                         .catch((error) => {
@@ -3672,6 +3724,7 @@
                             // Reset register button
                             registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
                             registerBtn.disabled = false;
+                            isRegistering = false;
                         });
                 })
                 .catch((error) => {
@@ -3682,12 +3735,18 @@
                     // Reset register button
                     registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
                     registerBtn.disabled = false;
+                    isRegistering = false;
                 });
         });
 
         // Switch between login and registration
         registerLink.addEventListener('click', (e) => {
             e.preventDefault();
+            if (registrationLiveStatus !== true) {
+                showLoginStatus('Registrations are currently closed.', 'error');
+                lockRegisterButton('<i class="fas fa-lock"></i> Registrations Closed');
+                return;
+            }
             loginSection.classList.add('hidden');
             registerSection.classList.remove('hidden');
         });
@@ -4510,13 +4569,14 @@
         function displayAllActiveClasses(allLocations, nearbyLocations) {
             // Filter locations by user's section
             const userSection = currentUser?.section;
-            const filteredLocations = allLocations.filter(location => {
-                return !userSection || !location.section || location.section === 'General' || location.section === userSection;
-            });
+            const matchesSection = (location) => {
+                if (!userSection || !location.section) return true;
+                const sections = Array.isArray(location.section) ? location.section : [location.section];
+                return sections.includes('General') || sections.includes(userSection);
+            };
 
-            const filteredNearbyLocations = nearbyLocations.filter(location => {
-                return !userSection || !location.section || location.section === 'General' || location.section === userSection;
-            });
+            const filteredLocations = allLocations.filter(matchesSection);
+            const filteredNearbyLocations = nearbyLocations.filter(matchesSection);
 
             // Create or get the classes container
             let classesContainer = document.getElementById('classes-container');
@@ -6492,6 +6552,14 @@
             }, 5000);
         }
 
+        // Force section input to uppercase as user types
+        const regSectionInput = document.getElementById('reg-section');
+        if (regSectionInput) {
+            regSectionInput.addEventListener('input', () => {
+                regSectionInput.value = regSectionInput.value.toUpperCase();
+            });
+        }
+
         // Show location status message
         function showLocationStatus(message, type) {
             locationStatus.textContent = message;
@@ -6501,6 +6569,9 @@
 
         // Check authentication state changes
         onAuthStateChanged(auth, (user) => {
+            if (user && isRegistering) {
+                return;
+            }
             if (user) {
                 // User is signed in
                 getUserData(user);
@@ -8075,6 +8146,44 @@
             if (loadBtn) loadBtn.onclick = loadAttendanceHistory;
         }
 
+        function normalizeSectionList(sectionValue) {
+            if (Array.isArray(sectionValue)) {
+                return sectionValue.map(value => String(value).trim()).filter(Boolean);
+            }
+            if (sectionValue && typeof sectionValue === 'object') {
+                const values = Object.values(sectionValue);
+                const keys = Object.keys(sectionValue);
+                const allBooleans = values.length && values.every(value => typeof value === 'boolean');
+                if (allBooleans) {
+                    return keys.filter(key => sectionValue[key]).map(value => String(value).trim()).filter(Boolean);
+                }
+                return values.map(value => String(value).trim()).filter(Boolean);
+            }
+            if (typeof sectionValue === 'string') {
+                const trimmed = sectionValue.trim();
+                if (!trimmed) return [];
+                if (trimmed.includes(',')) {
+                    return trimmed.split(',').map(value => value.trim()).filter(Boolean);
+                }
+                return [trimmed];
+            }
+            return [];
+        }
+
+        function normalizeSectionKeys(sectionValue) {
+            return normalizeSectionList(sectionValue)
+                .map(value => {
+                    let trimmed = String(value).trim();
+                    if (!trimmed) return '';
+                    const lower = trimmed.toLowerCase();
+                    if (lower.startsWith('section ')) {
+                        trimmed = trimmed.slice(8).trim();
+                    }
+                    return trimmed.toLowerCase();
+                })
+                .filter(Boolean);
+        }
+
         function loadAttendanceHistory() {
             if (!currentUser) return;
 
@@ -8097,14 +8206,14 @@
                 const processedKeys = new Set(); // To avoid duplicates
 
                 // Normalize User Section
-                const userSection = (currentUser.section || '').toString().trim().toLowerCase();
+            const userSectionKeys = normalizeSectionKeys(currentUser.section || '');
 
                 // Iterate Global Attendance to find ALL class sessions
                 Object.keys(globalData).forEach(locId => {
                     const locDates = globalData[locId];
                     const locMeta = locations[locId] || { name: 'Unknown Class' };
                     const locNameLower = (locMeta.name || '').toLowerCase();
-                    const locSectionLower = (locMeta.section || '').toLowerCase();
+                    const locSectionKeys = normalizeSectionKeys(locMeta.section);
 
                     Object.keys(locDates).forEach(dateStr => {
                         const date = new Date(dateStr);
@@ -8118,14 +8227,14 @@
                         const isUserPresent = !!sessionAttendees[currentUser.uid];
 
                         // Check Peers: Case-insensitive comparison
-                        const hasPeerFromSection = attendeesList.some(a => {
-                            const peerSec = (a.section || '').toString().trim().toLowerCase();
-                            return peerSec === userSection && userSection.length > 0;
+                        const hasPeerFromSection = userSectionKeys.length > 0 && attendeesList.some(a => {
+                            const peerKeys = normalizeSectionKeys(a.section);
+                            return userSectionKeys.some(key => peerKeys.includes(key));
                         });
 
                         // Check for 'General' applicability
-                        const isGeneral = locSectionLower === 'general' ||
-                            attendeesList.some(a => (a.section || '').toLowerCase() === 'general') ||
+                        const isGeneral = locSectionKeys.includes('general') ||
+                            attendeesList.some(a => normalizeSectionKeys(a.section).includes('general')) ||
                             locNameLower.includes('general');
 
                         if (isUserPresent || hasPeerFromSection || isGeneral) {

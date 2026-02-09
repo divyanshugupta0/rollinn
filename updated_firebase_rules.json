@@ -2,81 +2,107 @@
   "rules": {
     ".read": "auth != null",
     ".write": "auth != null",
-    
     "users": {
       ".read": true,
       ".write": "auth != null",
-      ".indexOn": ["email", "classRoll", "univRoll", "section", "role"]
+      "$uid": {
+        "faceDescriptor": {
+          ".write": true
+        }
+      },
+      ".indexOn": [
+        "email",
+        "classRoll",
+        "univRoll",
+        "section",
+        "role"
+      ]
     },
-    
     "deviceLogins": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-    
     "deviceLocks": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-    
     "attendance": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-    
     "user_attendance": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-    
     "attendance_by_location": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-    
     "locations": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["section", "expiresAt", "active"]
+      "$locationId": {
+        "coordinates": {
+          ".read": "auth != null",
+          ".write": "auth != null || (newData.child('token').isString() && root.child('locationRequests').child(newData.child('token').val()).exists())"
+        }
+      },
+      ".indexOn": [
+        "section",
+        "expiresAt",
+        "active"
+      ]
     },
-    
-    "locationRequests":{
+    "locationRequests": {
       ".read": true,
       ".write": true
     },
-    
     "notifications": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["timestamp", "recipients"]
+      ".indexOn": [
+        "timestamp",
+        "recipients"
+      ]
     },
-    
     "passwordResetRequests": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["email", "status", "timestamp"]
+      ".indexOn": [
+        "email",
+        "status",
+        "timestamp"
+      ]
     },
-    
     "profileRequests": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["timestamp", "status", "userId"]
+      ".indexOn": [
+        "timestamp",
+        "status",
+        "userId"
+      ]
     },
-    
     "modificationRequests": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null",
-      ".indexOn": ["timestamp", "status", "teacherId"]
+      ".indexOn": [
+        "timestamp",
+        "status",
+        "teacherId"
+      ]
     },
-    
     "adminSettings": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-    
     "accessibility_settings": {
       ".read": true,
       ".write": "auth != null"
+    },
+    "faceRegistrationTokens": {
+      ".read": true,
+      ".write": true
     }
   }
 }

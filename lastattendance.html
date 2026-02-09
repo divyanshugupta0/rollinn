@@ -2874,18 +2874,20 @@
         function displayAllActiveClasses(allLocations, nearbyLocations) {
             // Filter locations by user's section
             const userSection = currentUser?.section;
-            const filteredLocations = allLocations.filter(location => {
+            const matchesSection = (location) => {
                 // Show location if:
                 // 1. User has no section (backward compatibility)
                 // 2. Location has no section (General locations)
-                // 3. Location section matches user section
-                return !userSection || !location.section || location.section === 'General' || location.section === userSection;
-            });
+                // 3. Location section matches user section or includes it
+                if (!userSection || !location.section) return true;
+                const sections = Array.isArray(location.section) ? location.section : [location.section];
+                return sections.includes('General') || sections.includes(userSection);
+            };
+
+            const filteredLocations = allLocations.filter(matchesSection);
             
             // Also filter nearby locations
-            const filteredNearbyLocations = nearbyLocations.filter(location => {
-                return !userSection || !location.section || location.section === 'General' || location.section === userSection;
-            });
+            const filteredNearbyLocations = nearbyLocations.filter(matchesSection);
             
             // Create or get the classes container
             let classesContainer = document.getElementById('classes-container');
