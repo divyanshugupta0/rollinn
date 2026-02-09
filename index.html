@@ -3410,6 +3410,7 @@
         // Global variables
         let currentUser = null;
         let deviceId = generateDeviceId(); // Generate device ID immediately
+        let deviceFingerprint = generateDeviceFingerprint(); // Cross-browser device fingerprint
         let lastLoginTime = null;
         let scanning = false;
         let scanIntervalId = null;
@@ -3810,50 +3811,67 @@
             if (!deviceId) {
                 deviceId = generateDeviceId();
             }
+            if (!deviceFingerprint) {
+                deviceFingerprint = generateDeviceFingerprint();
+            }
 
-            console.log('Checking device and user locks for device:', deviceId, 'user:', user.uid);
+            console.log('Checking device and user locks for device:', deviceId, 'fingerprint:', deviceFingerprint, 'user:', user.uid);
 
             const deviceLockRef = ref(database, `deviceLocks/${deviceId}`);
+            const fingerprintLockRef = ref(database, `deviceFingerprintLocks/${deviceFingerprint}`);
             const userLockRef = ref(database, `userLocks/${user.uid}`);
 
             // Check both device locks and user locks
-            Promise.all([get(deviceLockRef), get(userLockRef)])
-                .then(([deviceSnapshot, userSnapshot]) => {
+            Promise.all([get(deviceLockRef), get(fingerprintLockRef), get(userLockRef)])
+                .then(([deviceSnapshot, fingerprintSnapshot, userSnapshot]) => {
                     const deviceLock = deviceSnapshot.val();
+                    const fingerprintLock = fingerprintSnapshot.val();
                     const userLock = userSnapshot.val();
                     const currentTime = new Date().getTime();
                     const thirtyMinutes = 30 * 60 * 1000; // 30 minutes in milliseconds
 
                     console.log('Device lock data:', deviceLock);
+                    console.log('Fingerprint lock data:', fingerprintLock);
                     console.log('User lock data:', userLock);
 
-                    // Check if device is locked by another user
-                    if (deviceLock && deviceLock.attendanceTime) {
-                        const timeSinceLock = currentTime - deviceLock.attendanceTime;
+                    // Check if device (including cross-browser fingerprint) is locked by another user
+                    const lockCandidates = [
+                        { lock: deviceLock, ref: deviceLockRef, label: 'device' },
+                        { lock: fingerprintLock, ref: fingerprintLockRef, label: 'fingerprint' }
+                    ];
+                    let blockingLock = null;
 
-                        console.log('Device lock - Time since lock:', timeSinceLock, 'minutes:', Math.floor(timeSinceLock / 60000));
-                        console.log('Device lock - Lock user ID:', deviceLock.userId, 'Current user ID:', user.uid);
+                    lockCandidates.forEach(({ lock, ref, label }) => {
+                        if (lock && lock.attendanceTime) {
+                            const timeSinceLock = currentTime - lock.attendanceTime;
+                            console.log(`${label} lock - Time since lock:`, timeSinceLock, 'minutes:', Math.floor(timeSinceLock / 60000));
 
-                        if (timeSinceLock < thirtyMinutes) {
-                            if (deviceLock.userId === user.uid) {
-                                console.log('Same user logging back into their locked device - allowing login');
-                                // Allow the same user to login back to their locked device
+                            if (timeSinceLock < thirtyMinutes) {
+                                if (lock.userId === user.uid) {
+                                    console.log(`Same user logging back into their locked ${label} - allowing login`);
+                                } else if (!blockingLock || timeSinceLock < blockingLock.timeSinceLock) {
+                                    blockingLock = { lock, timeSinceLock };
+                                }
                             } else {
-                                // Device is locked by another user - prevent any other user from logging in
-                                const remainingMinutes = Math.ceil((thirtyMinutes - timeSinceLock) / 60000);
-                                console.log('Device is locked by another user! Remaining minutes:', remainingMinutes);
-
-                                showLoginStatus(`🔒 This device is locked by another user (${deviceLock.userEmail}). Please try again in ${remainingMinutes} minutes.`, 'error');
-
-                                // Reset login button
-                                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
-                                loginBtn.disabled = false;
-
-                                // Sign out the current user
-                                signOut(auth);
-                                return;
+                                console.log(`${label} lock expired, removing`);
+                                remove(ref).catch(error => console.error(`Error removing expired ${label} lock:`, error));
                             }
                         }
+                    });
+
+                    if (blockingLock) {
+                        const remainingMinutes = Math.ceil((thirtyMinutes - blockingLock.timeSinceLock) / 60000);
+                        console.log('Device is locked by another user! Remaining minutes:', remainingMinutes);
+
+                        showLoginStatus(`🔒 This device is locked by another user (${blockingLock.lock.userEmail}). Please try again in ${remainingMinutes} minutes.`, 'error');
+
+                        // Reset login button
+                        loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+                        loginBtn.disabled = false;
+
+                        // Sign out the current user
+                        signOut(auth);
+                        return;
                     }
 
                     // Check if user is trying to login on a different device
@@ -3916,6 +3934,32 @@
             localStorage.setItem('rollcall_device_id', deviceId);
 
             return deviceId;
+        }
+
+        // Generate a cross-browser device fingerprint
+        function generateDeviceFingerprint() {
+            const nav = window.navigator || {};
+            const screen = window.screen || {};
+            const timeZone = (typeof Intl !== 'undefined' && Intl.DateTimeFormat)
+                ? (Intl.DateTimeFormat().resolvedOptions().timeZone || '')
+                : '';
+            const fingerprintSource = [
+                nav.platform || '',
+                nav.language || '',
+                (nav.languages || []).join(','),
+                nav.hardwareConcurrency || '',
+                nav.deviceMemory || '',
+                nav.maxTouchPoints || '',
+                screen.width || '',
+                screen.height || '',
+                screen.colorDepth || '',
+                screen.pixelDepth || '',
+                timeZone,
+                new Date().getTimezoneOffset()
+            ].join('|');
+
+            const fingerprint = btoa(fingerprintSource).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
+            return fingerprint;
         }
 
         // Get user data from database
@@ -5766,6 +5810,9 @@
                         if (!deviceId) {
                             deviceId = generateDeviceId();
                         }
+                        if (!deviceFingerprint) {
+                            deviceFingerprint = generateDeviceFingerprint();
+                        }
 
                         const lockData = {
                             userId: currentUser.uid,
@@ -5773,13 +5820,15 @@
                             attendanceTime: now.getTime(),
                             deviceInfo: navigator.userAgent,
                             locationName: locationData.name,
-                            deviceId: deviceId
+                            deviceId: deviceId,
+                            deviceFingerprint: deviceFingerprint
                         };
 
                         const deviceLockPromise = set(ref(database, `deviceLocks/${deviceId}`), lockData);
+                        const fingerprintLockPromise = set(ref(database, `deviceFingerprintLocks/${deviceFingerprint}`), lockData);
                         const userLockPromise = set(ref(database, `userLocks/${currentUser.uid}`), lockData);
 
-                        Promise.all([deviceLockPromise, userLockPromise])
+                        Promise.all([deviceLockPromise, fingerprintLockPromise, userLockPromise])
                             .then(() => {
                                 console.log('Device and user locked for 30 minutes after attendance marking');
 
@@ -5788,6 +5837,9 @@
                                     console.log('Cleaning up expired locks');
                                     remove(ref(database, `deviceLocks/${deviceId}`)).catch(error =>
                                         console.error('Error removing expired device lock:', error)
+                                    );
+                                    remove(ref(database, `deviceFingerprintLocks/${deviceFingerprint}`)).catch(error =>
+                                        console.error('Error removing expired fingerprint lock:', error)
                                     );
                                     remove(ref(database, `userLocks/${currentUser.uid}`)).catch(error =>
                                         console.error('Error removing expired user lock:', error)
@@ -8355,3 +8407,5 @@
 </body>
 
 </html>
+
+
