@@ -1,4 +1,4 @@
-# TryHackMe Student Registration Portal
+# Student Registration Portal
 
 ## Overview
 This is a web application for managing student registrations and tracking progress on TryHackMe courses.
