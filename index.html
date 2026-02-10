@@ -3592,6 +3592,83 @@
             console.warn('Auth persistence could not be set; defaulting to in-memory.');
         }
 
+        let notificationPermissionRequested = false;
+
+        function tryNativeNotification(title, body) {
+            try {
+                if (window.AndroidDevice) {
+                    if (typeof window.AndroidDevice.showNotification === 'function') {
+                        window.AndroidDevice.showNotification(title, body);
+                        return true;
+                    }
+                    if (typeof window.AndroidDevice.notify === 'function') {
+                        window.AndroidDevice.notify(title, body);
+                        return true;
+                    }
+                    if (typeof window.AndroidDevice.sendNotification === 'function') {
+                        window.AndroidDevice.sendNotification(title, body);
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.warn('Native notification failed:', error);
+            }
+            return false;
+        }
+
+        async function showAttendanceNotification(title, body) {
+            if (tryNativeNotification(title, body)) {
+                return true;
+            }
+
+            if (!('Notification' in window)) {
+                return false;
+            }
+
+            if (Notification.permission === 'granted') {
+                new Notification(title, { body, tag: 'attendance' });
+                return true;
+            }
+
+            if (Notification.permission === 'default' && !notificationPermissionRequested) {
+                notificationPermissionRequested = true;
+                try {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        new Notification(title, { body, tag: 'attendance' });
+                        return true;
+                    }
+                } catch (error) {
+                    console.warn('Notification permission request failed:', error);
+                }
+            }
+
+            return false;
+        }
+
+        function primeAttendanceNotificationPermission() {
+            if (!('Notification' in window)) {
+                return;
+            }
+            if (Notification.permission === 'default' && !notificationPermissionRequested) {
+                notificationPermissionRequested = true;
+                Notification.requestPermission().catch((error) => {
+                    console.warn('Notification permission request failed:', error);
+                });
+            }
+        }
+
+        function notifyAttendanceMarked(locationName, timestamp) {
+            const time = new Date(timestamp || Date.now());
+            const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const title = 'Attendance Marked';
+            const body = locationName
+                ? `Attendance marked for ${locationName} at ${timeStr}.`
+                : `Attendance marked at ${timeStr}.`;
+
+            showAttendanceNotification(title, body).catch(() => {});
+        }
+
         // DOM Elements
         const loginSection = document.getElementById('login-section');
         const registerSection = document.getElementById('register-section');
@@ -6130,6 +6207,8 @@
                 return;
             }
 
+            primeAttendanceNotificationPermission();
+
             // Show loading state
             const button = document.querySelector(`[data-location-id="${locationId}"]`);
             if (button) {
@@ -6272,6 +6351,7 @@
                             });
 
                         showScanResult(`Attendance marked successfully for ${locationData.name}!`, 'success');
+                        notifyAttendanceMarked(locationData.name, now.getTime());
                     })
                     .catch((error) => {
                         if (error === 'already_marked') {
@@ -6547,6 +6627,8 @@
                 return;
             }
 
+            primeAttendanceNotificationPermission();
+
             // Verify that the location exists and is active
             const locationRef = ref(database, `locations/${locationId}`);
             get(locationRef).then((snapshot) => {
@@ -6636,6 +6718,7 @@
                     .then(() => {
                         // Show success message but keep the interface for multiple classes
                         showScanResult(`Attendance marked successfully for ${locationData.name}!`, 'success');
+                        notifyAttendanceMarked(locationData.name, now.getTime());
 
                         // Refresh the classes display to show updated status
                         if (currentPosition) {
