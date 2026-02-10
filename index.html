@@ -3532,6 +3532,7 @@
         const isAndroidDevice = /Android/i.test(navigator.userAgent);
         const isIOSDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent);
         const isRollCallApp = typeof window.AndroidDevice !== 'undefined' && /RollCallWebView/i.test(navigator.userAgent);
+        const isIOSSafari = isIOSDevice && /Safari/i.test(navigator.userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(navigator.userAgent);
         const isAndroidWeb = isAndroidDevice && !isRollCallApp;
 
         // Global variables
@@ -3585,6 +3586,11 @@
 
             if (!email || !password) {
                 showLoginStatus('Please enter both email and password', 'error');
+                return;
+            }
+
+            if (isIOSDevice && !isIOSSafari) {
+                showLoginStatus('On iPhone, please use Safari to log in.', 'error');
                 return;
             }
 
@@ -6893,6 +6899,11 @@
                 return;
             }
             if (user) {
+                if (isIOSDevice && !isIOSSafari) {
+                    showLoginStatus('On iPhone, please use Safari to log in.', 'error');
+                    signOut(auth);
+                    return;
+                }
                 // User is signed in
                 getUserData(user);
             } else {
