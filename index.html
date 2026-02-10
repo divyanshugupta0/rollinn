@@ -1257,6 +1257,92 @@
             gap: 10px;
         }
 
+        /* Android app gate */
+        .android-app-gate {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(6px);
+            z-index: 5;
+        }
+
+        .android-app-gate.hidden {
+            display: none;
+        }
+
+        .android-app-gate-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 440px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .android-app-gate-card h3 {
+            margin: 0 0 10px;
+            font-size: 1.4rem;
+            color: var(--text-primary);
+        }
+
+        .android-app-gate-card p {
+            margin: 0 0 10px;
+            color: var(--text-secondary);
+        }
+
+        .android-app-gate-note {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .android-download-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 18px;
+            border-radius: 10px;
+            background: var(--primary-color);
+            color: white;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .android-download-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .android-download-actions {
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .android-dismiss-btn {
+            padding: 10px 16px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background: white;
+            color: var(--text-primary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .android-dismiss-btn:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
         /* Profile modal */
         /* Modern Profile Modal Styles */
         .profile-fields {
@@ -2762,6 +2848,26 @@
             </div>
         </div>
 
+        <!-- Android Download Modal -->
+        <div id="android-download-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fab fa-android"></i> Android App Required</h3>
+                    <button class="modal-close" id="close-android-download">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Android users can only mark attendance in the RollCall app. Website attendance is disabled on Android devices.</p>
+                    <p class="android-app-gate-note">You can download this app only once; it is registered to your account.</p>
+                </div>
+                <div class="modal-footer android-download-actions">
+                    <a class="android-download-btn" href="RollCall.apk" download>
+                        <i class="fas fa-download"></i> Download RollCall App
+                    </a>
+                    <button class="android-dismiss-btn" id="android-download-dismiss">Close</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Registration Section -->
         <div id="register-section" class="card hidden">
             <div class="header">
@@ -2902,6 +3008,9 @@
                         <div class="icon-button" id="history-btn" title="View History">
                             <i class="fas fa-history"></i>
                         </div>
+                        <div class="icon-button" id="refresh-classes-btn" title="Refresh Classes">
+                            <i class="fas fa-rotate-right"></i>
+                        </div>
                         <div class="icon-button" id="notifications-btn">
                             <i class="fas fa-bell"></i>
                             <span class="notification-badge" id="notification-badge">0</span>
@@ -2918,6 +3027,17 @@
                 <div class="card-body">
                     <p id="welcome-message" style="font-size: 1.2rem; margin-bottom: 20px;">Welcome, <span
                             id="user-name" style="font-weight: 600;">Student</span>!</p>
+
+                    <div id="android-app-gate" class="android-app-gate hidden">
+                        <div class="android-app-gate-card">
+                            <h3>Android Attendance Requires the App</h3>
+                            <p>Android users can only mark attendance in the RollCall app. Website attendance is disabled on Android devices.</p>
+                            <p class="android-app-gate-note">You can download this app only once; it is registered to your account.</p>
+                            <a class="android-download-btn" href="RollCall.apk" download>
+                                <i class="fas fa-download"></i> Download RollCall App
+                            </a>
+                        </div>
+                    </div>
 
                     <div id="location-status" class="status-indicator hidden"></div>
 
@@ -3406,6 +3526,13 @@
         const locationInfo = document.getElementById('location-info');
         const locationBadge = document.getElementById('location-badge');
         const verificationBadges = document.getElementById('verification-badges');
+        const refreshClassesBtn = document.getElementById('refresh-classes-btn');
+
+        // Device detection
+        const isAndroidDevice = /Android/i.test(navigator.userAgent);
+        const isIOSDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isRollCallApp = typeof window.AndroidDevice !== 'undefined' && /RollCallWebView/i.test(navigator.userAgent);
+        const isAndroidWeb = isAndroidDevice && !isRollCallApp;
 
         // Global variables
         let currentUser = null;
@@ -3773,6 +3900,12 @@
             logout();
         });
 
+        if (refreshClassesBtn) {
+            refreshClassesBtn.addEventListener('click', () => {
+                refreshClasses();
+            });
+        }
+
         function logout() {
             // Simply sign out - don't remove device lock to maintain 30-minute restriction
             signOut(auth).then(() => {
@@ -3863,22 +3996,32 @@
                         const remainingMinutes = Math.ceil((thirtyMinutes - blockingLock.timeSinceLock) / 60000);
                         console.log('Device is locked by another user! Remaining minutes:', remainingMinutes);
 
-                        showLoginStatus(`🔒 This device is locked by another user (${blockingLock.lock.userEmail}). Please try again in ${remainingMinutes} minutes.`, 'error');
+                                showLoginStatus(`🔒 This device is locked by another user (${blockingLock.lock.userEmail}). Please try again in ${remainingMinutes} minutes.`, 'error');
 
-                        // Reset login button
-                        loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
-                        loginBtn.disabled = false;
+                                // Reset login button
+                                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+                                loginBtn.disabled = false;
 
-                        // Sign out the current user
-                        signOut(auth);
-                        return;
-                    }
+                                cleanupAttendanceListener();
+                                stopLocationTracking();
+
+                                // Sign out the current user
+                                signOut(auth);
+                                return;
+                            }
 
                     // Check if user is trying to login on a different device
                     if (userLock && userLock.attendanceTime) {
                         const timeSinceLock = currentTime - userLock.attendanceTime;
+                        const sameDeviceByFingerprint = userLock.deviceFingerprint &&
+                            deviceFingerprint &&
+                            userLock.deviceFingerprint === deviceFingerprint;
+                        const iosAllowWithoutFingerprint = isIOSDevice && !userLock.deviceFingerprint;
 
-                        if (timeSinceLock < thirtyMinutes && userLock.deviceId !== deviceId) {
+                        if (timeSinceLock < thirtyMinutes &&
+                            userLock.deviceId !== deviceId &&
+                            !sameDeviceByFingerprint &&
+                            !iosAllowWithoutFingerprint) {
                             // User is trying to login on a different device - prevent this
                             const remainingMinutes = Math.ceil((thirtyMinutes - timeSinceLock) / 60000);
 
@@ -3887,6 +4030,9 @@
                             // Reset login button
                             loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
                             loginBtn.disabled = false;
+
+                            cleanupAttendanceListener();
+                            stopLocationTracking();
 
                             // Sign out the current user
                             signOut(auth);
@@ -3911,8 +4057,33 @@
                 });
         }
 
+        // Get native Android device ID when available (WebView bridge)
+        function getNativeDeviceId() {
+            try {
+                if (window.AndroidDevice && typeof window.AndroidDevice.getDeviceId === 'function') {
+                    const nativeId = window.AndroidDevice.getDeviceId();
+                    if (nativeId && typeof nativeId === 'string') {
+                        return `android_${nativeId}`;
+                    }
+                }
+            } catch (error) {
+                console.warn('Native device ID unavailable:', error);
+            }
+            return null;
+        }
+
         // Generate a unique device ID
         function generateDeviceId() {
+            const nativeId = getNativeDeviceId();
+            if (nativeId) {
+                try {
+                    localStorage.setItem('rollcall_device_id', nativeId);
+                } catch (error) {
+                    console.warn('Failed to store native device ID:', error);
+                }
+                return nativeId;
+            }
+
             // Check if device ID is already stored in localStorage
             let storedDeviceId = localStorage.getItem('rollcall_device_id');
             if (storedDeviceId) {
@@ -3938,6 +4109,11 @@
 
         // Generate a cross-browser device fingerprint
         function generateDeviceFingerprint() {
+            const nativeId = getNativeDeviceId();
+            if (nativeId) {
+                return nativeId;
+            }
+
             const nav = window.navigator || {};
             const screen = window.screen || {};
             const timeZone = (typeof Intl !== 'undefined' && Intl.DateTimeFormat)
@@ -4084,14 +4260,72 @@
             // Update welcome message
             userName.textContent = currentUser.name;
 
+            if (enforceAndroidAppOnly()) {
+                stopLocationTracking();
+                return;
+            }
+
             // Load attended classes first, then start location tracking
             loadUserAttendedClasses().then(() => {
                 startLocationTracking();
             });
         }
 
+        function enforceAndroidAppOnly() {
+            if (!isAndroidWeb) {
+                hideAndroidAppGate();
+                return false;
+            }
+
+            showAndroidAppGate();
+            showAndroidDownloadModal();
+            return true;
+        }
+
+        function showAndroidAppGate() {
+            const gate = document.getElementById('android-app-gate');
+            if (gate) {
+                gate.classList.remove('hidden');
+            }
+        }
+
+        function hideAndroidAppGate() {
+            const gate = document.getElementById('android-app-gate');
+            if (gate) {
+                gate.classList.add('hidden');
+            }
+        }
+
+        let androidDownloadShown = false;
+        function showAndroidDownloadModal(force = false) {
+            if (!isAndroidWeb) return;
+            const modal = document.getElementById('android-download-modal');
+            if (!modal) return;
+            if (androidDownloadShown && !force) return;
+            androidDownloadShown = true;
+            modal.classList.add('visible');
+        }
+
+        function hideAndroidDownloadModal() {
+            const modal = document.getElementById('android-download-modal');
+            if (!modal) return;
+            modal.classList.remove('visible');
+        }
+
+        function cleanupAttendanceListener() {
+            if (unsubscribeAttendance) {
+                if (typeof unsubscribeAttendance === 'function') {
+                    unsubscribeAttendance();
+                }
+                unsubscribeAttendance = null;
+            }
+        }
+
         // Start continuous location tracking with auto-refresh
         function startLocationTracking() {
+            if (!auth.currentUser) {
+                return;
+            }
             if (navigator.geolocation) {
                 isLocationTracking = true;
                 showLocationStatus('Getting your location...', 'info');
@@ -4131,6 +4365,24 @@
                     );
                 }
             }, 30000); // 30 seconds
+        }
+
+        function refreshClasses() {
+            if (enforceAndroidAppOnly()) {
+                return;
+            }
+
+            if (!navigator.geolocation) {
+                showLocationStatus("Geolocation is not supported by your browser.", 'error');
+                return;
+            }
+
+            showLocationStatus('Refreshing classes...', 'info');
+            navigator.geolocation.getCurrentPosition(
+                updatePosition,
+                handleLocationError,
+                { enableHighAccuracy: true, timeout: 15000 }
+            );
         }
 
         // Stop auto-refresh
@@ -4388,6 +4640,9 @@
                 console.log("No location data available");
                 return;
             }
+            if (!auth.currentUser) {
+                return;
+            }
 
             // Get all locations
             const locationsRef = ref(database, 'locations');
@@ -4519,7 +4774,8 @@
         // Load user's attended classes from Firebase with REAL-TIME LISTENER
         function loadUserAttendedClasses() {
             return new Promise((resolve) => {
-                if (!currentUser) {
+                if (!currentUser || !auth.currentUser) {
+                    cleanupAttendanceListener();
                     resolve();
                     return;
                 }
@@ -5704,6 +5960,11 @@
 
         // Function to mark attendance for a specific class
         function markAttendanceForClass(locationId, isNearby) {
+            if (enforceAndroidAppOnly()) {
+                showScanResult("Android users must use the RollCall app to mark attendance.", 'error');
+                return;
+            }
+
             if (!currentUser) {
                 showScanResult("User information not available. Please try logging in again.", 'error');
                 return;
@@ -6111,6 +6372,11 @@
 
         // Legacy mark attendance function (kept for compatibility)
         function markAttendance(locationId) {
+            if (enforceAndroidAppOnly()) {
+                showScanResult("Android users must use the RollCall app to mark attendance.", 'error');
+                return;
+            }
+
             if (!currentUser) {
                 showScanResult("User information not available. Please try logging in again.", 'error');
                 return;
@@ -6634,6 +6900,9 @@
                 currentUser = null;
                 window.currentUser = null;
 
+                cleanupAttendanceListener();
+                stopLocationTracking();
+
                 // Make sure camera is stopped when logging out
                 if (cameraActive) {
                     console.log("Stopping camera during logout");
@@ -6653,6 +6922,10 @@
 
         // Manual attendance button (now hidden in favor of individual class buttons)
         captureBtn.addEventListener('click', () => {
+            if (enforceAndroidAppOnly()) {
+                showScanResult("Android users must use the RollCall app to mark attendance.", 'error');
+                return;
+            }
             showScanResult("Please use the individual class buttons below to mark attendance.", 'info');
         });
 
@@ -6669,6 +6942,10 @@
 
         // Start camera for QR scanning
         function startCamera() {
+            if (enforceAndroidAppOnly()) {
+                showLocationStatus("Android users must use the RollCall app to mark attendance.", 'error');
+                return;
+            }
             // If camera is already active, don't start it again
             if (cameraActive) {
                 console.log("Camera already active - not starting again");
@@ -8142,6 +8419,30 @@
                 closeForgotPasswordModal();
             }
         });
+
+        const androidDownloadModal = document.getElementById('android-download-modal');
+        const closeAndroidDownloadBtn = document.getElementById('close-android-download');
+        const dismissAndroidDownloadBtn = document.getElementById('android-download-dismiss');
+
+        if (closeAndroidDownloadBtn) {
+            closeAndroidDownloadBtn.addEventListener('click', () => {
+                hideAndroidDownloadModal();
+            });
+        }
+
+        if (dismissAndroidDownloadBtn) {
+            dismissAndroidDownloadBtn.addEventListener('click', () => {
+                hideAndroidDownloadModal();
+            });
+        }
+
+        if (androidDownloadModal) {
+            androidDownloadModal.addEventListener('click', function (e) {
+                if (e.target === this) {
+                    hideAndroidDownloadModal();
+                }
+            });
+        }
     </script>
 
 
