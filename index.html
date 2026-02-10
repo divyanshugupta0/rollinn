@@ -5,14 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RollCall Attendance System</title>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.0/firebase-storage-compat.js"></script>
-
-    <!-- Face-api.js for Face Recognition -->
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-database-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-storage-compat.js"></script>
+    <!-- jsQR and face-api are lazy-loaded in the main module to speed up initial load -->
 
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -147,6 +144,21 @@
                 radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
             pointer-events: none;
             z-index: -1;
+        }
+
+        .performance-mode {
+            --transition: none;
+        }
+
+        .performance-mode body::before,
+        .performance-mode .header::before,
+        .performance-mode .login-left::before,
+        .performance-mode .login-left::after {
+            display: none !important;
+        }
+
+        .performance-mode [style*="backdrop-filter"] {
+            backdrop-filter: none !important;
         }
 
         .container {
@@ -2714,13 +2726,13 @@
                     </div>
 
                     <div class="form-group floating-label">
-                        <input type="email" id="email" placeholder=" " required>
+                        <input type="email" id="email" placeholder=" " autocomplete="username" required>
                         <label for="email"><i class="fas fa-envelope"></i> Email Address</label>
                         <div class="input-line"></div>
                     </div>
 
                     <div class="form-group floating-label">
-                        <input type="password" id="password" placeholder=" " required>
+                        <input type="password" id="password" placeholder=" " autocomplete="current-password" required>
                         <label for="password"><i class="fas fa-lock"></i> Password</label>
                         <div class="input-line"></div>
                         <button type="button" class="toggle-password" onclick="togglePasswordVisibility()">
@@ -3206,7 +3218,7 @@
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-analytics.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, setPersistence, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
         import { getDatabase, ref, set, get, child, remove, update, onValue, push } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
         import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-storage.js";
 
@@ -3478,6 +3490,108 @@
         window.handleMissingPhotoUpload = handleMissingPhotoUpload;
         // ---------------------------------
 
+        // Storage helper (localStorage -> sessionStorage -> in-memory)
+        const safeStorage = (() => {
+            try {
+                const testKey = '__rollcall_storage_test__';
+                localStorage.setItem(testKey, '1');
+                localStorage.removeItem(testKey);
+                return {
+                    type: 'local',
+                    getItem: (key) => localStorage.getItem(key),
+                    setItem: (key, value) => localStorage.setItem(key, String(value)),
+                    removeItem: (key) => localStorage.removeItem(key)
+                };
+            } catch (e) {
+                // Ignore and try session storage
+            }
+            try {
+                const testKey = '__rollcall_storage_test__';
+                sessionStorage.setItem(testKey, '1');
+                sessionStorage.removeItem(testKey);
+                return {
+                    type: 'session',
+                    getItem: (key) => sessionStorage.getItem(key),
+                    setItem: (key, value) => sessionStorage.setItem(key, String(value)),
+                    removeItem: (key) => sessionStorage.removeItem(key)
+                };
+            } catch (e) {
+                // Ignore and fallback to memory storage
+            }
+            const memoryStore = {};
+            return {
+                type: 'memory',
+                getItem: (key) => Object.prototype.hasOwnProperty.call(memoryStore, key) ? memoryStore[key] : null,
+                setItem: (key, value) => { memoryStore[key] = String(value); },
+                removeItem: (key) => { delete memoryStore[key]; }
+            };
+        })();
+
+        window.safeStorage = safeStorage;
+
+        const LOGIN_EMAIL_KEY = 'rollcall_login_email';
+
+        function saveLoginEmail(email) {
+            const clean = (email || '').trim();
+            if (!clean) return;
+            safeStorage.setItem(LOGIN_EMAIL_KEY, clean);
+        }
+
+        function getSavedEmail() {
+            const saved = safeStorage.getItem(LOGIN_EMAIL_KEY);
+            return saved && typeof saved === 'string' ? saved : '';
+        }
+
+        // Lazy script loading for heavy libraries
+        const scriptLoaders = new Map();
+
+        function loadScriptOnce(src) {
+            if (scriptLoaders.has(src)) {
+                return scriptLoaders.get(src);
+            }
+            const loader = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = true;
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error(`Failed to load ${src}`));
+                document.head.appendChild(script);
+            });
+            scriptLoaders.set(src, loader);
+            return loader;
+        }
+
+        function ensureJsQrLoaded() {
+            if (window.jsQR) return Promise.resolve();
+            return loadScriptOnce('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js');
+        }
+
+        function ensureFaceApiLoaded() {
+            if (window.faceapi) return Promise.resolve();
+            return loadScriptOnce('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js');
+        }
+
+        let persistenceConfigured = false;
+        async function configureAuthPersistence() {
+            if (persistenceConfigured) return;
+            persistenceConfigured = true;
+            const candidates = [
+                indexedDBLocalPersistence,
+                browserLocalPersistence,
+                browserSessionPersistence
+            ];
+            for (const candidate of candidates) {
+                try {
+                    await setPersistence(auth, candidate);
+                    console.log('Auth persistence set');
+                    return;
+                } catch (error) {
+                    console.warn('Auth persistence unavailable, trying fallback:', error);
+                }
+            }
+            console.warn('Auth persistence could not be set; defaulting to in-memory.');
+        }
+
         // DOM Elements
         const loginSection = document.getElementById('login-section');
         const registerSection = document.getElementById('register-section');
@@ -3528,12 +3642,30 @@
         const verificationBadges = document.getElementById('verification-badges');
         const refreshClassesBtn = document.getElementById('refresh-classes-btn');
 
+        // Restore saved email for faster login
+        const savedEmail = getSavedEmail();
+        if (savedEmail) {
+            emailInput.value = savedEmail;
+        }
+
         // Device detection
         const isAndroidDevice = /Android/i.test(navigator.userAgent);
         const isIOSDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent);
         const isRollCallApp = typeof window.AndroidDevice !== 'undefined' && /RollCallWebView/i.test(navigator.userAgent);
         const isIOSSafari = isIOSDevice && /Safari/i.test(navigator.userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(navigator.userAgent);
         const isAndroidWeb = isAndroidDevice && !isRollCallApp;
+
+        const performanceMode = isRollCallApp || (isAndroidDevice && Number(navigator.hardwareConcurrency || 0) <= 4);
+        if (performanceMode) {
+            document.documentElement.classList.add('performance-mode');
+        }
+
+        const AUTO_REFRESH_INTERVAL_MS = performanceMode ? 60000 : 30000;
+        const QR_MODAL_SCAN_INTERVAL_MS = performanceMode ? 350 : 200;
+        const QR_CAMERA_SCAN_INTERVAL_MS = performanceMode ? 800 : 500;
+        const FACE_DETECT_INTERVAL_MS = performanceMode ? 900 : 500;
+
+        configureAuthPersistence();
 
         // Global variables
         let currentUser = null;
@@ -3580,7 +3712,7 @@
         });
 
         // Login functionality
-        loginBtn.addEventListener('click', () => {
+        loginBtn.addEventListener('click', async () => {
             const email = emailInput.value;
             const password = passwordInput.value;
 
@@ -3588,6 +3720,8 @@
                 showLoginStatus('Please enter both email and password', 'error');
                 return;
             }
+
+            saveLoginEmail(email);
 
             if (isIOSDevice && !isIOSSafari) {
                 showLoginStatus('On iPhone, please use Safari to log in.', 'error');
@@ -3597,6 +3731,8 @@
             // Show loading spinner
             loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
             loginBtn.disabled = true;
+
+            await configureAuthPersistence();
 
             signInWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
@@ -4083,15 +4219,15 @@
             const nativeId = getNativeDeviceId();
             if (nativeId) {
                 try {
-                    localStorage.setItem('rollcall_device_id', nativeId);
+                    safeStorage.setItem('rollcall_device_id', nativeId);
                 } catch (error) {
                     console.warn('Failed to store native device ID:', error);
                 }
                 return nativeId;
             }
 
-            // Check if device ID is already stored in localStorage
-            let storedDeviceId = localStorage.getItem('rollcall_device_id');
+            // Check if device ID is already stored in storage
+            let storedDeviceId = safeStorage.getItem('rollcall_device_id');
             if (storedDeviceId) {
                 return storedDeviceId;
             }
@@ -4107,8 +4243,8 @@
             // Hash the ID or use base64 encoding for privacy
             const deviceId = btoa(uniqueId).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
 
-            // Store in localStorage for consistency
-            localStorage.setItem('rollcall_device_id', deviceId);
+            // Store in storage for consistency
+            safeStorage.setItem('rollcall_device_id', deviceId);
 
             return deviceId;
         }
@@ -4183,6 +4319,9 @@
                         // Update global window reference
                         window.currentUser = currentUser;
 
+                        // Persist email for faster login next time
+                        saveLoginEmail(currentUser.email || user.email || emailInput.value);
+
                         console.log("Processed currentUser object:", currentUser);
                         console.log("Class Roll in currentUser:", currentUser.classRoll);
                         console.log("University Roll in currentUser:", currentUser.univRoll);
@@ -4230,6 +4369,9 @@
 
                                 // Update global window reference
                                 window.currentUser = currentUser;
+
+                                // Persist email for faster login next time
+                                saveLoginEmail(currentUser.email || user.email || emailInput.value);
 
                                 showAttendanceSection();
                             })
@@ -4370,7 +4512,7 @@
                         { enableHighAccuracy: true, timeout: 10000 }
                     );
                 }
-            }, 30000); // 30 seconds
+            }, AUTO_REFRESH_INTERVAL_MS);
         }
 
         function refreshClasses() {
@@ -5427,11 +5569,22 @@
         };
 
         // Function to start QR scanning for a specific class
-        function startQRScanningForClass(location) {
+        async function startQRScanningForClass(location) {
             const video = document.getElementById('qr-video');
             const canvas = document.getElementById('qr-canvas');
             const statusDiv = document.getElementById('qr-status');
             const torchBtn = document.getElementById('torch-btn');
+
+            try {
+                await ensureJsQrLoaded();
+            } catch (error) {
+                console.error('Failed to load QR scanner:', error);
+                if (statusDiv) {
+                    statusDiv.className = 'status-indicator error';
+                    statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> QR scanner failed to load';
+                }
+                return;
+            }
 
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia({
@@ -5524,7 +5677,7 @@
                                     }
                                 }
                             }
-                        }, 200); // 5 FPS check
+                        }, QR_MODAL_SCAN_INTERVAL_MS);
 
                         // Store interval for clean up
                         window.currentQRScanInterval = scanInterval;
@@ -5564,6 +5717,7 @@
 
             loadingFaceModels = true;
             try {
+                await ensureFaceApiLoaded();
                 await faceapi.nets.tinyFaceDetector.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights');
                 await faceapi.nets.faceLandmark68Net.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights');
                 await faceapi.nets.faceRecognitionNet.loadFromUri('https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights');
@@ -5792,7 +5946,7 @@
                 } catch (error) {
                     console.error('Face detection error:', error);
                 }
-            }, 500);
+            }, FACE_DETECT_INTERVAL_MS);
         }
 
         // Verify face for attendance
@@ -6925,8 +7079,8 @@
                 attendanceSection.classList.add('hidden');
                 adminSection.classList.add('hidden');
 
-                // Clear form inputs
-                emailInput.value = '';
+                // Clear form inputs (keep saved email for convenience)
+                emailInput.value = getSavedEmail() || '';
                 passwordInput.value = '';
             }
         });
@@ -6952,7 +7106,7 @@
         }
 
         // Start camera for QR scanning
-        function startCamera() {
+        async function startCamera() {
             if (enforceAndroidAppOnly()) {
                 showLocationStatus("Android users must use the RollCall app to mark attendance.", 'error');
                 return;
@@ -6960,6 +7114,15 @@
             // If camera is already active, don't start it again
             if (cameraActive) {
                 console.log("Camera already active - not starting again");
+                return;
+            }
+
+            try {
+                showLocationStatus("Preparing QR scanner...", 'info');
+                await ensureJsQrLoaded();
+            } catch (error) {
+                console.error("Failed to load QR scanner:", error);
+                showLocationStatus("QR scanner failed to load. Please try again.", 'error');
                 return;
             }
 
@@ -6978,7 +7141,7 @@
                         cameraActive = true;
 
                         // Start continuous QR scanning
-                        scanIntervalId = setInterval(scanQRCode, 500);
+                        scanIntervalId = setInterval(scanQRCode, QR_CAMERA_SCAN_INTERVAL_MS);
 
                         console.log("Camera started successfully");
                     })
@@ -7010,6 +7173,7 @@
         // Scan for QR codes
         function scanQRCode() {
             if (scanning || !video.videoWidth) return;
+            if (typeof window.jsQR !== 'function') return;
 
             scanning = true;
 
@@ -7498,6 +7662,20 @@
                 console.log("Firebase initialized for notifications");
             }
 
+            function getNotificationStorage() {
+                if (window.safeStorage && typeof window.safeStorage.getItem === 'function') {
+                    return window.safeStorage;
+                }
+                try {
+                    const testKey = '__rollcall_notify_test__';
+                    localStorage.setItem(testKey, '1');
+                    localStorage.removeItem(testKey);
+                    return localStorage;
+                } catch (e) {
+                    return null;
+                }
+            }
+
             // Wait for auth state to be ready
             firebase.auth().onAuthStateChanged(function (user) {
                 if (user) {
@@ -7589,7 +7767,8 @@
 
                                     // Check if we've already shown this notification
                                     const notificationKey = `notification_${notificationId}`;
-                                    const lastShown = localStorage.getItem(notificationKey);
+                                    const notificationStorage = getNotificationStorage();
+                                    const lastShown = notificationStorage ? notificationStorage.getItem(notificationKey) : null;
 
                                     if (!lastShown) {
                                         console.log("Showing notification:", notificationId);
@@ -7598,7 +7777,9 @@
                                         showNotificationPopup(notification, notificationId);
 
                                         // Mark as shown
-                                        localStorage.setItem(notificationKey, Date.now());
+                                        if (notificationStorage) {
+                                            notificationStorage.setItem(notificationKey, Date.now());
+                                        }
                                     } else {
                                         console.log("Notification already shown:", notificationId, "at", new Date(parseInt(lastShown)));
                                     }
