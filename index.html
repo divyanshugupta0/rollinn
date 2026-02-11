@@ -4273,12 +4273,12 @@
         if (!hasTouchSupport) desktopSignals.push('noTouch');
         if (finePointer && hoverHover) desktopSignals.push('finePointer');
         const isDesktopSignalStrong = desktopSignals.length >= 2;
-        const isEmulatedMobileUA = (isAndroidDevice || isIOSDevice) && uaMobile === false;
+        const isLikelyDesktopEmulation = uaMobile === false && (platformLooksDesktop || (!isAndroidDevice && !isIOSDevice));
 
         function isDesktopAttendanceRestricted() {
             if (isRollCallApp) return false;
             if (isDesktopLikePlatform) return true;
-            if (isEmulatedMobileUA) return true;
+            if (isLikelyDesktopEmulation) return true;
             if (isDesktopSignalStrong) return true;
             if (!isAndroidDevice && !isIOSDevice) return true;
             return false;
