@@ -4237,6 +4237,9 @@
         const locationBadge = document.getElementById('location-badge');
         const verificationBadges = document.getElementById('verification-badges');
         const refreshClassesBtn = document.getElementById('refresh-classes-btn');
+        const loginProfileImg = document.getElementById('login-profile-img');
+        const loginAvatarContainer = document.querySelector('.avatar-container');
+        const DEFAULT_LOGIN_AVATAR_SRC = loginProfileImg ? loginProfileImg.getAttribute('src') : '';
 
         // Restore saved email for faster login
         const savedEmail = getSavedEmail();
@@ -4246,19 +4249,22 @@
 
         // Device detection
         const userAgent = navigator.userAgent || '';
-        const isAndroidDevice = /Android/i.test(userAgent);
-        const isIOSDevice = /iPhone|iPad|iPod/i.test(userAgent);
-        const isRollCallApp = typeof window.AndroidDevice !== 'undefined' && /RollCallWebView/i.test(userAgent);
-        const isIOSSafari = isIOSDevice && /Safari/i.test(userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(userAgent);
-        const isAndroidWeb = isAndroidDevice && !isRollCallApp;
         const uaData = navigator.userAgentData || null;
         const uaPlatform = (uaData && uaData.platform) ? uaData.platform : (navigator.platform || '');
         const uaMobile = (uaData && typeof uaData.mobile === 'boolean') ? uaData.mobile : null;
-        const platformLooksDesktop = /Win|Mac|Linux|CrOS/i.test(uaPlatform);
-        const isIpadOsDesktopLike = isIOSDevice && /Mac/i.test(uaPlatform) && (navigator.maxTouchPoints || 0) > 1;
-        const isDesktopLikePlatform = platformLooksDesktop && !isIpadOsDesktopLike;
         const maxTouchPoints = navigator.maxTouchPoints || 0;
         const hasTouchSupport = maxTouchPoints > 0;
+        const isAndroidUA = /Android/i.test(userAgent);
+        const isAndroidPlatform = /Android/i.test(uaPlatform);
+        const isAndroidDevice = isAndroidUA || isAndroidPlatform;
+        const isAppleTouchPlatform = /Mac/i.test(uaPlatform) && maxTouchPoints > 1;
+        const isIOSUA = /iPhone|iPad|iPod/i.test(userAgent);
+        const isIOSDevice = isIOSUA || isAppleTouchPlatform;
+        const isRollCallApp = typeof window.AndroidDevice !== 'undefined' && /RollCallWebView/i.test(userAgent);
+        const isIOSSafari = isIOSDevice && /Safari/i.test(userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(userAgent);
+        const isAndroidWeb = isAndroidDevice && !isRollCallApp;
+        const platformLooksDesktop = /Win|Mac|Linux|CrOS/i.test(uaPlatform);
+        const isDesktopLikePlatform = platformLooksDesktop && !isAppleTouchPlatform;
         const finePointer = window.matchMedia ? window.matchMedia('(pointer: fine)').matches : false;
         const hoverHover = window.matchMedia ? window.matchMedia('(hover: hover)').matches : false;
 
@@ -4350,6 +4356,195 @@
         // Cleanup expired iOS local lock on load
         getIosLocalLock();
 
+        // Device lock profile management
+        const DEVICE_LOCK_PROFILE_KEY = 'rollcall_device_lock_profile_v1';
+        const DEVICE_LOCK_PROFILE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+        function getDeviceLockProfile() {
+            try {
+                const raw = safeStorage.getItem(DEVICE_LOCK_PROFILE_KEY);
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                if (!parsed || !parsed.data || !parsed.ts) return null;
+                if (Date.now() - parsed.ts > DEVICE_LOCK_PROFILE_TTL_MS) {
+                    safeStorage.removeItem(DEVICE_LOCK_PROFILE_KEY);
+                    return null;
+                }
+                return parsed.data;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function setDeviceLockProfile(profileData) {
+            if (!profileData) return;
+            try {
+                safeStorage.setItem(DEVICE_LOCK_PROFILE_KEY, JSON.stringify({
+                    ts: Date.now(),
+                    data: profileData
+                }));
+            } catch (e) {
+                // Ignore cache write errors
+            }
+        }
+
+        function clearDeviceLockProfile() {
+            safeStorage.removeItem(DEVICE_LOCK_PROFILE_KEY);
+        }
+
+        function resetLoginAvatar() {
+            if (loginProfileImg && DEFAULT_LOGIN_AVATAR_SRC) {
+                loginProfileImg.src = DEFAULT_LOGIN_AVATAR_SRC;
+            }
+            if (loginAvatarContainer) {
+                const nameDisplay = loginAvatarContainer.querySelector('.device-lock-name');
+                if (nameDisplay) {
+                    nameDisplay.remove();
+                }
+            }
+        }
+
+        async function renderDeviceLockProfile(lockProfile) {
+            if (!lockProfile) {
+                resetLoginAvatar();
+                return;
+            }
+
+            if (lockProfile.profilePhoto && loginProfileImg) {
+                await applyEncryptedPhotoToImg(
+                    loginProfileImg,
+                    lockProfile.profilePhoto,
+                    lockProfile.profilePhotoKey || lockProfile.profilePhoto
+                );
+            } else if (loginProfileImg && DEFAULT_LOGIN_AVATAR_SRC) {
+                loginProfileImg.src = DEFAULT_LOGIN_AVATAR_SRC;
+            }
+
+            if (loginAvatarContainer) {
+                let nameDisplay = loginAvatarContainer.querySelector('.device-lock-name');
+                if (!lockProfile.name) {
+                    if (nameDisplay) nameDisplay.remove();
+                } else {
+                    if (!nameDisplay) {
+                        nameDisplay = document.createElement('div');
+                        nameDisplay.className = 'device-lock-name';
+                        nameDisplay.style.cssText = `
+                            text-align: center;
+                            margin-top: 10px;
+                            font-size: 0.9rem;
+                            font-weight: 600;
+                            color: var(--primary-color);
+                            opacity: 0.8;
+                        `;
+                        loginAvatarContainer.appendChild(nameDisplay);
+                    }
+                    nameDisplay.textContent = lockProfile.name;
+                }
+            }
+
+            if (lockProfile.email && emailInput && !emailInput.value) {
+                emailInput.value = lockProfile.email;
+            }
+        }
+
+        async function getActiveDeviceLock() {
+            if (!deviceId) {
+                deviceId = generateDeviceId();
+            }
+            if (!deviceFingerprint) {
+                deviceFingerprint = generateDeviceFingerprint();
+            }
+
+            const deviceLockRef = ref(database, `deviceLocks/${deviceId}`);
+            const fingerprintLockRef = ref(database, `deviceFingerprintLocks/${deviceFingerprint}`);
+            const [deviceSnap, fingerprintSnap] = await Promise.all([
+                get(deviceLockRef),
+                get(fingerprintLockRef)
+            ]);
+
+            const now = Date.now();
+            const lockWindowMs = DEVICE_LOCK_PROFILE_TTL_MS;
+            const candidates = [
+                { lock: deviceSnap.val(), ref: deviceLockRef },
+                { lock: fingerprintSnap.val(), ref: fingerprintLockRef }
+            ];
+
+            let active = null;
+            candidates.forEach(({ lock, ref: lockRef }) => {
+                if (!lock || !lock.attendanceTime) return;
+                const age = now - lock.attendanceTime;
+                if (age < lockWindowMs) {
+                    if (!active || age < active.age) {
+                        active = { lock, age };
+                    }
+                } else {
+                    remove(lockRef).catch(error => console.error('Error removing expired lock:', error));
+                }
+            });
+
+            return active ? active.lock : null;
+        }
+
+        async function loadDeviceLockProfile() {
+            try {
+                const activeLock = await getActiveDeviceLock();
+                if (!activeLock || !activeLock.userId) {
+                    clearDeviceLockProfile();
+                    resetLoginAvatar();
+                    return;
+                }
+
+                const cachedProfile = getDeviceLockProfile();
+                if (cachedProfile && cachedProfile.uid === activeLock.userId) {
+                    await renderDeviceLockProfile(cachedProfile);
+                    return;
+                }
+
+                const userSnap = await get(ref(database, `users/${activeLock.userId}`));
+                const fallbackEmail = activeLock.userEmail || '';
+                const fallbackName = fallbackEmail ? fallbackEmail.split('@')[0] : 'User';
+
+                let profileData = {
+                    uid: activeLock.userId,
+                    email: fallbackEmail,
+                    name: fallbackName,
+                    profilePhoto: null,
+                    profilePhotoKey: null
+                };
+
+                if (userSnap.exists()) {
+                    const userData = userSnap.val();
+                    profileData = {
+                        uid: activeLock.userId,
+                        email: userData.email || fallbackEmail,
+                        name: userData.name || fallbackName,
+                        profilePhoto: userData.profilePhoto || null,
+                        profilePhotoKey: userData.profilePhotoKey || userData.profilePhoto || null
+                    };
+                }
+
+                setDeviceLockProfile(profileData);
+                await renderDeviceLockProfile(profileData);
+            } catch (error) {
+                console.error('Error loading device lock profile:', error);
+                resetLoginAvatar();
+            }
+        }
+
+        function updateDeviceLockProfile(user, userData) {
+            if (!user || !userData) return;
+            
+            const profileData = {
+                uid: user.uid,
+                email: userData.email || user.email,
+                name: userData.name,
+                profilePhoto: userData.profilePhoto,
+                profilePhotoKey: userData.profilePhotoKey
+            };
+            
+            setDeviceLockProfile(profileData);
+        }
+
         const performanceMode = isRollCallApp || (isAndroidDevice && Number(navigator.hardwareConcurrency || 0) <= 4);
         if (performanceMode) {
             document.documentElement.classList.add('performance-mode');
@@ -4367,6 +4562,9 @@
         let deviceId = generateDeviceId(); // Generate device ID immediately
         let deviceFingerprint = generateDeviceFingerprint(); // Cross-browser device fingerprint
         let lastLoginTime = null;
+        
+        // Load cached/locked profile for device lock
+        loadDeviceLockProfile();
         let scanning = false;
         let scanIntervalId = null;
         let currentPosition = null;
@@ -4951,6 +5149,13 @@
 
                     // All checks passed, proceed with login
                     getUserData(user);
+                    
+                    // Update device lock profile for future logins
+                    get(ref(database, `users/${user.uid}`)).then((snapshot) => {
+                        if (snapshot.exists()) {
+                            updateDeviceLockProfile(user, snapshot.val());
+                        }
+                    }).catch(() => {});
                 })
                 .catch((error) => {
                     console.error('Lock check error:', error);
@@ -5100,6 +5305,7 @@
                         window.currentUser = currentUser;
 
                         cacheUserData(user.uid, userData);
+                        updateDeviceLockProfile(user, userData);
 
                         applyAndroidDownloadCreditsFromUserData(userData);
 
@@ -5153,12 +5359,14 @@
 
                                 // Update global window reference
                                 window.currentUser = currentUser;
-                                cacheUserData(user.uid, {
+                                const basicUserData = {
                                     uid: user.uid,
                                     email: user.email,
                                     name: displayName,
                                     role: 'student'
-                                });
+                                };
+                                cacheUserData(user.uid, basicUserData);
+                                updateDeviceLockProfile(user, basicUserData);
 
                                 applyAndroidDownloadCreditsFromUserData({});
 
