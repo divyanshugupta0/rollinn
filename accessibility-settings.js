@@ -12,6 +12,7 @@ function loadAccessibilitySettings() {
         .then((snapshot) => {
             const settings = snapshot.val() || {
                 attendanceCapturing: true,
+                desktopAttendanceBlocked: true,
                 registrationLive: true,
                 privacyMode: false,
                 largeText: false,
@@ -23,6 +24,7 @@ function loadAccessibilitySettings() {
             
             // Set toggle states and apply settings
             setToggleAndApply('attendance-capturing-toggle', settings.attendanceCapturing);
+            setToggleAndApply('desktop-attendance-block-toggle', settings.desktopAttendanceBlocked !== false);
             setToggleAndApply('registration-live-toggle', settings.registrationLive);
             setToggleAndApply('privacy-mode-toggle', settings.privacyMode);
             setToggleAndApply('large-text-toggle', settings.largeText);
@@ -57,6 +59,7 @@ function setToggleAndApply(toggleId, value) {
 function addAutoSaveListeners() {
     const toggles = [
         'attendance-capturing-toggle',
+        'desktop-attendance-block-toggle',
         'registration-live-toggle', 
         'privacy-mode-toggle',
         'large-text-toggle',
@@ -83,6 +86,7 @@ function autoSaveSettings() {
     
     const settings = {
         attendanceCapturing: document.getElementById('attendance-capturing-toggle').checked,
+        desktopAttendanceBlocked: document.getElementById('desktop-attendance-block-toggle').checked,
         registrationLive: document.getElementById('registration-live-toggle').checked,
         privacyMode: document.getElementById('privacy-mode-toggle').checked,
         largeText: document.getElementById('large-text-toggle').checked,

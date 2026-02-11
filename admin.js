@@ -702,6 +702,386 @@ function initBlockedUsers() {
     // Load blocked users on initialization
     loadBlockedUsers();
 }
+
+function initDownloadLimitSection() {
+    // Initialize Firebase if not already initialized
+    if (typeof firebase === 'undefined' || !firebase.apps.length) {
+        const firebaseConfig = {
+            apiKey: "AIzaSyD_An-qb0XTLpaLdrOftAEOqsshGpPbv1w",
+            authDomain: "firefly-64eef.firebaseapp.com",
+            databaseURL: "https://firefly-64eef-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "firefly-64eef",
+            storageBucket: "firefly-64eef.firebasestorage.app",
+            messagingSenderId: "563239732954",
+            appId: "1:563239732954:web:1774bfd1f7aceedeb707e3",
+            measurementId: "G-RKL3BV2H03"
+        };
+        firebase.initializeApp(firebaseConfig);
+    }
+
+    const db = firebase.database();
+    const originalSection = document.getElementById('download-limit-section');
+    const activeSection = document.getElementById('download-limit-section-active');
+    const section = activeSection || originalSection;
+
+    if (!section) {
+        console.error('Download limit section not found in DOM');
+        return;
+    }
+
+    const listEl = section.querySelector('#download-limit-list');
+    const summaryEl = section.querySelector('#download-limit-summary');
+    const refreshBtn = section.querySelector('#refresh-download-limit-btn');
+    const downloadLimit = 1;
+
+    if (!listEl) {
+        console.error('Download limit list element not found');
+        return;
+    }
+
+    const renderSummary = (count) => {
+        if (!summaryEl) return;
+        summaryEl.innerHTML = `
+            <p>Android app download limit: <strong>${downloadLimit}</strong>. Users at or above limit: <strong>${count}</strong>.</p>
+        `;
+    };
+
+    const loadDownloadLimitUsers = () => {
+        listEl.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align: center;">
+                    <i class="fas fa-spinner fa-spin"></i> Loading download limits...
+                </td>
+            </tr>`;
+
+        db.ref('users').orderByChild('appDownloadUsed').startAt(downloadLimit).once('value')
+            .then(snapshot => {
+                const users = [];
+                snapshot.forEach(childSnapshot => {
+                    const userData = childSnapshot.val() || {};
+                    const used = Number(userData.appDownloadUsed || 0);
+                    if (used < downloadLimit) return;
+                    users.push({
+                        id: childSnapshot.key,
+                        name: userData.name || userData.displayName || 'Unknown',
+                        email: userData.email || 'N/A',
+                        role: userData.role || 'N/A',
+                        used,
+                        classRoll: userData.classRoll,
+                        univRoll: userData.univRoll
+                    });
+                });
+
+                users.sort((a, b) => {
+                    if (b.used !== a.used) return b.used - a.used;
+                    return (a.name || '').localeCompare(b.name || '');
+                });
+
+                if (!users.length) {
+                    listEl.innerHTML = `
+                        <tr>
+                            <td colspan="6" style="text-align: center;">No users have reached the download limit.</td>
+                        </tr>`;
+                    renderSummary(0);
+                    return;
+                }
+
+                listEl.innerHTML = users.map(user => {
+                    const rollBits = [];
+                    if (user.classRoll) rollBits.push(`Class: ${user.classRoll}`);
+                    if (user.univRoll) rollBits.push(`Univ: ${user.univRoll}`);
+                    const rollHtml = rollBits.length
+                        ? `<div style="font-size: 0.8rem; color: #6b7280;">${rollBits.join(' | ')}</div>`
+                        : '';
+                    const status = user.used > downloadLimit
+                        ? `Exceeded by ${user.used - downloadLimit}`
+                        : 'Limit reached';
+                    return `
+                        <tr>
+                            <td>${user.name}${rollHtml}</td>
+                            <td>${user.email}</td>
+                            <td>${user.role}</td>
+                            <td>${user.used}</td>
+                            <td>${status}</td>
+                            <td>
+                                <button class="small-btn revive-download-credit-btn" data-id="${user.id}" data-name="${user.name || 'User'}" data-email="${user.email || ''}">
+                                    <i class="fas fa-undo"></i> Revive
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                renderSummary(users.length);
+
+                section.querySelectorAll('.revive-download-credit-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const userId = btn.getAttribute('data-id');
+                        const userName = btn.getAttribute('data-name') || 'User';
+                        const userEmail = btn.getAttribute('data-email') || '';
+                        const label = userEmail ? `${userName} (${userEmail})` : userName;
+                        const confirmReset = confirm(`Reset download credits for ${label}?`);
+                        if (!confirmReset) return;
+
+                        db.ref(`users/${userId}/appDownloadUsed`).set(0)
+                            .then(() => {
+                                if (typeof showAlert === 'function') {
+                                    showAlert('Download credits revived successfully', 'success');
+                                }
+                                loadDownloadLimitUsers();
+                            })
+                            .catch(error => {
+                                if (typeof showAlert === 'function') {
+                                    showAlert(`Error reviving credits: ${error.message}`, 'error');
+                                } else {
+                                    alert(`Error reviving credits: ${error.message}`);
+                                }
+                            });
+                    });
+                });
+            })
+            .catch(error => {
+                listEl.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center;">Error loading download limits: ${error.message}</td>
+                    </tr>`;
+                if (summaryEl) {
+                    summaryEl.innerHTML = `<p>Error loading download limit users: ${error.message}</p>`;
+                }
+            });
+    };
+
+    if (refreshBtn) {
+        refreshBtn.onclick = loadDownloadLimitUsers;
+    }
+
+    loadDownloadLimitUsers();
+}
+
+function initDeviceLocksSection() {
+    // Initialize Firebase if not already initialized
+    if (typeof firebase === 'undefined' || !firebase.apps.length) {
+        const firebaseConfig = {
+            apiKey: "AIzaSyD_An-qb0XTLpaLdrOftAEOqsshGpPbv1w",
+            authDomain: "firefly-64eef.firebaseapp.com",
+            databaseURL: "https://firefly-64eef-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "firefly-64eef",
+            storageBucket: "firefly-64eef.firebasestorage.app",
+            messagingSenderId: "563239732954",
+            appId: "1:563239732954:web:1774bfd1f7aceedeb707e3",
+            measurementId: "G-RKL3BV2H03"
+        };
+        firebase.initializeApp(firebaseConfig);
+    }
+
+    const db = firebase.database();
+    const originalSection = document.getElementById('device-locks-section');
+    const activeSection = document.getElementById('device-locks-section-active');
+    const section = activeSection || originalSection;
+
+    if (!section) {
+        console.error('Device locks section not found in DOM');
+        return;
+    }
+
+    const listEl = section.querySelector('#device-locks-list');
+    const countEl = section.querySelector('#device-locks-count');
+    const refreshBtn = section.querySelector('#refresh-device-locks-btn');
+    const infoEl = section.querySelector('.status-indicator');
+    const LOCK_WINDOW_MS = 30 * 60 * 1000;
+
+    if (!listEl) {
+        console.error('Device locks list element not found');
+        return;
+    }
+
+    const formatDate = (value) => {
+        if (!value || isNaN(value)) return 'Unknown';
+        const date = new Date(Number(value));
+        return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+    };
+
+    const formatRemaining = (remainingMs) => {
+        if (remainingMs === null) return 'Unknown';
+        const minutes = Math.ceil(remainingMs / 60000);
+        return minutes > 0 ? `${minutes} min` : 'Expired';
+    };
+
+    const loadDeviceLocks = () => {
+        listEl.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align: center;">
+                    <i class="fas fa-spinner fa-spin"></i> Loading device locks...
+                </td>
+            </tr>`;
+
+        db.ref('userLocks').once('value')
+            .then(snapshot => {
+                if (!snapshot.exists()) {
+                    listEl.innerHTML = `
+                        <tr>
+                            <td colspan="6" style="text-align: center;">No active device locks.</td>
+                        </tr>`;
+                    if (infoEl) {
+                        infoEl.innerHTML = '<p>No active device locks found.</p>';
+                    }
+                    if (countEl) {
+                        countEl.textContent = '0';
+                    }
+                    return;
+                }
+
+                const locks = [];
+                const userPromises = [];
+                const userDataMap = {};
+                let expiredCount = 0;
+
+                snapshot.forEach(childSnapshot => {
+                    const lock = childSnapshot.val() || {};
+                    const userId = childSnapshot.key;
+                    const attendanceTime = Number(lock.attendanceTime || 0);
+                    const elapsed = attendanceTime ? Date.now() - attendanceTime : 0;
+                    const remaining = attendanceTime ? Math.max(LOCK_WINDOW_MS - elapsed, 0) : null;
+                    const isActive = attendanceTime ? remaining > 0 : true;
+
+                    if (!isActive) {
+                        expiredCount += 1;
+                        return;
+                    }
+
+                    if (userId) {
+                        userPromises.push(
+                            db.ref(`users/${userId}`).once('value')
+                                .then(userSnapshot => {
+                                    if (userSnapshot.exists()) {
+                                        userDataMap[userId] = userSnapshot.val();
+                                    }
+                                })
+                        );
+                    }
+
+                    locks.push({
+                        userId,
+                        lock,
+                        attendanceTime,
+                        remaining
+                    });
+                });
+
+                Promise.all(userPromises).then(() => {
+                    locks.forEach(item => {
+                        const userData = userDataMap[item.userId] || {};
+                        item.userName = userData.name || userData.displayName || item.lock.userName || 'Unknown User';
+                        item.userEmail = userData.email || item.lock.userEmail || 'No email';
+                    });
+
+                    if (countEl) {
+                        countEl.textContent = String(locks.length);
+                    }
+
+                    if (!locks.length) {
+                        listEl.innerHTML = `
+                            <tr>
+                                <td colspan="6" style="text-align: center;">No active device locks.</td>
+                            </tr>`;
+                        if (infoEl) {
+                            infoEl.innerHTML = `<p>No active device locks found.${expiredCount ? ` ${expiredCount} expired lock(s) hidden.` : ''}</p>`;
+                        }
+                        if (countEl) {
+                            countEl.textContent = '0';
+                        }
+                        return;
+                    }
+
+                    locks.sort((a, b) => b.attendanceTime - a.attendanceTime);
+
+                    listEl.innerHTML = locks.map(item => {
+                        const deviceId = item.lock.deviceId || '';
+                        const fingerprint = item.lock.deviceFingerprint || '';
+                        const deviceLabel = deviceId ? deviceId.slice(0, 10) : 'N/A';
+                        const fingerprintLabel = fingerprint ? fingerprint.slice(0, 10) : 'N/A';
+                        return `
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 600;">${item.userName}</div>
+                                    <div style="font-size: 0.85rem; color: #6b7280;">${item.userEmail}</div>
+                                </td>
+                                <td>${item.lock.locationName || 'Unknown'}</td>
+                                <td>${formatDate(item.attendanceTime)}</td>
+                                <td>${formatRemaining(item.remaining)}</td>
+                                <td>
+                                    <div style="font-size: 0.85rem; color: #64748b;">Device: ${deviceLabel}</div>
+                                    <div style="font-size: 0.85rem; color: #94a3b8;">Fingerprint: ${fingerprintLabel}</div>
+                                </td>
+                                <td>
+                                    <button class="small-btn clear-device-lock-btn" data-user-id="${item.userId}" data-device-id="${deviceId}" data-device-fingerprint="${fingerprint}">
+                                        <i class="fas fa-unlock"></i> Clear
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    if (infoEl) {
+                        infoEl.innerHTML = `<p>${locks.length} active lock(s).${expiredCount ? ` ${expiredCount} expired lock(s) hidden.` : ''}</p>`;
+                    }
+
+                    section.querySelectorAll('.clear-device-lock-btn').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const userId = btn.getAttribute('data-user-id');
+                            const deviceId = btn.getAttribute('data-device-id');
+                            const deviceFingerprint = btn.getAttribute('data-device-fingerprint');
+                            if (!userId) return;
+                            if (!confirm('Clear this user device lock?')) return;
+
+                            const removals = [
+                                db.ref(`userLocks/${userId}`).remove()
+                            ];
+                            if (deviceId) {
+                                removals.push(db.ref(`deviceLocks/${deviceId}`).remove());
+                            }
+                            if (deviceFingerprint) {
+                                removals.push(db.ref(`deviceFingerprintLocks/${deviceFingerprint}`).remove());
+                            }
+
+                            Promise.all(removals)
+                                .then(() => {
+                                    if (typeof showAlert === 'function') {
+                                        showAlert('Device lock cleared', 'success');
+                                    }
+                                    loadDeviceLocks();
+                                })
+                                .catch(error => {
+                                    if (typeof showAlert === 'function') {
+                                        showAlert(`Error clearing lock: ${error.message}`, 'error');
+                                    } else {
+                                        alert(`Error clearing lock: ${error.message}`);
+                                    }
+                                });
+                        });
+                    });
+                });
+            })
+            .catch(error => {
+                listEl.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center;">Error loading device locks: ${error.message}</td>
+                    </tr>`;
+                if (infoEl) {
+                    infoEl.innerHTML = `<p>Error loading device locks.</p>`;
+                }
+                if (countEl) {
+                    countEl.textContent = '0';
+                }
+            });
+    };
+
+    if (refreshBtn) {
+        refreshBtn.onclick = loadDeviceLocks;
+    }
+
+    loadDeviceLocks();
+}
 function initDatabaseManagement() {
     // Initialize Firebase if not already initialized
     if (typeof firebase === 'undefined' || !firebase.apps.length) {
@@ -1200,6 +1580,10 @@ function initRecentLoginsSection() {
 
     // Reference to the active devices list container
     const activeDevicesList = document.getElementById('active-devices-list');
+    const refreshBtn = document.getElementById('refresh-recent-logins-btn');
+    if (refreshBtn) {
+        refreshBtn.onclick = () => initRecentLoginsSection();
+    }
 
     // Clear existing content
     if (activeDevicesList) {
@@ -1228,75 +1612,145 @@ function initRecentLoginsSection() {
                         const currentDeviceId = localStorage.getItem('deviceId') || 'unknown';
                         console.log("Current device ID:", currentDeviceId);
 
-                        // Create a section for current device
-                        const currentDeviceElement = document.createElement('div');
-                        currentDeviceElement.className = 'current-device-section';
-                        currentDeviceElement.innerHTML = '<h3>Current Device</h3>';
-                        activeDevicesList.appendChild(currentDeviceElement);
+                        activeDevicesList.innerHTML = `
+                            <div class="recent-logins-wrapper">
+                                <div class="recent-logins-stats">
+                                    <div class="recent-logins-stat">
+                                        <span class="stat-label">Active Devices</span>
+                                        <span class="stat-value" id="recent-active-count">0</span>
+                                    </div>
+                                    <div class="recent-logins-stat">
+                                        <span class="stat-label">This Device</span>
+                                        <span class="stat-value" id="recent-current-device">—</span>
+                                    </div>
+                                    <div class="recent-logins-stat">
+                                        <span class="stat-label">Last Active</span>
+                                        <span class="stat-value" id="recent-current-active">—</span>
+                                    </div>
+                                </div>
+                                <div class="recent-logins-grid">
+                                    <div class="recent-logins-panel">
+                                        <h3>Current Device</h3>
+                                        <div id="current-device-card" class="device-card-list"></div>
+                                    </div>
+                                    <div class="recent-logins-panel">
+                                        <h3>Other Devices</h3>
+                                        <div id="other-devices-list" class="device-card-list"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
 
                         // Find current user's sessions
                         const userSessions = allSessions[user.uid] || {};
 
-                        // Add current device info if available
-                        if (userSessions[currentDeviceId]) {
-                            const currentSession = userSessions[currentDeviceId];
-                            sessionsFound = true;
+                        const currentCardContainer = document.getElementById('current-device-card');
+                        const otherDevicesContainer = document.getElementById('other-devices-list');
+                        const activeCountEl = document.getElementById('recent-active-count');
+                        const currentDeviceNameEl = document.getElementById('recent-current-device');
+                        const currentDeviceActiveEl = document.getElementById('recent-current-active');
 
-                            // Determine device icon
-                            let deviceIcon = 'fas fa-desktop';
-                            if (currentSession.deviceType === 'mobile') {
-                                deviceIcon = 'fas fa-mobile-alt';
-                            } else if (currentSession.deviceType === 'tablet') {
-                                deviceIcon = 'fas fa-tablet-alt';
-                            }
+                        const formatKeyLabel = (key) => {
+                            return key
+                                .replace(/_/g, ' ')
+                                .replace(/([A-Z])/g, ' $1')
+                                .replace(/\s+/g, ' ')
+                                .trim()
+                                .replace(/\b\w/g, (char) => char.toUpperCase());
+                        };
 
-                            const deviceElement = document.createElement('div');
-                            deviceElement.className = 'device-item current-device';
-
-                            // Create HTML content with all session details
-                            let sessionDetailsHTML = `
-                                    <div class="device-info">
-                                        <div class="device-icon"><i class="${deviceIcon}"></i></div>
-                                        <div class="device-details">
-                                            <h4>${currentSession.deviceName || 'This Device'} <span class="current-badge">Current</span></h4>
-                                `;
-
-                            // Add all properties from the session object
-                            for (const [key, value] of Object.entries(currentSession)) {
-                                // Format date fields
-                                if (key === 'lastActive' || key === 'loginTime' || key.includes('Time') || key.includes('Date')) {
-                                    if (value && !isNaN(value)) {
-                                        const date = new Date(value);
-                                        sessionDetailsHTML += `<p><i class="fas fa-info-circle"></i> ${key}: ${date.toLocaleDateString()} at ${date.toLocaleTimeString()}</p>`;
-                                    } else {
-                                        sessionDetailsHTML += `<p><i class="fas fa-info-circle"></i> ${key}: ${value}</p>`;
-                                    }
-                                } else {
-                                    sessionDetailsHTML += `<p><i class="fas fa-info-circle"></i> ${key}: ${value}</p>`;
+                        const formatValue = (key, value) => {
+                            if (value === null || value === undefined || value === '') return 'N/A';
+                            if (key === 'lastActive' || key === 'loginTime' || key.includes('Time') || key.includes('Date')) {
+                                if (!isNaN(value)) {
+                                    const date = new Date(value);
+                                    return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
                                 }
                             }
+                            if (typeof value === 'object') {
+                                const json = JSON.stringify(value);
+                                return json.length > 80 ? `${json.slice(0, 77)}...` : json;
+                            }
+                            const str = String(value);
+                            return str.length > 80 ? `${str.slice(0, 77)}...` : str;
+                        };
 
-                            sessionDetailsHTML += `
-                                        </div>
+                        const getDeviceIcon = (deviceType) => {
+                            if (deviceType === 'mobile') return 'fas fa-mobile-alt';
+                            if (deviceType === 'tablet') return 'fas fa-tablet-alt';
+                            return 'fas fa-desktop';
+                        };
+
+                        const renderDeviceCard = (session, options = {}) => {
+                            if (!session) return '';
+                            const deviceIcon = getDeviceIcon(session.deviceType);
+                            const deviceName = session.deviceName || options.fallbackName || 'Unknown Device';
+                            const chips = [];
+                            if (session.deviceType) chips.push(session.deviceType);
+                            if (session.ipAddress) chips.push(session.ipAddress);
+                            if (session.browser) chips.push(session.browser);
+                            const chipHtml = chips.map(chip => `<span class="device-card__chip">${chip}</span>`).join('');
+
+                            const detailsHtml = Object.entries(session).map(([key, value]) => {
+                                const formattedValue = formatValue(key, value);
+                                return `
+                                    <div class="device-info-item">
+                                        <span class="label">${formatKeyLabel(key)}</span>
+                                        <span class="value">${formattedValue}</span>
                                     </div>
                                 `;
+                            }).join('');
 
-                            deviceElement.innerHTML = sessionDetailsHTML;
-                            currentDeviceElement.appendChild(deviceElement);
-                        } else {
-                            const noCurrentDevice = document.createElement('p');
-                            noCurrentDevice.className = 'no-data';
-                            noCurrentDevice.textContent = 'Current device information not available.';
-                            currentDeviceElement.appendChild(noCurrentDevice);
+                            return `
+                                <div class="device-card ${options.isCurrent ? 'is-current' : ''}">
+                                    <div class="device-card__header">
+                                        <div class="device-card__identity">
+                                            <div class="device-card__icon"><i class="${deviceIcon}"></i></div>
+                                            <div>
+                                                <div class="device-card__title">${deviceName}</div>
+                                                <div class="device-card__subtitle">${session.email || ''}</div>
+                                            </div>
+                                        </div>
+                                        ${options.isCurrent ? '<span class="device-card__badge">Current</span>' : ''}
+                                    </div>
+                                    ${chipHtml ? `<div class="device-card__chips">${chipHtml}</div>` : ''}
+                                    <div class="device-card__grid">${detailsHtml}</div>
+                                    ${options.showLogout ? `
+                                        <div class="device-card__actions">
+                                            <button class="logout-device-btn" data-user-id="${options.userId}" data-device-id="${options.deviceId}">
+                                                <i class="fas fa-sign-out-alt"></i> Log Out
+                                            </button>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `;
+                        };
+
+                        // Add current device info if available
+                        const currentSession = userSessions[currentDeviceId] || null;
+                        if (currentSession) {
+                            sessionsFound = true;
+                            if (currentCardContainer) {
+                                currentCardContainer.innerHTML = renderDeviceCard(currentSession, {
+                                    isCurrent: true,
+                                    fallbackName: 'This Device',
+                                    showLogout: false
+                                });
+                            }
+                            if (currentDeviceNameEl) {
+                                currentDeviceNameEl.textContent = currentSession.deviceName || 'This Device';
+                            }
+                            if (currentDeviceActiveEl) {
+                                currentDeviceActiveEl.textContent = currentSession.lastActive
+                                    ? formatValue('lastActive', currentSession.lastActive)
+                                    : 'Unknown';
+                            }
+                        } else if (currentCardContainer) {
+                            currentCardContainer.innerHTML = '<div class="device-empty">Current device information not available.</div>';
                         }
 
-                        // Create a section for other devices with same login ID
-                        const otherDevicesElement = document.createElement('div');
-                        otherDevicesElement.className = 'other-devices-section';
-                        otherDevicesElement.innerHTML = '<h3>Other Devices</h3>';
-                        activeDevicesList.appendChild(otherDevicesElement);
-
                         let otherDevicesFound = false;
+                        const otherDevicesHtml = [];
 
                         // Loop through all user sessions to find devices with same login ID
                         Object.keys(allSessions).forEach(userId => {
@@ -1319,63 +1773,28 @@ function initRecentLoginsSection() {
                                 if (isValid && isSameUser) {
                                     otherDevicesFound = true;
                                     sessionsFound = true;
-
-                                    // Create device element
-                                    const deviceElement = document.createElement('div');
-                                    deviceElement.className = 'device-item';
-
-                                    // Determine device icon
-                                    let deviceIcon = 'fas fa-desktop';
-                                    if (session.deviceType === 'mobile') {
-                                        deviceIcon = 'fas fa-mobile-alt';
-                                    } else if (session.deviceType === 'tablet') {
-                                        deviceIcon = 'fas fa-tablet-alt';
-                                    }
-
-                                    // Create HTML content with all session details
-                                    let sessionDetailsHTML = `
-                                            <div class="device-info">
-                                                <div class="device-icon"><i class="${deviceIcon}"></i></div>
-                                                <div class="device-details">
-                                                    <h4>${session.deviceName || 'Unknown Device'}</h4>
-                                        `;
-
-                                    // Add all properties from the session object
-                                    for (const [key, value] of Object.entries(session)) {
-                                        // Format date fields
-                                        if (key === 'lastActive' || key === 'loginTime' || key.includes('Time') || key.includes('Date')) {
-                                            if (value && !isNaN(value)) {
-                                                const date = new Date(value);
-                                                sessionDetailsHTML += `<p><i class="fas fa-info-circle"></i> ${key}: ${date.toLocaleDateString()} at ${date.toLocaleTimeString()}</p>`;
-                                            } else {
-                                                sessionDetailsHTML += `<p><i class="fas fa-info-circle"></i> ${key}: ${value}</p>`;
-                                            }
-                                        } else {
-                                            sessionDetailsHTML += `<p><i class="fas fa-info-circle"></i> ${key}: ${value}</p>`;
-                                        }
-                                    }
-
-                                    sessionDetailsHTML += `
-                                                </div>
-                                            </div>
-                                            <div class="device-actions">
-                                                <button class="logout-device-btn" data-user-id="${userId}" data-device-id="${deviceId}"><i class="fas fa-sign-out-alt"></i> Log Out</button>
-                                            </div>
-                                        `;
-
-                                    deviceElement.innerHTML = sessionDetailsHTML;
-                                    otherDevicesElement.appendChild(deviceElement);
+                                    otherDevicesHtml.push(renderDeviceCard(session, {
+                                        isCurrent: false,
+                                        showLogout: true,
+                                        userId,
+                                        deviceId
+                                    }));
                                 }
                             });
                         });
 
                         // If no other devices found
-                        if (!otherDevicesFound) {
-                            console.log("No other active devices found");
-                            const noOtherDevices = document.createElement('p');
-                            noOtherDevices.className = 'no-data';
-                            noOtherDevices.textContent = 'No other active devices found.';
-                            otherDevicesElement.appendChild(noOtherDevices);
+                        if (otherDevicesContainer) {
+                            if (!otherDevicesFound) {
+                                otherDevicesContainer.innerHTML = '<div class="device-empty">No other active devices found.</div>';
+                            } else {
+                                otherDevicesContainer.innerHTML = otherDevicesHtml.join('');
+                            }
+                        }
+
+                        if (activeCountEl) {
+                            const activeCount = (currentSession ? 1 : 0) + (otherDevicesFound ? otherDevicesHtml.length : 0);
+                            activeCountEl.textContent = String(activeCount);
                         }
 
                         // If no valid sessions found at all
@@ -2355,7 +2774,7 @@ function initProfileRequestsSection() {
     markProfileRequestsSeen();
 
     // Show loading state
-    profileRequestsList.innerHTML = '<tr><td colspan="5" class="loading">Loading profile requests...</td></tr>';
+    profileRequestsList.innerHTML = '<div class="profile-requests-loading"><i class="fas fa-spinner fa-spin"></i> Loading profile requests...</div>';
 
     // Reference to profile requests in Firebase
     const profileRequestsRef = firebase.database().ref('profileRequests');
@@ -2397,6 +2816,8 @@ function initProfileRequestsSection() {
                         userId: userId,
                         userName: data.userName || data.name || 'No Name Provided',
                         userEmail: data.userEmail || data.email || 'No Email Provided',
+                        userPhoto: data.profilePhoto || null,
+                        userPhotoKey: data.profilePhotoKey || null,
                         ...data
                     });
                 });
@@ -2426,6 +2847,8 @@ function initProfileRequestsSection() {
                         userId: userId,
                         userName: data.userName || data.name || 'No Name Provided',
                         userEmail: data.userEmail || data.email || 'No Email Provided',
+                        userPhoto: data.profilePhoto || null,
+                        userPhotoKey: data.profilePhotoKey || null,
                         requestType: 'Profile Update',
                         changes: data.requestedData || {},
                         currentData: data.currentData || {},
@@ -2445,6 +2868,8 @@ function initProfileRequestsSection() {
                             const userData = userDataMap[request.userId];
                             request.userName = userData.name || userData.displayName || request.userName;
                             request.userEmail = userData.email || request.userEmail;
+                            request.userPhoto = userData.profilePhoto || request.userPhoto || null;
+                            request.userPhotoKey = userData.profilePhotoKey || request.userPhotoKey || null;
                         }
                     });
 
@@ -2457,23 +2882,17 @@ function initProfileRequestsSection() {
 
                         // Create table with styling
                         const table = document.createElement('table');
-                        table.className = 'data-table';
-                        table.style.width = '100%';
-                        table.style.borderCollapse = 'collapse';
-                        table.style.marginBottom = '20px';
-                        table.style.boxShadow = '0 2px 3px rgba(0, 0, 0, 0.1)';
-                        table.style.borderRadius = '5px';
-                        table.style.overflow = 'hidden';
+                        table.className = 'profile-requests-table';
 
-                        // Create table header with gradient background
+                        // Create table header
                         const tableHeader = document.createElement('thead');
                         tableHeader.innerHTML = `
                                 <tr>
-                                    <th style="padding: 12px 15px; background: linear-gradient(135deg, #4a6baf, #2a3f6a); color: white; font-weight: bold; text-align: left; border-bottom: 2px solid #dee2e6;">User</th>
-                                    <th style="padding: 12px 15px; background: linear-gradient(135deg, #4a6baf, #2a3f6a); color: white; font-weight: bold; text-align: left; border-bottom: 2px solid #dee2e6;">Request</th>
-                                    <th style="padding: 12px 15px; background: linear-gradient(135deg, #4a6baf, #2a3f6a); color: white; font-weight: bold; text-align: left; border-bottom: 2px solid #dee2e6;">Date</th>
-                                    <th style="padding: 12px 15px; background: linear-gradient(135deg, #4a6baf, #2a3f6a); color: white; font-weight: bold; text-align: left; border-bottom: 2px solid #dee2e6;">Status</th>
-                                    <th style="padding: 12px 15px; background: linear-gradient(135deg, #4a6baf, #2a3f6a); color: white; font-weight: bold; text-align: left; border-bottom: 2px solid #dee2e6;">Actions</th>
+                                    <th>User</th>
+                                    <th>Request</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             `;
                         table.appendChild(tableHeader);
@@ -2539,35 +2958,72 @@ function initProfileRequestsSection() {
                                 }
                             }
 
-                            // Format user display with name in large and email in small faded text
-                            let userDisplay = '';
-                            if (request.userName) {
-                                userDisplay = `<div><span style="font-size: 1.1em; font-weight: bold;">${request.userName}</span>`;
-                                if (request.userEmail) {
-                                    userDisplay += `<br><span style="font-size: 0.85em; color: #777;">${request.userEmail}</span>`;
-                                }
-                                userDisplay += '</div>';
-                            } else {
-                                userDisplay = request.userEmail || 'No User Information';
-                            }
+                            // Format user display
+                            const initials = (request.userName || request.userEmail || 'U')
+                                .split(' ')
+                                .map(part => part[0])
+                                .slice(0, 2)
+                                .join('')
+                                .toUpperCase();
+                            const photoUrl = request.userPhoto || '';
+                            const photoKey = request.userPhotoKey || request.userId || photoUrl;
+                            const avatarInner = photoUrl
+                                ? `<span class="request-avatar-text">${initials}</span>
+                                   <img class="request-avatar-img" src="/api/placeholder/60/60" data-photo-url="${photoUrl}" data-cache-key="${photoKey}" alt="${request.userName || 'User'}">`
+                                : `<span class="request-avatar-text">${initials}</span>`;
+                            const userDisplay = `
+                                <div class="request-user">
+                                    <div class="request-avatar">${avatarInner}</div>
+                                    <div class="request-user-meta">
+                                        <div class="request-user-name">${request.userName || 'Unknown User'}</div>
+                                        <div class="request-user-email">${request.userEmail || 'No email'}</div>
+                                    </div>
+                                </div>
+                            `;
+
+                            const requestLabel = updatedField || request.requestType || 'Profile Update';
+                            const requestDetails = request.source === 'profile_update_requests'
+                                ? 'Profile update request'
+                                : 'Profile change request';
 
                             requestItem.innerHTML = `
-                                    <td style="padding: 12px 15px;">${userDisplay}</td>
-                                    <td style="padding: 12px 15px;">${updatedField || request.requestType || 'Other Request'}</td>
-                                    <td style="padding: 12px 15px;">${formattedDate}</td>
-                                    <td style="padding: 12px 15px;"><span class="${statusClass}" style="padding: 5px 10px; border-radius: 4px; font-size: 0.85em; font-weight: bold; ${statusStyle}">${request.status || 'pending'}</span></td>
-                                    <td style="padding: 12px 15px;">
-                                        <div class="action-buttons" style="display: flex; gap: 5px;">
-                                            <button class="view-request-btn primary-btn" data-request-id="${request.id}" data-source="${request.source}" style="padding: 6px 10px; font-size: 0.9em; border-radius: 4px; cursor: pointer;">
+                                    <td>${userDisplay}</td>
+                                    <td>
+                                        <div class="request-summary">
+                                            <div class="request-type">${requestLabel}</div>
+                                            <div class="request-detail">${requestDetails}</div>
+                                        </div>
+                                    </td>
+                                    <td><div class="request-date">${formattedDate}</div></td>
+                                    <td>
+                                        <span class="status-pill ${statusClass}">
+                                            ${request.status || 'pending'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="request-actions">
+                                            <button class="view-request-btn action-btn-ghost" data-request-id="${request.id}" data-source="${request.source}">
                                                 <i class="fas fa-eye"></i> View
                                             </button>
                                             ${request.status === 'pending' ? `
-                                                <button class="approve-request-btn success-btn" data-request-id="${request.id}" data-source="${request.source}" style="padding: 6px 10px; font-size: 0.9em; border-radius: 4px; cursor: pointer;">
+                                                <button class="approve-request-btn action-btn-approve" data-request-id="${request.id}" data-source="${request.source}">
                                                     <i class="fas fa-check"></i> Approve
                                                 </button>
-                                                <button class="reject-request-btn delete-btn" data-request-id="${request.id}" data-source="${request.source}" style="padding: 6px 10px; font-size: 0.9em; border-radius: 4px; cursor: pointer;">
+                                                <button class="reject-request-btn action-btn-reject" data-request-id="${request.id}" data-source="${request.source}">
                                                     <i class="fas fa-times"></i> Reject
                                                 </button>
+                                            ` : ''}
+                                            ${(request.source === 'profile_update_requests' && request.userId) ? `
+                                                <div class="request-more-wrap">
+                                                    <button class="more-actions-btn" data-user-id="${request.userId}" data-request-id="${request.id}" aria-label="More actions">
+                                                        <i class="fas fa-ellipsis-v"></i>
+                                                    </button>
+                                                    <div class="more-actions-menu">
+                                                        <button class="revive-credit-btn" data-user-id="${request.userId}" data-request-id="${request.id}">
+                                                            <i class="fas fa-undo"></i> Revive 1 Credit
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             ` : ''}
                                         </div>
                                     </td>
@@ -2578,17 +3034,18 @@ function initProfileRequestsSection() {
 
                         table.appendChild(tableBody);
                         profileRequestsList.appendChild(table);
+                        hydrateProfileRequestAvatars(table);
 
                         // Add event listeners to buttons
                         addProfileRequestEventListeners();
                     } else {
-                        profileRequestsList.innerHTML = '<div class="no-data" style="padding: 20px; text-align: center; color: #666; background-color: #f9f9f9; border-radius: 5px; margin: 20px 0;">No profile requests found.</div>';
+                        profileRequestsList.innerHTML = '<div class="profile-requests-empty"><i class="fas fa-inbox"></i><p>No profile requests found.</p></div>';
                     }
                 });
         })
         .catch((error) => {
             console.error('Error fetching profile requests:', error);
-            profileRequestsList.innerHTML = '<div class="error-message" style="padding: 20px; text-align: center; color: #d9534f; background-color: #f8d7da; border-radius: 5px; margin: 20px 0;">Error loading profile requests. Please try again.</div>';
+            profileRequestsList.innerHTML = '<div class="profile-requests-error">Error loading profile requests. Please try again.</div>';
         });
 
     // Set up refresh button event listener
@@ -2604,6 +3061,97 @@ function initProfileRequestsSection() {
             initProfileRequestsSection();
         });
     }
+}
+
+
+function hydrateProfileRequestAvatars(container) {
+    if (!container) return;
+    const images = container.querySelectorAll('img[data-photo-url]');
+    images.forEach(img => {
+        if (img.dataset.photoHydrated === 'true') return;
+        img.dataset.photoHydrated = 'true';
+        const photoUrl = img.dataset.photoUrl;
+        const cacheKey = img.dataset.cacheKey || photoUrl;
+        const avatar = img.closest('.request-avatar');
+
+        img.addEventListener('load', () => {
+            if (avatar) avatar.classList.add('has-photo');
+        });
+        img.addEventListener('error', () => {
+            if (avatar) avatar.classList.remove('has-photo');
+        });
+
+        if (!photoUrl) return;
+        if (typeof window.applyEncryptedPhotoToImg === 'function') {
+            window.applyEncryptedPhotoToImg(img, photoUrl, cacheKey);
+        } else {
+            img.src = photoUrl;
+        }
+
+        if (!img.dataset.previewBound) {
+            img.dataset.previewBound = 'true';
+            img.classList.add('request-avatar-img');
+            img.style.cursor = 'pointer';
+            img.addEventListener('click', (event) => {
+                event.stopPropagation();
+                showProfilePhotoPreview(photoUrl, cacheKey, img.getAttribute('alt') || 'Profile photo');
+            });
+        }
+    });
+}
+
+function showProfilePhotoPreview(photoUrl, cacheKey, altText) {
+    if (!photoUrl) return;
+    const popupContainer = document.createElement('div');
+    popupContainer.className = 'popup-container';
+    popupContainer.style.position = 'fixed';
+    popupContainer.style.top = '0';
+    popupContainer.style.left = '0';
+    popupContainer.style.width = '100%';
+    popupContainer.style.height = '100%';
+    popupContainer.style.backgroundColor = 'rgba(15, 23, 42, 0.75)';
+    popupContainer.style.display = 'flex';
+    popupContainer.style.justifyContent = 'center';
+    popupContainer.style.alignItems = 'center';
+    popupContainer.style.zIndex = '1200';
+
+    popupContainer.innerHTML = `
+        <div class="photo-preview-modal">
+            <button class="photo-preview-close" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="photo-preview-frame">
+                <img class="photo-preview-img" src="/api/placeholder/600/600" alt="${altText || 'Profile photo'}">
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(popupContainer);
+
+    const imgEl = popupContainer.querySelector('.photo-preview-img');
+    if (imgEl) {
+        if (typeof window.applyEncryptedPhotoToImg === 'function') {
+            window.applyEncryptedPhotoToImg(imgEl, photoUrl, cacheKey || photoUrl);
+        } else {
+            imgEl.src = photoUrl;
+        }
+    }
+
+    const close = () => {
+        if (popupContainer.parentNode) {
+            popupContainer.parentNode.removeChild(popupContainer);
+        }
+    };
+
+    popupContainer.querySelectorAll('.photo-preview-close').forEach(btn => {
+        btn.addEventListener('click', close);
+    });
+
+    popupContainer.addEventListener('click', (event) => {
+        if (event.target === popupContainer) {
+            close();
+        }
+    });
 }
 
 
@@ -2639,6 +3187,66 @@ function addProfileRequestEventListeners() {
             }
         });
     });
+
+    const closeAllProfileRequestMenus = (exceptMenu) => {
+        document.querySelectorAll('.more-actions-menu').forEach(menu => {
+            if (menu !== exceptMenu) {
+                menu.style.display = 'none';
+            }
+        });
+    };
+
+    document.querySelectorAll('.more-actions-btn').forEach(button => {
+        button.addEventListener('click', function (event) {
+            event.stopPropagation();
+            const menu = this.parentElement ? this.parentElement.querySelector('.more-actions-menu') : null;
+            if (!menu) return;
+            const isOpen = menu.style.display === 'block';
+            closeAllProfileRequestMenus(menu);
+            menu.style.display = isOpen ? 'none' : 'block';
+        });
+    });
+
+    document.querySelectorAll('.revive-credit-btn').forEach(button => {
+        button.addEventListener('click', function (event) {
+            event.stopPropagation();
+            const userId = this.getAttribute('data-user-id');
+            if (!userId) {
+                showAlert('User ID missing for credit revive', 'error');
+                return;
+            }
+            const confirmReset = confirm('Revive 1 profile update credit for this user?');
+            if (!confirmReset) return;
+
+            const db = firebase.database();
+            const usedRef = db.ref(`users/${userId}/profileUpdateUsed`);
+            usedRef.transaction(current => {
+                const used = Number(current || 0);
+                if (used <= 0) {
+                    return;
+                }
+                return used - 1;
+            }).then(result => {
+                if (!result.committed) {
+                    showAlert('No credits to revive', 'info');
+                    return;
+                }
+                showAlert('Revived 1 profile update credit', 'success');
+            }).catch(error => {
+                showAlert(`Error reviving credit: ${error.message}`, 'error');
+            });
+
+            const menu = this.closest('.more-actions-menu');
+            if (menu) menu.style.display = 'none';
+        });
+    });
+
+    if (!window.profileRequestMenuListenerAttached) {
+        window.profileRequestMenuListenerAttached = true;
+        document.addEventListener('click', () => {
+            closeAllProfileRequestMenus();
+        });
+    }
 }
 
 // Function to view profile request details
@@ -2647,130 +3255,213 @@ function viewProfileRequest(requestId, source) {
 
     requestRef.once('value')
         .then((snapshot) => {
-            if (snapshot.exists()) {
-                const request = snapshot.val();
+            if (!snapshot.exists()) {
+                showAlert('Request not found', 'error');
+                return;
+            }
 
-                // Create popup container
-                const popupContainer = document.createElement('div');
-                popupContainer.className = 'popup-container';
-                popupContainer.style.position = 'fixed';
-                popupContainer.style.top = '0';
-                popupContainer.style.left = '0';
-                popupContainer.style.width = '100%';
-                popupContainer.style.height = '100%';
-                popupContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                popupContainer.style.display = 'flex';
-                popupContainer.style.justifyContent = 'center';
-                popupContainer.style.alignItems = 'center';
-                popupContainer.style.zIndex = '1000';
+            const request = snapshot.val();
 
-                // Format date
-                const date = new Date(request.timestamp);
-                const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+            // Create popup container
+            const popupContainer = document.createElement('div');
+            popupContainer.className = 'popup-container';
+            popupContainer.style.position = 'fixed';
+            popupContainer.style.top = '0';
+            popupContainer.style.left = '0';
+            popupContainer.style.width = '100%';
+            popupContainer.style.height = '100%';
+            popupContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            popupContainer.style.display = 'flex';
+            popupContainer.style.justifyContent = 'center';
+            popupContainer.style.alignItems = 'center';
+            popupContainer.style.zIndex = '1000';
 
-                // Create changes HTML - only showing requested changes where values differ
-                let changesHtml = '';
-                if (source === 'profile_update_requests' && request.requestedData) {
-                    changesHtml = '<h3>Requested Changes:</h3><ul style="margin-top: 10px; padding-left: 20px;">';
-                    for (const field in request.requestedData) {
-                        const currentValue = request.currentData && request.currentData[field] ? request.currentData[field] : 'Not set';
-                        if (currentValue !== request.requestedData[field]) {
-                            changesHtml += `<li style="margin-bottom: 8px;"><strong>${field}:</strong> ${currentValue} → ${request.requestedData[field]}</li>`;
-                        }
+            // Format date
+            const date = new Date(request.timestamp);
+            const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+
+            const changeItems = [];
+            if (source === 'profile_update_requests' && request.requestedData) {
+                for (const field in request.requestedData) {
+                    const currentValue = request.currentData && request.currentData[field] ? request.currentData[field] : 'Not set';
+                    if (currentValue !== request.requestedData[field]) {
+                        changeItems.push({ field, from: currentValue, to: request.requestedData[field] });
                     }
-                    changesHtml += '</ul>';
-                } else if (request.changes) {
-                    changesHtml = '<h3>Requested Changes:</h3><ul style="margin-top: 10px; padding-left: 20px;">';
-                    for (const field in request.changes) {
-                        const currentValue = request.currentData && request.currentData[field] ? request.currentData[field] : 'Not set';
-                        if (currentValue !== request.changes[field]) {
-                            changesHtml += `<li style="margin-bottom: 8px;"><strong>${field}:</strong> ${currentValue} → ${request.changes[field]}</li>`;
-                        }
-                    }
-                    changesHtml += '</ul>';
                 }
-
-                // Format user display with name in large and email in small faded text
-                const userName = request.userName || request.name || 'No Name Provided';
-                const userEmail = request.userEmail || request.email || 'No Email Provided';
-
-                let userDisplay = '';
-                if (userName) {
-                    userDisplay = `<div><span style="font-size: 1.2em; font-weight: bold;">${userName}</span>`;
-                    if (userEmail) {
-                        userDisplay += `<br><span style="font-size: 0.9em; color: #777;">${userEmail}</span>`;
+            } else if (request.changes) {
+                for (const field in request.changes) {
+                    const currentValue = request.currentData && request.currentData[field] ? request.currentData[field] : 'Not set';
+                    if (currentValue !== request.changes[field]) {
+                        changeItems.push({ field, from: currentValue, to: request.changes[field] });
                     }
-                    userDisplay += '</div>';
-                } else {
-                    userDisplay = userEmail || 'No User Information';
                 }
+            }
 
-                // Create popup content - removed student details section to only show requested changes
-                popupContainer.innerHTML = `
-                        <div class="popup-content" style="background-color: white; padding: 20px; border-radius: 5px; width: 80%; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
-                            <h2 style="margin-top: 0; color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px;">Profile Request Details</h2>
-                            <p style="margin: 10px 0;"><strong>User:</strong> ${userDisplay}</p>
-                            <p style="margin: 10px 0;"><strong>Request Type:</strong> ${request.requestType || (source === 'profile_update_requests' ? 'Profile Update' : 'Other Request')}</p>
-                            <p style="margin: 10px 0;"><strong>Date:</strong> ${formattedDate}</p>
-                            <p style="margin: 10px 0;"><strong>Status:</strong> <span style="padding: 3px 8px; border-radius: 3px; font-size: 0.9em; ${request.status === 'approved' ? 'background-color: #d4edda; color: #155724;' : request.status === 'rejected' ? 'background-color: #f8d7da; color: #721c24;' : 'background-color: #fff3cd; color: #856404;'}">${request.status || 'pending'}</span></p>
-                            ${changesHtml}
-                            <div style="display: flex; justify-content: space-between; margin-top: 20px; gap: 10px;">
-                                <button class="see-details-btn primary-btn" style="padding: 8px 16px; border-radius: 4px;">See Details</button>
-                                <div style="display: flex; gap: 10px;">
-                                    <button class="close-popup-btn primary-btn" style="padding: 8px 16px; border-radius: 4px;">Close</button>
-                                    ${request.status === 'pending' ? `
-                                        <button class="approve-popup-btn success-btn" style="padding: 8px 16px; border-radius: 4px;">Approve</button>
-                                        <button class="reject-popup-btn delete-btn" style="padding: 8px 16px; border-radius: 4px;">Reject</button>
-                                    ` : ''}
-                                </div>
-                            </div>
+            let changesHtml = '';
+            if (changeItems.length) {
+                const rows = changeItems.map(change => `
+                    <li>
+                        <span class="change-field">${change.field}</span>
+                        <span class="change-from">${change.from}</span>
+                        <span class="change-arrow">-&gt;</span>
+                        <span class="change-to">${change.to}</span>
+                    </li>
+                `).join('');
+                changesHtml = `
+                    <div class="profile-request-popup__changes">
+                        <div class="profile-request-popup__section-title">Requested Changes</div>
+                        <ul>${rows}</ul>
+                    </div>
+                `;
+            }
+
+            const userName = request.userName || request.name || '';
+            const userEmail = request.userEmail || request.email || '';
+            const fallbackName = request.userId ? `User ${request.userId.slice(0, 6)}` : 'User';
+            const displayName = userName || fallbackName;
+            const displayEmail = userEmail || 'Email unavailable';
+            const initials = (userName || userEmail || request.userId || 'U')
+                .split(' ')
+                .map(part => part[0])
+                .slice(0, 2)
+                .join('')
+                .toUpperCase();
+
+            const userDisplay = `
+                <div class="profile-request-popup__user-card">
+                    <div class="profile-request-popup__avatar">${initials}</div>
+                    <div>
+                        <div class="profile-request-popup__user-name">${displayName}</div>
+                        <div class="profile-request-popup__user-email">${displayEmail}</div>
+                    </div>
+                </div>
+            `;
+
+            let statusClass = 'status-pending';
+            if (request.status === 'approved') {
+                statusClass = 'status-approved';
+            } else if (request.status === 'rejected') {
+                statusClass = 'status-rejected';
+            }
+
+            const statusText = request.status || 'pending';
+            const requestType = request.requestType || (source === 'profile_update_requests' ? 'Profile Update' : 'Other Request');
+
+            // Create popup content - redesigned layout
+            popupContainer.innerHTML = `
+                <div class="profile-request-popup">
+                    <div class="profile-request-popup__header">
+                        <div>
+                            <div class="profile-request-popup__title">Profile Request Details</div>
+                            <div class="profile-request-popup__subtitle">${requestType}</div>
                         </div>
-                    `;
+                        <button class="close-popup-btn profile-request-popup__close" aria-label="Close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="profile-request-popup__meta">
+                        <div class="profile-request-popup__user">
+                            ${userDisplay}
+                        </div>
+                        <div class="profile-request-popup__chips">
+                            <span class="status-pill ${statusClass}">${statusText}</span>
+                            <span class="profile-request-popup__chip"><i class="fas fa-calendar"></i> ${formattedDate}</span>
+                        </div>
+                    </div>
+                    <div class="profile-request-popup__body">
+                        ${changesHtml || '<div class="profile-request-popup__empty">No changes were detected.</div>'}
+                    </div>
+                    <div class="profile-request-popup__footer">
+                        <button class="see-details-btn action-btn-ghost">
+                            <i class="fas fa-user"></i> See Details
+                        </button>
+                        <div class="profile-request-popup__actions">
+                            <button class="close-popup-btn action-btn-ghost">Close</button>
+                            ${request.status === 'pending' ? `
+                                <button class="approve-popup-btn action-btn-approve"><i class="fas fa-check"></i> Approve</button>
+                                <button class="reject-popup-btn action-btn-reject"><i class="fas fa-times"></i> Reject</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
 
-                // Add popup to body
-                document.body.appendChild(popupContainer);
+            // Add popup to body
+            document.body.appendChild(popupContainer);
 
-                // Close popup button
-                popupContainer.querySelector('.close-popup-btn').addEventListener('click', function () {
+            if ((!userName || !userEmail) && request.userId) {
+                firebase.database().ref(`users/${request.userId}`).once('value')
+                    .then(userSnapshot => {
+                        if (!userSnapshot.exists()) return;
+                        const data = userSnapshot.val() || {};
+                        const resolvedName = userName || data.name || data.displayName || (data.email ? data.email.split('@')[0] : '');
+                        const resolvedEmail = userEmail || data.email || '';
+
+                        if (resolvedName) {
+                            const nameEl = popupContainer.querySelector('.profile-request-popup__user-name');
+                            if (nameEl) nameEl.textContent = resolvedName;
+                        }
+                        if (resolvedEmail) {
+                            const emailEl = popupContainer.querySelector('.profile-request-popup__user-email');
+                            if (emailEl) emailEl.textContent = resolvedEmail;
+                        }
+                        if (resolvedName || resolvedEmail) {
+                            const initialsBase = resolvedName || resolvedEmail || request.userId || 'U';
+                            const initialsUpdate = initialsBase.split(' ')
+                                .map(part => part[0])
+                                .slice(0, 2)
+                                .join('')
+                                .toUpperCase();
+                            const avatarEl = popupContainer.querySelector('.profile-request-popup__avatar');
+                            if (avatarEl) avatarEl.textContent = initialsUpdate;
+                        }
+                    })
+                    .catch(() => { });
+            }
+
+            // Close popup buttons
+            popupContainer.querySelectorAll('.close-popup-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
                     document.body.removeChild(popupContainer);
                 });
+            });
 
-                // See details button
-                popupContainer.querySelector('.see-details-btn').addEventListener('click', function () {
+            // See details button
+            const seeDetailsBtn = popupContainer.querySelector('.see-details-btn');
+            if (seeDetailsBtn) {
+                seeDetailsBtn.addEventListener('click', function () {
                     showUserDetails(request.userId);
                 });
+            }
 
-                // Approve button in popup
-                const approveBtn = popupContainer.querySelector('.approve-popup-btn');
-                if (approveBtn) {
-                    approveBtn.addEventListener('click', function () {
-                        if (confirm('Are you sure you want to approve this request?')) {
-                            approveProfileRequest(requestId, source);
-                            document.body.removeChild(popupContainer);
-                        }
-                    });
-                }
-
-                // Reject button in popup
-                const rejectBtn = popupContainer.querySelector('.reject-popup-btn');
-                if (rejectBtn) {
-                    rejectBtn.addEventListener('click', function () {
-                        if (confirm('Are you sure you want to reject this request?')) {
-                            rejectProfileRequest(requestId, source);
-                            document.body.removeChild(popupContainer);
-                        }
-                    });
-                }
-
-                // Close popup when clicking outside
-                popupContainer.addEventListener('click', function (e) {
-                    if (e.target === popupContainer) {
+            // Approve button in popup
+            const approveBtn = popupContainer.querySelector('.approve-popup-btn');
+            if (approveBtn) {
+                approveBtn.addEventListener('click', function () {
+                    if (confirm('Are you sure you want to approve this request?')) {
+                        approveProfileRequest(requestId, source);
                         document.body.removeChild(popupContainer);
                     }
                 });
-            } else {
-                showAlert('Request not found', 'error');
             }
+
+            // Reject button in popup
+            const rejectBtn = popupContainer.querySelector('.reject-popup-btn');
+            if (rejectBtn) {
+                rejectBtn.addEventListener('click', function () {
+                    if (confirm('Are you sure you want to reject this request?')) {
+                        rejectProfileRequest(requestId, source);
+                        document.body.removeChild(popupContainer);
+                    }
+                });
+            }
+
+            // Close popup when clicking outside
+            popupContainer.addEventListener('click', function (e) {
+                if (e.target === popupContainer) {
+                    document.body.removeChild(popupContainer);
+                }
+            });
         })
         .catch((error) => {
             console.error('Error fetching request details:', error);
@@ -3387,6 +4078,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     initProfileRequests();
                 } else if (section === 'blocked-users') {
                     initBlockedUsers();
+                } else if (section === 'download-limit') {
+                    initDownloadLimitSection();
+                } else if (section === 'device-locks') {
+                    initDeviceLocksSection();
                 } else if (section === 'database-management') {
                     initDatabaseManagement();
                 } else if (section === 'attendance-modification-section') {
@@ -3640,3 +4335,4 @@ function updateSelection(id, name, email, checked) {
 function confirmStudentSelection() {
     console.log('Selected students:', window.selectedStudentsList);
 }
+

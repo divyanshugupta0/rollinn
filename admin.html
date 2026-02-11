@@ -161,6 +161,708 @@
             pointer-events: none
         }
 
+        /* Profile update requests redesign */
+        .profile-requests-loading,
+        .profile-requests-empty,
+        .profile-requests-error {
+            padding: 20px;
+            text-align: center;
+            border-radius: 12px;
+            background: var(--gray-50);
+            color: var(--gray-600);
+            margin: 16px 0;
+        }
+
+        .profile-requests-empty i {
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+            color: var(--gray-400);
+        }
+
+        .profile-requests-error {
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+
+        .profile-requests-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 12px;
+        }
+
+        .profile-requests-table thead th {
+            padding: 8px 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.7rem;
+            color: var(--gray-500);
+            text-align: left;
+            border-bottom: none;
+        }
+
+        .profile-requests-table tbody tr {
+            background: #fff;
+            box-shadow: 0 12px 30px -18px rgba(15, 23, 42, 0.4);
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .profile-requests-table tbody tr:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 18px 40px -18px rgba(15, 23, 42, 0.45);
+        }
+
+        .profile-requests-table tbody td {
+            padding: 14px 16px;
+            vertical-align: middle;
+        }
+
+        .profile-requests-table tbody td:first-child {
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+        }
+
+        .profile-requests-table tbody td:last-child {
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+        }
+
+        .request-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .request-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+            box-shadow: 0 8px 16px -10px rgba(30, 64, 175, 0.8);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .request-avatar-text {
+            position: relative;
+            z-index: 1;
+        }
+
+        .request-avatar-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .request-avatar.has-photo .request-avatar-img {
+            opacity: 1;
+        }
+
+        .request-avatar.has-photo .request-avatar-text {
+            opacity: 0;
+        }
+
+        .request-user-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .request-user-name {
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .request-user-email {
+            font-size: 0.85rem;
+            color: var(--gray-500);
+        }
+
+        .request-summary {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .request-type {
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .request-detail {
+            font-size: 0.85rem;
+            color: var(--gray-500);
+        }
+
+        .request-date {
+            font-size: 0.9rem;
+            color: var(--gray-600);
+            white-space: nowrap;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: capitalize;
+        }
+
+        .status-pill.status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-pill.status-approved {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-pill.status-rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .request-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .action-btn-ghost,
+        .action-btn-approve,
+        .action-btn-reject {
+            border: none;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .action-btn-ghost {
+            background: var(--gray-100);
+            color: var(--gray-700);
+        }
+
+        .action-btn-approve {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success-color);
+        }
+
+        .action-btn-reject {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger-color);
+        }
+
+        .request-more-wrap {
+            position: relative;
+        }
+
+        .more-actions-btn {
+            border: 1px solid var(--gray-200);
+            background: #fff;
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            color: var(--gray-600);
+        }
+
+        .more-actions-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 115%;
+            background: #fff;
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            box-shadow: 0 18px 40px -24px rgba(15, 23, 42, 0.5);
+            min-width: 180px;
+            z-index: 20;
+            padding: 6px;
+        }
+
+        .more-actions-menu button {
+            width: 100%;
+            text-align: left;
+            padding: 8px 10px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+
+        .more-actions-menu button:hover {
+            background: var(--gray-100);
+        }
+
+        .photo-preview-modal {
+            position: relative;
+            background: #0f172a;
+            border-radius: 18px;
+            padding: 16px;
+            box-shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.8);
+            max-width: min(720px, 92vw);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .photo-preview-frame {
+            background: #0b1220;
+            border-radius: 14px;
+            padding: 12px;
+            width: 100%;
+            max-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .photo-preview-img {
+            max-width: 100%;
+            max-height: 75vh;
+            border-radius: 12px;
+            object-fit: contain;
+            background: #111827;
+        }
+
+        .photo-preview-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            border: none;
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .recent-logins-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .recent-logins-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+        }
+
+        .recent-logins-stat {
+            background: #fff;
+            border: 1px solid var(--gray-200);
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: 0 12px 24px -20px rgba(15, 23, 42, 0.45);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .recent-logins-stat .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--gray-500);
+        }
+
+        .recent-logins-stat .stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--gray-800);
+        }
+
+        .recent-logins-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .recent-logins-panel {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .recent-logins-panel h3 {
+            margin: 0 0 12px;
+            font-size: 1rem;
+            color: var(--gray-700);
+        }
+
+        .device-card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .device-card {
+            background: #fff;
+            border: 1px solid var(--gray-200);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 15px 30px -20px rgba(15, 23, 42, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .device-card.is-current {
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 18px 36px -22px rgba(59, 130, 246, 0.5);
+        }
+
+        .device-card__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .device-card__identity {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .device-card__icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-light));
+            color: #fff;
+            font-size: 1.1rem;
+            box-shadow: 0 10px 20px -15px rgba(14, 165, 233, 0.7);
+        }
+
+        .device-card__title {
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .device-card__subtitle {
+            font-size: 0.85rem;
+            color: var(--gray-500);
+        }
+
+        .device-card__badge {
+            background: #e0f2fe;
+            color: #0369a1;
+            font-weight: 600;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+
+        .device-card__chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .device-card__chip {
+            background: var(--gray-100);
+            color: var(--gray-600);
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+
+        .device-card__grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 8px;
+        }
+
+        .device-info-item {
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .device-info-item .label {
+            font-size: 0.7rem;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .device-info-item .value {
+            font-size: 0.85rem;
+            color: var(--gray-700);
+            word-break: break-word;
+        }
+
+        .device-card__actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .device-card__actions .logout-device-btn {
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--danger-color);
+            border: none;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .device-empty {
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            color: var(--gray-500);
+            background: #fff;
+            border: 1px dashed var(--gray-300);
+        }
+
+        @media (max-width: 640px) {
+            .recent-logins-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .profile-request-popup {
+            background: #fff;
+            width: min(720px, 92vw);
+            border-radius: 18px;
+            box-shadow: 0 35px 70px -40px rgba(15, 23, 42, 0.7);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 85vh;
+        }
+
+        .profile-request-popup__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: #fff;
+        }
+
+        .profile-request-popup__title {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .profile-request-popup__subtitle {
+            font-size: 0.9rem;
+            opacity: 0.85;
+        }
+
+        .profile-request-popup__close {
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .profile-request-popup__meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 24px;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .profile-request-popup__user-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .profile-request-popup__avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            color: #fff;
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-light));
+            box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.7);
+        }
+
+        .profile-request-popup__user-name {
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .profile-request-popup__user-email {
+            font-size: 0.85rem;
+            color: var(--gray-500);
+        }
+
+        .profile-request-popup__chips {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .profile-request-popup__chip {
+            background: #fff;
+            border: 1px solid var(--gray-200);
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            color: var(--gray-600);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .profile-request-popup__body {
+            padding: 20px 24px;
+            overflow: auto;
+        }
+
+        .profile-request-popup__section-title {
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 12px;
+        }
+
+        .profile-request-popup__changes ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .profile-request-popup__changes li {
+            display: grid;
+            grid-template-columns: 140px 1fr auto 1fr;
+            gap: 10px;
+            align-items: center;
+            background: #f8fafc;
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 10px 12px;
+        }
+
+        .change-field {
+            font-weight: 600;
+            color: var(--gray-800);
+            text-transform: capitalize;
+        }
+
+        .change-from,
+        .change-to {
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .change-from {
+            background: #fff;
+            border: 1px dashed var(--gray-300);
+            color: var(--gray-500);
+        }
+
+        .change-to {
+            background: #e0f2fe;
+            border: 1px solid #bae6fd;
+            color: #0c4a6e;
+        }
+
+        .change-arrow {
+            color: var(--gray-400);
+            font-weight: 700;
+        }
+
+        .profile-request-popup__empty {
+            padding: 16px;
+            background: var(--gray-50);
+            border-radius: 12px;
+            text-align: center;
+            color: var(--gray-500);
+        }
+
+        .profile-request-popup__footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px 22px;
+            border-top: 1px solid var(--gray-200);
+            gap: 12px;
+        }
+
+        .profile-request-popup__actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 640px) {
+            .profile-request-popup__meta {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .profile-request-popup__changes li {
+                grid-template-columns: 1fr;
+            }
+
+            .change-arrow {
+                display: none;
+            }
+
+            .profile-request-popup__footer {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
         @media(max-width:768px) {
             .coordinates-group {
                 flex-direction: column;
@@ -2378,6 +3080,18 @@
                         </div>
                         <span class="menu-item-text">Blocked Users</span>
                     </div>
+                    <div class="sidebar-menu-item-modern" data-section="download-limit">
+                        <div class="menu-item-icon">
+                            <i class="fas fa-download"></i>
+                        </div>
+                        <span class="menu-item-text">Download Limits</span>
+                    </div>
+                    <div class="sidebar-menu-item-modern" data-section="device-locks">
+                        <div class="menu-item-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <span class="menu-item-text">Device Locks</span>
+                    </div>
                 </div>
 
                 <!-- System Section -->
@@ -3051,9 +3765,13 @@
                     </button>
                     <h2><i class="fas fa-history"></i> Recent Logins</h2>
                 </div>
+                <div style="display:flex; gap: 10px;">
+                    <button id="refresh-recent-logins-btn" class="primary-btn" style="padding: 8px 16px;">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
             </div>
             <div class="card-body">
-                <h3 class="section-title">Active Devices</h3>
                 <div id="active-devices-list" class="device-list">
                     <!-- Will be populated dynamically -->
                 </div>
@@ -3224,6 +3942,496 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const database = getDatabase(app);
+
+        // Storage helper (localStorage -> sessionStorage -> in-memory)
+        const safeStorage = (() => {
+            try {
+                const testKey = '__rollcall_storage_test__';
+                localStorage.setItem(testKey, '1');
+                localStorage.removeItem(testKey);
+                return {
+                    type: 'local',
+                    getItem: (key) => localStorage.getItem(key),
+                    setItem: (key, value) => localStorage.setItem(key, String(value)),
+                    removeItem: (key) => localStorage.removeItem(key)
+                };
+            } catch (e) {
+                // Ignore and try session storage
+            }
+            try {
+                const testKey = '__rollcall_storage_test__';
+                sessionStorage.setItem(testKey, '1');
+                sessionStorage.removeItem(testKey);
+                return {
+                    type: 'session',
+                    getItem: (key) => sessionStorage.getItem(key),
+                    setItem: (key, value) => sessionStorage.setItem(key, String(value)),
+                    removeItem: (key) => sessionStorage.removeItem(key)
+                };
+            } catch (e) {
+                // Ignore and fallback to memory storage
+            }
+            const memoryStore = {};
+            return {
+                type: 'memory',
+                getItem: (key) => Object.prototype.hasOwnProperty.call(memoryStore, key) ? memoryStore[key] : null,
+                setItem: (key, value) => { memoryStore[key] = String(value); },
+                removeItem: (key) => { delete memoryStore[key]; }
+            };
+        })();
+
+        // Encrypted photo cache (IndexedDB + AES-GCM)
+        const PHOTO_CACHE_DB = 'rollcall_photo_cache_v1';
+        const PHOTO_CACHE_STORE = 'photos';
+        const PHOTO_CACHE_KEY_STORAGE = 'rollcall_photo_cache_key_v1';
+        const photoMemoryCache = new Map();
+        let photoCacheDbPromise = null;
+        let photoCryptoKeyPromise = null;
+
+        function bytesToBase64(bytes) {
+            let binary = '';
+            const chunkSize = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        function base64ToBytes(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        function openPhotoCacheDb() {
+            if (!window.indexedDB) return Promise.reject(new Error('IndexedDB not available'));
+            if (photoCacheDbPromise) return photoCacheDbPromise;
+            photoCacheDbPromise = new Promise((resolve, reject) => {
+                const request = indexedDB.open(PHOTO_CACHE_DB, 1);
+                request.onupgradeneeded = () => {
+                    const db = request.result;
+                    if (!db.objectStoreNames.contains(PHOTO_CACHE_STORE)) {
+                        db.createObjectStore(PHOTO_CACHE_STORE);
+                    }
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+            return photoCacheDbPromise;
+        }
+
+        function getPhotoCryptoKey() {
+            if (photoCryptoKeyPromise) return photoCryptoKeyPromise;
+            if (!window.crypto || !window.crypto.subtle) {
+                return Promise.reject(new Error('Web Crypto not available'));
+            }
+            photoCryptoKeyPromise = (async () => {
+                let rawKeyBase64 = safeStorage.getItem(PHOTO_CACHE_KEY_STORAGE);
+                if (!rawKeyBase64) {
+                    const raw = new Uint8Array(32);
+                    window.crypto.getRandomValues(raw);
+                    rawKeyBase64 = bytesToBase64(raw);
+                    safeStorage.setItem(PHOTO_CACHE_KEY_STORAGE, rawKeyBase64);
+                }
+                const rawKey = base64ToBytes(rawKeyBase64);
+                return window.crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['encrypt', 'decrypt']);
+            })();
+            return photoCryptoKeyPromise;
+        }
+
+        async function getPhotoCacheEntry(cacheKey) {
+            const db = await openPhotoCacheDb();
+            return new Promise((resolve) => {
+                const tx = db.transaction(PHOTO_CACHE_STORE, 'readonly');
+                const store = tx.objectStore(PHOTO_CACHE_STORE);
+                const req = store.get(cacheKey);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => resolve(null);
+            });
+        }
+
+        async function setPhotoCacheEntry(cacheKey, entry) {
+            const db = await openPhotoCacheDb();
+            return new Promise((resolve) => {
+                const tx = db.transaction(PHOTO_CACHE_STORE, 'readwrite');
+                const store = tx.objectStore(PHOTO_CACHE_STORE);
+                const req = store.put(entry, cacheKey);
+                req.onsuccess = () => resolve(true);
+                req.onerror = () => resolve(false);
+            });
+        }
+
+        async function encryptPhotoBytes(bytes) {
+            const key = await getPhotoCryptoKey();
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const encrypted = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, bytes);
+            return {
+                iv: bytesToBase64(iv),
+                data: bytesToBase64(new Uint8Array(encrypted))
+            };
+        }
+
+        async function decryptPhotoBytes(entry) {
+            const key = await getPhotoCryptoKey();
+            const iv = base64ToBytes(entry.iv);
+            const data = base64ToBytes(entry.data);
+            const decrypted = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+            return new Uint8Array(decrypted);
+        }
+
+        async function getEncryptedPhotoUrl(cacheKey) {
+            if (!cacheKey) return null;
+            if (photoMemoryCache.has(cacheKey)) {
+                return photoMemoryCache.get(cacheKey);
+            }
+            const entry = await getPhotoCacheEntry(cacheKey);
+            if (!entry) return null;
+            const bytes = await decryptPhotoBytes(entry);
+            const blob = new Blob([bytes], { type: entry.type || 'image/jpeg' });
+            const url = URL.createObjectURL(blob);
+            photoMemoryCache.set(cacheKey, url);
+            return url;
+        }
+
+        async function cachePhotoFromUrl(cacheKey, photoUrl) {
+            if (!cacheKey || !photoUrl) return;
+            if (photoUrl.startsWith('data:')) return;
+            const response = await fetch(photoUrl, { mode: 'cors' });
+            if (!response.ok) {
+                throw new Error('Failed to fetch photo');
+            }
+            const buffer = await response.arrayBuffer();
+            const encrypted = await encryptPhotoBytes(new Uint8Array(buffer));
+            const contentType = response.headers.get('content-type') || 'image/jpeg';
+            await setPhotoCacheEntry(cacheKey, {
+                iv: encrypted.iv,
+                data: encrypted.data,
+                type: contentType,
+                ts: Date.now()
+            });
+        }
+
+        async function applyEncryptedPhotoToImg(imgEl, photoUrl, cacheKey) {
+            if (!imgEl || !photoUrl) return;
+            const key = cacheKey || photoUrl;
+            if (!window.crypto?.subtle || !window.indexedDB) {
+                imgEl.src = photoUrl;
+                return;
+            }
+            try {
+                const cachedUrl = await getEncryptedPhotoUrl(key);
+                if (cachedUrl) {
+                    imgEl.src = cachedUrl;
+                    return;
+                }
+            } catch (e) {
+                // Ignore cache errors, fallback to remote URL
+            }
+            imgEl.src = photoUrl;
+            cachePhotoFromUrl(key, photoUrl).catch(() => { });
+        }
+
+        window.applyEncryptedPhotoToImg = applyEncryptedPhotoToImg;
+
+        // User cache (device storage)
+        const USER_CACHE_PREFIX = 'rollcall_admin_user_cache_v1:';
+        const USER_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+        function getCachedUser(uid) {
+            if (!uid) return null;
+            try {
+                const raw = safeStorage.getItem(`${USER_CACHE_PREFIX}${uid}`);
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                if (!parsed || !parsed.data || !parsed.ts) return null;
+                if (Date.now() - parsed.ts > USER_CACHE_TTL_MS) return null;
+                return parsed.data;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function setCachedUser(uid, data) {
+            if (!uid || !data) return;
+            try {
+                safeStorage.setItem(`${USER_CACHE_PREFIX}${uid}`, JSON.stringify({
+                    ts: Date.now(),
+                    data
+                }));
+            } catch (e) {
+                // Ignore cache write errors
+            }
+        }
+
+        // Cloudflare R2 profile photo settings
+        const R2_PROFILE_PHOTO_CONFIG = {
+            maxBytes: 2 * 1024 * 1024,
+            maxDimension: 640,
+            outputType: 'image/webp',
+            quality: 0.8
+        };
+
+        const R2_CONFIG_PATH = 'cloudflare_r2'; // Firebase path storing Cloudflare R2 config
+        const R2_ENDPOINT_PATH = 'cloudflare_endpoint';
+        let r2RuntimeConfig = null;
+        let r2ConfigPromise = null;
+        let r2ListenerAttached = false;
+        let r2RuntimeHash = null;
+
+        function normalizeR2Config(data) {
+            if (!data || typeof data !== 'object') return null;
+            const uploadEndpoint = data.cloudflare_endpoint || data.cloudflareEndpoint || data.uploadEndpoint || data.upload_endpoint || data.r2_upload_endpoint || '';
+            const publicBaseUrl = data.cloudflare_public_base_url || data.cloudflarePublicBaseUrl || data.publicBaseUrl || data.public_base_url || data.r2_public_base_url || data.cdnBaseUrl || '';
+            const tokenValue = data.cloudflare_token_value || data.cloudflare_token || data.cloudflare_api_token || data.token || data.r2_token || '';
+            const authToken = data.authToken || data.authorization || '';
+            const accessKeyId = data.cloudflare_access_key_id || data.accessKeyId || '';
+            const secretAccessKey = data.cloudflare_secret_access_key || data.secretAccessKey || '';
+
+            let resolvedUploadEndpoint = uploadEndpoint;
+            let resolvedAuthToken = authToken || tokenValue;
+            if (!resolvedUploadEndpoint && tokenValue && /^https?:\/\//i.test(tokenValue)) {
+                resolvedUploadEndpoint = tokenValue;
+                resolvedAuthToken = authToken;
+            }
+
+            return {
+                uploadEndpoint: resolvedUploadEndpoint,
+                publicBaseUrl: publicBaseUrl,
+                authToken: resolvedAuthToken,
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                updatedAt: data.updatedAt || data.updated_at || data.lastUpdated || null
+            };
+        }
+
+        function cacheR2Config(config) {
+            if (!config) return;
+            r2RuntimeConfig = config;
+            try {
+                r2RuntimeHash = JSON.stringify(config);
+            } catch (e) {
+                r2RuntimeHash = null;
+            }
+        }
+
+        function mergeR2Endpoint(endpointValue) {
+            if (!endpointValue) return;
+            const cached = r2RuntimeConfig || {};
+            if (cached.uploadEndpoint === endpointValue) return;
+            cacheR2Config({
+                ...cached,
+                uploadEndpoint: endpointValue
+            });
+        }
+
+        function attachR2ConfigListener() {
+            if (r2ListenerAttached) return;
+            r2ListenerAttached = true;
+            onValue(ref(database, R2_CONFIG_PATH), (snapshot) => {
+                if (!snapshot.exists()) return;
+                const normalized = normalizeR2Config(snapshot.val());
+                if (!normalized) return;
+                const nextHash = JSON.stringify(normalized);
+                if (r2RuntimeHash === nextHash) {
+                    return;
+                }
+                cacheR2Config({
+                    ...(r2RuntimeConfig || {}),
+                    ...normalized
+                });
+            });
+            onValue(ref(database, R2_ENDPOINT_PATH), (snapshot) => {
+                if (!snapshot.exists()) return;
+                const endpointValue = snapshot.val();
+                mergeR2Endpoint(endpointValue);
+            });
+        }
+
+        async function ensureR2RuntimeConfig() {
+            if (r2RuntimeConfig) return r2RuntimeConfig;
+            if (r2ConfigPromise) {
+                return r2ConfigPromise;
+            }
+            r2ConfigPromise = Promise.all([
+                get(ref(database, R2_CONFIG_PATH)).catch(() => null),
+                get(ref(database, R2_ENDPOINT_PATH)).catch(() => null)
+            ])
+                .then(([configSnapshot, endpointSnapshot]) => {
+                    let normalized = {};
+                    if (configSnapshot && configSnapshot.exists()) {
+                        const next = normalizeR2Config(configSnapshot.val());
+                        if (next) {
+                            normalized = next;
+                        }
+                    }
+                    if (endpointSnapshot && endpointSnapshot.exists()) {
+                        normalized.uploadEndpoint = endpointSnapshot.val();
+                    }
+                    if (!normalized.uploadEndpoint) {
+                        throw new Error('R2 upload endpoint is not configured.');
+                    }
+                    cacheR2Config(normalized);
+                    attachR2ConfigListener();
+                    return normalized;
+                })
+                .finally(() => {
+                    r2ConfigPromise = null;
+                });
+            return r2ConfigPromise;
+        }
+
+        function getImageDimensions(width, height, maxDimension) {
+            if (!width || !height) return { width, height };
+            if (width <= maxDimension && height <= maxDimension) {
+                return { width, height };
+            }
+            const ratio = Math.min(maxDimension / width, maxDimension / height);
+            return {
+                width: Math.round(width * ratio),
+                height: Math.round(height * ratio)
+            };
+        }
+
+        async function loadImageSource(file) {
+            if (window.createImageBitmap) {
+                try {
+                    return await createImageBitmap(file, { imageOrientation: 'from-image' });
+                } catch (e) {
+                    // Ignore and fallback
+                }
+                try {
+                    return await createImageBitmap(file);
+                } catch (e) {
+                    // Ignore and fallback
+                }
+            }
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                const objectUrl = URL.createObjectURL(file);
+                img.onload = () => {
+                    URL.revokeObjectURL(objectUrl);
+                    resolve(img);
+                };
+                img.onerror = (err) => {
+                    URL.revokeObjectURL(objectUrl);
+                    reject(err);
+                };
+                img.src = objectUrl;
+            });
+        }
+
+        async function compressImageFile(file) {
+            const image = await loadImageSource(file);
+            const { width, height } = getImageDimensions(image.width, image.height, R2_PROFILE_PHOTO_CONFIG.maxDimension);
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d', { alpha: true });
+            ctx.drawImage(image, 0, 0, width, height);
+
+            const blob = await new Promise((resolve) => {
+                canvas.toBlob(resolve, R2_PROFILE_PHOTO_CONFIG.outputType, R2_PROFILE_PHOTO_CONFIG.quality);
+            });
+
+            if (blob) {
+                return blob;
+            }
+
+            const fallbackBlob = await new Promise((resolve) => {
+                canvas.toBlob(resolve, 'image/jpeg', R2_PROFILE_PHOTO_CONFIG.quality);
+            });
+
+            return fallbackBlob || file;
+        }
+
+        async function requestR2Upload({ userId, contentType, contentLength, fileName }) {
+            const r2Config = await ensureR2RuntimeConfig();
+            if (!r2Config || !r2Config.uploadEndpoint) {
+                throw new Error('R2 upload endpoint is not configured.');
+            }
+            const headers = { 'Content-Type': 'application/json' };
+            if (r2Config.authToken) {
+                headers.Authorization = /^Bearer\s+/i.test(r2Config.authToken) || /^Token\s+/i.test(r2Config.authToken)
+                    ? r2Config.authToken
+                    : `Bearer ${r2Config.authToken}`;
+            }
+            const response = await fetch(r2Config.uploadEndpoint, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    userId,
+                    contentType,
+                    contentLength,
+                    fileName
+                })
+            });
+            if (!response.ok) {
+                throw new Error('Failed to get R2 upload URL.');
+            }
+            return response.json();
+        }
+
+        function resolvePublicProfileUrl(uploadInfo, r2Config) {
+            if (uploadInfo && uploadInfo.publicUrl) {
+                return uploadInfo.publicUrl;
+            }
+            const publicBaseUrl = r2Config && r2Config.publicBaseUrl ? r2Config.publicBaseUrl : '';
+            if (uploadInfo && uploadInfo.key && publicBaseUrl) {
+                return `${publicBaseUrl.replace(/\/$/, '')}/${uploadInfo.key}`;
+            }
+            return null;
+        }
+
+        async function uploadProfilePhoto(file, userId) {
+            if (!file) {
+                throw new Error('No file selected for upload.');
+            }
+            if (file.size > R2_PROFILE_PHOTO_CONFIG.maxBytes) {
+                throw new Error('Image size must be less than 2MB.');
+            }
+
+            const r2Config = await ensureR2RuntimeConfig();
+            const compressedBlob = await compressImageFile(file);
+            const contentType = compressedBlob.type || 'image/jpeg';
+            const extension = contentType === 'image/webp' ? 'webp' : 'jpg';
+            const fileName = `${userId || 'user'}-${Date.now()}.${extension}`;
+
+            const uploadInfo = await requestR2Upload({
+                userId,
+                contentType,
+                contentLength: compressedBlob.size,
+                fileName
+            });
+
+            if (!uploadInfo || !uploadInfo.uploadUrl) {
+                throw new Error('Upload URL missing from R2 response.');
+            }
+
+            const uploadResponse = await fetch(uploadInfo.uploadUrl, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': contentType
+                },
+                body: compressedBlob
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error('R2 upload failed.');
+            }
+
+            const publicUrl = resolvePublicProfileUrl(uploadInfo, r2Config);
+            if (!publicUrl) {
+                throw new Error('Public profile photo URL could not be resolved.');
+            }
+
+            return {
+                publicUrl,
+                key: uploadInfo.key || null
+            };
+        }
 
         // DOM Elements
         const loginSection = document.getElementById('login-section');
@@ -4071,8 +5279,12 @@
                                         email: userData.email,
                                         name: userData.name,
                                         role: userData.role,
-                                        deviceId: deviceId
+                                        deviceId: deviceId,
+                                        profilePhoto: userData.profilePhoto || null,
+                                        profilePhotoKey: userData.profilePhotoKey || null
                                     };
+
+                                    setCachedUser(user.uid, userData);
 
                                     // Set up listener for force logout
                                     listenForForceLogout(user.uid);
@@ -4310,21 +5522,46 @@
                     sidebarAdminEmail.textContent = currentUser.email || '';
                 }
 
-                // Check for profile photo in Firebase
-                get(ref(database, `users/${currentUser.uid}/profilePhoto`))
+                // Load profile photo (cache-first, then Firebase)
+                const cachedUser = getCachedUser(currentUser.uid);
+                let cacheHasPhoto = false;
+                if (cachedUser && cachedUser.profilePhoto && sidebarUserAvatar) {
+                    applyEncryptedPhotoToImg(
+                        sidebarUserAvatar,
+                        cachedUser.profilePhoto,
+                        cachedUser.profilePhotoKey || cachedUser.profilePhoto
+                    );
+                    cacheHasPhoto = true;
+                }
+                if (!cacheHasPhoto && sidebarUserAvatar && currentUser.name) {
+                    sidebarUserAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=3b82f6&color=fff&size=32`;
+                }
+
+                get(ref(database, `users/${currentUser.uid}`))
                     .then((snapshot) => {
-                        if (snapshot.exists() && snapshot.val()) {
-                            // User has profile photo - show it
-                            const profilePhoto = snapshot.val();
-                            if (sidebarUserAvatar) {
-                                sidebarUserAvatar.src = profilePhoto;
+                        if (snapshot.exists()) {
+                            const userData = snapshot.val();
+                            setCachedUser(currentUser.uid, userData);
+                            if (userData.profilePhoto && sidebarUserAvatar) {
+                                applyEncryptedPhotoToImg(
+                                    sidebarUserAvatar,
+                                    userData.profilePhoto,
+                                    userData.profilePhotoKey || userData.profilePhoto
+                                );
+                                currentUser.profilePhoto = userData.profilePhoto;
+                                currentUser.profilePhotoKey = userData.profilePhotoKey || null;
+                            } else if (!cacheHasPhoto) {
+                                if (sidebarUserAvatar && currentUser.name) {
+                                    sidebarUserAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=3b82f6&color=fff&size=32`;
+                                }
+                                setTimeout(() => {
+                                    showAdminPhotoModal();
+                                }, 1000);
                             }
-                        } else {
-                            // No profile photo - show initials avatar and popup modal
+                        } else if (!cacheHasPhoto) {
                             if (sidebarUserAvatar && currentUser.name) {
                                 sidebarUserAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=3b82f6&color=fff&size=32`;
                             }
-                            // Show the photo upload modal
                             setTimeout(() => {
                                 showAdminPhotoModal();
                             }, 1000);
@@ -4332,8 +5569,7 @@
                     })
                     .catch((error) => {
                         console.error('Error checking profile photo:', error);
-                        // Fallback to initials avatar
-                        if (sidebarUserAvatar && currentUser.name) {
+                        if (!cacheHasPhoto && sidebarUserAvatar && currentUser.name) {
                             sidebarUserAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=3b82f6&color=fff&size=32`;
                         }
                     });
@@ -4356,7 +5592,7 @@
         // ADMIN PROFILE PHOTO FUNCTIONS
         // ========================================
 
-        let adminPhotoBase64 = null;
+        let adminPhotoFile = null;
 
         function showAdminPhotoModal() {
             const modal = document.getElementById('admin-photo-modal');
@@ -4396,14 +5632,16 @@
                 return;
             }
 
+            adminPhotoFile = file;
+
             const reader = new FileReader();
             reader.onload = function (e) {
-                adminPhotoBase64 = e.target.result;
+                const previewUrl = e.target.result;
 
                 // Update preview
                 const preview = document.getElementById('admin-photo-preview');
                 if (preview) {
-                    preview.src = adminPhotoBase64;
+                    preview.src = previewUrl;
                 }
 
                 // Add has-image class
@@ -4433,8 +5671,8 @@
             reader.readAsDataURL(file);
         }
 
-        function saveAdminPhoto() {
-            if (!currentUser || !adminPhotoBase64) {
+        async function saveAdminPhoto() {
+            if (!currentUser || !adminPhotoFile) {
                 showAlert('No photo to save', 'error');
                 return;
             }
@@ -4445,40 +5683,50 @@
                 saveBtn.disabled = true;
             }
 
-            // Save to Firebase
-            update(ref(database, `users/${currentUser.uid}`), {
-                profilePhoto: adminPhotoBase64
-            })
-                .then(() => {
-                    showAlert('Profile photo saved successfully!', 'success');
+            try {
+                const uploadResult = await uploadProfilePhoto(adminPhotoFile, currentUser.uid);
+                const profilePhotoUrl = uploadResult.publicUrl;
 
-                    // Update sidebar avatar
-                    const sidebarAvatar = document.getElementById('sidebar-user-avatar');
-                    if (sidebarAvatar) {
-                        sidebarAvatar.src = adminPhotoBase64;
-                    }
-
-                    // Update currentUser object
-                    currentUser.profilePhoto = adminPhotoBase64;
-
-                    // Close modal
-                    hideAdminPhotoModal();
-
-                    // Reset button
-                    if (saveBtn) {
-                        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Photo';
-                        saveBtn.disabled = false;
-                    }
-                })
-                .catch((error) => {
-                    console.error('Error saving photo:', error);
-                    showAlert('Failed to save photo. Please try again.', 'error');
-
-                    if (saveBtn) {
-                        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Photo';
-                        saveBtn.disabled = false;
-                    }
+                await update(ref(database, `users/${currentUser.uid}`), {
+                    profilePhoto: profilePhotoUrl,
+                    profilePhotoKey: uploadResult.key || null,
+                    profilePhotoUpdatedAt: Date.now()
                 });
+
+                showAlert('Profile photo saved successfully!', 'success');
+
+                // Update sidebar avatar
+                const sidebarAvatar = document.getElementById('sidebar-user-avatar');
+                if (sidebarAvatar) {
+                    applyEncryptedPhotoToImg(
+                        sidebarAvatar,
+                        profilePhotoUrl,
+                        uploadResult.key || profilePhotoUrl
+                    );
+                }
+
+                // Update currentUser object and cache
+                currentUser.profilePhoto = profilePhotoUrl;
+                currentUser.profilePhotoKey = uploadResult.key || null;
+                const cachedUser = getCachedUser(currentUser.uid) || {};
+                setCachedUser(currentUser.uid, {
+                    ...cachedUser,
+                    profilePhoto: profilePhotoUrl,
+                    profilePhotoKey: uploadResult.key || cachedUser.profilePhotoKey || null
+                });
+                adminPhotoFile = null;
+
+                // Close modal
+                hideAdminPhotoModal();
+            } catch (error) {
+                console.error('Error saving photo:', error);
+                showAlert('Failed to save photo. Please try again.', 'error');
+            } finally {
+                if (saveBtn) {
+                    saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Photo';
+                    saveBtn.disabled = false;
+                }
+            }
         }
 
         // Initialize admin photo modal event listeners
@@ -7698,6 +8946,7 @@
                 .then((snapshot) => {
                     const settings = snapshot.exists() ? snapshot.val() : {
                         attendanceCapturing: true,
+                        desktopAttendanceBlocked: true,
                         registrationLive: true,
                         privacyMode: false,
                         largeText: false,
@@ -7708,6 +8957,7 @@
                     };
 
                     document.getElementById('attendance-capturing-toggle').checked = settings.attendanceCapturing;
+                    document.getElementById('desktop-attendance-block-toggle').checked = settings.desktopAttendanceBlocked !== false;
                     document.getElementById('registration-live-toggle').checked = settings.registrationLive;
                     document.getElementById('privacy-mode-toggle').checked = settings.privacyMode;
                     document.getElementById('large-text-toggle').checked = settings.largeText;
@@ -7730,6 +8980,7 @@
 
             const settings = {
                 attendanceCapturing: document.getElementById('attendance-capturing-toggle').checked,
+                desktopAttendanceBlocked: document.getElementById('desktop-attendance-block-toggle').checked,
                 registrationLive: document.getElementById('registration-live-toggle').checked,
                 privacyMode: document.getElementById('privacy-mode-toggle').checked,
                 largeText: document.getElementById('large-text-toggle').checked,
@@ -8528,6 +9779,86 @@
         </div>
     </div>
 
+    <div id="download-limit-section" class="section-template hidden">
+        <div class="card">
+            <div class="header">
+                <div class="header-content">
+                    <button class="section-menu-btn">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h2><i class="fas fa-download"></i> Download Limits</h2>
+                </div>
+                <div style="display:flex; gap: 20px;">
+                    <button id="refresh-download-limit-btn" class="primary-btn" style="padding: 8px 16px;">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="download-limit-container">
+                    <div class="status-indicator info" id="download-limit-summary">
+                        <p>This section shows users who have reached the Android app download limit.</p>
+                    </div>
+                    <table class="attendance-list">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Used</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="download-limit-list">
+                            <!-- Download limit users will be listed here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="device-locks-section" class="section-template hidden">
+        <div class="card">
+            <div class="header">
+                <div class="header-content">
+                    <button class="section-menu-btn">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h2><i class="fas fa-lock"></i> Device Locks <span id="device-locks-count" class="badge">0</span></h2>
+                </div>
+                <div style="display:flex; gap: 20px;">
+                    <button id="refresh-device-locks-btn" class="primary-btn" style="padding: 8px 16px;">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="device-locks-container">
+                    <div class="status-indicator info">
+                        <p>This section shows users with active device locks. You can clear locks to allow login.</p>
+                    </div>
+                    <table class="attendance-list">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Location</th>
+                                <th>Locked At</th>
+                                <th>Expires In</th>
+                                <th>Device</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="device-locks-list">
+                            <!-- Device locks will be listed here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Popup for adding blocked user -->
     <div id="block-user-popup" class="popup-container hidden">
         <div class="popup">
@@ -9022,6 +10353,19 @@
                         <div class="toggle-switch">
                             <input type="checkbox" id="attendance-capturing-toggle" class="toggle-input">
                             <label for="attendance-capturing-toggle" class="toggle-label">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4><i class="fas fa-desktop"></i> Block Desktop Attendance</h4>
+                            <p>When enabled, attendance can only be marked from mobile devices (iPhone/Android).</p>
+                        </div>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="desktop-attendance-block-toggle" class="toggle-input">
+                            <label for="desktop-attendance-block-toggle" class="toggle-label">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
