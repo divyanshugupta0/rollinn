@@ -6906,6 +6906,7 @@
                             digitalStep: 0.1,
                             onZoomChange: (value, mode) => {
                                 qrZoomInfo = { value, mode };
+                                applyDigitalZoomToVideo(video, qrZoomInfo);
                             }
                         });
 
@@ -8970,6 +8971,7 @@
             digitalStep: 0.1,
             onZoomChange: (value, mode) => {
                 scannerZoomInfo = { value, mode };
+                applyDigitalZoomToVideo(video, scannerZoomInfo);
             }
         });
 
@@ -8987,6 +8989,18 @@
                 canvasEl._scanCtx = canvasEl.getContext('2d', { willReadFrequently: true });
             }
             return canvasEl._scanCtx;
+        }
+
+        function applyDigitalZoomToVideo(videoEl, zoomInfo) {
+            if (!videoEl || !zoomInfo) return;
+            const shouldScale = zoomInfo.mode === 'digital' && zoomInfo.value > 1;
+            if (shouldScale) {
+                videoEl.style.transformOrigin = 'center center';
+                videoEl.style.transform = `scale(${zoomInfo.value})`;
+                videoEl.style.willChange = 'transform';
+            } else {
+                videoEl.style.transform = 'scale(1)';
+            }
         }
 
         function drawVideoToScanCanvas(videoEl, canvasEl, zoomInfo) {
