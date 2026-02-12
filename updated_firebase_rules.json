@@ -23,6 +23,14 @@
       ".write": "auth != null"
     },
     "deviceLocks": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "deviceFingerprintLocks": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "userLocks": {
       ".read": "auth != null",
       ".write": "auth != null"
     },

@@ -8182,12 +8182,7 @@
 
         // Expose functions to window object for onclick handlers
         window.generateQRCode = function (locationId) {
-            // Create QR code data
-            const qrData = {
-                type: 'attendance',
-                locationId: locationId,
-                timestamp: new Date().getTime()
-            };
+            const qrPayload = `RC:${locationId}`;
 
             // Create modal to show QR code
             const modal = document.createElement('div');
@@ -8220,12 +8215,12 @@
 
                     // Generate QR code
                     const qrcode = new QRCode(document.getElementById("qrcode"), {
-                        text: JSON.stringify(qrData),
-                        width: 256,
-                        height: 256,
+                        text: qrPayload,
+                        width: 320,
+                        height: 320,
                         colorDark: "#000000",
                         colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.H
+                        correctLevel: QRCode.CorrectLevel.M
                     });
 
                     // Close button event
@@ -9062,15 +9057,7 @@
                     if (snapshot.exists()) {
                         const location = snapshot.val();
 
-                        // Create the QR data, including device type info
-                        const qrData = {
-                            locationId: locationId,
-                            name: location.name,
-                            createdFromDevice: location.createdFromDevice || currentDeviceType
-                        };
-
-                        // Serialize to JSON
-                        const qrContent = JSON.stringify(qrData);
+                        const qrPayload = `RC:${locationId}`;
 
                         // Create modal for QR code
                         const modal = document.createElement('div');
@@ -9105,12 +9092,12 @@
 
                         // Generate QR code
                         const qrcode = new QRCode(document.getElementById("qrcode"), {
-                            text: qrContent,
-                            width: 256,
-                            height: 256,
+                            text: qrPayload,
+                            width: 320,
+                            height: 320,
                             colorDark: "#000000",
                             colorLight: "#ffffff",
-                            correctLevel: QRCode.CorrectLevel.H
+                            correctLevel: QRCode.CorrectLevel.M
                         });
 
                         // Close button event
