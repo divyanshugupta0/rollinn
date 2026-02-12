@@ -4140,6 +4140,8 @@
             return false;
         }
 
+        window.rollcallNotifyNative = tryNativeNotification;
+
         async function showAttendanceNotification(title, body) {
             if (tryNativeNotification(title, body)) {
                 return true;
@@ -9085,27 +9087,44 @@
             }
 
             function sendNativeNotification(notification) {
-                const title = notification.header || 'New Notification';
-                const body = notification.body || '';
-                try {
-                    if (window.AndroidDevice) {
-                        if (typeof window.AndroidDevice.showNotification === 'function') {
-                            window.AndroidDevice.showNotification(title, body);
-                            return true;
-                        }
-                        if (typeof window.AndroidDevice.notify === 'function') {
-                            window.AndroidDevice.notify(title, body);
-                            return true;
-                        }
-                        if (typeof window.AndroidDevice.sendNotification === 'function') {
-                            window.AndroidDevice.sendNotification(title, body);
-                            return true;
-                        }
+                const title = String(notification.header || 'New Notification');
+                const body = String(notification.body || '');
+
+                if (typeof window.rollcallNotifyNative === 'function') {
+                    try {
+                        return window.rollcallNotifyNative(title, body) === true;
+                    } catch (error) {
+                        console.warn('rollcallNotifyNative failed:', error);
                     }
-                } catch (error) {
-                    console.warn('Native notification failed:', error);
                 }
-                return false;
+
+                function attemptNotify(remainingAttempts) {
+                    try {
+                        if (window.AndroidDevice) {
+                            if (typeof window.AndroidDevice.showNotification === 'function') {
+                                window.AndroidDevice.showNotification(title, body);
+                                return true;
+                            }
+                            if (typeof window.AndroidDevice.notify === 'function') {
+                                window.AndroidDevice.notify(title, body);
+                                return true;
+                            }
+                            if (typeof window.AndroidDevice.sendNotification === 'function') {
+                                window.AndroidDevice.sendNotification(title, body);
+                                return true;
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('Native notification failed:', error);
+                    }
+
+                    if (remainingAttempts > 0) {
+                        setTimeout(() => attemptNotify(remainingAttempts - 1), 500);
+                    }
+                    return false;
+                }
+
+                return attemptNotify(3);
             }
 
             function handleNotificationCandidate(notification, notificationId, studentId) {
