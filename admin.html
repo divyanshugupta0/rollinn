@@ -210,6 +210,41 @@
             transition: box-shadow 0.2s ease, transform 0.2s ease;
         }
 
+        .export-section-modal .modal-content {
+            max-width: 520px;
+            width: 95%;
+        }
+
+        .export-section-modal .section-checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .export-section-modal .section-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            background: rgba(248, 250, 252, 0.9);
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .export-section-modal .section-checkbox input {
+            accent-color: var(--primary-color);
+        }
+
+        .export-section-modal .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
         .profile-requests-table tbody tr:hover {
             transform: translateY(-1px);
             box-shadow: 0 18px 40px -18px rgba(15, 23, 42, 0.45);
@@ -3453,7 +3488,7 @@
                                             <p>Manage and view daily attendance</p>
                                         </div>
                                     </div>
-                                    <button id="export-excel-btn" class="modern-btn secondary"><i
+                                    <button id="export-excel-btn" type="button" class="modern-btn secondary"><i
                                             class="fas fa-file-export"></i> Export Data</button>
                                 </div>
 
@@ -5906,17 +5941,21 @@
                             .then((userSnapshot) => {
                                 const users = userSnapshot.exists() ? userSnapshot.val() : {};
 
-                                // Then get locations
-                                get(ref(database, 'locations'))
-                                    .then((locSnapshot) => {
-                                        const locations = locSnapshot.exists() ? locSnapshot.val() : {};
+                                  // Then get locations and user attendance (legacy fallback)
+                                  Promise.all([
+                                      get(ref(database, 'locations')),
+                                      get(ref(database, 'user_attendance'))
+                                  ])
+                                      .then(([locSnapshot, userAttendanceSnapshot]) => {
+                                          const locations = locSnapshot.exists() ? locSnapshot.val() : {};
+                                          const userAttendanceData = userAttendanceSnapshot.exists() ? userAttendanceSnapshot.val() : {};
 
-                                        // Group attendance by location from attendance_by_location structure
-                                        const attendanceByLocation = {};
-                                        let totalAttendanceCount = 0;
+                                          // Group attendance by location from attendance_by_location structure
+                                          const attendanceByLocation = {};
+                                          let totalAttendanceCount = 0;
 
-                                        // Process attendance_by_location data for the selected date
-                                        for (const locationId in attendanceByLocationData) {
+                                          // Process attendance_by_location data for the selected date
+                                          for (const locationId in attendanceByLocationData) {
                                             // Filter by location ownership
                                             if (locations[locationId] && locations[locationId].createdBy && currentUser && locations[locationId].createdBy !== currentUser.uid) {
                                                 continue;
@@ -5940,50 +5979,126 @@
                                                     }
                                                     attendanceByLocation[locationId].records[userId] = record;
                                                     attendanceByLocation[locationId].count++;
-                                                    totalAttendanceCount++;
-                                                }
-                                            }
-                                        }
+                                                      totalAttendanceCount++;
+                                                  }
+                                              }
+                                          }
 
-                                        // Keep latest context for absentees modal
-                                        attendanceContext = {
-                                            date,
-                                            users,
+                                          // Legacy fallback: attendance_by_location/{date}/{userId}
+                                          const legacyDateBucket = attendanceByLocationData[date];
+                                          if (legacyDateBucket && typeof legacyDateBucket === 'object') {
+                                              for (const userId in legacyDateBucket) {
+                                                  const record = legacyDateBucket[userId];
+                                                  if (!record || typeof record !== 'object') {
+                                                      continue;
+                                                  }
+                                                  const legacyLocationId = record.locationId;
+                                                  if (!legacyLocationId) {
+                                                      continue;
+                                                  }
+                                                  if (locations[legacyLocationId] && locations[legacyLocationId].createdBy && currentUser && locations[legacyLocationId].createdBy !== currentUser.uid) {
+                                                      continue;
+                                                  }
+                                                  const status = (record?.status || 'present').toString().toLowerCase();
+                                                  if (status === 'absent') {
+                                                      continue;
+                                                  }
+                                                  if (!attendanceByLocation[legacyLocationId]) {
+                                                      attendanceByLocation[legacyLocationId] = {
+                                                          records: {},
+                                                          count: 0,
+                                                          name: locations[legacyLocationId] ? locations[legacyLocationId].name : (record.locationName || 'Unknown Location'),
+                                                          deviceType: 'mixed'
+                                                      };
+                                                  }
+                                                  if (!attendanceByLocation[legacyLocationId].records[userId]) {
+                                                      attendanceByLocation[legacyLocationId].records[userId] = record;
+                                                      attendanceByLocation[legacyLocationId].count++;
+                                                      totalAttendanceCount++;
+                                                  }
+                                              }
+                                          }
+
+                                          // Fallback: user_attendance/{userId}/{date}/{locationId}
+                                          if (userAttendanceData && typeof userAttendanceData === 'object') {
+                                              Object.keys(userAttendanceData).forEach(userId => {
+                                                  const dateBucket = userAttendanceData[userId]?.[date];
+                                                  if (!dateBucket || typeof dateBucket !== 'object') {
+                                                      return;
+                                                  }
+                                                  Object.keys(dateBucket).forEach(locId => {
+                                                      const record = dateBucket[locId];
+                                                      if (!record || typeof record !== 'object') {
+                                                          return;
+                                                      }
+                                                      if (locations[locId] && locations[locId].createdBy && currentUser && locations[locId].createdBy !== currentUser.uid) {
+                                                          return;
+                                                      }
+                                                      const status = (record?.status || 'present').toString().toLowerCase();
+                                                      if (status === 'absent') {
+                                                          return;
+                                                      }
+                                                      if (!attendanceByLocation[locId]) {
+                                                          attendanceByLocation[locId] = {
+                                                              records: {},
+                                                              count: 0,
+                                                              name: locations[locId] ? locations[locId].name : (record.locationName || 'Unknown Location'),
+                                                              deviceType: 'mixed'
+                                                          };
+                                                      }
+                                                      if (!attendanceByLocation[locId].records[userId]) {
+                                                          attendanceByLocation[locId].records[userId] = record;
+                                                          attendanceByLocation[locId].count++;
+                                                          totalAttendanceCount++;
+                                                      }
+                                                  });
+                                              });
+                                          }
+
+                                          // Keep latest context for absentees modal
+                                          attendanceContext = {
+                                              date,
+                                              users,
                                             locations,
                                             attendanceByLocation
                                         };
 
                                         // Check if a specific location block is being viewed
-                                        const urlParams = new URLSearchParams(window.location.search);
-                                        const viewingLocationId = urlParams.get('location');
+                                          const urlParams = new URLSearchParams(window.location.search);
+                                          const viewingLocationId = urlParams.get('location');
 
-                                        if (viewingLocationId && attendanceByLocation[viewingLocationId]) {
-                                            let sectionParam = urlParams.get('section');
-                                            let sectionParamKey = normalizeSectionKey(sectionParam);
-                                            const locationSections = normalizeSectionList(locations[viewingLocationId]?.section);
-                                            const locationSectionKeys = locationSections
-                                                .map(normalizeSectionKey)
-                                                .filter(Boolean);
+                                          if (viewingLocationId && attendanceByLocation[viewingLocationId]) {
+                                              let sectionParam = urlParams.get('section');
+                                              let sectionParamKey = normalizeSectionKey(sectionParam);
+                                              const locationSections = normalizeSectionList(locations[viewingLocationId]?.section);
+                                              const locationSectionKeys = locationSections
+                                                  .map(normalizeSectionKey)
+                                                  .filter(Boolean);
+                                              const hasOnlyGeneralSection = locationSectionKeys.length === 1 && locationSectionKeys[0] === 'GENERAL';
+                                              const effectiveSections = hasOnlyGeneralSection ? [] : locationSections;
+                                              const effectiveSectionKeys = hasOnlyGeneralSection ? [] : locationSectionKeys;
 
-                                            if (sectionParamKey && locationSectionKeys.length && !locationSectionKeys.includes(sectionParamKey)) {
-                                                const cleanedUrl = new URL(window.location);
-                                                cleanedUrl.searchParams.delete('section');
-                                                window.history.replaceState({}, '', cleanedUrl);
-                                                sectionParam = null;
-                                                sectionParamKey = '';
-                                            }
+                                              if (sectionParamKey && effectiveSectionKeys.length && !effectiveSectionKeys.includes(sectionParamKey)) {
+                                                  const cleanedUrl = new URL(window.location);
+                                                  cleanedUrl.searchParams.delete('section');
+                                                  window.history.replaceState({}, '', cleanedUrl);
+                                                  sectionParam = null;
+                                                  sectionParamKey = '';
+                                              }
 
-                                            if (locationSections.length > 1 && !sectionParamKey) {
-                                                displayLocationSectionPicker(date, viewingLocationId, attendanceByLocation[viewingLocationId], locationSections);
-                                            } else {
-                                                const resolvedSection = sectionParam || (locationSections.length === 1 ? locationSections[0] : null);
-                                                displayLocationAttendance(date, viewingLocationId, attendanceByLocation[viewingLocationId], users, locations, resolvedSection);
-                                            }
-                                        } else {
-                                            // Show location blocks
-                                            displayLocationBlocks(date, attendanceByLocation, totalAttendanceCount);
+                                              if (effectiveSections.length > 1 && !sectionParamKey) {
+                                                  displayLocationSectionPicker(date, viewingLocationId, attendanceByLocation[viewingLocationId], effectiveSections);
+                                              } else {
+                                                  const resolvedSection = sectionParamKey && effectiveSectionKeys.includes(sectionParamKey)
+                                                      ? sectionParam
+                                                      : (effectiveSections.length === 1 ? effectiveSections[0] : null);
+                                                  displayLocationAttendance(date, viewingLocationId, attendanceByLocation[viewingLocationId], users, locations, resolvedSection);
+                                              }
+                                          } else {
+                                              // Show location blocks
+                                              displayLocationBlocks(date, attendanceByLocation, totalAttendanceCount);
                                         }
-                                    });
+                                      });
                             });
                     } else {
                         attendanceList.innerHTML = '<p>No attendance records found for this date.</p>';
@@ -6128,28 +6243,30 @@
         }
 
         // Function to display attendance for a specific location
-        function displayLocationAttendance(date, locationId, locationData, users, locations, sectionFilter) {
-            const locationName = locationData.name;
-            const filterLabel = sectionFilter
-                ? formatSectionLabel(sectionFilter)
-                : 'All Sections';
-            const filterKey = sectionFilter ? normalizeSectionKey(sectionFilter) : '';
+          function displayLocationAttendance(date, locationId, locationData, users, locations, sectionFilter) {
+              const locationName = locationData.name;
+              let filterLabel = sectionFilter
+                  ? formatSectionLabel(sectionFilter)
+                  : 'All Sections';
+              let filterKey = sectionFilter ? normalizeSectionKey(sectionFilter) : '';
+              const locationSections = normalizeSectionList(locations[locationId]?.section);
+              const locationSectionKeys = locationSections.map(normalizeSectionKey).filter(Boolean);
+              const hasOnlyGeneralSection = locationSectionKeys.length === 1 && locationSectionKeys[0] === 'GENERAL';
+              if (filterKey === 'GENERAL' && (locationSectionKeys.length === 0 || hasOnlyGeneralSection)) {
+                  filterKey = '';
+                  filterLabel = 'All Sections';
+              } else if (filterKey && locationSectionKeys.length && !locationSectionKeys.includes(filterKey)) {
+                  filterKey = '';
+                  filterLabel = 'All Sections';
+              }
 
             const filteredUserIds = [];
             for (const userId in locationData.records) {
                 const record = locationData.records[userId];
                 const user = users[userId] || {};
-                const userSectionRaw = user.section || record.section || record.userSection || '';
-                const userSectionKey = normalizeSectionKey(userSectionRaw);
-
-                if (sectionFilter) {
-                    if (filterKey === 'GENERAL') {
-                        if (userSectionKey && userSectionKey !== 'GENERAL') {
-                            continue;
-                        }
-                    } else if (userSectionKey && userSectionKey !== filterKey) {
-                        continue;
-                    }
+                const sectionInfo = collectSectionValues(user.section, record.section, record.userSection);
+                if (!sectionMatchesFilter(sectionInfo.keys, filterKey)) {
+                    continue;
                 }
 
                 const recordStatus = (record?.status || 'present').toString().toLowerCase();
@@ -6350,20 +6467,28 @@
             }
 
             const locationName = locations[locationId]?.name || locationData.name || 'Unknown Location';
-            const filterLabel = sectionFilter ? formatSectionLabel(sectionFilter) : 'All Sections';
-            const filterKey = sectionFilter ? normalizeSectionKey(sectionFilter) : '';
+            let filterLabel = sectionFilter ? formatSectionLabel(sectionFilter) : 'All Sections';
+            let filterKey = sectionFilter ? normalizeSectionKey(sectionFilter) : '';
+            const locationSections = normalizeSectionList(locations[locationId]?.section);
+            const locationSectionKeys = locationSections.map(normalizeSectionKey).filter(Boolean);
+            const hasOnlyGeneralSection = locationSectionKeys.length === 1 && locationSectionKeys[0] === 'GENERAL';
+            if (filterKey === 'GENERAL' && (locationSectionKeys.length === 0 || hasOnlyGeneralSection)) {
+                filterKey = '';
+                filterLabel = 'All Sections';
+            } else if (filterKey && locationSectionKeys.length && !locationSectionKeys.includes(filterKey)) {
+                filterKey = '';
+                filterLabel = 'All Sections';
+            }
 
             const studentEntries = Object.entries(users).filter(([, user]) => (user.role || 'student') === 'student');
             const absentees = [];
 
             studentEntries.forEach(([userId, user]) => {
-                const userSectionKey = normalizeSectionKey(user.section || '');
-
-                if (filterKey && filterKey !== 'GENERAL' && userSectionKey !== filterKey) {
+                const record = locationData.records ? locationData.records[userId] : null;
+                const sectionInfo = collectSectionValues(user.section, record?.section, record?.userSection);
+                if (!sectionMatchesFilter(sectionInfo.keys, filterKey)) {
                     return;
                 }
-
-                const record = locationData.records ? locationData.records[userId] : null;
                 const status = record ? (record.status || '').toLowerCase() : '';
 
                 if (record && status !== 'absent') {
@@ -6751,6 +6876,27 @@
                 return [trimmed];
             }
             return [];
+        }
+
+        function collectSectionValues(...values) {
+            const sections = [];
+            values.forEach(value => {
+                const list = normalizeSectionList(value);
+                if (list.length) {
+                    sections.push(...list);
+                }
+            });
+            const uniqueValues = Array.from(new Set(sections.map(value => String(value).trim()).filter(Boolean)));
+            const keys = uniqueValues.map(normalizeSectionKey).filter(Boolean);
+            return { values: uniqueValues, keys };
+        }
+
+        function sectionMatchesFilter(sectionKeys, filterKey) {
+            if (!filterKey) return true;
+            if (filterKey === 'GENERAL') {
+                return sectionKeys.length === 0 || sectionKeys.includes('GENERAL');
+            }
+            return sectionKeys.includes(filterKey);
         }
 
         function normalizeSectionKey(value) {
@@ -8042,15 +8188,20 @@
         }
 
         // Export attendance to Excel
-        exportExcelBtn.addEventListener('click', () => {
-            const date = attendanceDate.value;
-            const locationId = locationFilter.value;
-            const status = statusFilter.value;
+        if (exportExcelBtn) {
+            exportExcelBtn.addEventListener('click', () => {
+                const date = attendanceDate ? attendanceDate.value : '';
+                const locationId = locationFilter ? locationFilter.value : 'all';
+                const status = statusFilter ? statusFilter.value : 'all';
 
-            exportAttendanceToCSV(date, locationId, status);
-        });
+                openExportSectionModal(date, locationId, status).catch((error) => {
+                    console.error('Error opening export modal:', error);
+                    showAlert(`Unable to open export modal: ${error.message}`, 'error');
+                });
+            });
+        }
 
-        function exportAttendanceToCSV(date, locationId, status) {
+        function exportAttendanceToCSV(date, locationId, status, sectionFilters = []) {
             const attendanceRef = ref(database, `attendance_by_location`);
 
             get(attendanceRef)
@@ -8059,21 +8210,86 @@
                         const attendanceByLocationData = snapshot.val();
 
                         // Get locations for reference
-                        const locSnapshot = await get(ref(database, 'locations'));
+                        const [locSnapshot, usersSnapshot, userAttendanceSnapshot] = await Promise.all([
+                            get(ref(database, 'locations')),
+                            get(ref(database, 'users')),
+                            get(ref(database, 'user_attendance'))
+                        ]);
                         const locations = locSnapshot.exists() ? locSnapshot.val() : {};
+                        const users = usersSnapshot.exists() ? usersSnapshot.val() : {};
+                        const userAttendanceData = userAttendanceSnapshot.exists() ? userAttendanceSnapshot.val() : {};
+                        const resolvedLocations = (attendanceContext && attendanceContext.locations)
+                            ? { ...attendanceContext.locations, ...locations }
+                            : locations;
+                        const resolvedUsers = (attendanceContext && attendanceContext.users)
+                            ? { ...attendanceContext.users, ...users }
+                            : users;
 
                         // Prepare data for export
                         const rows = [];
 
                         // Add header row
-                        rows.push(['Name', 'Email', 'Time', 'Location', 'Status']);
+                        rows.push(['Name', 'Email', 'Section', 'Time', 'Location', 'Status']);
+
+                        const normalizedFilters = (sectionFilters || [])
+                            .map(normalizeSectionKey)
+                            .filter(Boolean);
+                        const applySectionFilter = normalizedFilters.length > 0;
+                        const normalizedStatus = (status || 'all').toString().toLowerCase();
+                        const seenKeys = new Set();
+
+                        const appendRecordRow = (locId, userId, record, ignoreSectionFilter = false) => {
+                            if (!record || typeof record !== 'object') {
+                                return;
+                            }
+                            const recordStatus = (record.status || 'present').toString().toLowerCase();
+                            if (normalizedStatus !== 'all' && recordStatus !== normalizedStatus) {
+                                return;
+                            }
+
+                            const user = resolvedUsers[userId] || {};
+                            const sectionInfo = collectSectionValues(user.section, record.section, record.userSection);
+                            const matchesSection = ignoreSectionFilter || !applySectionFilter
+                                || normalizedFilters.some(filterKey => sectionMatchesFilter(sectionInfo.keys, filterKey));
+
+                            if (!matchesSection) {
+                                return;
+                            }
+
+                            const rowKey = `${locId}:${userId}`;
+                            if (seenKeys.has(rowKey)) {
+                                return;
+                            }
+
+                            const locationName = resolvedLocations[locId] ?
+                                resolvedLocations[locId].name : (record.locationName || 'Unknown Location');
+                            let sectionValues = sectionInfo.values;
+                            if (sectionValues.length > 1) {
+                                sectionValues = sectionValues.filter(value => normalizeSectionKey(value) !== 'GENERAL');
+                            }
+                            const sectionLabel = sectionValues.length
+                                ? sectionValues.map(formatSectionLabel).filter(Boolean).join(' / ')
+                                : 'General';
+                            const displayName = user.name || record.userName || '';
+                            const displayEmail = user.email || record.userEmail || '';
+
+                            seenKeys.add(rowKey);
+                            rows.push([
+                                displayName,
+                                displayEmail,
+                                sectionLabel,
+                                record.time || '',
+                                locationName,
+                                recordStatus
+                            ]);
+                        };
 
                         // Process attendance_by_location data for the selected date
-                        for (const locId in attendanceByLocationData) {
-                            // Filter by location ownership
-                            if (!locations[locId] || (locations[locId].createdBy && currentUser && locations[locId].createdBy !== currentUser.uid)) {
-                                continue;
-                            }
+                            for (const locId in attendanceByLocationData) {
+                                // Filter by location ownership (only when location exists)
+                                if (resolvedLocations[locId] && resolvedLocations[locId].createdBy && currentUser && resolvedLocations[locId].createdBy !== currentUser.uid) {
+                                    continue;
+                                }
 
                             const locationAttendance = attendanceByLocationData[locId][date] || {};
 
@@ -8083,25 +8299,82 @@
                             }
 
                             for (const userId in locationAttendance) {
-                                const record = locationAttendance[userId];
-                                const recordStatus = record.status || 'present';
+                                appendRecordRow(locId, userId, locationAttendance[userId]);
+                            }
+                        }
 
-                                // Apply status filter
-                                if (status !== 'all' && recordStatus !== status) {
+                        // Legacy fallback: attendance_by_location/{date}/{userId}
+                        const legacyDateBucket = attendanceByLocationData[date];
+                        if (legacyDateBucket && typeof legacyDateBucket === 'object') {
+                            for (const userId in legacyDateBucket) {
+                                const record = legacyDateBucket[userId];
+                                if (!record || typeof record !== 'object') {
+                                    continue;
+                                }
+                                const legacyLocationId = record.locationId;
+                                if (!legacyLocationId) {
+                                    continue;
+                                }
+                                if (resolvedLocations[legacyLocationId] && resolvedLocations[legacyLocationId].createdBy && currentUser && resolvedLocations[legacyLocationId].createdBy !== currentUser.uid) {
                                     continue;
                                 }
 
-                                const locationName = locations[locId] ?
-                                    locations[locId].name : 'Unknown Location';
-
-                                rows.push([
-                                    record.userName,
-                                    record.userEmail,
-                                    record.time,
-                                    locationName,
-                                    recordStatus
-                                ]);
+                                if (locationId !== 'all' && legacyLocationId !== locationId) {
+                                    continue;
+                                }
+                                appendRecordRow(legacyLocationId, userId, record);
                             }
+                        }
+
+                        // Fallback: user_attendance/{userId}/{date}/{locationId}
+                        if (userAttendanceData && typeof userAttendanceData === 'object') {
+                            Object.keys(userAttendanceData).forEach(userId => {
+                                const dateBucket = userAttendanceData[userId]?.[date];
+                                if (!dateBucket || typeof dateBucket !== 'object') {
+                                    return;
+                                }
+                                Object.keys(dateBucket).forEach(locId => {
+                                    const record = dateBucket[locId];
+                                    if (!record || typeof record !== 'object') {
+                                        return;
+                                    }
+                                    if (resolvedLocations[locId] && resolvedLocations[locId].createdBy && currentUser && resolvedLocations[locId].createdBy !== currentUser.uid) {
+                                        return;
+                                    }
+                                    if (locationId !== 'all' && locId !== locationId) {
+                                        return;
+                                    }
+                                    appendRecordRow(locId, userId, record);
+                                });
+                            });
+                        }
+
+                        if (rows.length <= 1 && attendanceContext && attendanceContext.date === date && attendanceContext.attendanceByLocation) {
+                            Object.keys(attendanceContext.attendanceByLocation).forEach(locId => {
+                                if (locationId !== 'all' && locId !== locationId) {
+                                    return;
+                                }
+                                const bucket = attendanceContext.attendanceByLocation[locId];
+                                const records = bucket?.records || {};
+                                Object.keys(records).forEach(userId => {
+                                    const record = records[userId];
+                                    appendRecordRow(locId, userId, record, true);
+                                });
+                            });
+                        }
+
+                        if (rows.length <= 1 && attendanceContext && attendanceContext.attendanceByLocation) {
+                            Object.keys(attendanceContext.attendanceByLocation).forEach(locId => {
+                                if (locationId !== 'all' && locId !== locationId) {
+                                    return;
+                                }
+                                const bucket = attendanceContext.attendanceByLocation[locId];
+                                const records = bucket?.records || {};
+                                Object.keys(records).forEach(userId => {
+                                    const record = records[userId];
+                                    appendRecordRow(locId, userId, record, true);
+                                });
+                            });
                         }
 
                         if (rows.length <= 1) {
@@ -8117,7 +8390,11 @@
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement('a');
                         link.setAttribute('href', url);
-                        link.setAttribute('download', `attendance_${date}.csv`);
+                        const sectionSuffix = applySectionFilter
+                            ? `_sections_${normalizedFilters.join('-')}`
+                            : '';
+                        const locationSuffix = locationId && locationId !== 'all' ? `_location_${locationId}` : '';
+                        link.setAttribute('download', `attendance_${date}${locationSuffix}${sectionSuffix}.csv`);
                         link.style.visibility = 'hidden';
                         document.body.appendChild(link);
                         link.click();
@@ -8130,6 +8407,193 @@
                     showAlert(`Error exporting attendance: ${error.message}`, 'error');
                 });
         }
+
+        async function openExportSectionModal(date, locationId, status) {
+            if (!date) {
+                date = new Date().toISOString().split('T')[0];
+                if (attendanceDate) {
+                    attendanceDate.value = date;
+                }
+            }
+
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay export-section-modal visible';
+
+            const content = document.createElement('div');
+            content.className = 'modal-content';
+            content.innerHTML = `
+                <div class="modal-header">
+                    <h3>Export Attendance</h3>
+                    <button class="modal-close" aria-label="Close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group" style="margin-bottom: 16px;">
+                        <label>Location</label>
+                        <div class="custom-input-wrapper">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <select id="export-location-select">
+                                <option value="">Select location</option>
+                            </select>
+                            <i class="fas fa-chevron-down dropdown-arrow"></i>
+                        </div>
+                    </div>
+                    <p>Select sections to include for this location export.</p>
+                    <div id="export-section-list" class="section-checkbox-grid"></div>
+                </div>
+                <div class="modal-actions">
+                    <button class="modern-btn secondary" data-cancel>Cancel</button>
+                    <button class="modern-btn primary" data-export>Export</button>
+                </div>
+            `;
+
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+
+            const closeModal = () => {
+                modal.remove();
+            };
+
+            const closeBtn = modal.querySelector('.modal-close');
+            const cancelBtn = modal.querySelector('[data-cancel]');
+            const exportBtn = modal.querySelector('[data-export]');
+            const listEl = modal.querySelector('#export-section-list');
+            const locationSelect = modal.querySelector('#export-location-select');
+
+            if (closeBtn) closeBtn.addEventListener('click', closeModal);
+            if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+
+            listEl.innerHTML = '<p style="color: var(--gray-600);">Select a location to load sections.</p>';
+
+            const locations = await getExportLocations();
+            const locationEntries = Object.entries(locations || {});
+
+            if (locationEntries.length) {
+                locationEntries.forEach(([id, location]) => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = location?.name || 'Unnamed Location';
+                    locationSelect.appendChild(option);
+                });
+            }
+
+            const initialLocationId = locationId && locationId !== 'all' ? locationId : '';
+            if (initialLocationId && locations && locations[initialLocationId]) {
+                locationSelect.value = initialLocationId;
+            } else if (locationEntries.length === 1) {
+                locationSelect.value = locationEntries[0][0];
+            } else {
+                locationSelect.value = '';
+            }
+
+            const refreshSections = async () => {
+                const selectedLocation = locationSelect.value;
+                if (!selectedLocation) {
+                    listEl.innerHTML = '<p style="color: var(--gray-600);">Select a location to load sections.</p>';
+                    return;
+                }
+
+                listEl.innerHTML = '<p style="color: var(--gray-600);">Loading sections...</p>';
+                try {
+                    const sections = await loadLocationSections(selectedLocation, locations);
+                    const sectionList = sections.length ? sections : ['General'];
+                    listEl.innerHTML = sectionList.map(section => {
+                        const value = String(section);
+                        const label = formatSectionLabel(value);
+                        return `
+                            <label class="section-checkbox">
+                                <input type="checkbox" value="${value}" checked>
+                                <span>${label}</span>
+                            </label>
+                        `;
+                    }).join('');
+                } catch (error) {
+                    listEl.innerHTML = `<p style="color: var(--gray-600);">Unable to load sections. ${error.message}</p>`;
+                }
+            };
+
+            if (locationSelect) {
+                locationSelect.addEventListener('change', refreshSections);
+            }
+
+            await refreshSections();
+
+            if (exportBtn) {
+                exportBtn.addEventListener('click', () => {
+                const selectedLocation = locationSelect.value;
+                if (!selectedLocation) {
+                    showAlert('Please choose a location to export.', 'warning');
+                    return;
+                }
+                const selected = Array.from(listEl.querySelectorAll('input[type="checkbox"]:checked'))
+                    .map(input => input.value);
+                closeModal();
+                exportAttendanceToCSV(date, selectedLocation, status, selected);
+            });
+            }
+        }
+
+        async function loadLocationSections(locationId, locationCache = null) {
+            if (!locationId || locationId === 'all') {
+                return [];
+            }
+
+            if (locationCache && locationCache[locationId]) {
+                return normalizeSectionList(locationCache[locationId].section);
+            }
+
+            const locationSnap = await get(ref(database, `locations/${locationId}`));
+            if (!locationSnap.exists()) {
+                throw new Error('Location not found.');
+            }
+
+            const location = locationSnap.val() || {};
+            return normalizeSectionList(location.section);
+        }
+
+        async function getExportLocations() {
+            if (allLocations && Object.keys(allLocations).length) {
+                return allLocations;
+            }
+            const locSnapshot = await get(ref(database, 'locations'));
+            const locations = locSnapshot.exists() ? locSnapshot.val() : {};
+            const filtered = {};
+            Object.keys(locations).forEach(id => {
+                const location = locations[id];
+                if (location && location.createdBy && currentUser && location.createdBy !== currentUser.uid) {
+                    return;
+                }
+                filtered[id] = location;
+            });
+            return filtered;
+        }
+
+        window.openExportSectionModal = openExportSectionModal;
+
+        window.triggerExportModal = function (event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const fallbackDate = new Date().toISOString().split('T')[0];
+            const date = attendanceDate ? (attendanceDate.value || fallbackDate) : fallbackDate;
+            const locationId = locationFilter ? locationFilter.value : 'all';
+            const status = statusFilter ? statusFilter.value : 'all';
+
+            if (typeof openExportSectionModal === 'function') {
+                openExportSectionModal(date, locationId, status).catch((error) => {
+                    console.error('Error opening export modal:', error);
+                    showAlert(`Unable to open export modal: ${error.message}`, 'error');
+                });
+                return;
+            }
+
+            showAlert('Export modal is not ready. Please refresh and try again.', 'warning');
+        };
 
         // Show login status message
         function showLoginStatus(message, type) {
@@ -9292,6 +9756,14 @@
 
         // Function to export attendance data for a specific location
         window.exportLocationAttendance = function (date, locationId, locationName) {
+            if (typeof openExportSectionModal === 'function') {
+                openExportSectionModal(date, locationId, 'all').catch((error) => {
+                    console.error('Error opening export modal:', error);
+                    showAlert(`Unable to open export modal: ${error.message}`, 'error');
+                });
+                return;
+            }
+
             const attendanceRef = ref(database, `attendance_by_location/${locationId}/${date}`);
 
             // Get attendance data and user data

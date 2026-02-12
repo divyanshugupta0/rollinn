@@ -4,6 +4,118 @@ document.addEventListener('DOMContentLoaded', function() {
     let lastLocationUpdate = 0;
     let availableClasses = new Map(); // Store classes to prevent duplicates
     let scrollPosition = 0;
+
+    function normalizeSectionList(sectionValue) {
+        if (Array.isArray(sectionValue)) {
+            return sectionValue.map(value => String(value).trim()).filter(Boolean);
+        }
+        if (sectionValue && typeof sectionValue === 'object') {
+            const values = Object.values(sectionValue);
+            const keys = Object.keys(sectionValue);
+            const allBooleans = values.length && values.every(value => typeof value === 'boolean');
+            if (allBooleans) {
+                return keys.filter(key => sectionValue[key]).map(value => String(value).trim()).filter(Boolean);
+            }
+            return values.map(value => String(value).trim()).filter(Boolean);
+        }
+        if (typeof sectionValue === 'string') {
+            const trimmed = sectionValue.trim();
+            if (!trimmed) return [];
+            if (trimmed.includes(',')) {
+                return trimmed.split(',').map(value => value.trim()).filter(Boolean);
+            }
+            return [trimmed];
+        }
+        return [];
+    }
+
+    function normalizeSectionKey(value) {
+        if (!value || typeof value !== 'string') return '';
+        let trimmed = value.trim();
+        if (!trimmed) return '';
+        const lower = trimmed.toLowerCase();
+        if (lower.startsWith('section ')) {
+            trimmed = trimmed.slice(8).trim();
+        }
+        return trimmed.toUpperCase();
+    }
+
+    function normalizeSectionKeys(sectionValue) {
+        return normalizeSectionList(sectionValue)
+            .map(normalizeSectionKey)
+            .filter(Boolean);
+    }
+
+    function parseScheduleTime(value) {
+        if (!value) return null;
+        if (value instanceof Date && !isNaN(value)) return value;
+        if (value && typeof value === 'object') {
+            if (typeof value.seconds === 'number' && Number.isFinite(value.seconds)) {
+                return new Date(value.seconds * 1000);
+            }
+            if (typeof value._seconds === 'number' && Number.isFinite(value._seconds)) {
+                return new Date(value._seconds * 1000);
+            }
+            if (typeof value.milliseconds === 'number' && Number.isFinite(value.milliseconds)) {
+                return new Date(value.milliseconds);
+            }
+            if (typeof value.ms === 'number' && Number.isFinite(value.ms)) {
+                return new Date(value.ms);
+            }
+            if (typeof value.timestamp === 'number' && Number.isFinite(value.timestamp)) {
+                return new Date(value.timestamp);
+            }
+            if (typeof value.iso === 'string' && value.iso.trim()) {
+                const parsedIso = new Date(value.iso.trim());
+                if (!isNaN(parsedIso)) {
+                    return parsedIso;
+                }
+            }
+        }
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return new Date(value);
+        }
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (!trimmed) return null;
+            if (/^\d+$/.test(trimmed)) {
+                const num = Number(trimmed);
+                if (Number.isFinite(num)) {
+                    return new Date(num);
+                }
+            }
+            const parsed = new Date(trimmed);
+            if (!isNaN(parsed)) {
+                return parsed;
+            }
+        }
+        return null;
+    }
+
+    function getScheduleInfo(location) {
+        if (!location) return { start: null, hasValue: false };
+        const raw =
+            location.scheduledStart ||
+            location.scheduled_start ||
+            location.startTime ||
+            location.start_time;
+        const hasValue = raw !== null && raw !== undefined && String(raw).trim() !== '';
+        const start = parseScheduleTime(raw);
+        return { start, hasValue };
+    }
+
+    function getScheduledStart(location) {
+        return getScheduleInfo(location).start;
+    }
+
+    function locationMatchesUserSection(location) {
+        const userKeys = normalizeSectionKeys(window.currentUser?.section || '');
+        if (!userKeys.length) return true;
+        const locationKeys = normalizeSectionKeys(location.section || '');
+        if (!locationKeys.length) return true;
+        if (locationKeys.includes('GENERAL')) return true;
+        return locationKeys.some(key => userKeys.includes(key));
+    }
     
     // Override the original findNearbyLocationsWithProximity function
     if (typeof window.findNearbyLocationsWithProximity === 'function') {
@@ -54,6 +166,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             continue;
                         }
                         
+                        const scheduleInfo = getScheduleInfo(location);
+                        const scheduledStart = scheduleInfo.start;
+                        const hasScheduledStart = scheduleInfo.hasValue;
+                        const isBeforeStart = hasScheduledStart && (!scheduledStart || now < scheduledStart);
+
                         const expiresAt = new Date(location.expiresAt || now);
                         if (now > expiresAt) {
                             console.log(`Location ${location.name} has expired`);
@@ -79,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         }
                         
-                        let isNearby = distance <= adjustedRadius;
+                        let isNearby = !isBeforeStart && distance <= adjustedRadius;
                         let confidence = 'low';
                         
                         if (isNearby) {
@@ -148,16 +265,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 const uniqueLocations = allLocations.filter((location, index, self) => 
                     index === self.findIndex(l => l.id === location.id)
                 );
+
+                // Filter by user section
+                const sectionFilteredLocations = uniqueLocations.filter(locationMatchesUserSection);
+                const sectionFilteredNearby = nearbyLocations.filter(locationMatchesUserSection);
                 
-                console.log(`Updating ${uniqueLocations.length} unique classes dynamically`);
+                console.log(`Updating ${sectionFilteredLocations.length} unique classes dynamically`);
                 
                 // Update or add each class
-                uniqueLocations.forEach(location => {
-                    updateOrAddClassItem(location, nearbyLocations, allClassAttendance, today);
+                sectionFilteredLocations.forEach(location => {
+                    updateOrAddClassItem(location, sectionFilteredNearby, allClassAttendance, today);
                 });
                 
                 // Remove expired classes
-                removeExpiredClasses(uniqueLocations);
+                removeExpiredClasses(sectionFilteredLocations);
                 
                 // Restore scroll position
                 setTimeout(() => {
@@ -199,7 +320,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const classesContainer = document.getElementById('classes-container');
         let classItem = document.getElementById(`class-item-${location.id}`);
         
-        const isNearby = nearbyLocations.some(nearby => nearby.id === location.id);
+        const isNearbyRaw = nearbyLocations.some(nearby => nearby.id === location.id);
         const nearbyLocation = nearbyLocations.find(nearby => nearby.id === location.id);
         
         const alreadyAttended = window.attendedClasses && window.attendedClasses.has(location.id);
@@ -208,6 +329,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const expiresAt = new Date(location.expiresAt);
         const now = new Date();
         const minutesRemaining = Math.floor((expiresAt - now) / 60000);
+
+        const scheduleInfo = getScheduleInfo(location);
+        const scheduledStart = scheduleInfo.start;
+        const hasScheduledStart = scheduleInfo.hasValue;
+        const isBeforeStart = hasScheduledStart && (!scheduledStart || now < scheduledStart);
+        const minutesToStart = (hasScheduledStart && scheduledStart)
+            ? Math.max(0, Math.ceil((scheduledStart - now) / 60000))
+            : 0;
+        const startTimeLabel = scheduledStart
+            ? scheduledStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : (hasScheduledStart ? 'Scheduled time' : '');
+        const isNearby = !isBeforeStart && isNearbyRaw;
         
         // Skip if class has expired
         if (minutesRemaining <= 0) {
@@ -218,7 +351,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Determine status and button properties
-        let statusText, statusClass, buttonText, buttonClass, buttonDisabled;
+        let statusText, statusClass, buttonText, buttonClass, buttonDisabled, hideButton;
         
         if (alreadyAttended) {
             statusText = 'Attended';
@@ -226,18 +359,28 @@ document.addEventListener('DOMContentLoaded', function() {
             buttonText = 'Already Marked';
             buttonClass = '';
             buttonDisabled = true;
+            hideButton = false;
+        } else if (isBeforeStart) {
+            statusText = 'Scheduled';
+            statusClass = 'status-scheduled';
+            buttonText = minutesToStart > 0 ? `Starts in ${minutesToStart} min` : `Starts at ${startTimeLabel}`;
+            buttonClass = 'scheduled';
+            buttonDisabled = true;
+            hideButton = true;
         } else if (isNearby) {
             statusText = `Nearby (${Math.round(nearbyLocation.distance)}m)`;
             statusClass = 'status-nearby';
             buttonText = 'Mark Attendance';
             buttonClass = 'nearby';
             buttonDisabled = false;
+            hideButton = false;
         } else {
-            statusText = 'Remote';
+            statusText = 'Not in range';
             statusClass = 'status-remote';
-            buttonText = 'Mark Remote Attendance';
+            buttonText = 'Move closer to mark attendance';
             buttonClass = 'remote';
-            buttonDisabled = false;
+            buttonDisabled = true;
+            hideButton = true;
         }
         
         if (classItem) {
@@ -245,10 +388,10 @@ document.addEventListener('DOMContentLoaded', function() {
             classItem.style.opacity = '1';
             classItem.style.visibility = 'visible';
             classItem.style.display = 'block';
-            updateExistingClassItem(classItem, location, statusText, statusClass, buttonText, buttonClass, buttonDisabled, minutesRemaining, isNearby, nearbyLocation);
+            updateExistingClassItem(classItem, location, statusText, statusClass, buttonText, buttonClass, buttonDisabled, minutesRemaining, isNearby, nearbyLocation, isBeforeStart, minutesToStart, startTimeLabel, hideButton);
         } else {
             // Create new class item
-            classItem = createNewClassItem(location, statusText, statusClass, buttonText, buttonClass, buttonDisabled, minutesRemaining, isNearby, nearbyLocation);
+            classItem = createNewClassItem(location, statusText, statusClass, buttonText, buttonClass, buttonDisabled, minutesRemaining, isNearby, nearbyLocation, isBeforeStart, minutesToStart, startTimeLabel, hideButton);
             classesContainer.appendChild(classItem);
         }
         
@@ -261,9 +404,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Update existing class item
-    function updateExistingClassItem(classItem, location, statusText, statusClass, buttonText, buttonClass, buttonDisabled, minutesRemaining, isNearby, nearbyLocation) {
+    function updateExistingClassItem(classItem, location, statusText, statusClass, buttonText, buttonClass, buttonDisabled, minutesRemaining, isNearby, nearbyLocation, isBeforeStart, minutesToStart, startTimeLabel, hideButton) {
         // Update class type
-        classItem.className = `class-item ${isNearby ? 'nearby' : 'remote'}`;
+        classItem.className = `class-item ${isBeforeStart ? 'scheduled' : (isNearby ? 'nearby' : 'remote')}`;
         
         // Update status
         const statusSpan = classItem.querySelector('.class-status');
@@ -275,12 +418,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update time remaining
         const timeDiv = classItem.querySelector('.class-details div:first-child');
         if (timeDiv) {
-            timeDiv.innerHTML = `<i class="fas fa-clock"></i> Expires in: ${minutesRemaining} minutes`;
+            if (isBeforeStart) {
+                const startText = minutesToStart > 0
+                    ? `Starts in: ${minutesToStart} minutes`
+                    : `Starts at: ${startTimeLabel}`;
+                timeDiv.innerHTML = `<i class="fas fa-clock"></i> ${startText}`;
+            } else {
+                timeDiv.innerHTML = `<i class="fas fa-clock"></i> Expires in: ${minutesRemaining} minutes`;
+            }
         }
         
         // Update distance if nearby
         const distanceDiv = classItem.querySelector('.distance-display');
-        if (isNearby && nearbyLocation) {
+        if (!isBeforeStart && isNearby && nearbyLocation) {
             if (distanceDiv) {
                 distanceDiv.innerHTML = `<div><i class="fas fa-route"></i> Distance: ${Math.round(nearbyLocation.distance)} meters</div>`;
             } else {
@@ -297,14 +447,20 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update button
         const button = classItem.querySelector('.attendance-btn');
         if (button) {
-            button.className = `attendance-btn ${buttonClass}`;
-            button.innerHTML = `<i class="fas ${buttonDisabled ? 'fa-check' : (isNearby ? 'fa-map-marker-alt' : 'fa-wifi')}"></i> ${buttonText}`;
-            button.disabled = buttonDisabled;
+            if (hideButton) {
+                button.disabled = true;
+                button.style.display = 'none';
+            } else {
+                button.style.display = '';
+                button.className = `attendance-btn ${buttonClass}`;
+                button.innerHTML = `<i class="fas ${buttonDisabled ? 'fa-check' : (isNearby ? 'fa-map-marker-alt' : 'fa-wifi')}"></i> ${buttonText}`;
+                button.disabled = buttonDisabled;
+            }
         }
         
         // Update QR / Face notice
         const qrNotice = classItem.querySelector('.qr-scanner-mini');
-        if ((location.attendanceMethod === 'qr' || location.attendanceMethod === 'face') && isNearby && !buttonDisabled) {
+        if (!isBeforeStart && (location.attendanceMethod === 'qr' || location.attendanceMethod === 'face') && isNearby && !buttonDisabled) {
             const noticeHtml = location.attendanceMethod === 'face'
                 ? '<i class="fas fa-user-check"></i> Face verification will be required'
                 : '<i class="fas fa-qrcode"></i> QR scanning will be required';
@@ -326,7 +482,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Update code entry notice
         const codeNotice = classItem.querySelector('.code-entry-mini');
-        if (location.attendanceMethod === 'code' && isNearby && !buttonDisabled) {
+        if (!isBeforeStart && location.attendanceMethod === 'code' && isNearby && !buttonDisabled) {
             if (!codeNotice) {
                 const newCodeNotice = document.createElement('div');
                 newCodeNotice.className = 'code-entry-mini';
@@ -343,10 +499,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Create new class item
-    function createNewClassItem(location, statusText, statusClass, buttonText, buttonClass, buttonDisabled, minutesRemaining, isNearby, nearbyLocation) {
+    function createNewClassItem(location, statusText, statusClass, buttonText, buttonClass, buttonDisabled, minutesRemaining, isNearby, nearbyLocation, isBeforeStart, minutesToStart, startTimeLabel, hideButton) {
         const classItem = document.createElement('div');
         classItem.id = `class-item-${location.id}`;
-        classItem.className = `class-item ${isNearby ? 'nearby' : 'remote'}`;
+        classItem.className = `class-item ${isBeforeStart ? 'scheduled' : (isNearby ? 'nearby' : 'remote')}`;
         
         // Ensure proper visibility
         classItem.style.opacity = '1';
@@ -356,23 +512,24 @@ document.addEventListener('DOMContentLoaded', function() {
         classItem.innerHTML = `
             <div class="class-name">${location.name}</div>
             <div class="class-details">
-                <div><i class="fas fa-clock"></i> Expires in: ${minutesRemaining} minutes</div>
+                <div><i class="fas fa-clock"></i> ${isBeforeStart ? (minutesToStart > 0 ? `Starts in: ${minutesToStart} minutes` : `Starts at: ${startTimeLabel}`) : `Expires in: ${minutesRemaining} minutes`}</div>
                 <div><i class="fas fa-map-marker-alt"></i> Method: ${location.attendanceMethod === 'qr' ? 'QR Code + Location' : (location.attendanceMethod === 'code' ? 'Location + Code' : (location.attendanceMethod === 'face' ? 'Face Recognition + Location' : 'Location Only'))}</div>
-                ${isNearby ? `<div class="distance-display"><div><i class="fas fa-route"></i> Distance: ${Math.round(nearbyLocation.distance)} meters</div></div>` : ''}
+                ${(!isBeforeStart && isNearby) ? `<div class="distance-display"><div><i class="fas fa-route"></i> Distance: ${Math.round(nearbyLocation.distance)} meters</div></div>` : ''}
             </div>
             <span class="class-status ${statusClass}">${statusText}</span>
             <button class="attendance-btn ${buttonClass}" 
                     data-location-id="${location.id}" 
                     data-is-nearby="${isNearby}"
                     data-requires-qr="${location.attendanceMethod === 'qr'}"
-                    ${buttonDisabled ? 'disabled' : ''}>
+                    ${buttonDisabled ? 'disabled' : ''}
+                    ${hideButton ? 'style="display:none;"' : ''}>
                 <i class="fas ${buttonDisabled ? 'fa-check' : (isNearby ? 'fa-map-marker-alt' : 'fa-wifi')}"></i> ${buttonText}
             </button>
-            ${location.attendanceMethod === 'qr' && isNearby && !buttonDisabled ? 
+            ${!isBeforeStart && location.attendanceMethod === 'qr' && isNearby && !buttonDisabled ? 
                 '<div class="qr-scanner-mini"><i class="fas fa-qrcode"></i> QR scanning will be required</div>' : ''}
-            ${location.attendanceMethod === 'code' && isNearby && !buttonDisabled ? 
+            ${!isBeforeStart && location.attendanceMethod === 'code' && isNearby && !buttonDisabled ? 
                 '<div class="code-entry-mini"><i class="fas fa-key"></i> Code entry will be required</div>' : ''}
-            ${location.attendanceMethod === 'face' && isNearby && !buttonDisabled ? 
+            ${!isBeforeStart && location.attendanceMethod === 'face' && isNearby && !buttonDisabled ? 
                 '<div class="qr-scanner-mini"><i class="fas fa-user-check"></i> Face verification will be required</div>' : ''}
         `;
         

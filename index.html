@@ -3224,7 +3224,7 @@
     </div>
 
     <!-- Dynamic Class Loader Script -->
-    <script src="dynamic-class-loader.js"></script>
+    <script src="dynamic-class-loader.js?v=20260212"></script>
 
     <!-- Main Script -->
     <script type="module">
@@ -5971,6 +5971,11 @@
                                 continue;
                             }
 
+                            const scheduleInfo = getScheduleInfo(location);
+                            const scheduledStart = scheduleInfo.start;
+                            const hasScheduledStart = scheduleInfo.hasValue;
+                            const isBeforeStart = hasScheduledStart && (!scheduledStart || now < scheduledStart);
+
                             // Skip expired locations
                             const expiresAt = new Date(location.expiresAt || now);
                             if (now > expiresAt) {
@@ -5998,8 +6003,8 @@
                                 }
                             }
 
-                            // Check if within radius
-                            let isNearby = distance <= adjustedRadius;
+                            // Check if within radius (only after scheduled start)
+                            let isNearby = !isBeforeStart && distance <= adjustedRadius;
                             let confidence = 'low';
 
                             if (isNearby) {
@@ -6233,6 +6238,17 @@
                 const now = new Date();
                 const minutesRemaining = Math.floor((expiresAt - now) / 60000);
 
+                const scheduleInfo = getScheduleInfo(location);
+                const scheduledStart = scheduleInfo.start;
+                const hasScheduledStart = scheduleInfo.hasValue;
+                const isBeforeStart = hasScheduledStart && (!scheduledStart || now < scheduledStart);
+                const minutesToStart = (hasScheduledStart && scheduledStart)
+                    ? Math.max(0, Math.ceil((scheduledStart - now) / 60000))
+                    : 0;
+                const startTimeLabel = scheduledStart
+                    ? scheduledStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : (hasScheduledStart ? 'Scheduled time' : '');
+
                 // Skip expired classes
                 if (minutesRemaining <= 0) {
                     return;
@@ -6244,8 +6260,8 @@
                     return;
                 }
 
-                // Determine visibility: show if nearby (but not if already attended and hidden)
-                const shouldShow = isNearby && !(isAttended && existingItem && existingItem.style.display === 'none');
+                // Determine visibility: show if scheduled (before start) or nearby (when active)
+                const shouldShow = (isBeforeStart || isNearby) && !(isAttended && existingItem && existingItem.style.display === 'none');
 
                 if (shouldShow) {
                     visibleClassIds.add(location.id);
@@ -6254,10 +6270,10 @@
 
                     if (classItem) {
                         // Update existing class item
-                        updateExistingClassItem(classItem, location, isAttended, isNearby, nearbyLocation, minutesRemaining);
+                        updateExistingClassItem(classItem, location, isAttended, isNearby, nearbyLocation, minutesRemaining, isBeforeStart, minutesToStart, startTimeLabel);
                     } else {
                         // Create new class item
-                        classItem = createNewClassItem(location, isAttended, isNearby, nearbyLocation, minutesRemaining);
+                        classItem = createNewClassItem(location, isAttended, isNearby, nearbyLocation, minutesRemaining, isBeforeStart, minutesToStart, startTimeLabel);
                         classItem.dataset.locationId = location.id;
 
                         // Insert in the right position (after title)
@@ -6345,6 +6361,10 @@
                         border-color: var(--primary-color);
                         background-color: rgba(102, 126, 234, 0.05);
                     }
+                    .class-item.scheduled {
+                        border-color: #f59e0b;
+                        background-color: rgba(245, 158, 11, 0.08);
+                    }
                     @keyframes slideIn {
                         from {
                             opacity: 0;
@@ -6381,6 +6401,14 @@
                     }
                     .status-attended {
                         background-color: var(--primary-color);
+                        color: white;
+                    }
+                    .status-scheduled {
+                        background-color: #f59e0b;
+                        color: white;
+                    }
+                    .status-remote {
+                        background-color: var(--gray-500);
                         color: white;
                     }
                     .attendance-btn {
@@ -6446,9 +6474,9 @@
         }
 
         // Update existing class item
-        function updateExistingClassItem(classItem, location, isAttended, isNearby, nearbyLocation, minutesRemaining) {
+        function updateExistingClassItem(classItem, location, isAttended, isNearby, nearbyLocation, minutesRemaining, isBeforeStart, minutesToStart, startTimeLabel) {
             // Update class type
-            classItem.className = `class-item ${isAttended ? 'attended' : (isNearby ? 'nearby' : 'remote')}`;
+            classItem.className = `class-item ${isAttended ? 'attended' : (isBeforeStart ? 'scheduled' : (isNearby ? 'nearby' : 'remote'))}`;
 
             // Update status
             const statusSpan = classItem.querySelector('.class-status');
@@ -6456,21 +6484,34 @@
                 if (isAttended) {
                     statusSpan.className = 'class-status status-attended';
                     statusSpan.textContent = 'Present';
+                } else if (isBeforeStart) {
+                    statusSpan.className = 'class-status status-scheduled';
+                    statusSpan.textContent = 'Scheduled';
                 } else if (isNearby) {
                     statusSpan.className = 'class-status status-nearby';
                     statusSpan.textContent = `Nearby (${Math.round(nearbyLocation.distance)}m)`;
+                } else {
+                    statusSpan.className = 'class-status status-remote';
+                    statusSpan.textContent = 'Not in range';
                 }
             }
 
             // Update time remaining
             const timeDiv = classItem.querySelector('.time-remaining');
             if (timeDiv) {
-                timeDiv.innerHTML = `<i class="fas fa-clock"></i> Expires in: ${minutesRemaining} minutes`;
+                if (isBeforeStart) {
+                    const startText = minutesToStart > 0
+                        ? `Starts in: ${minutesToStart} minutes`
+                        : `Starts at: ${startTimeLabel}`;
+                    timeDiv.innerHTML = `<i class="fas fa-clock"></i> ${startText}`;
+                } else {
+                    timeDiv.innerHTML = `<i class="fas fa-clock"></i> Expires in: ${minutesRemaining} minutes`;
+                }
             }
 
             // Update distance if nearby
             const distanceDiv = classItem.querySelector('.distance-info');
-            if (isNearby && nearbyLocation && !isAttended) {
+            if (!isBeforeStart && isNearby && nearbyLocation && !isAttended) {
                 if (distanceDiv) {
                     distanceDiv.innerHTML = `<i class="fas fa-route"></i> Distance: ${Math.round(nearbyLocation.distance)} meters`;
                 } else {
@@ -6491,6 +6532,8 @@
             if (buttonContainer) {
                 if (isAttended) {
                     buttonContainer.innerHTML = '<div class="present-label">Present</div>';
+                } else if (isBeforeStart) {
+                    buttonContainer.innerHTML = '';
                 } else if (isNearby) {
                     buttonContainer.innerHTML = `
                         <button class="attendance-btn nearby" 
@@ -6507,6 +6550,8 @@
                             handleClassAttendance(location, true);
                         });
                     }
+                } else {
+                    buttonContainer.innerHTML = '';
                 }
             }
 
@@ -6516,7 +6561,7 @@
             const existingCodeNotice = classItem.querySelector('.code-entry-mini');
             if (existingCodeNotice) existingCodeNotice.remove();
 
-            if (!isAttended && isNearby) {
+            if (!isBeforeStart && !isAttended && isNearby) {
                 if (location.attendanceMethod === 'qr') {
                     const notice = document.createElement('div');
                     notice.className = 'qr-scanner-mini';
@@ -6537,12 +6582,12 @@
         }
 
         // Create new class item
-        function createNewClassItem(location, isAttended, isNearby, nearbyLocation, minutesRemaining) {
+        function createNewClassItem(location, isAttended, isNearby, nearbyLocation, minutesRemaining, isBeforeStart, minutesToStart, startTimeLabel) {
             // Initial element create
             const classItem = document.createElement('div');
 
             // Base modifier
-            let classModifiers = isAttended ? 'attended' : (isNearby ? 'nearby' : 'remote');
+            let classModifiers = isAttended ? 'attended' : (isBeforeStart ? 'scheduled' : (isNearby ? 'nearby' : 'remote'));
             let statusText, statusClass, buttonContent;
 
             if (isAttended) {
@@ -6570,6 +6615,10 @@
                     statusClass = 'status-attended';
                     buttonContent = '<div class="present-label">Present</div>';
                 }
+            } else if (isBeforeStart) {
+                statusText = 'Scheduled';
+                statusClass = 'status-scheduled';
+                buttonContent = '';
             } else if (isNearby) {
                 statusText = `Nearby (${Math.round(nearbyLocation.distance)}m)`;
                 statusClass = 'status-nearby';
@@ -6582,8 +6631,8 @@
                     </button>
                 `;
             } else {
-                // Remote/not nearby case
-                statusText = 'Remote';
+                // Not nearby case
+                statusText = 'Not in range';
                 statusClass = 'status-remote';
                 buttonContent = '';
             }
@@ -6594,19 +6643,19 @@
             classItem.innerHTML = `
                 <div class="class-name">${location.name}</div>
                 <div class="class-details">
-                    <div class="time-remaining"><i class="fas fa-clock"></i> Expires in: ${minutesRemaining} minutes</div>
+                    <div class="time-remaining"><i class="fas fa-clock"></i> ${isBeforeStart ? (minutesToStart > 0 ? `Starts in: ${minutesToStart} minutes` : `Starts at: ${startTimeLabel}`) : `Expires in: ${minutesRemaining} minutes`}</div>
                     <div><i class="fas fa-map-marker-alt"></i> Method: ${location.attendanceMethod === 'qr' ? 'QR Code + Location' : (location.attendanceMethod === 'code' ? 'Location + Code' : (location.attendanceMethod === 'face' ? 'Face Recognition + Location' : 'Location Only'))}</div>
-                    ${isNearby && !isAttended ? `<div class="distance-info"><i class="fas fa-route"></i> Distance: ${Math.round(nearbyLocation.distance)} meters</div>` : ''}
+                    ${(!isBeforeStart && isNearby && !isAttended) ? `<div class="distance-info"><i class="fas fa-route"></i> Distance: ${Math.round(nearbyLocation.distance)} meters</div>` : ''}
                 </div>
                 <span class="class-status ${statusClass}">${statusText}</span>
                 <div class="button-container">
                     ${buttonContent}
                 </div>
-                ${location.attendanceMethod === 'qr' && isNearby && !isAttended ?
+                ${!isBeforeStart && location.attendanceMethod === 'qr' && isNearby && !isAttended ?
                     '<div class="qr-scanner-mini"><i class="fas fa-qrcode"></i> QR scanning will be required</div>' : ''}
-                ${location.attendanceMethod === 'code' && isNearby && !isAttended ?
+                ${!isBeforeStart && location.attendanceMethod === 'code' && isNearby && !isAttended ?
                     '<div class="code-entry-mini"><i class="fas fa-key"></i> Code entry will be required</div>' : ''}
-                ${location.attendanceMethod === 'face' && isNearby && !isAttended ?
+                ${!isBeforeStart && location.attendanceMethod === 'face' && isNearby && !isAttended ?
                     '<div class="qr-scanner-mini"><i class="fas fa-user-check"></i> Face verification will be required</div>' : ''}
             `;
 
@@ -6626,6 +6675,21 @@
         // Function to handle attendance for a specific class
         function handleClassAttendance(location, isNearby) {
             console.log(`Attempting to mark attendance for: ${location.name}`);
+
+            const scheduleInfo = getScheduleInfo(location);
+            if (scheduleInfo.hasValue) {
+                const now = new Date();
+                if (!scheduleInfo.start || now < scheduleInfo.start) {
+                    const startLabel = scheduleInfo.start
+                        ? scheduleInfo.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : 'the scheduled start time';
+                    const message = scheduleInfo.start
+                        ? `Class starts at ${startLabel}. Attendance will open at start time.`
+                        : 'Class is scheduled. Attendance will open at the start time.';
+                    showScanResult(message, 'warning');
+                    return;
+                }
+            }
 
             // Only allow attendance if user is nearby
             if (!isNearby) {
@@ -7465,6 +7529,11 @@
                 return;
             }
 
+            if (!isNearby) {
+                showScanResult('You must be at the class location to mark attendance.', 'error');
+                return;
+            }
+
             primeAttendanceNotificationPermission();
 
             // Show loading state
@@ -7487,7 +7556,17 @@
                 const now = new Date();
                 const expiresAt = new Date(locationData.expiresAt || now);
 
-                // Check if class is still active
+                // Check if class is still active / scheduled
+                const scheduleInfo = getScheduleInfo(locationData);
+                if (scheduleInfo.hasValue && (!scheduleInfo.start || scheduleInfo.start > now)) {
+                    showScanResult("This class has not started yet.", 'error');
+                    if (button) {
+                        button.disabled = false;
+                        button.innerHTML = originalButtonHtml || '<i class="fas fa-map-marker-alt"></i> Mark Attendance';
+                    }
+                    return;
+                }
+
                 if (now > expiresAt) {
                     showScanResult("This class has already ended.", 'error');
                     return;
@@ -7934,7 +8013,13 @@
                 const now = new Date();
                 const expiresAt = new Date(locationData.expiresAt || now);
 
-                // Check if class is still active
+                // Check if class is still active / scheduled
+                const scheduleInfo = getScheduleInfo(locationData);
+                if (scheduleInfo.hasValue && (!scheduleInfo.start || scheduleInfo.start > now)) {
+                    showScanResult("This class has not started yet.", 'error');
+                    return;
+                }
+
                 if (now > expiresAt) {
                     showScanResult("This class has already ended.", 'error');
                     return;
@@ -7971,52 +8056,24 @@
                     verificationMethod: locationData.attendanceMethod || 'location'
                 };
 
-                // First check if user has already marked attendance at this specific location
-                const attendanceByLocationRef = ref(database, `attendance_by_location/${locationId}/${currentUser.uid}`);
+                // Check if already marked attendance for this specific class today
+                const userAttendanceRef = ref(database, `user_attendance/${currentUser.uid}/${dateStr}/${locationId}`);
 
-                get(attendanceByLocationRef)
-                    .then((locationSnapshot) => {
-                        if (locationSnapshot.exists()) {
-                            showScanResult("You have already marked attendance at this location.", 'warning');
+                get(userAttendanceRef)
+                    .then((snapshot) => {
+                        if (snapshot.exists()) {
+                            showScanResult("You have already marked attendance for this class today.", 'warning');
                             return Promise.reject('already_marked');
                         }
 
-                        // Also check if already marked attendance today
-                        const userAttendanceRef = ref(database, `attendance_by_location/${dateStr}/${currentUser.uid}`);
-                        return get(userAttendanceRef);
-                    })
-                    .then((snapshot) => {
-                        if (snapshot.exists()) {
-                            // Check if it's for a different location
-                            const existingAttendance = snapshot.val();
-                            if (existingAttendance.locationId !== locationId) {
-                                // Present the user with a choice
-                                if (confirm(`You have already marked attendance at ${existingAttendance.locationName}. Do you want to update your attendance to this location (${locationData.name}) instead?`)) {
-                                    // User wants to update - proceed with updating
-                                    return set(ref(database, `attendance_by_location/${dateStr}/${currentUser.uid}`), attendanceData);
-                                } else {
-                                    // User chose to keep existing attendance
-                                    return Promise.reject('user_cancelled');
-                                }
-                            } else {
-                                showScanResult("You have already marked attendance at this location today.", 'warning');
-                                return Promise.reject('already_marked');
-                            }
-                        }
+                        // Save to user_attendance (for tracking attended classes)
+                        const userAttendancePromise = set(userAttendanceRef, attendanceData);
 
-                        // Continue with marking attendance since user hasn't marked at this location
-                        // Save attendance record to daily record
-                        return set(ref(database, `attendance_by_location/${dateStr}/${currentUser.uid}`), attendanceData);
-                    })
-                    .then(() => {
-                        // Also save to attendance_by_location for future reference
-                        return set(attendanceByLocationRef, {
-                            userId: currentUser.uid,
-                            userName: currentUser.name || user.displayName || 'Unknown User',
-                            date: dateStr,
-                            time: timeStr,
-                            timestamp: now.getTime()
-                        });
+                        // Save to attendance_by_location (for admin records)
+                        const attendanceByLocationRef = ref(database, `attendance_by_location/${locationId}/${dateStr}/${currentUser.uid}`);
+                        const locationAttendancePromise = set(attendanceByLocationRef, attendanceData);
+
+                        return Promise.all([userAttendancePromise, locationAttendancePromise]);
                     })
                     .then(() => {
                         // Show success message but keep the interface for multiple classes
@@ -10396,6 +10453,68 @@
                     return trimmed.toLowerCase();
                 })
                 .filter(Boolean);
+        }
+
+        function parseScheduleTime(value) {
+            if (!value) return null;
+            if (value instanceof Date && !isNaN(value)) return value;
+            if (value && typeof value === 'object') {
+                if (typeof value.seconds === 'number' && Number.isFinite(value.seconds)) {
+                    return new Date(value.seconds * 1000);
+                }
+                if (typeof value._seconds === 'number' && Number.isFinite(value._seconds)) {
+                    return new Date(value._seconds * 1000);
+                }
+                if (typeof value.milliseconds === 'number' && Number.isFinite(value.milliseconds)) {
+                    return new Date(value.milliseconds);
+                }
+                if (typeof value.ms === 'number' && Number.isFinite(value.ms)) {
+                    return new Date(value.ms);
+                }
+                if (typeof value.timestamp === 'number' && Number.isFinite(value.timestamp)) {
+                    return new Date(value.timestamp);
+                }
+                if (typeof value.iso === 'string' && value.iso.trim()) {
+                    const parsedIso = new Date(value.iso.trim());
+                    if (!isNaN(parsedIso)) {
+                        return parsedIso;
+                    }
+                }
+            }
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                return new Date(value);
+            }
+            if (typeof value === 'string') {
+                const trimmed = value.trim();
+                if (!trimmed) return null;
+                if (/^\d+$/.test(trimmed)) {
+                    const num = Number(trimmed);
+                    if (Number.isFinite(num)) {
+                        return new Date(num);
+                    }
+                }
+                const parsed = new Date(trimmed);
+                if (!isNaN(parsed)) {
+                    return parsed;
+                }
+            }
+            return null;
+        }
+
+        function getScheduleInfo(location) {
+            if (!location) return { start: null, hasValue: false };
+            const raw =
+                location.scheduledStart ||
+                location.scheduled_start ||
+                location.startTime ||
+                location.start_time;
+            const hasValue = raw !== null && raw !== undefined && String(raw).trim() !== '';
+            const start = parseScheduleTime(raw);
+            return { start, hasValue };
+        }
+
+        function getScheduledStart(location) {
+            return getScheduleInfo(location).start;
         }
 
         function loadAttendanceHistory() {
