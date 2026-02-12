@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="class-name">${location.name}</div>
                     <div class="class-details">
                         <div><i class="fas fa-clock"></i> Expires in: ${minutesRemaining} minutes</div>
-                        <div><i class="fas fa-map-marker-alt"></i> Method: ${location.attendanceMethod === 'qr' ? 'QR Code + Location' : 'Location Only'}</div>
+                        <div><i class="fas fa-map-marker-alt"></i> Method: ${location.attendanceMethod === 'qr' ? 'QR Code + Location' : (location.attendanceMethod === 'code' ? 'Location + Code' : (location.attendanceMethod === 'face' ? 'Face Recognition + Location' : 'Location Only'))}</div>
                         ${isNearby ? `<div><i class="fas fa-route"></i> Distance: ${Math.round(nearbyLocation.distance)} meters</div>` : ''}
                     </div>
                     <span class="class-status ${statusClass}">${statusText}</span>
@@ -122,6 +122,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     </button>
                     ${location.attendanceMethod === 'qr' && isNearby ? 
                         '<div class="qr-scanner-mini"><i class="fas fa-qrcode"></i> QR scanning will be required</div>' : ''}
+                    ${location.attendanceMethod === 'code' && isNearby ? 
+                        '<div class="code-entry-mini"><i class="fas fa-key"></i> Code entry will be required</div>' : ''}
+                    ${location.attendanceMethod === 'face' && isNearby ? 
+                        '<div class="qr-scanner-mini"><i class="fas fa-user-check"></i> Face verification will be required</div>' : ''}
                 `;
                 
                 const attendanceBtn = classItem.querySelector('.attendance-btn');

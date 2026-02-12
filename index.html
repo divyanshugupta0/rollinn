@@ -464,6 +464,97 @@
             border-radius: 10px;
         }
 
+        .scanner-zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(6px);
+            z-index: 5;
+        }
+
+        .scanner-zoom-overlay {
+            position: absolute;
+            left: 50%;
+            bottom: 12px;
+            transform: translateX(-50%);
+        }
+
+        .scanner-zoom-inline {
+            margin-top: 20px;
+        }
+
+        .scanner-zoom-btn {
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+            box-shadow: none;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scanner-zoom-btn::before {
+            display: none;
+        }
+
+        .scanner-zoom-btn:hover,
+        .scanner-zoom-btn:active {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .scanner-zoom-range {
+            width: 140px;
+            accent-color: var(--primary-color);
+            appearance: none;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.35);
+            border-radius: 999px;
+            outline: none;
+        }
+
+        .scanner-zoom-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+        }
+
+        .scanner-zoom-range::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+        }
+
+        .scanner-zoom-value {
+            color: #ffffff;
+            font-size: 0.85rem;
+            font-weight: 600;
+            min-width: 36px;
+            text-align: right;
+        }
+
+        @media (max-width: 600px) {
+            .scanner-zoom-range {
+                width: 110px;
+            }
+        }
+
         .tab-container {
             display: flex;
             border-bottom: 1px solid var(--gray-300);
@@ -3083,6 +3174,18 @@
                         <video id="video" autoplay playsinline></video>
                         <div class="scanner-guide"></div>
                         <canvas id="canvas"></canvas>
+                        <div id="scanner-zoom-controls" class="scanner-zoom-controls scanner-zoom-overlay hidden"
+                            aria-label="Camera zoom controls">
+                            <button type="button" class="scanner-zoom-btn" id="scanner-zoom-out" aria-label="Zoom out">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <input id="scanner-zoom-range" class="scanner-zoom-range" type="range" min="1" max="1"
+                                step="0.1" value="1" aria-label="Zoom level">
+                            <button type="button" class="scanner-zoom-btn" id="scanner-zoom-in" aria-label="Zoom in">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <span id="scanner-zoom-value" class="scanner-zoom-value">1x</span>
+                        </div>
                     </div>
 
                     <button id="capture-btn" class="capture-btn" style="display: none;">Mark Attendance</button>
@@ -3153,6 +3256,7 @@
                             <select id="attendance-method">
                                 <option value="location">Location Only</option>
                                 <option value="qr">QR Code + Location</option>
+                                <option value="code">Location + Code</option>
                                 <option value="face">Face Recognition + Location</option>
                             </select>
                         </div>
@@ -4222,6 +4326,11 @@
         const scannerContainer = document.getElementById('scanner-container');
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
+        const scannerZoomControls = document.getElementById('scanner-zoom-controls');
+        const scannerZoomRange = document.getElementById('scanner-zoom-range');
+        const scannerZoomIn = document.getElementById('scanner-zoom-in');
+        const scannerZoomOut = document.getElementById('scanner-zoom-out');
+        const scannerZoomValue = document.getElementById('scanner-zoom-value');
         const tabs = document.querySelectorAll('.tab');
         const tabContents = document.querySelectorAll('.tab-content');
         const locationName = document.getElementById('location-name');
@@ -4551,9 +4660,12 @@
         }
 
         const AUTO_REFRESH_INTERVAL_MS = performanceMode ? 60000 : 30000;
-        const QR_MODAL_SCAN_INTERVAL_MS = performanceMode ? 350 : 200;
-        const QR_CAMERA_SCAN_INTERVAL_MS = performanceMode ? 800 : 500;
+        const QR_MODAL_SCAN_INTERVAL_MS = performanceMode ? 350 : 250;
+        const QR_CAMERA_SCAN_INTERVAL_MS = performanceMode ? 800 : 550;
         const FACE_DETECT_INTERVAL_MS = performanceMode ? 900 : 500;
+        const QR_SCAN_MAX_DIMENSION = performanceMode ? 360 : 480;
+        const CAMERA_IDEAL_WIDTH = performanceMode ? 960 : 1280;
+        const CAMERA_IDEAL_HEIGHT = performanceMode ? 540 : 720;
 
         configureAuthPersistence();
 
@@ -4573,6 +4685,10 @@
         let selectedAttendanceDate = new Date().toISOString().split('T')[0];
         let nearbyLocation = null;
         let cameraActive = false;  // Track if camera is already active
+        let scannerZoomInfo = { value: 1, mode: 'none' };
+        let qrZoomInfo = { value: 1, mode: 'none' };
+        let scannerZoomController = null;
+        let qrZoomController = null;
         let autoRefreshInterval = null;
         let isLocationTracking = false;
         let attendedClasses = new Set();
@@ -6379,6 +6495,15 @@
                         font-size: 0.9rem;
                         color: var(--gray-600);
                     }
+                    .code-entry-mini {
+                        margin-top: 10px;
+                        padding: 10px;
+                        background-color: rgba(0, 0, 0, 0.05);
+                        border-radius: var(--border-radius);
+                        text-align: center;
+                        font-size: 0.9rem;
+                        color: var(--gray-600);
+                    }
                     .present-label {
                         background-color: var(--primary-color);
                         color: white;
@@ -6464,6 +6589,31 @@
                     }
                 }
             }
+
+            // Update method notices
+            const existingQrNotice = classItem.querySelector('.qr-scanner-mini');
+            if (existingQrNotice) existingQrNotice.remove();
+            const existingCodeNotice = classItem.querySelector('.code-entry-mini');
+            if (existingCodeNotice) existingCodeNotice.remove();
+
+            if (!isAttended && isNearby) {
+                if (location.attendanceMethod === 'qr') {
+                    const notice = document.createElement('div');
+                    notice.className = 'qr-scanner-mini';
+                    notice.innerHTML = '<i class="fas fa-qrcode"></i> QR scanning will be required';
+                    classItem.appendChild(notice);
+                } else if (location.attendanceMethod === 'code') {
+                    const notice = document.createElement('div');
+                    notice.className = 'code-entry-mini';
+                    notice.innerHTML = '<i class="fas fa-key"></i> Code entry will be required';
+                    classItem.appendChild(notice);
+                } else if (location.attendanceMethod === 'face') {
+                    const notice = document.createElement('div');
+                    notice.className = 'qr-scanner-mini';
+                    notice.innerHTML = '<i class="fas fa-user-check"></i> Face verification will be required';
+                    classItem.appendChild(notice);
+                }
+            }
         }
 
         // Create new class item
@@ -6525,7 +6675,7 @@
                 <div class="class-name">${location.name}</div>
                 <div class="class-details">
                     <div class="time-remaining"><i class="fas fa-clock"></i> Expires in: ${minutesRemaining} minutes</div>
-                    <div><i class="fas fa-map-marker-alt"></i> Method: ${location.attendanceMethod === 'qr' ? 'QR Code + Location' : (location.attendanceMethod === 'face' ? 'Face Recognition + Location' : 'Location Only')}</div>
+                    <div><i class="fas fa-map-marker-alt"></i> Method: ${location.attendanceMethod === 'qr' ? 'QR Code + Location' : (location.attendanceMethod === 'code' ? 'Location + Code' : (location.attendanceMethod === 'face' ? 'Face Recognition + Location' : 'Location Only'))}</div>
                     ${isNearby && !isAttended ? `<div class="distance-info"><i class="fas fa-route"></i> Distance: ${Math.round(nearbyLocation.distance)} meters</div>` : ''}
                 </div>
                 <span class="class-status ${statusClass}">${statusText}</span>
@@ -6534,6 +6684,8 @@
                 </div>
                 ${location.attendanceMethod === 'qr' && isNearby && !isAttended ?
                     '<div class="qr-scanner-mini"><i class="fas fa-qrcode"></i> QR scanning will be required</div>' : ''}
+                ${location.attendanceMethod === 'code' && isNearby && !isAttended ?
+                    '<div class="code-entry-mini"><i class="fas fa-key"></i> Code entry will be required</div>' : ''}
                 ${location.attendanceMethod === 'face' && isNearby && !isAttended ?
                     '<div class="qr-scanner-mini"><i class="fas fa-user-check"></i> Face verification will be required</div>' : ''}
             `;
@@ -6565,6 +6717,9 @@
             if (location.attendanceMethod === 'qr') {
                 // If QR is required and student is nearby, show QR scanner
                 showQRScannerForClass(location);
+            } else if (location.attendanceMethod === 'code') {
+                // Location + Code method
+                markAttendanceForClass(location.id, isNearby);
             } else if (location.attendanceMethod === 'face') {
                 // If Face Recognition is required, show face scanner
                 showFaceScannerForClass(location);
@@ -6623,6 +6778,19 @@
                             <div style="position: absolute; bottom: -2px; left: -2px; width: 30px; height: 30px; border-bottom: 4px solid var(--success-color); border-left: 4px solid var(--success-color); border-radius: 0 0 0 12px;"></div>
                             <div style="position: absolute; bottom: -2px; right: -2px; width: 30px; height: 30px; border-bottom: 4px solid var(--success-color); border-right: 4px solid var(--success-color); border-radius: 0 0 12px 0;"></div>
                          </div>
+                    </div>
+
+                    <div id="qr-zoom-controls" class="scanner-zoom-controls scanner-zoom-inline hidden"
+                        aria-label="Camera zoom controls">
+                        <button type="button" class="scanner-zoom-btn" id="qr-zoom-out" aria-label="Zoom out">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <input id="qr-zoom-range" class="scanner-zoom-range" type="range" min="1" max="1" step="0.1"
+                            value="1" aria-label="Zoom level">
+                        <button type="button" class="scanner-zoom-btn" id="qr-zoom-in" aria-label="Zoom in">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <span id="qr-zoom-value" class="scanner-zoom-value">1x</span>
                     </div>
 
                     <!-- Status Pill (Floating Below) -->
@@ -6704,8 +6872,8 @@
                 navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: "environment",
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        width: { ideal: CAMERA_IDEAL_WIDTH },
+                        height: { ideal: CAMERA_IDEAL_HEIGHT }
                     }
                 })
                     .then((stream) => {
@@ -6714,83 +6882,117 @@
 
                         // Check for torch capability
                         const track = stream.getVideoTracks()[0];
-                        const capabilities = track.getCapabilities();
-                        if (capabilities.torch && torchBtn) {
+                        let capabilities = null;
+                        if (track && typeof track.getCapabilities === 'function') {
+                            try {
+                                capabilities = track.getCapabilities();
+                            } catch (error) {
+                                capabilities = null;
+                            }
+                        }
+                        if (capabilities && capabilities.torch && torchBtn) {
                             torchBtn.style.display = 'flex';
                         }
 
+                        qrZoomController = createZoomController({
+                            container: document.getElementById('qr-zoom-controls'),
+                            range: document.getElementById('qr-zoom-range'),
+                            zoomIn: document.getElementById('qr-zoom-in'),
+                            zoomOut: document.getElementById('qr-zoom-out'),
+                            value: document.getElementById('qr-zoom-value')
+                        }, {
+                            enableDigitalZoom: true,
+                            digitalMax: 3,
+                            digitalStep: 0.1,
+                            onZoomChange: (value, mode) => {
+                                qrZoomInfo = { value, mode };
+                            }
+                        });
+
+                        if (qrZoomController) {
+                            qrZoomController.attach(stream);
+                        }
+
+                        let qrScanning = false;
+
                         // Start scanning
                         const scanInterval = setInterval(() => {
-                            if (video.videoWidth > 0) {
-                                canvas.width = video.videoWidth;
-                                canvas.height = video.videoHeight;
+                            if (!video.videoWidth || qrScanning) {
+                                return;
+                            }
+                            qrScanning = true;
 
-                                const ctx = canvas.getContext('2d');
-                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            const frameDrawn = drawVideoToScanCanvas(video, canvas, qrZoomInfo);
+                            const ctx = getCanvasContext(canvas);
+                            if (!frameDrawn || !ctx) {
+                                qrScanning = false;
+                                return;
+                            }
 
-                                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                                const code = jsQR(imageData.data, imageData.width, imageData.height);
+                            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            const code = jsQR(imageData.data, imageData.width, imageData.height);
 
-                                if (code) {
-                                    try {
-                                        const qrData = JSON.parse(code.data);
+                            if (code) {
+                                try {
+                                    const qrData = JSON.parse(code.data);
 
-                                        if (qrData.type === 'attendance' && qrData.locationId === location.id) {
-                                            // Valid QR code for this location
-                                            clearInterval(scanInterval);
+                                    if (qrData.type === 'attendance' && qrData.locationId === location.id) {
+                                        // Valid QR code for this location
+                                        clearInterval(scanInterval);
 
-                                            // Trigger verification feedback
-                                            if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // SUCCESS VIBRATION
+                                        // Trigger verification feedback
+                                        if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // SUCCESS VIBRATION
 
-                                            // Play beep
-                                            try {
-                                                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                                                if (AudioContext) {
-                                                    const audioCtx = new AudioContext();
-                                                    const oscillator = audioCtx.createOscillator();
-                                                    const gainNode = audioCtx.createGain();
-                                                    oscillator.connect(gainNode);
-                                                    gainNode.connect(audioCtx.destination);
-                                                    oscillator.type = 'sine';
-                                                    oscillator.frequency.value = 1000;
-                                                    gainNode.gain.value = 0.1;
-                                                    oscillator.start();
-                                                    setTimeout(() => { oscillator.stop(); audioCtx.close(); }, 200);
-                                                }
-                                            } catch (e) {
-                                                console.log("Audio not supported");
+                                        // Play beep
+                                        try {
+                                            const AudioContext = window.AudioContext || window.webkitAudioContext;
+                                            if (AudioContext) {
+                                                const audioCtx = new AudioContext();
+                                                const oscillator = audioCtx.createOscillator();
+                                                const gainNode = audioCtx.createGain();
+                                                oscillator.connect(gainNode);
+                                                gainNode.connect(audioCtx.destination);
+                                                oscillator.type = 'sine';
+                                                oscillator.frequency.value = 1000;
+                                                gainNode.gain.value = 0.1;
+                                                oscillator.start();
+                                                setTimeout(() => { oscillator.stop(); audioCtx.close(); }, 200);
                                             }
+                                        } catch (e) {
+                                            console.log("Audio not supported");
+                                        }
 
-                                            // Stop camera
-                                            const tracks = stream.getTracks();
-                                            tracks.forEach(track => track.stop());
-                                            currentQRStreamReference = null;
+                                        // Stop camera
+                                        const tracks = stream.getTracks();
+                                        tracks.forEach(track => track.stop());
+                                        currentQRStreamReference = null;
 
-                                            statusDiv.style.background = 'rgba(46, 204, 113, 0.9)'; // Success Green
-                                            statusDiv.style.borderColor = 'rgba(46, 204, 113, 1)';
-                                            statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> VERIFIED! Redirecting...';
+                                        statusDiv.style.background = 'rgba(46, 204, 113, 0.9)'; // Success Green
+                                        statusDiv.style.borderColor = 'rgba(46, 204, 113, 1)';
+                                        statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> VERIFIED! Redirecting...';
+
+                                        setTimeout(() => {
+                                            closeQRModal();
+                                            markAttendanceForClass(location.id, true);
+                                        }, 1500);
+                                    } else {
+                                        if (statusDiv.innerHTML.includes('Searching')) {
+                                            statusDiv.style.background = 'rgba(231, 76, 60, 0.9)'; // Error Red
+                                            statusDiv.innerHTML = '<i class="fas fa-times-circle"></i> Invalid QR Code';
+                                            if (navigator.vibrate) navigator.vibrate(200); // ERROR VIBRATION
 
                                             setTimeout(() => {
-                                                closeQRModal();
-                                                markAttendanceForClass(location.id, true);
+                                                statusDiv.style.background = 'rgba(30, 41, 59, 0.9)';
+                                                statusDiv.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> <span>Searching for code...</span>';
                                             }, 1500);
-                                        } else {
-                                            if (statusDiv.innerHTML.includes('Searching')) {
-                                                statusDiv.style.background = 'rgba(231, 76, 60, 0.9)'; // Error Red
-                                                statusDiv.innerHTML = '<i class="fas fa-times-circle"></i> Invalid QR Code';
-                                                if (navigator.vibrate) navigator.vibrate(200); // ERROR VIBRATION
-
-                                                setTimeout(() => {
-                                                    statusDiv.style.background = 'rgba(30, 41, 59, 0.9)';
-                                                    statusDiv.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> <span>Searching for code...</span>';
-                                                }, 1500);
-                                            }
                                         }
-                                    } catch (e) {
-                                        // Ignore non-JSON QR codes
                                     }
+                                } catch (e) {
+                                    // Ignore non-JSON QR codes
                                 }
                             }
+
+                            qrScanning = false;
                         }, QR_MODAL_SCAN_INTERVAL_MS);
 
                         // Store interval for clean up
@@ -6816,6 +7018,11 @@
                 if (window.currentQRStream) {
                     const tracks = window.currentQRStream.getTracks();
                     tracks.forEach(track => track.stop());
+                }
+
+                if (qrZoomController) {
+                    qrZoomController.reset();
+                    qrZoomController = null;
                 }
 
                 modal.remove();
@@ -7232,8 +7439,105 @@
             }
         };
 
+        function normalizeAttendanceCode(value) {
+            return String(value || '').toUpperCase().replace(/[\s-]/g, '');
+        }
+
+        function promptForAttendanceCode(locationData) {
+            return new Promise((resolve) => {
+                const expectedCode = normalizeAttendanceCode(locationData.attendanceCode);
+
+                if (!expectedCode) {
+                    showScanResult("Attendance code is not set for this class.", 'error');
+                    resolve(false);
+                    return;
+                }
+
+                const modal = document.createElement('div');
+                modal.className = 'modal-overlay visible';
+                modal.id = 'attendance-code-modal';
+
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 420px;">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-key"></i> Enter Attendance Code</h3>
+                        </div>
+                        <div class="modal-body">
+                            <p style="margin-top: 0;">Enter the code for <strong>${locationData.name}</strong>.</p>
+                            <input type="text" id="attendance-code-input" placeholder="e.g. 123456" style="width: 100%; padding: 12px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 1rem; text-align: center; letter-spacing: 4px;">
+                            <div id="attendance-code-error" class="status-indicator error" style="display: none; margin-top: 12px;">
+                                Invalid code. Please try again.
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button class="btn-secondary" id="cancel-attendance-code">Cancel</button>
+                            <button class="btn-primary" id="submit-attendance-code">Verify</button>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+
+                const input = modal.querySelector('#attendance-code-input');
+                const errorEl = modal.querySelector('#attendance-code-error');
+                const submitBtn = modal.querySelector('#submit-attendance-code');
+                const cancelBtn = modal.querySelector('#cancel-attendance-code');
+
+                const closeModal = (result) => {
+                    if (modal && modal.parentNode) {
+                        modal.remove();
+                    }
+                    resolve(result);
+                };
+
+                const showError = (message) => {
+                    if (errorEl) {
+                        errorEl.textContent = message;
+                        errorEl.style.display = 'flex';
+                    }
+                };
+
+                const handleSubmit = () => {
+                    const entered = normalizeAttendanceCode(input ? input.value : '');
+                    if (!entered) {
+                        showError('Please enter the attendance code.');
+                        return;
+                    }
+                    if (entered !== expectedCode) {
+                        showError('Invalid code. Please try again.');
+                        return;
+                    }
+                    closeModal(true);
+                };
+
+                if (submitBtn) {
+                    submitBtn.addEventListener('click', handleSubmit);
+                }
+                if (cancelBtn) {
+                    cancelBtn.addEventListener('click', () => closeModal(false));
+                }
+
+                if (input) {
+                    input.addEventListener('keyup', (event) => {
+                        if (event.key === 'Enter') {
+                            handleSubmit();
+                        } else if (event.key === 'Escape') {
+                            closeModal(false);
+                        }
+                    });
+                    setTimeout(() => input.focus(), 50);
+                }
+
+                modal.addEventListener('click', (event) => {
+                    if (event.target === modal) {
+                        closeModal(false);
+                    }
+                });
+            });
+        }
+
         // Function to mark attendance for a specific class
-        function markAttendanceForClass(locationId, isNearby) {
+        function markAttendanceForClass(locationId, isNearby, options = {}) {
             if (enforceAndroidAppOnly((msg) => showScanResult(msg, 'error'))) {
                 return;
             }
@@ -7247,6 +7551,7 @@
 
             // Show loading state
             const button = document.querySelector(`[data-location-id="${locationId}"]`);
+            const originalButtonHtml = button ? button.innerHTML : '';
             if (button) {
                 button.disabled = true;
                 button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Marking...';
@@ -7270,6 +7575,19 @@
                     return;
                 }
 
+                if (locationData.attendanceMethod === 'code' && !options.codeVerified) {
+                    if (button) {
+                        button.disabled = false;
+                        button.innerHTML = originalButtonHtml || '<i class="fas fa-map-marker-alt"></i> Mark Attendance';
+                    }
+                    promptForAttendanceCode(locationData).then((verified) => {
+                        if (verified) {
+                            markAttendanceForClass(locationId, isNearby, { codeVerified: true });
+                        }
+                    });
+                    return;
+                }
+
                 const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
                 const timeStr = now.toISOString().split('T')[1].slice(0, 8); // HH:MM:SS
 
@@ -7289,7 +7607,8 @@
                     latitude: currentPosition ? currentPosition.coords.latitude : null,
                     longitude: currentPosition ? currentPosition.coords.longitude : null,
                     status: 'present',
-                    attendanceType: isNearby ? 'nearby' : 'remote'
+                    attendanceType: isNearby ? 'nearby' : 'remote',
+                    verificationMethod: locationData.attendanceMethod || 'location'
                 };
 
                 // Check if already marked attendance for this specific class today
@@ -7571,7 +7890,7 @@
                     <div class="location-details">
                         <div>Distance: ${distance} meters</div>
                         <div>Expires in: ${minutesRemaining} minutes</div>
-                        <div>Method: ${location.attendanceMethod === 'qr' ? 'QR Code + Location' : 'Location Only'}</div>
+                        <div>Method: ${location.attendanceMethod === 'qr' ? 'QR Code + Location' : (location.attendanceMethod === 'code' ? 'Location + Code' : (location.attendanceMethod === 'face' ? 'Face Recognition + Location' : 'Location Only'))}</div>
                     </div>
                     <span class="confidence-badge badge ${badgeClass}">${badgeText}</span>
                 `;
@@ -7630,7 +7949,7 @@
                 <div class="location-details">
                     <div>Distance: ${distance} meters</div>
                     <div>Expires in: ${minutesRemaining} minutes</div>
-                    <div>Method: ${location.attendanceMethod === 'qr' ? 'QR Code + Location' : 'Location Only'}</div>
+                    <div>Method: ${location.attendanceMethod === 'qr' ? 'QR Code + Location' : (location.attendanceMethod === 'code' ? 'Location + Code' : (location.attendanceMethod === 'face' ? 'Face Recognition + Location' : 'Location Only'))}</div>
                 </div>
             `;
             locationBlocksDiv.appendChild(locationDetails);
@@ -7652,6 +7971,12 @@
                     }
                     captureBtn.disabled = true;
                 }
+            } else if (location.attendanceMethod === 'code') {
+                methodBadge.textContent = 'Method: Code + Location';
+                methodBadge.className = 'badge badge-warning';
+                scannerContainer.classList.add('hidden');
+                stopCamera();
+                captureBtn.disabled = false;
             } else {
                 methodBadge.textContent = 'Method: Location Only';
                 methodBadge.className = 'badge badge-success';
@@ -7662,7 +7987,7 @@
         }
 
         // Legacy mark attendance function (kept for compatibility)
-        function markAttendance(locationId) {
+        function markAttendance(locationId, options = {}) {
             if (enforceAndroidAppOnly((msg) => showScanResult(msg, 'error'))) {
                 return;
             }
@@ -7697,6 +8022,15 @@
                     return;
                 }
 
+                if (locationData.attendanceMethod === 'code' && !options.codeVerified) {
+                    promptForAttendanceCode(locationData).then((verified) => {
+                        if (verified) {
+                            markAttendance(locationId, { codeVerified: true });
+                        }
+                    });
+                    return;
+                }
+
                 const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
                 const timeStr = now.toISOString().split('T')[1].slice(0, 8); // HH:MM:SS
 
@@ -7715,7 +8049,8 @@
                     timestamp: now.getTime(),
                     latitude: currentPosition ? currentPosition.coords.latitude : null,
                     longitude: currentPosition ? currentPosition.coords.longitude : null,
-                    status: 'present'
+                    status: 'present',
+                    verificationMethod: locationData.attendanceMethod || 'location'
                 };
 
                 // First check if user has already marked attendance at this specific location
@@ -7887,16 +8222,25 @@
                     if (snapshot.exists()) {
                         const locations = snapshot.val();
                         let html = '<table class="attendance-list">';
-                        html += '<tr><th>Name</th><th>Coordinates</th><th>Radius</th><th>Actions</th></tr>';
+                        html += '<tr><th>Name</th><th>Coordinates</th><th>Radius</th><th>Method</th><th>Actions</th></tr>';
 
                         for (const id in locations) {
                             const location = locations[id];
+                            const methodText = location.attendanceMethod === 'qr'
+                                ? 'QR Code + Location'
+                                : (location.attendanceMethod === 'code'
+                                    ? 'Location + Code'
+                                    : (location.attendanceMethod === 'face'
+                                        ? 'Face Recognition + Location'
+                                        : 'Location Only'));
                             html += `<tr>
                                 <td>${location.name}</td>
                                 <td>${location.latitude}, ${location.longitude}</td>
                                 <td>${location.radius} meters</td>
+                                <td>${methodText}</td>
                                 <td>
                                     <button onclick="generateQRCode('${id}')">Generate QR</button>
+                                    ${location.attendanceMethod === 'code' ? `<button onclick="showAttendanceCode('${id}')">Show Code</button>` : ''}
                                     <button onclick="deleteLocation('${id}')">Delete</button>
                                 </td>
                             </tr>`;
@@ -8073,6 +8417,10 @@
             loadUsersPage();
         }
 
+        function generateAttendanceCode() {
+            return Math.floor(100000 + Math.random() * 900000).toString();
+        }
+
         // Admin function: Add location
         addLocationBtn.addEventListener('click', () => {
             const name = locationName.value;
@@ -8081,6 +8429,7 @@
             const radius = parseFloat(locationRadius.value);
             const attendanceMethod = document.getElementById('attendance-method').value;
             const classDuration = parseInt(document.getElementById('class-duration').value) || 60;
+            const generatedAttendanceCode = attendanceMethod === 'code' ? generateAttendanceCode() : null;
 
             if (!name || isNaN(lat) || isNaN(lng) || isNaN(radius)) {
                 alert("Please fill in all location fields with valid values.");
@@ -8101,6 +8450,7 @@
                 longitude: lng,
                 radius: radius,
                 attendanceMethod: attendanceMethod,
+                attendanceCode: generatedAttendanceCode,
                 createdAt: now.toISOString(),
                 expiresAt: expiresAt.toISOString(),
                 active: true
@@ -8117,6 +8467,9 @@
                     loadLocationsOnMap();
 
                     alert("Location added successfully! Class will be active for " + classDuration + " minutes.");
+                    if (attendanceMethod === 'code') {
+                        showAttendanceCode(locationId);
+                    }
                 })
                 .catch((error) => {
                     alert(`Error adding location: ${error.message}`);
@@ -8199,6 +8552,72 @@
                     document.getElementById('close-qr-modal').addEventListener('click', () => {
                         document.body.removeChild(modal);
                     });
+                });
+        };
+
+        window.showAttendanceCode = function (locationId) {
+            get(ref(database, `locations/${locationId}`))
+                .then((snapshot) => {
+                    if (!snapshot.exists()) {
+                        alert("Location not found.");
+                        return;
+                    }
+
+                    const location = snapshot.val();
+                    if (!location.attendanceCode) {
+                        alert("No attendance code set for this location.");
+                        return;
+                    }
+
+                    const modal = document.createElement('div');
+                    modal.className = 'card';
+                    modal.style.position = 'fixed';
+                    modal.style.top = '50%';
+                    modal.style.left = '50%';
+                    modal.style.transform = 'translate(-50%, -50%)';
+                    modal.style.zIndex = '1000';
+                    modal.style.width = '90%';
+                    modal.style.maxWidth = '420px';
+                    modal.style.textAlign = 'center';
+
+                    modal.innerHTML = `
+                        <div class="header">
+                            <h2>Attendance Code</h2>
+                        </div>
+                        <div class="card-body" style="text-align: center;">
+                            <h3>${location.name}</h3>
+                            <div style="font-size: 2.6rem; letter-spacing: 8px; font-weight: 700; margin: 16px 0 8px; color: var(--primary-color);">
+                                ${location.attendanceCode}
+                            </div>
+                            <p style="color: var(--gray-600); margin-top: 0;">Share this code with students to mark attendance.</p>
+                            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px;">
+                                <button class="primary-btn" data-copy-code>Copy Code</button>
+                                <button class="btn-secondary" data-close-code>Close</button>
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(modal);
+
+                    const copyBtn = modal.querySelector('[data-copy-code]');
+                    const closeBtn = modal.querySelector('[data-close-code]');
+
+                    if (copyBtn) {
+                        copyBtn.addEventListener('click', () => {
+                            navigator.clipboard.writeText(String(location.attendanceCode))
+                                .then(() => alert("Code copied to clipboard!"))
+                                .catch(() => alert("Unable to copy code."));
+                        });
+                    }
+
+                    if (closeBtn) {
+                        closeBtn.addEventListener('click', () => {
+                            document.body.removeChild(modal);
+                        });
+                    }
+                })
+                .catch((error) => {
+                    alert(`Error loading attendance code: ${error.message}`);
                 });
         };
 
@@ -8379,6 +8798,222 @@
             }, 5000);
         }
 
+        function createZoomController(elements, options = {}) {
+            if (!elements || !elements.container || !elements.range || !elements.zoomIn || !elements.zoomOut) {
+                return null;
+            }
+
+            const digitalMin = typeof options.digitalMin === 'number' ? options.digitalMin : 1;
+            const digitalMax = typeof options.digitalMax === 'number' ? options.digitalMax : 3;
+            const digitalStep = typeof options.digitalStep === 'number' ? options.digitalStep : 0.1;
+            const enableDigital = options.enableDigitalZoom === true && digitalMax > digitalMin;
+
+            const state = {
+                track: null,
+                min: 1,
+                max: 1,
+                step: 0.1,
+                decimals: 1,
+                mode: 'none'
+            };
+
+            function clamp(value) {
+                return Math.min(state.max, Math.max(state.min, value));
+            }
+
+            function getStepDecimals(step) {
+                const stepText = String(step);
+                const dot = stepText.indexOf('.');
+                return dot === -1 ? 0 : stepText.length - dot - 1;
+            }
+
+            function updateUI(value) {
+                const clamped = clamp(value);
+                elements.range.value = clamped;
+                if (elements.value) {
+                    elements.value.textContent = `${clamped.toFixed(state.decimals)}x`;
+                }
+                if (typeof options.onZoomChange === 'function') {
+                    options.onZoomChange(clamped, state.mode);
+                }
+            }
+
+            function applyZoom(value) {
+                const clamped = clamp(value);
+                if (state.mode === 'hardware' && state.track && typeof state.track.applyConstraints === 'function') {
+                    state.track.applyConstraints({ advanced: [{ zoom: clamped }] })
+                        .then(() => updateUI(clamped))
+                        .catch((error) => {
+                            console.log('Zoom update failed:', error);
+                        });
+                    return;
+                }
+                if (state.mode === 'digital') {
+                    updateUI(clamped);
+                }
+            }
+
+            function attach(stream) {
+                if (!stream || typeof stream.getVideoTracks !== 'function') {
+                    reset();
+                    return;
+                }
+
+                const track = stream.getVideoTracks()[0];
+                if (!track || typeof track.getCapabilities !== 'function') {
+                    if (enableDigital) {
+                        setupDigital();
+                        return;
+                    }
+                    reset();
+                    return;
+                }
+
+                let capabilities = null;
+                try {
+                    capabilities = track.getCapabilities();
+                } catch (error) {
+                    capabilities = null;
+                }
+
+                const hasZoomCaps = capabilities && capabilities.zoom;
+                const min = hasZoomCaps && typeof capabilities.zoom.min === 'number' ? capabilities.zoom.min : 1;
+                const max = hasZoomCaps && typeof capabilities.zoom.max === 'number' ? capabilities.zoom.max : 1;
+
+                if (hasZoomCaps && max > min) {
+                    state.min = min;
+                    state.max = max;
+                    state.step = typeof capabilities.zoom.step === 'number' && capabilities.zoom.step > 0 ? capabilities.zoom.step : 0.1;
+                    state.decimals = getStepDecimals(state.step);
+
+                    const settings = typeof track.getSettings === 'function' ? track.getSettings() : {};
+                    const current = typeof settings.zoom === 'number' ? settings.zoom : state.min;
+
+                    elements.range.min = state.min;
+                    elements.range.max = state.max;
+                    elements.range.step = state.step;
+                    state.track = track;
+                    state.mode = 'hardware';
+
+                    updateUI(current);
+                    elements.container.classList.remove('hidden');
+                    return;
+                }
+
+                if (enableDigital) {
+                    setupDigital();
+                    return;
+                }
+
+                reset();
+            }
+
+            function setupDigital() {
+                state.min = digitalMin;
+                state.max = digitalMax;
+                state.step = digitalStep;
+                state.decimals = getStepDecimals(state.step);
+                state.track = null;
+                state.mode = 'digital';
+                elements.range.min = state.min;
+                elements.range.max = state.max;
+                elements.range.step = state.step;
+                updateUI(state.min);
+                elements.container.classList.remove('hidden');
+            }
+
+            function reset() {
+                state.track = null;
+                state.mode = 'none';
+                elements.container.classList.add('hidden');
+                if (typeof options.onZoomChange === 'function') {
+                    options.onZoomChange(1, 'none');
+                }
+            }
+
+            if (!elements.container.dataset.zoomBound) {
+                elements.range.addEventListener('input', () => {
+                    const nextValue = parseFloat(elements.range.value);
+                    applyZoom(Number.isFinite(nextValue) ? nextValue : state.min);
+                });
+
+                elements.zoomIn.addEventListener('click', () => {
+                    const current = parseFloat(elements.range.value);
+                    const nextValue = Number.isFinite(current) ? current + state.step : state.min + state.step;
+                    applyZoom(nextValue);
+                });
+
+                elements.zoomOut.addEventListener('click', () => {
+                    const current = parseFloat(elements.range.value);
+                    const nextValue = Number.isFinite(current) ? current - state.step : state.min - state.step;
+                    applyZoom(nextValue);
+                });
+
+                elements.container.dataset.zoomBound = 'true';
+            }
+
+            return {
+                attach,
+                reset
+            };
+        }
+
+        scannerZoomController = createZoomController({
+            container: scannerZoomControls,
+            range: scannerZoomRange,
+            zoomIn: scannerZoomIn,
+            zoomOut: scannerZoomOut,
+            value: scannerZoomValue
+        }, {
+            enableDigitalZoom: true,
+            digitalMax: 3,
+            digitalStep: 0.1,
+            onZoomChange: (value, mode) => {
+                scannerZoomInfo = { value, mode };
+            }
+        });
+
+        function getScanCanvasDimensions(videoWidth, videoHeight) {
+            const scale = Math.min(1, QR_SCAN_MAX_DIMENSION / videoWidth, QR_SCAN_MAX_DIMENSION / videoHeight);
+            return {
+                width: Math.max(1, Math.round(videoWidth * scale)),
+                height: Math.max(1, Math.round(videoHeight * scale))
+            };
+        }
+
+        function getCanvasContext(canvasEl) {
+            if (!canvasEl) return null;
+            if (!canvasEl._scanCtx) {
+                canvasEl._scanCtx = canvasEl.getContext('2d', { willReadFrequently: true });
+            }
+            return canvasEl._scanCtx;
+        }
+
+        function drawVideoToScanCanvas(videoEl, canvasEl, zoomInfo) {
+            if (!videoEl || !canvasEl || !videoEl.videoWidth || !videoEl.videoHeight) {
+                return false;
+            }
+
+            const { width, height } = getScanCanvasDimensions(videoEl.videoWidth, videoEl.videoHeight);
+            if (canvasEl.width !== width || canvasEl.height !== height) {
+                canvasEl.width = width;
+                canvasEl.height = height;
+            }
+
+            const ctx = getCanvasContext(canvasEl);
+            if (!ctx) return false;
+
+            const useDigitalZoom = zoomInfo && zoomInfo.mode === 'digital' && zoomInfo.value > 1;
+            const zoom = useDigitalZoom ? zoomInfo.value : 1;
+            const srcWidth = videoEl.videoWidth / zoom;
+            const srcHeight = videoEl.videoHeight / zoom;
+            const srcX = (videoEl.videoWidth - srcWidth) / 2;
+            const srcY = (videoEl.videoHeight - srcHeight) / 2;
+
+            ctx.drawImage(videoEl, srcX, srcY, srcWidth, srcHeight, 0, 0, canvasEl.width, canvasEl.height);
+            return true;
+        }
+
         // Start camera for QR scanning
         async function startCamera() {
             if (enforceAndroidAppOnly((msg) => showLocationStatus(msg, 'error'))) {
@@ -8405,13 +9040,17 @@
                 navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: "environment",
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        width: { ideal: CAMERA_IDEAL_WIDTH },
+                        height: { ideal: CAMERA_IDEAL_HEIGHT }
                     }
                 })
                     .then((stream) => {
                         video.srcObject = stream;
                         cameraActive = true;
+
+                        if (scannerZoomController) {
+                            scannerZoomController.attach(stream);
+                        }
 
                         // Start continuous QR scanning
                         scanIntervalId = setInterval(scanQRCode, QR_CAMERA_SCAN_INTERVAL_MS);
@@ -8425,6 +9064,9 @@
                         // Hide scanner if camera fails
                         scannerContainer.classList.add('hidden');
                         cameraActive = false;
+                        if (scannerZoomController) {
+                            scannerZoomController.reset();
+                        }
 
                         // Update method badge
                         methodBadge.className = 'badge badge-danger';
@@ -8436,6 +9078,9 @@
                 // Hide scanner if not supported
                 scannerContainer.classList.add('hidden');
                 cameraActive = false;
+                if (scannerZoomController) {
+                    scannerZoomController.reset();
+                }
 
                 // Update method badge
                 methodBadge.className = 'badge badge-danger';
@@ -8450,14 +9095,12 @@
 
             scanning = true;
 
-            const videoWidth = video.videoWidth;
-            const videoHeight = video.videoHeight;
-
-            canvas.width = videoWidth;
-            canvas.height = videoHeight;
-
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const frameDrawn = drawVideoToScanCanvas(video, canvas, scannerZoomInfo);
+            const ctx = getCanvasContext(canvas);
+            if (!frameDrawn || !ctx) {
+                scanning = false;
+                return;
+            }
 
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const code = jsQR(imageData.data, imageData.width, imageData.height, {
@@ -8547,6 +9190,10 @@
             if (scanIntervalId) {
                 clearInterval(scanIntervalId);
                 scanIntervalId = null;
+            }
+
+            if (scannerZoomController) {
+                scannerZoomController.reset();
             }
 
             cameraActive = false;

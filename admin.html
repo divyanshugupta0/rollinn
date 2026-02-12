@@ -98,6 +98,10 @@
                 alert('Error sending location request');
             });
         }
+
+        function generateAttendanceCode() {
+            return Math.floor(100000 + Math.random() * 900000).toString();
+        }
     </script>
 
 
@@ -3335,6 +3339,7 @@
                                                 <select id="attendance-method">
                                                     <option value="location">Location Only</option>
                                                     <option value="qr">QR Code + Location</option>
+                                                    <option value="code">Location + Code</option>
                                                     <option value="face">Face Recognition + Location</option>
                                                 </select>
                                             </div>
@@ -7021,7 +7026,13 @@
                             }
 
                             // Format attendance method
-                            const methodText = location.attendanceMethod === 'qr' ? 'QR Code + Location' : 'Location Only';
+                            const methodText = location.attendanceMethod === 'qr'
+                                ? 'QR Code + Location'
+                                : (location.attendanceMethod === 'code'
+                                    ? 'Location + Code'
+                                    : (location.attendanceMethod === 'face'
+                                        ? 'Face Recognition + Location'
+                                        : 'Location Only'));
 
                             // Format date added
                             const createdDate = location.createdAt ? new Date(location.createdAt) : null;
@@ -7064,6 +7075,10 @@
                                             <a href="#" onclick="event.preventDefault(); generateQRCode('${id}')">
                                                 <i class="fas fa-qrcode"></i> Generate QR
                                             </a>
+                                            ${location.attendanceMethod === 'code' ? `
+                                            <a href="#" onclick="event.preventDefault(); showAttendanceCode('${id}')">
+                                                <i class="fas fa-key"></i> Show Code
+                                            </a>` : ''}
                                             <a href="#" onclick="event.preventDefault(); editLocation('${id}')">
                                                 <i class="fas fa-edit"></i> Edit
                                             </a>
@@ -7162,6 +7177,7 @@
             const sectionSelect = document.getElementById('location-section');
             const selectedSections = getSelectedSectionValues(sectionSelect);
             const sectionValue = selectedSections.length === 1 ? selectedSections[0] : selectedSections;
+            const generatedAttendanceCode = attendanceMethod === 'code' ? generateAttendanceCode() : null;
 
             if (!selectedSections.length) {
                 showAlert("Please add at least one section.", "error");
@@ -7222,12 +7238,24 @@
                                 locationData.createdFromDevice = currentDeviceType;
                             }
 
+                            const shouldShowCode = attendanceMethod === 'code' &&
+                                (!existingData.attendanceCode || existingData.attendanceMethod !== 'code');
+
+                            if (attendanceMethod === 'code') {
+                                locationData.attendanceCode = existingData.attendanceCode || generatedAttendanceCode;
+                            } else {
+                                locationData.attendanceCode = null;
+                            }
+
                             // Now update with device info preserved
                             update(ref(database, `locations/${editingLocationId}`), locationData)
                                 .then(() => {
                                     showAlert("Location updated successfully!", "success");
                                     clearLocationForm();
                                     loadLocations();
+                                    if (shouldShowCode) {
+                                        showAttendanceCode(editingLocationId);
+                                    }
                                 })
                                 .catch((error) => {
                                     console.error("Error updating location:", error);
@@ -7250,6 +7278,7 @@
                     longitude: lng,
                     radius: radius,
                     attendanceMethod: attendanceMethod,
+                    attendanceCode: generatedAttendanceCode,
                     classDuration: classDuration,
                     section: sectionValue,
                     createdAt: now.toISOString(),
@@ -7262,6 +7291,9 @@
                         showAlert("Location added successfully!", "success");
                         clearLocationForm();
                         loadLocations();
+                        if (attendanceMethod === 'code') {
+                            showAttendanceCode(locationId);
+                        }
                     })
                     .catch((error) => {
                         console.error("Error adding location:", error);
@@ -9092,6 +9124,73 @@
                 .catch((error) => {
                     console.error("Error generating QR code:", error);
                     showAlert(`Error generating QR code: ${error.message}`, "error");
+                });
+        };
+
+        window.showAttendanceCode = function (locationId) {
+            get(ref(database, `locations/${locationId}`))
+                .then((snapshot) => {
+                    if (!snapshot.exists()) {
+                        showAlert("Location not found", "error");
+                        return;
+                    }
+
+                    const location = snapshot.val();
+                    if (!location.attendanceCode) {
+                        showAlert("No attendance code set for this location.", "warning");
+                        return;
+                    }
+
+                    const modal = document.createElement('div');
+                    modal.className = 'card';
+                    modal.style.position = 'fixed';
+                    modal.style.top = '50%';
+                    modal.style.left = '50%';
+                    modal.style.transform = 'translate(-50%, -50%)';
+                    modal.style.zIndex = '1000';
+                    modal.style.width = '90%';
+                    modal.style.maxWidth = '420px';
+                    modal.style.textAlign = 'center';
+
+                    modal.innerHTML = `
+                        <div class="header">
+                            <h2>Attendance Code</h2>
+                        </div>
+                        <div class="card-body">
+                            <h3>${location.name}</h3>
+                            <div style="font-size: 2.6rem; letter-spacing: 8px; font-weight: 700; margin: 16px 0 8px; color: var(--primary-color);">
+                                ${location.attendanceCode}
+                            </div>
+                            <p style="color: var(--gray-600); margin-top: 0;">Share this code with students to mark attendance.</p>
+                            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px;">
+                                <button class="modern-btn primary" data-copy-code>Copy Code</button>
+                                <button class="modern-btn secondary" data-close-code>Close</button>
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(modal);
+
+                    const copyBtn = modal.querySelector('[data-copy-code]');
+                    const closeBtn = modal.querySelector('[data-close-code]');
+
+                    if (copyBtn) {
+                        copyBtn.addEventListener('click', () => {
+                            navigator.clipboard.writeText(String(location.attendanceCode))
+                                .then(() => showAlert("Code copied to clipboard!", "success"))
+                                .catch(() => showAlert("Unable to copy code.", "warning"));
+                        });
+                    }
+
+                    if (closeBtn) {
+                        closeBtn.addEventListener('click', () => {
+                            document.body.removeChild(modal);
+                        });
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error loading attendance code:", error);
+                    showAlert(`Error loading attendance code: ${error.message}`, "error");
                 });
         };
 

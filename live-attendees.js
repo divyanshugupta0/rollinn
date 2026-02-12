@@ -23,8 +23,8 @@ window.showLiveAttendees = function (locationId, locationName) {
     // Create popup HTML
     createLiveAttendeesPopup(locationId, locationName);
 
-    // Generate QR code for attendance
-    generateAttendanceQR(locationId);
+    // Generate check-in display (QR or Code)
+    updateLiveCheckinPanel(locationId);
 
     // Start listening for real-time attendance updates
     startAttendanceListener(locationId);
@@ -67,13 +67,14 @@ function createLiveAttendeesPopup(locationId, locationName) {
                 <div class="content-grid">
                     <div class="qr-panel">
                         <div class="panel-header">
-                            <i class="fas fa-qrcode"></i> Scan to Check-in
+                            <i class="fas fa-qrcode" id="live-checkin-icon"></i>
+                            <span id="live-checkin-title">Scan to Check-in</span>
                         </div>
                         <div class="qr-container">
                             <div id="live-qr-code"></div>
                         </div>
-                        <p class="qr-hint">Students can scan this QR code with their app</p>
-                        <button class="refresh-qr-btn" onclick="refreshQRCode()">
+                        <p class="qr-hint" id="live-checkin-hint">Students can scan this QR code with their app</p>
+                        <button class="refresh-qr-btn" id="live-checkin-action" onclick="refreshQRCode()">
                             <i class="fas fa-sync-alt"></i> Refresh QR
                         </button>
                     </div>
@@ -200,6 +201,109 @@ window.exportAttendees = function () {
     URL.revokeObjectURL(url);
 };
 
+function setLiveCheckinLabels({ icon, title, hint, actionText, actionIcon, actionHandler }) {
+    const iconEl = document.getElementById('live-checkin-icon');
+    const titleEl = document.getElementById('live-checkin-title');
+    const hintEl = document.getElementById('live-checkin-hint');
+    const actionBtn = document.getElementById('live-checkin-action');
+
+    if (iconEl && icon) {
+        iconEl.className = `fas ${icon}`;
+    }
+    if (titleEl && title) {
+        titleEl.textContent = title;
+    }
+    if (hintEl && hint) {
+        hintEl.textContent = hint;
+    }
+    if (actionBtn) {
+        actionBtn.innerHTML = `<i class="fas ${actionIcon || 'fa-sync-alt'}"></i> ${actionText || 'Refresh'}`;
+        actionBtn.disabled = false;
+        actionBtn.onclick = actionHandler || window.refreshQRCode;
+    }
+}
+
+function flashLiveHint(message, fallback) {
+    const hintEl = document.getElementById('live-checkin-hint');
+    if (!hintEl) return;
+    const original = hintEl.textContent;
+    hintEl.textContent = message;
+    setTimeout(() => {
+        hintEl.textContent = fallback || original;
+    }, 2000);
+}
+
+function copyAttendanceCode(codeValue) {
+    if (!codeValue || codeValue === '------') {
+        flashLiveHint('Attendance code not available yet.');
+        return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(String(codeValue))
+            .then(() => flashLiveHint('Code copied to clipboard.'))
+            .catch(() => flashLiveHint('Unable to copy code.'));
+        return;
+    }
+
+    flashLiveHint('Copy not supported on this device.');
+}
+
+function renderAttendanceCode(locationData) {
+    const qrContainer = document.getElementById('live-qr-code');
+    if (!qrContainer) return;
+
+    const codeValue = locationData && locationData.attendanceCode ? String(locationData.attendanceCode) : '------';
+    const qrSize = getLiveQrSize();
+
+    qrContainer.classList.add('code-mode');
+    qrContainer.style.width = `${qrSize}px`;
+    qrContainer.style.height = `${qrSize}px`;
+    qrContainer.innerHTML = `
+        <div class="live-code-display">
+            <div class="code-label">Attendance Code</div>
+            <div class="code-value">${codeValue}</div>
+            <div class="code-sub">Enter this code in the app</div>
+        </div>
+    `;
+
+    setLiveCheckinLabels({
+        icon: 'fa-key',
+        title: 'Enter Code to Check-in',
+        hint: 'Students should enter this code in the app to mark attendance.',
+        actionText: 'Copy Code',
+        actionIcon: 'fa-copy',
+        actionHandler: () => copyAttendanceCode(codeValue)
+    });
+}
+
+function updateLiveCheckinPanel(locationId) {
+    if (!locationId) return;
+
+    if (!firebase || !firebase.database) {
+        generateAttendanceQR(locationId);
+        return;
+    }
+
+    firebase.database().ref(`locations/${locationId}`).once('value')
+        .then((snapshot) => {
+            if (!snapshot.exists()) {
+                generateAttendanceQR(locationId);
+                return;
+            }
+
+            const location = snapshot.val();
+            if (location.attendanceMethod === 'code') {
+                renderAttendanceCode(location);
+            } else {
+                generateAttendanceQR(locationId);
+            }
+        })
+        .catch(() => {
+            generateAttendanceQR(locationId);
+        });
+}
+
 // Refresh QR code
 window.refreshQRCode = function () {
     const btn = document.querySelector('.refresh-qr-btn');
@@ -209,13 +313,22 @@ window.refreshQRCode = function () {
     }
 
     setTimeout(() => {
-        generateAttendanceQR(currentLocationId);
-        if (btn) {
-            btn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh QR';
-            btn.disabled = false;
-        }
-    }, 500);
+        updateLiveCheckinPanel(currentLocationId);
+    }, 400);
 };
+
+function getLiveQrSize() {
+    const wrapper = document.querySelector('.qr-container');
+    if (wrapper) {
+        const rect = wrapper.getBoundingClientRect();
+        const padding = 56;
+        const maxSize = Math.min(rect.width, rect.height) - padding;
+        if (maxSize > 0) {
+            return Math.max(300, Math.min(640, Math.floor(maxSize)));
+        }
+    }
+    return 440;
+}
 
 // Function to generate QR code for attendance
 function generateAttendanceQR(locationId) {
@@ -224,6 +337,7 @@ function generateAttendanceQR(locationId) {
 
     // Clear any existing QR code
     qrContainer.innerHTML = '';
+    qrContainer.classList.remove('code-mode');
 
     // Create QR data with location and timestamp
     const qrData = {
@@ -233,13 +347,26 @@ function generateAttendanceQR(locationId) {
         action: 'checkin'
     };
 
+    const qrSize = getLiveQrSize();
+    qrContainer.style.width = `${qrSize}px`;
+    qrContainer.style.height = `${qrSize}px`;
+
+    setLiveCheckinLabels({
+        icon: 'fa-qrcode',
+        title: 'Scan to Check-in',
+        hint: 'Students can scan this QR code with their app',
+        actionText: 'Refresh QR',
+        actionIcon: 'fa-sync-alt',
+        actionHandler: window.refreshQRCode
+    });
+
     // Generate QR code using QRCode.js
     if (typeof QRCode !== 'undefined') {
         new QRCode(qrContainer, {
             text: JSON.stringify(qrData),
-            width: 300,
-            height: 300,
-            colorDark: "#1a1a2e",
+            width: qrSize,
+            height: qrSize,
+            colorDark: "#000000",
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.H
         });
@@ -506,10 +633,16 @@ window.toggleFullscreen = function () {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().then(() => {
             if (icon) icon.className = 'fas fa-compress';
+            setTimeout(() => {
+                if (currentLocationId) updateLiveCheckinPanel(currentLocationId);
+            }, 200);
         }).catch(err => console.log('Fullscreen error:', err));
     } else {
         document.exitFullscreen().then(() => {
             if (icon) icon.className = 'fas fa-expand';
+            setTimeout(() => {
+                if (currentLocationId) updateLiveCheckinPanel(currentLocationId);
+            }, 200);
         }).catch(err => console.log('Exit fullscreen error:', err));
     }
 };
@@ -586,7 +719,7 @@ document.addEventListener('keydown', function (e) {
 // Auto-refresh QR code every 5 minutes
 setInterval(() => {
     if (currentLocationId && document.getElementById('live-qr-code')) {
-        generateAttendanceQR(currentLocationId);
+        updateLiveCheckinPanel(currentLocationId);
     }
 }, 5 * 60 * 1000);
 
@@ -803,7 +936,7 @@ modernStyles.textContent = `
     
     .content-grid {
         display: grid;
-        grid-template-columns: 450px 1fr;
+        grid-template-columns: minmax(520px, 40%) 1fr;
         gap: 20px;
         flex: 1;
         padding: 20px;
@@ -868,14 +1001,72 @@ modernStyles.textContent = `
     }
     
     .qr-container {
-        padding: 40px;
+        padding: 28px;
         display: flex;
         justify-content: center;
         align-items: center;
-        background: white;
-        margin: 24px;
-        border-radius: 20px;
+        background: #ffffff;
+        margin: 20px;
+        border-radius: 24px;
         flex: 1;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    #live-qr-code {
+        width: 100%;
+        max-width: 640px;
+        max-height: 640px;
+        aspect-ratio: 1 / 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #live-qr-code canvas,
+    #live-qr-code img {
+        width: 100% !important;
+        height: 100% !important;
+        image-rendering: crisp-edges;
+    }
+
+    #live-qr-code.code-mode {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .live-code-display {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: #111827;
+        font-family: 'Montserrat', sans-serif;
+        padding: 16px;
+    }
+
+    .live-code-display .code-label {
+        font-size: 0.85rem;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-bottom: 10px;
+    }
+
+    .live-code-display .code-value {
+        font-size: clamp(2.8rem, 6vw, 4.6rem);
+        letter-spacing: 12px;
+        font-weight: 800;
+        color: #111827;
+        margin-bottom: 8px;
+    }
+
+    .live-code-display .code-sub {
+        font-size: 0.9rem;
+        color: #6b7280;
     }
     
     .qr-hint {
@@ -908,6 +1099,23 @@ modernStyles.textContent = `
     .refresh-qr-btn:disabled {
         opacity: 0.7;
         cursor: not-allowed;
+    }
+
+    @media (max-width: 1200px) {
+        .content-grid {
+            grid-template-columns: minmax(380px, 42%) 1fr;
+        }
+    }
+
+    @media (max-width: 900px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+            overflow-y: auto;
+        }
+
+        .qr-container {
+            min-height: 320px;
+        }
     }
     
     .search-filter-bar {

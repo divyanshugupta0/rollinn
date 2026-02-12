@@ -302,17 +302,43 @@ document.addEventListener('DOMContentLoaded', function() {
             button.disabled = buttonDisabled;
         }
         
-        // Update QR scanner notice
+        // Update QR / Face notice
         const qrNotice = classItem.querySelector('.qr-scanner-mini');
-        if (location.attendanceMethod === 'qr' && isNearby && !buttonDisabled) {
+        if ((location.attendanceMethod === 'qr' || location.attendanceMethod === 'face') && isNearby && !buttonDisabled) {
+            const noticeHtml = location.attendanceMethod === 'face'
+                ? '<i class="fas fa-user-check"></i> Face verification will be required'
+                : '<i class="fas fa-qrcode"></i> QR scanning will be required';
             if (!qrNotice) {
                 const newQrNotice = document.createElement('div');
                 newQrNotice.className = 'qr-scanner-mini';
-                newQrNotice.innerHTML = '<i class="fas fa-qrcode"></i> QR scanning will be required';
-                button.insertAdjacentElement('afterend', newQrNotice);
+                newQrNotice.innerHTML = noticeHtml;
+                if (button) {
+                    button.insertAdjacentElement('afterend', newQrNotice);
+                } else {
+                    classItem.appendChild(newQrNotice);
+                }
+            } else {
+                qrNotice.innerHTML = noticeHtml;
             }
         } else if (qrNotice) {
             qrNotice.remove();
+        }
+
+        // Update code entry notice
+        const codeNotice = classItem.querySelector('.code-entry-mini');
+        if (location.attendanceMethod === 'code' && isNearby && !buttonDisabled) {
+            if (!codeNotice) {
+                const newCodeNotice = document.createElement('div');
+                newCodeNotice.className = 'code-entry-mini';
+                newCodeNotice.innerHTML = '<i class="fas fa-key"></i> Code entry will be required';
+                if (button) {
+                    button.insertAdjacentElement('afterend', newCodeNotice);
+                } else {
+                    classItem.appendChild(newCodeNotice);
+                }
+            }
+        } else if (codeNotice) {
+            codeNotice.remove();
         }
     }
     
@@ -331,7 +357,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="class-name">${location.name}</div>
             <div class="class-details">
                 <div><i class="fas fa-clock"></i> Expires in: ${minutesRemaining} minutes</div>
-                <div><i class="fas fa-map-marker-alt"></i> Method: ${location.attendanceMethod === 'qr' ? 'QR Code + Location' : 'Location Only'}</div>
+                <div><i class="fas fa-map-marker-alt"></i> Method: ${location.attendanceMethod === 'qr' ? 'QR Code + Location' : (location.attendanceMethod === 'code' ? 'Location + Code' : (location.attendanceMethod === 'face' ? 'Face Recognition + Location' : 'Location Only'))}</div>
                 ${isNearby ? `<div class="distance-display"><div><i class="fas fa-route"></i> Distance: ${Math.round(nearbyLocation.distance)} meters</div></div>` : ''}
             </div>
             <span class="class-status ${statusClass}">${statusText}</span>
@@ -344,6 +370,10 @@ document.addEventListener('DOMContentLoaded', function() {
             </button>
             ${location.attendanceMethod === 'qr' && isNearby && !buttonDisabled ? 
                 '<div class="qr-scanner-mini"><i class="fas fa-qrcode"></i> QR scanning will be required</div>' : ''}
+            ${location.attendanceMethod === 'code' && isNearby && !buttonDisabled ? 
+                '<div class="code-entry-mini"><i class="fas fa-key"></i> Code entry will be required</div>' : ''}
+            ${location.attendanceMethod === 'face' && isNearby && !buttonDisabled ? 
+                '<div class="qr-scanner-mini"><i class="fas fa-user-check"></i> Face verification will be required</div>' : ''}
         `;
         
         // Add click event for attendance button
