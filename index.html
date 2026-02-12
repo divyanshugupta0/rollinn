@@ -9047,6 +9047,11 @@
     <script>
         // Add notification functionality after DOM is loaded
         document.addEventListener('DOMContentLoaded', function () {
+            let notificationIntervalId = null;
+            let notificationListenerQuery = null;
+            let notificationListenerCallback = null;
+            let notificationListenerUserId = null;
+
             // Initialize Firebase
             const firebaseConfig = {
                 apiKey: "AIzaSyD_An-qb0XTLpaLdrOftAEOqsshGpPbv1w",
@@ -9079,6 +9084,98 @@
                 }
             }
 
+            function sendNativeNotification(notification) {
+                const title = notification.header || 'New Notification';
+                const body = notification.body || '';
+                try {
+                    if (window.AndroidDevice) {
+                        if (typeof window.AndroidDevice.showNotification === 'function') {
+                            window.AndroidDevice.showNotification(title, body);
+                            return true;
+                        }
+                        if (typeof window.AndroidDevice.notify === 'function') {
+                            window.AndroidDevice.notify(title, body);
+                            return true;
+                        }
+                        if (typeof window.AndroidDevice.sendNotification === 'function') {
+                            window.AndroidDevice.sendNotification(title, body);
+                            return true;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Native notification failed:', error);
+                }
+                return false;
+            }
+
+            function handleNotificationCandidate(notification, notificationId, studentId) {
+                if (!notification || !notificationId || !notification.recipients) {
+                    return;
+                }
+
+                if (!(notification.recipients[0] === 'all' ||
+                    notification.recipients.includes(studentId))) {
+                    return;
+                }
+
+                const notificationKey = `notification_${notificationId}`;
+                const notificationStorage = getNotificationStorage();
+                const lastShown = notificationStorage ? notificationStorage.getItem(notificationKey) : null;
+
+                if (lastShown) {
+                    return;
+                }
+
+                if (!document.hidden) {
+                    showNotificationPopup(notification, notificationId);
+                }
+
+                sendNativeNotification(notification);
+
+                if (notificationStorage) {
+                    notificationStorage.setItem(notificationKey, Date.now());
+                }
+
+                if (typeof loadNotifications === 'function') {
+                    loadNotifications();
+                }
+            }
+
+            function startNotificationListener(studentId) {
+                if (!studentId) return;
+                if (notificationListenerUserId === studentId && notificationListenerQuery) {
+                    return;
+                }
+
+                stopNotificationListener();
+                notificationListenerUserId = studentId;
+
+                const db = firebase.database();
+                const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+                notificationListenerQuery = db.ref('notifications')
+                    .orderByChild('timestamp')
+                    .startAt(oneWeekAgo);
+
+                notificationListenerCallback = (snapshot) => {
+                    const notification = snapshot.val();
+                    const notificationId = snapshot.key;
+                    handleNotificationCandidate(notification, notificationId, studentId);
+                };
+
+                notificationListenerQuery.on('child_added', notificationListenerCallback, (error) => {
+                    console.error('Notification listener error:', error);
+                });
+            }
+
+            function stopNotificationListener() {
+                if (notificationListenerQuery && notificationListenerCallback) {
+                    notificationListenerQuery.off('child_added', notificationListenerCallback);
+                }
+                notificationListenerQuery = null;
+                notificationListenerCallback = null;
+                notificationListenerUserId = null;
+            }
+
             // Wait for auth state to be ready
             firebase.auth().onAuthStateChanged(function (user) {
                 if (user) {
@@ -9087,10 +9184,26 @@
                     setTimeout(checkForNotifications, 2000);
 
                     // Check for new notifications every 5 minutes
-                    setInterval(checkForNotifications, 5 * 60 * 1000);
+                    if (notificationIntervalId) {
+                        clearInterval(notificationIntervalId);
+                    }
+                    notificationIntervalId = setInterval(checkForNotifications, 5 * 60 * 1000);
+
+                    startNotificationListener(user.uid);
                 } else {
                     // No user is signed in
                     console.log("No user logged in, notifications will not be checked");
+                    if (notificationIntervalId) {
+                        clearInterval(notificationIntervalId);
+                        notificationIntervalId = null;
+                    }
+                    stopNotificationListener();
+                }
+            });
+
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    checkForNotifications();
                 }
             });
 
@@ -9177,11 +9290,17 @@
                                         console.log("Showing notification:", notificationId);
 
                                         // Show the notification
-                                        showNotificationPopup(notification, notificationId);
+                                        if (!document.hidden) {
+                                            showNotificationPopup(notification, notificationId);
+                                        }
+                                        sendNativeNotification(notification);
 
                                         // Mark as shown
                                         if (notificationStorage) {
                                             notificationStorage.setItem(notificationKey, Date.now());
+                                        }
+                                        if (typeof loadNotifications === 'function') {
+                                            loadNotifications();
                                         }
                                     } else {
                                         console.log("Notification already shown:", notificationId, "at", new Date(parseInt(lastShown)));
