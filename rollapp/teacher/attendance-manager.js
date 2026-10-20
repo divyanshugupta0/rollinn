@@ -625,6 +625,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const locationsContainer = document.getElementById('locationsContainer');
         if (!locationsContainer) return;
 
+        // Ensure school mode styles and UI are applied
+        document.body.classList.add('teacher-school-mode');
+        const headingSpan = document.getElementById('attendanceSectionHeading');
+        if (headingSpan) headingSpan.textContent = 'Class Attendance';
+        const headingH2 = document.querySelector('.location-manager .section-header h2');
+        if (headingH2) headingH2.innerHTML = '<i class="fas fa-clipboard-check"></i> <span id="attendanceSectionHeading">Class Attendance</span>';
+        const addBtn = document.getElementById('addLocationBtn');
+        if (addBtn) addBtn.style.display = 'none';
+        const filterBoxes = document.querySelectorAll('.location-filters, .location-manager .location-filters');
+        filterBoxes.forEach(box => { box.style.display = 'none'; });
+
         locationsContainer.innerHTML = `
             <div class="loader-container">
                 <div class="loader"></div>
@@ -638,16 +649,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            // In school mode, ensure heading says Class Attendance and Add Location is removed
-            const headingSpan = document.getElementById('attendanceSectionHeading');
-            if (headingSpan) headingSpan.textContent = 'Class Attendance';
-            const headingH2 = document.querySelector('.location-manager .section-header h2');
-            if (headingH2) headingH2.innerHTML = '<i class="fas fa-clipboard-check"></i> <span id="attendanceSectionHeading">Class Attendance</span>';
-            const addBtn = document.getElementById('addLocationBtn');
-            if (addBtn) addBtn.style.display = 'none';
-            const filterBox = document.querySelector('.location-manager .location-filters');
-            if (filterBox) filterBox.style.display = 'none';
-
             // Query relevant records
             const [scopedSnap, legacySnap, classesSnap, coursesSnap, usersSnap] = await Promise.all([
                 firebase.database().ref(`classTeacherAssignmentsByClass/${schoolId}`).once('value'),
@@ -666,66 +667,90 @@ document.addEventListener('DOMContentLoaded', function() {
                 usersSnap.forEach(s => {
                     const st = s.val();
                     st.id = s.key;
-                    if (!st.role || st.role === 'student') allStudents.push(st);
+                    const role = String(st.role || '').toLowerCase();
+                    if (!role || role === 'student') allStudents.push(st);
                 });
             }
 
             const teacherId = typeof currentTeacher !== 'undefined' && currentTeacher ? (currentTeacher.id || currentTeacher.uid) : '';
             const teacherEmail = typeof currentTeacher !== 'undefined' && currentTeacher ? (currentTeacher.email || '') : '';
 
-            // Collect all assigned classes and sections for this teacher
+            // Clean section string helper: e.g. "Section A" -> "A", "b" -> "B"
+            function normalizeSec(sec) {
+                return String(sec || '').trim().replace(/^section\s+/i, '').toUpperCase();
+            }
+
+            // Collect all assigned classes and sections for this teacher without duplicates
             const classSectionMap = new Map();
+
+            function addOrUpdateSection(classId, className, rawSec, year) {
+                const sec = normalizeSec(rawSec);
+                if (!sec) return;
+
+                let clsName = String(className || '').trim();
+                if (!clsName || clsName.toLowerCase() === 'class') {
+                    clsName = courses[classId]?.courseName || schoolClasses[classId]?.className || currentTeacher?.assignedClass || currentTeacher?.className || '';
+                }
+
+                // Check if an entry for this section already exists
+                let existingKey = null;
+                for (const [key, existing] of classSectionMap.entries()) {
+                    if (normalizeSec(existing.section) === sec) {
+                        const existingIsGeneric = !existing.className || existing.className.toLowerCase() === 'class';
+                        const incomingIsGeneric = !clsName || clsName.toLowerCase() === 'class';
+                        
+                        // Same classId or one/both have generic class name, or same class name
+                        if ((existing.classId && classId && String(existing.classId) === String(classId)) ||
+                            existingIsGeneric || incomingIsGeneric ||
+                            existing.className.toLowerCase() === clsName.toLowerCase()) {
+                            existingKey = key;
+                            break;
+                        }
+                    }
+                }
+
+                if (existingKey) {
+                    const existing = classSectionMap.get(existingKey);
+                    // Upgrade generic or missing values with more specific ones
+                    if (!existing.classId && classId) existing.classId = classId;
+                    if ((!existing.className || existing.className.toLowerCase() === 'class') && clsName && clsName.toLowerCase() !== 'class') {
+                        existing.className = clsName;
+                    }
+                    if (!existing.year && year) existing.year = year;
+                } else {
+                    const finalClassName = (clsName && clsName.toLowerCase() !== 'class') ? clsName : 'Class';
+                    const canonicalKey = `${(classId || finalClassName).toLowerCase()}_${sec.toLowerCase()}`;
+                    classSectionMap.set(canonicalKey, {
+                        classId: classId || '',
+                        className: finalClassName,
+                        section: sec,
+                        year: year || ''
+                    });
+                }
+            }
 
             // 1. Profile classTeacherClassSections
             const profileScopes = Array.isArray(currentTeacher?.classTeacherClassSections) ? currentTeacher.classTeacherClassSections : [];
             profileScopes.forEach(item => {
                 if (!item || !item.section) return;
                 const classId = item.classId || '';
-                const className = item.className || (courses[classId]?.courseName) || (schoolClasses[classId]?.className) || 'Class';
-                const section = String(item.section).trim();
-                const key = `${classId || className}_${section}`.toLowerCase();
-                classSectionMap.set(key, {
-                    classId,
-                    className,
-                    section,
-                    year: item.year || ''
-                });
+                const className = item.className || (courses[classId]?.courseName) || (schoolClasses[classId]?.className) || '';
+                addOrUpdateSection(classId, className, item.section, item.year);
             });
 
             // 2. classTeacherAssignmentsByClass
             Object.entries(scopedAssignments).forEach(([clsId, sections]) => {
                 Object.entries(sections || {}).forEach(([secKey, assignment]) => {
                     if (!assignment || assignment.teacherId !== teacherId) return;
-                    const section = String(assignment.section || '').trim();
-                    if (!section) return;
-                    const className = assignment.className || (courses[clsId]?.courseName) || (schoolClasses[clsId]?.className) || 'Class';
-                    const key = `${clsId}_${section}`.toLowerCase();
-                    if (!classSectionMap.has(key)) {
-                        classSectionMap.set(key, {
-                            classId: clsId,
-                            className,
-                            section,
-                            year: assignment.year || ''
-                        });
-                    }
+                    const className = assignment.className || (courses[clsId]?.courseName) || (schoolClasses[clsId]?.className) || '';
+                    addOrUpdateSection(clsId, className, assignment.section || secKey, assignment.year);
                 });
             });
 
-            // 3. Legacy classTeacherAssignments
+            // 3. Legacy classTeacherAssignments (only adds if not already present or upgrades)
             Object.entries(legacyAssignments).forEach(([secKey, assignment]) => {
                 if (!assignment || assignment.teacherId !== teacherId) return;
-                const section = String(assignment.section || '').trim();
-                if (!section) return;
-                const className = assignment.className || 'Class';
-                const key = `legacy_${section}`.toLowerCase();
-                if (!classSectionMap.has(key)) {
-                    classSectionMap.set(key, {
-                        classId: '',
-                        className,
-                        section,
-                        year: ''
-                    });
-                }
+                addOrUpdateSection('', assignment.className || '', assignment.section || secKey, assignment.year || '');
             });
 
             // 4. Assigned sections from profile
@@ -735,51 +760,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentTeacher?.classTeacherSection
             ].filter(Boolean);
 
-            const uniqueSecs = [...new Set(profileSections.map(s => String(s).trim()))];
-            if (classSectionMap.size === 0 && uniqueSecs.length > 0) {
-                const defClass = currentTeacher?.assignedClass || currentTeacher?.className || 'Class';
-                uniqueSecs.forEach(sec => {
-                    const key = `${defClass}_${sec}`.toLowerCase();
-                    classSectionMap.set(key, {
-                        classId: currentTeacher?.classId || '',
-                        className: defClass,
-                        section: sec,
-                        year: ''
-                    });
-                });
-            }
+            profileSections.forEach(sec => {
+                addOrUpdateSection(currentTeacher?.classId || '', currentTeacher?.assignedClass || currentTeacher?.className || '', sec, '');
+            });
 
-            // 5. Fallback from schoolClasses
+            // 5. Fallback from schoolClasses if still empty
             if (classSectionMap.size === 0) {
                 Object.entries(schoolClasses).forEach(([clsId, clsData]) => {
                     if (clsData.teacherId === teacherId || clsData.teacherEmail === teacherEmail) {
                         const secs = Array.isArray(clsData.sections) ? clsData.sections : (clsData.section ? [clsData.section] : ['A']);
                         secs.forEach(sec => {
-                            const key = `${clsId}_${sec}`.toLowerCase();
-                            classSectionMap.set(key, {
-                                classId: clsId,
-                                className: clsData.className || clsData.name || 'Class',
-                                section: sec,
-                                year: ''
-                            });
+                            addOrUpdateSection(clsId, clsData.className || clsData.name || '', sec, '');
                         });
                     }
                 });
             }
 
-            // Generate class cards - each section gets its own separate card!
+            // Generate class cards - ensure no duplicate sections
             const classCards = [];
             window._teacherClassCardsMap = {};
+            const finalCardsMap = new Map();
 
             classSectionMap.forEach((item) => {
+                const normSec = normalizeSec(item.section);
                 const safeClassId = (item.classId || item.className).replace(/[^a-zA-Z0-9_-]/g, '_');
-                const safeSec = item.section.replace(/[^a-zA-Z0-9_-]/g, '_');
+                const safeSec = normSec.replace(/[^a-zA-Z0-9_-]/g, '_');
                 const cardId = `ct_${safeClassId}_${safeSec}`;
 
                 // Calculate enrolled students in this section
-                const normSec = item.section.trim().replace(/^section\s+/i, '').toLowerCase();
                 const matchingStudents = allStudents.filter(st => {
-                    const sSec = String(st.section || '').trim().replace(/^section\s+/i, '').toLowerCase();
+                    const sSec = normalizeSec(st.section || st.classSection || st.assignedSection);
                     if (normSec && sSec && sSec !== normSec) return false;
                     if (item.classId && st.classId && String(st.classId) !== String(item.classId)) return false;
                     return true;
@@ -789,17 +799,37 @@ document.addEventListener('DOMContentLoaded', function() {
                     id: cardId,
                     classId: item.classId,
                     className: item.className,
-                    section: item.section,
+                    section: normSec,
                     year: item.year,
-                    name: `${item.className} · Section ${item.section}`,
-                    location: `${item.className} · Section ${item.section}`,
+                    name: `${item.className} · Section ${normSec}`,
+                    location: `${item.className} · Section ${normSec}`,
                     studentCount: matchingStudents.length,
                     isSchoolClass: true,
                     schoolId: schoolId
                 };
 
+                // Deduplicate by section: if duplicate section, prioritize the one with a specific class name
+                const dedupeKey = `${item.className.toLowerCase()}_${normSec}`;
+                const secOnlyKey = `${normSec}`;
+
+                // If secOnlyKey exists with generic 'Class' and this one has a specific class name, replace it
+                if (finalCardsMap.has(secOnlyKey)) {
+                    const existing = finalCardsMap.get(secOnlyKey);
+                    if (existing.className.toLowerCase() === 'class' && item.className.toLowerCase() !== 'class') {
+                        finalCardsMap.delete(secOnlyKey);
+                        finalCardsMap.set(dedupeKey, card);
+                        return;
+                    }
+                }
+
+                if (!finalCardsMap.has(dedupeKey)) {
+                    finalCardsMap.set(dedupeKey, card);
+                }
+            });
+
+            finalCardsMap.forEach(card => {
                 classCards.push(card);
-                window._teacherClassCardsMap[cardId] = card;
+                window._teacherClassCardsMap[card.id] = card;
             });
 
             window._teacherClassCards = classCards;
@@ -832,6 +862,13 @@ document.addEventListener('DOMContentLoaded', function() {
     window.renderSchoolClassCards = function(classCards, submittedAttendances) {
         const locationsContainer = document.getElementById('locationsContainer');
         if (!locationsContainer) return;
+
+        // Ensure school mode UI state
+        document.body.classList.add('teacher-school-mode');
+        const addBtn = document.getElementById('addLocationBtn');
+        if (addBtn) addBtn.style.display = 'none';
+        const filterBoxes = document.querySelectorAll('.location-filters, .location-manager .location-filters');
+        filterBoxes.forEach(box => { box.style.display = 'none'; });
 
         if (!classCards || classCards.length === 0) {
             locationsContainer.innerHTML = `
@@ -958,9 +995,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 snap.forEach(child => {
                     const st = child.val();
                     st.id = child.key;
-                    if (st.role && st.role !== 'student') return;
+                    const role = String(st.role || '').toLowerCase();
+                    if (role && role !== 'student') return;
 
-                    const sSec = String(st.section || '').trim().replace(/^section\s+/i, '').toLowerCase();
+                    const sSec = String(st.section || st.classSection || st.assignedSection || '').trim().replace(/^section\s+/i, '').toLowerCase();
                     if (normSec && sSec && sSec !== normSec) return;
                     if (card.classId && st.classId && String(st.classId) !== String(card.classId)) return;
 
@@ -1469,6 +1507,7 @@ document.addEventListener('DOMContentLoaded', function() {
             body.teacher-school-mode #addLocationBtn,
             body.teacher-school-mode .location-manager #addLocationBtn,
             body.teacher-school-mode #locationModal,
+            body.teacher-school-mode .location-filters,
             body.teacher-school-mode .location-manager .location-filters {
                 display: none !important;
             }

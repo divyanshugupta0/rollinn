@@ -3502,6 +3502,10 @@
         #locationModal .modal-body { padding:22px !important; }
         /* The old inline attendance selector/date footer is superseded by location cards and the attendance popup. */
         body.teacher-authenticated #attendanceSection #attendanceContainer { display:none !important; }
+        body.teacher-school-mode #addLocationBtn,
+        body.teacher-school-mode .location-manager #addLocationBtn,
+        body.teacher-school-mode .location-filters,
+        body.teacher-school-mode .location-manager .location-filters { display:none !important; }
         #locationModal #locationForm { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
         #locationModal #locationForm > .form-group { min-width:0; margin:0; }
         #locationModal #locationForm > .form-group:first-child,
