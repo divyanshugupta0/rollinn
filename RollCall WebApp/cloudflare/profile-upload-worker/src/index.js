@@ -12,7 +12,7 @@ const allowOrigins = new Set([
     'https://rollcall.codesynq.me'
 ]);
 const FIREBASE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const FIREBASE_AUTH_SCOPE = 'https://www.googleapis.com/auth/identitytoolkit';
+const FIREBASE_AUTH_SCOPE = 'https://www.googleapis.com/auth/identitytoolkit https://www.googleapis.com/auth/firebase.database';
 const RESET_MESSAGE = 'If an account exists for that email, password reset instructions will be sent.';
 let firebaseAccessToken = null;
 let firebaseAccessTokenExpiresAt = 0;
@@ -251,6 +251,173 @@ async function isAuthorizedReset(env, caller, email, targetUid, idToken) {
     );
 }
 
+async function readDatabaseWithAccessToken(env, path, accessToken) {
+    const baseUrl = String(env.FIREBASE_DATABASE_URL || '').replace(/\/+$/, '');
+    if (!baseUrl) throw new Error('Firebase database URL is not configured.');
+    const encodedPath = path ? `${path.split('/').map(encodeURIComponent).join('/')}.json` : '.json';
+    const url = new URL(`${baseUrl}/${encodedPath}`);
+    url.searchParams.set('access_token', accessToken);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Firebase teacher data could not be verified.');
+    return response.json();
+}
+
+async function updateDatabaseWithAccessToken(env, updates, accessToken) {
+    const baseUrl = String(env.FIREBASE_DATABASE_URL || '').replace(/\/+$/, '');
+    if (!baseUrl) throw new Error('Firebase database URL is not configured.');
+    const url = new URL(`${baseUrl}/.json`);
+    url.searchParams.set('access_token', accessToken);
+    url.searchParams.set('print', 'silent');
+    const response = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+    });
+    if (!response.ok) {
+        console.error('Firebase teacher data cleanup failed:', response.status);
+        throw new Error('Teacher data cleanup failed. Retry the deletion to finish cleanup.');
+    }
+}
+
+async function lookupFirebaseAccount(projectId, uid, accessToken) {
+    const response = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/accounts:lookup`,
+        {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ localId: [uid] })
+        }
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        console.error('Firebase teacher account lookup failed:', response.status);
+        throw new Error('The teacher authentication account could not be verified.');
+    }
+    return Array.isArray(result.users) ? result.users[0] || null : null;
+}
+
+async function deleteFirebaseAccount(projectId, uid, accessToken) {
+    const response = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/accounts:batchDelete`,
+        {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ localIds: [uid], force: true })
+        }
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || (Array.isArray(result.errors) && result.errors.length)) {
+        console.error('Firebase teacher account deletion failed:', response.status);
+        throw new Error('The teacher authentication account could not be deleted. Teacher data was not removed.');
+    }
+}
+
+function safeDatabaseChildKey(value) {
+    return String(value).replace(/[.#$\[\]/]/g, character => encodeURIComponent(character));
+}
+
+async function deleteTeacher(request, env, origin) {
+    const authorization = request.headers.get('Authorization') || '';
+    const tokenMatch = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]+)$/);
+    if (!tokenMatch) return uploadResponse({ error: 'Administrator authentication is required.' }, 401, origin);
+
+    let caller;
+    try {
+        caller = await verifyFirebaseToken(tokenMatch[1], env.FIREBASE_PROJECT_ID);
+    } catch (error) {
+        console.error('Teacher deletion requester verification failed:', error);
+        return uploadResponse({ error: 'Authentication could not be verified. Try again shortly.' }, 503, origin);
+    }
+    if (!caller) return uploadResponse({ error: 'Authentication token is invalid or expired.' }, 401, origin);
+
+    const payload = await readJsonWithinLimit(request, 4096);
+    const targetUid = String(payload?.targetUid || '').trim();
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(targetUid) || targetUid === caller.uid) {
+        return uploadResponse({ error: 'A valid teacher account must be selected.' }, 400, origin);
+    }
+
+    try {
+        const callerProfile = await readDatabaseProfile(env, `users/${caller.uid}`, tokenMatch[1]);
+        if (!callerProfile || String(callerProfile.role || '').toLowerCase() !== 'admin') {
+            return uploadResponse({ error: 'Administrator access is required.' }, 403, origin);
+        }
+        const callerSchoolId = String(callerProfile.schoolId || caller.uid);
+
+        const accessToken = await getFirebaseAccessToken(env);
+        const [teacherProfile, account] = await Promise.all([
+            readDatabaseWithAccessToken(env, `users/${targetUid}`, accessToken),
+            lookupFirebaseAccount(env.FIREBASE_PROJECT_ID, targetUid, accessToken)
+        ]);
+        if (!teacherProfile || String(teacherProfile.role || '').toLowerCase() !== 'teacher' ||
+            String(teacherProfile.schoolId || '').trim() !== callerSchoolId.trim()) {
+            return uploadResponse({ error: 'You can delete only teacher accounts belonging to your school.' }, 403, origin);
+        }
+        if (account && teacherProfile.email &&
+            String(account.email || '').toLowerCase() !== String(teacherProfile.email).toLowerCase()) {
+            return uploadResponse({ error: 'The teacher profile does not match its authentication account.' }, 409, origin);
+        }
+
+        const photoKey = String(teacherProfile.profilePhotoKey || '');
+        if (photoKey && (!photoKey.startsWith(`profile-photos/${targetUid}/`) ||
+            photoKey.split('/').some(part => part === '.' || part === '..'))) {
+            return uploadResponse({ error: 'The teacher profile photo reference is invalid; no data was deleted.' }, 409, origin);
+        }
+        if (photoKey && !env.PROFILE_PHOTOS) {
+            return uploadResponse({ error: 'Profile-photo storage is not configured; no data was deleted.' }, 503, origin);
+        }
+
+        await updateDatabaseWithAccessToken(env, {
+            [`users/${safeDatabaseChildKey(targetUid)}/accountStatus`]: 'deleting',
+            [`users/${safeDatabaseChildKey(targetUid)}/deleteRequestedAt`]: Date.now(),
+            [`users/${safeDatabaseChildKey(targetUid)}/deleteRequestedBy`]: caller.uid
+        }, accessToken);
+
+        if (account) await deleteFirebaseAccount(env.FIREBASE_PROJECT_ID, targetUid, accessToken);
+
+        const updates = {
+            [`users/${safeDatabaseChildKey(targetUid)}`]: null,
+            [`notifications/${safeDatabaseChildKey(targetUid)}`]: null,
+            [`schoolUsers/${safeDatabaseChildKey(teacherProfile.schoolId)}/${safeDatabaseChildKey(targetUid)}`]: null
+        };
+        const assignments = await readDatabaseWithAccessToken(
+            env,
+            `classTeacherAssignments/${teacherProfile.schoolId}`,
+            accessToken
+        );
+        if (assignments && typeof assignments === 'object') {
+            Object.entries(assignments).forEach(([key, assignment]) => {
+                if (assignment?.teacherId === targetUid) {
+                    updates[`classTeacherAssignments/${safeDatabaseChildKey(teacherProfile.schoolId)}/${safeDatabaseChildKey(key)}`] = null;
+                }
+            });
+        }
+
+        if (photoKey) {
+            try {
+                await env.PROFILE_PHOTOS.delete(photoKey);
+            } catch (error) {
+                console.error('Teacher profile photo cleanup failed:', error);
+                return uploadResponse({ error: 'The teacher account was removed, but profile photo cleanup failed. Retry deletion to finish cleanup.' }, 503, origin);
+            }
+        }
+
+        await updateDatabaseWithAccessToken(env, updates, accessToken);
+        return uploadResponse({
+            ok: true,
+            message: 'Teacher account and profile deleted. Attendance and historical requests/locations were retained.'
+        }, 200, origin);
+    } catch (error) {
+        console.error('Teacher deletion failed:', error);
+        return uploadResponse({ error: error.message || 'Teacher deletion failed.' }, 503, origin);
+    }
+}
+
 async function generatePasswordResetLink(env, email) {
     const accessToken = await getFirebaseAccessToken(env);
     if (!env.FIREBASE_API_KEY) throw new Error('Firebase Web API key is not configured.');
@@ -290,6 +457,67 @@ async function sendBrevoPasswordReset(env, email, resetLink) {
     if (!env.BREVO_API_KEY || !env.BREVO_SENDER_EMAIL || !env.BREVO_SENDER_NAME) {
         throw new Error('Brevo sender configuration is incomplete.');
     }
+    const safeResetLink = escapeHtml(resetLink);
+    const htmlContent = `<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>Reset your RollCall password</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#1e293b;">
+    <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">Reset your RollCall password securely.</span>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f1f5f9;">
+        <tr>
+            <td align="center" style="padding:36px 16px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;background-color:#ffffff;border-radius:16px;overflow:hidden;">
+                    <tr>
+                        <td style="padding:28px 36px;background-color:#1e3a8a;">
+                            <p style="margin:0;color:#ffffff;font-size:24px;line-height:32px;font-weight:700;letter-spacing:0.2px;">RollCall</p>
+                            <p style="margin:4px 0 0;color:#dbeafe;font-size:13px;line-height:20px;">Attendance, made simple</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:36px;">
+                            <p style="margin:0 0 12px;color:#2563eb;font-size:13px;line-height:20px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Account security</p>
+                            <h1 style="margin:0 0 16px;color:#0f172a;font-size:28px;line-height:36px;">Reset your password</h1>
+                            <p style="margin:0 0 24px;color:#475569;font-size:16px;line-height:26px;">We received a request to reset the password for your RollCall account. Use the button below to choose a new password.</p>
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px;">
+                                <tr>
+                                    <td align="center" style="border-radius:8px;background-color:#2563eb;">
+                                        <a href="${safeResetLink}" style="display:inline-block;padding:14px 24px;color:#ffffff;font-size:16px;line-height:22px;font-weight:700;text-decoration:none;border-radius:8px;">Reset password</a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="margin:0 0 10px;color:#64748b;font-size:14px;line-height:22px;">If the button doesn’t work, copy and paste this link into your browser:</p>
+                            <p style="margin:0 0 24px;word-break:break-all;font-size:13px;line-height:21px;"><a href="${safeResetLink}" style="color:#2563eb;text-decoration:underline;">${safeResetLink}</a></p>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td style="padding:16px;background-color:#f8fafc;border-radius:8px;color:#475569;font-size:14px;line-height:22px;">If you didn’t request a password reset, you can safely ignore this email. Your password will remain unchanged.</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:20px 36px;background-color:#f8fafc;border-top:1px solid #e2e8f0;">
+                            <p style="margin:0;color:#64748b;font-size:12px;line-height:19px;">This is an automated security message from RollCall. Please don’t reply to this email.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>`;
+    const textContent = `Reset your RollCall password
+
+We received a request to reset the password for your RollCall account. Open this link to choose a new password:
+${resetLink}
+
+If you didn’t request a password reset, you can safely ignore this email. Your password will remain unchanged.
+
+This is an automated security message from RollCall. Please don’t reply to this email.`;
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
@@ -301,8 +529,8 @@ async function sendBrevoPasswordReset(env, email, resetLink) {
             sender: { name: env.BREVO_SENDER_NAME, email: env.BREVO_SENDER_EMAIL },
             to: [{ email }],
             subject: 'Reset your RollCall password',
-            htmlContent: `<p>We received a request to reset your RollCall password.</p><p><a href="${escapeHtml(resetLink)}">Reset password</a></p><p>If you did not request this, you can ignore this email.</p>`,
-            textContent: `We received a request to reset your RollCall password.\n\nReset password: ${resetLink}\n\nIf you did not request this, you can ignore this email.`
+            htmlContent,
+            textContent
         })
     });
     if (!response.ok) {
@@ -618,6 +846,11 @@ export default {
             if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);
             if (request.method !== 'POST') return response({ error: 'Method not allowed.' }, 405, allowedOrigin);
             return handlePasswordReset(request, env, allowedOrigin);
+        }
+        if (url.pathname.endsWith('/delete-teacher')) {
+            if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
+            if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            return deleteTeacher(request, env, allowedOrigin);
         }
         if (request.method === 'GET' && (url.pathname.startsWith('/file/') || url.searchParams.has('key'))) {
             return getProfilePhoto(allowedOrigin, env, url);

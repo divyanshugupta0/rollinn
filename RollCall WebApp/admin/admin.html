@@ -27,6 +27,7 @@
     <link rel="stylesheet" href="../accessibility/accessibility-styles.css">
         <script src="admin.js"></script>
     <script src="manage-teachers.js"></script>
+        <script src="timetable-management.js"></script>
     <script src="../accessibility/accessibility-settings.js"></script>
     <script src="live-attendees.js"></script>
     <script>
@@ -3049,6 +3050,11 @@
             #manage-teachers-section-active .card-body {
                 padding: clamp(18px, 3vw, 34px);
             }
+            #manage-teachers-section-active .mt-header-actions {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
             #manage-teachers-section-active .mt-intro {
                 display: flex;
                 align-items: flex-start;
@@ -3071,18 +3077,222 @@
                 line-height: 1.6;
             }
             #manage-teachers-section-active .mt-panel-card {
-                margin-bottom: 22px;
-                padding: 22px;
-                border: 1px solid #e0e9e2;
-                border-radius: 15px;
+                margin: 0;
+                padding: 0;
+                border: 0;
+                border-radius: 0;
+                background: transparent;
+                box-shadow: none;
+            }
+            #manage-teachers-section-active .mt-create-dialog {
+                position: fixed;
+                inset: 0;
+                box-sizing: border-box;
+                width: min(760px, calc(100vw - 32px));
+                max-width: 760px;
+                max-height: min(88vh, 900px);
+                margin: auto;
+                padding: 0;
+                overflow: auto;
+                border: 0;
+                border-radius: 16px;
+                color: #26352a;
                 background: #fff;
-                box-shadow: 0 8px 24px rgba(34, 55, 40, .05);
+                box-shadow: 0 24px 80px rgba(15, 23, 42, .28);
+            }
+            #manage-teachers-section-active .mt-create-dialog[open] {
+                display: block;
+            }
+            #manage-teachers-section-active .mt-create-dialog::backdrop {
+                background: rgba(15, 23, 42, .58);
+                backdrop-filter: blur(3px);
+            }
+            #manage-teachers-section-active .mt-create-dialog-header {
+                position: sticky;
+                z-index: 1;
+                top: 0;
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 16px;
+                padding: 22px 24px 18px;
+                border-bottom: 1px solid #e2e8f0;
+                background: #fff;
+            }
+            #manage-teachers-section-active .mt-create-dialog-header h3 {
+                margin: 0;
+                color: #24382b;
+                font-size: 1.25rem;
+            }
+            #manage-teachers-section-active .mt-create-dialog-header p {
+                margin: 6px 0 0;
+                color: #718178;
+                font-size: .9rem;
+                line-height: 1.5;
+            }
+            #manage-teachers-section-active .mt-create-dialog-close {
+                display: grid;
+                width: 38px;
+                height: 38px;
+                flex: 0 0 38px;
+                place-items: center;
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                color: #475569;
+                background: #fff;
+                cursor: pointer;
+            }
+            #manage-teachers-section-active .mt-create-dialog-close:hover {
+                color: #1e3a8a;
+                background: #f8fafc;
+            }
+            #manage-teachers-section-active .mt-delete-dialog {
+                position: fixed;
+                inset: 0;
+                box-sizing: border-box;
+                width: min(480px, calc(100vw - 32px));
+                max-width: 480px;
+                max-height: calc(100vh - 32px);
+                margin: auto;
+                padding: 24px;
+                overflow: auto;
+                border: 1px solid #e2e8f0;
+                border-radius: 16px;
+                color: #334155;
+                background: #fff;
+                box-shadow: 0 24px 80px rgba(15, 23, 42, .28);
+            }
+            #manage-teachers-section-active .mt-delete-dialog[open] {
+                display: block;
+            }
+            #manage-teachers-section-active .mt-delete-dialog::backdrop {
+                background: rgba(15, 23, 42, .62);
+                backdrop-filter: blur(3px);
+            }
+            #manage-teachers-section-active .mt-delete-dialog-header {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 14px;
+            }
+            #manage-teachers-section-active .mt-delete-dialog-header h3 {
+                margin: 0;
+                color: #991b1b;
+                font-size: 1.2rem;
+            }
+            #manage-teachers-section-active .mt-delete-dialog-header p {
+                margin: 8px 0 0;
+                color: #64748b;
+                font-size: .92rem;
+                line-height: 1.5;
+            }
+            #manage-teachers-section-active .mt-delete-dialog-header .mt-delete-dialog-close {
+                display: grid;
+                width: 36px;
+                height: 36px;
+                flex: 0 0 36px;
+                place-items: center;
+                border: 1px solid #e2e8f0;
+                border-radius: 9px;
+                color: #475569;
+                background: #fff;
+                cursor: pointer;
+            }
+            #manage-teachers-section-active .mt-delete-summary {
+                margin: 18px 0;
+                padding: 13px 14px;
+                border: 1px solid #fecaca;
+                border-radius: 10px;
+                background: #fef2f2;
+            }
+            #manage-teachers-section-active .mt-delete-summary strong,
+            #manage-teachers-section-active .mt-delete-summary span {
+                display: block;
+                overflow-wrap: anywhere;
+            }
+            #manage-teachers-section-active .mt-delete-summary strong {
+                color: #7f1d1d;
+            }
+            #manage-teachers-section-active .mt-delete-summary span {
+                margin-top: 4px;
+                color: #991b1b;
+                font-size: .9rem;
+            }
+            #manage-teachers-section-active .mt-delete-warning {
+                margin: 0 0 18px;
+                color: #475569;
+                font-size: .9rem;
+                line-height: 1.55;
+            }
+            #manage-teachers-section-active .mt-delete-confirm-field {
+                display: grid;
+                gap: 7px;
+                color: #334155;
+                font-size: .88rem;
+                font-weight: 700;
+            }
+            #manage-teachers-section-active .mt-delete-confirm-field input {
+                width: 100%;
+                min-height: 44px;
+                box-sizing: border-box;
+                padding: 10px 12px;
+                border: 1px solid #cbd5e1;
+                border-radius: 9px;
+                color: #1e293b;
+                font: inherit;
+                font-weight: 400;
+            }
+            #manage-teachers-section-active .mt-delete-dialog-actions {
+                display: flex;
+                justify-content: flex-end;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-top: 18px;
+            }
+            #manage-teachers-section-active .mt-delete-dialog-actions .mt-delete-dialog-close {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: auto;
+                min-width: 100px;
+                min-height: 42px;
+                flex: 0 0 auto;
+                padding: 0 14px;
+                border: 1px solid #cbd5e1;
+                border-radius: 9px;
+                color: #334155;
+                background: #fff;
+                font: inherit;
+                font-weight: 600;
+                white-space: nowrap;
+                cursor: pointer;
+            }
+            #manage-teachers-section-active .mt-delete-dialog-actions .mt-delete-dialog-close:hover {
+                background: #f8fafc;
+            }
+            #manage-teachers-section-active .mt-delete-confirm-button {
+                min-height: 42px;
+                padding: 0 14px;
+                border: 0;
+                border-radius: 9px;
+                color: #fff;
+                background: #b91c1c;
+                font: inherit;
+                font-weight: 700;
+                cursor: pointer;
+            }
+            #manage-teachers-section-active .mt-delete-confirm-button:hover:not(:disabled) {
+                background: #991b1b;
+            }
+            #manage-teachers-section-active .mt-delete-confirm-button:disabled {
+                opacity: .5;
+                cursor: not-allowed;
             }
             #manage-teachers-section-active .mt-create-grid {
                 display: grid;
                 grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 16px;
-                margin-top: 18px;
+                gap: 16px 18px;
+                padding: 22px 24px 0;
             }
             #manage-teachers-section-active .mt-field label {
                 display: block;
@@ -3143,12 +3353,16 @@
                 align-items: center;
                 justify-content: space-between;
                 gap: 14px;
-                margin-top: 18px;
+                margin: 20px 24px 0;
+                padding-bottom: 4px;
             }
             #manage-teachers-section-active .mt-create-actions p {
                 margin: 0;
                 color: #718178;
                 font-size: .88rem;
+            }
+            #manage-teachers-section-active .mt-create-dialog .mt-status {
+                margin: 14px 24px 20px;
             }
             #manage-teachers-section-active .mt-directory-head {
                 display: flex;
@@ -3156,6 +3370,11 @@
                 justify-content: space-between;
                 gap: 14px;
                 margin-bottom: 14px;
+            }
+            #manage-teachers-section-active .mt-directory-title {
+                display: flex;
+                align-items: center;
+                gap: 10px;
             }
             #manage-teachers-section-active .mt-search {
                 width: min(100%, 340px);
@@ -3174,7 +3393,7 @@
             }
             #manage-teachers-section-active .mt-table {
                 width: 100%;
-                min-width: 650px;
+                min-width: 1120px;
                 margin: 0;
                 border-collapse: collapse;
             }
@@ -3198,11 +3417,57 @@
                 color: #293a2e;
                 font-weight: 700;
             }
+            #manage-teachers-section-active .mt-teacher-cell {
+                display: flex;
+                min-width: 165px;
+                align-items: center;
+                gap: 10px;
+            }
+            #manage-teachers-section-active .mt-avatar {
+                display: inline-grid;
+                width: 38px;
+                height: 38px;
+                flex: 0 0 38px;
+                place-items: center;
+                border-radius: 50%;
+                object-fit: cover;
+            }
+            #manage-teachers-section-active .mt-photo-trigger {
+                display: inline-grid;
+                flex: 0 0 38px;
+                padding: 0;
+                border: 0;
+                border-radius: 50%;
+                background: transparent;
+                cursor: zoom-in;
+            }
+            #manage-teachers-section-active .mt-photo-trigger:focus-visible {
+                outline: 3px solid rgba(37, 99, 235, .35);
+                outline-offset: 3px;
+            }
+            #manage-teachers-section-active .mt-avatar-fallback {
+                color: #28603a;
+                background: #eaf5ec;
+            }
             #manage-teachers-section-active .mt-email {
                 margin-top: 3px;
                 color: #718178;
                 font-size: .88rem;
                 overflow-wrap: anywhere;
+            }
+            #manage-teachers-section-active .mt-email-cell {
+                min-width: 190px;
+                overflow-wrap: anywhere;
+            }
+            #manage-teachers-section-active .mt-subject {
+                display: inline-block;
+                margin: 2px 3px 2px 0;
+                padding: 4px 8px;
+                border-radius: 999px;
+                color: #475569;
+                background: #f1f5f9;
+                font-size: .78rem;
+                white-space: nowrap;
             }
             #manage-teachers-section-active .mt-role-badge {
                 display: inline-flex;
@@ -3213,10 +3478,86 @@
                 font-size: .8rem;
                 font-weight: 700;
             }
-            #manage-teachers-section-active .mt-actions {
+            #manage-teachers-section-active .mt-action-cell {
+                width: 56px;
+                text-align: center;
+            }
+            #manage-teachers-section-active .mt-action-trigger {
+                display: grid;
+                width: 38px;
+                height: 38px;
+                place-items: center;
+                border: 1px solid #dbe3dc;
+                border-radius: 10px;
+                color: #475569;
+                background: #fff;
+                cursor: pointer;
+                list-style: none;
+            }
+            #manage-teachers-section-active .mt-action-trigger::-webkit-details-marker {
+                display: none;
+            }
+            #manage-teachers-section-active .mt-action-trigger:hover,
+            #manage-teachers-section-active .mt-action-trigger[aria-expanded="true"] {
+                border-color: #9bb5a0;
+                color: #1e3a8a;
+                background: #f8fafc;
+            }
+            #manage-teachers-section-active .mt-action-trigger:disabled {
+                color: #94a3b8;
+                background: #f1f5f9;
+                cursor: not-allowed;
+            }
+            #manage-teachers-section-active .mt-action-trigger:focus-visible,
+            #mtTeacherActionMenu button:focus-visible {
+                outline: 3px solid rgba(37, 99, 235, .3);
+                outline-offset: 2px;
+            }
+            #mtTeacherActionMenu {
+                position: fixed;
+                z-index: 5;
+                width: min(240px, calc(100vw - 16px));
+                max-height: calc(100vh - 16px);
+                overflow-y: auto;
+                padding: 5px;
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                background: #fff;
+                box-shadow: 0 12px 28px rgba(15, 23, 42, .18);
+            }
+            #mtTeacherActionMenu[hidden] {
+                display: none;
+            }
+            #mtTeacherActionMenu button {
                 display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
+                width: 100%;
+                align-items: center;
+                gap: 9px;
+                padding: 10px;
+                border: 0;
+                border-radius: 7px;
+                color: #334155;
+                background: transparent;
+                font: inherit;
+                font-size: .88rem;
+                text-align: left;
+                cursor: pointer;
+            }
+            #mtTeacherActionMenu button:hover {
+                color: #1e3a8a;
+                background: #eff6ff;
+            }
+            #mtTeacherActionMenu .mt-menu-delete {
+                color: #b91c1c;
+            }
+            #mtTeacherActionMenu .mt-menu-delete:hover {
+                color: #991b1b;
+                background: #fef2f2;
+            }
+            #mtTeacherActionMenu button:disabled {
+                color: #475569;
+                background: #f8fafc;
+                cursor: wait;
             }
             #manage-teachers-section-active .mt-status {
                 min-height: 1.5em;
@@ -3224,42 +3565,99 @@
             }
             @media (max-width: 760px) {
                 #manage-teachers-section-active .mt-create-grid { grid-template-columns: 1fr; }
-                #manage-teachers-section-active .mt-intro { flex-direction: column; padding: 18px; }
-                #manage-teachers-section-active .mt-panel-card { padding: 17px; }
+                #manage-teachers-section-active .mt-create-grid { padding: 18px 18px 0; }
+                #manage-teachers-section-active .mt-create-dialog {
+                    width: calc(100vw - 24px);
+                    max-width: 560px;
+                    max-height: calc(100vh - 24px);
+                }
+                #manage-teachers-section-active .mt-delete-dialog {
+                    width: calc(100vw - 24px);
+                    max-height: calc(100vh - 24px);
+                    padding: 18px;
+                }
+                #manage-teachers-section-active .mt-delete-dialog-actions {
+                    flex-direction: column-reverse;
+                }
+                #manage-teachers-section-active .mt-delete-dialog-actions button {
+                    width: 100%;
+                    min-height: 44px;
+                }
+                #manage-teachers-section-active .mt-create-dialog-header { padding: 18px; }
                 #manage-teachers-section-active .mt-create-actions,
                 #manage-teachers-section-active .mt-directory-head { align-items: stretch; flex-direction: column; }
+                #manage-teachers-section-active .mt-header-actions { gap: 6px; }
+                #manage-teachers-section-active .mt-header-actions button { padding: 8px 10px; }
                 #manage-teachers-section-active .mt-search { width: 100%; }
+                #manage-teachers-section-active .mt-create-actions { align-items: stretch; flex-direction: column; margin: 18px; }
                 #manage-teachers-section-active .mt-create-actions .primary-btn { width: 100%; }
             }
         </style>
         <div class="card">
             <div class="header">
                 <div class="header-content"><button class="section-menu-btn" aria-label="Open menu"><i class="fas fa-bars"></i></button><h2><i class="fas fa-chalkboard-teacher"></i> Manage Teachers</h2></div>
-                <button type="button" id="mtRefresh" class="secondary-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <div class="mt-header-actions">
+                    <button type="button" id="mtAddTeacher" class="primary-btn"><i class="fas fa-user-plus"></i> Add Teacher</button>
+                    <button type="button" id="mtRefresh" class="secondary-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+                </div>
             </div>
             <div class="card-body">
-                <section class="mt-intro">
-                    <div><h3>Teacher account management</h3><p>Create teacher accounts with their required profile details. New accounts start with the Teacher role; assign Class Teacher access in Teacher Sections.</p></div>
-                </section>
-                <form id="mtCreateForm" class="mt-panel-card">
-                    <h3 class="mt-subheading">Create teacher account</h3>
-                    <div class="mt-create-grid">
-                        <div class="mt-field"><label for="mtName">Full name</label><input id="mtName" required maxlength="120" autocomplete="name"></div>
-                        <div class="mt-field"><label for="mtEmail">Email address</label><input id="mtEmail" type="email" required autocomplete="email"></div>
-                        <div class="mt-field"><label for="mtPhone">Phone number</label><input id="mtPhone" type="tel" required maxlength="24" autocomplete="tel" placeholder="+91 98765 43210"></div>
-                        <div class="mt-field"><label for="mtDesignation">Designation</label><input id="mtDesignation" required maxlength="100" autocomplete="organization-title" placeholder="e.g. Mathematics Teacher"></div>
-                        <div class="mt-field"><label for="mtSubjects">Subjects taught</label><input id="mtSubjects" required maxlength="300" placeholder="Comma-separated subjects"></div>
-                        <div class="mt-field"><label for="mtPassword">Temporary password</label><input id="mtPassword" type="password" required minlength="8" autocomplete="new-password"><small>Use at least 8 characters and share it securely.</small></div>
-                        <div class="mt-field"><label for="mtProfilePhoto">Profile picture</label><input id="mtProfilePhoto" type="file" accept="image/*" required><small>Required. Choose an image up to 2 MB; it will be uploaded securely to R2 when the account is created.</small><div id="mtPhotoPreview" class="mt-photo-preview" aria-label="Profile picture preview"><i class="fas fa-user" aria-hidden="true"></i></div></div>
+                <dialog id="mtCreateDialog" class="mt-create-dialog" aria-labelledby="mtCreateDialogTitle">
+                    <div class="mt-create-dialog-header">
+                        <div>
+                            <h3 id="mtCreateDialogTitle">Create teacher account</h3>
+                            <p>New accounts start with the Teacher role. Assign Class Teacher access in Teacher Sections.</p>
+                        </div>
+                        <button type="button" class="mt-create-dialog-close" aria-label="Close add teacher dialog"><i class="fas fa-times" aria-hidden="true"></i></button>
                     </div>
-                    <div class="mt-create-actions">
-                        <p>New teacher accounts are created with the Teacher role.</p>
-                        <button type="submit" class="primary-btn" id="mtCreateButton"><i class="fas fa-user-plus"></i> Create teacher account</button>
+                    <form id="mtCreateForm" class="mt-panel-card">
+                        <div class="mt-create-grid">
+                            <div class="mt-field"><label for="mtName">Full name</label><input id="mtName" required maxlength="120" autocomplete="name"></div>
+                            <div class="mt-field"><label for="mtEmail">Email address</label><input id="mtEmail" type="email" required autocomplete="email"></div>
+                            <div class="mt-field"><label for="mtPhone">Phone number</label><input id="mtPhone" type="tel" required maxlength="24" autocomplete="tel" placeholder="+91 98765 43210"></div>
+                            <div class="mt-field"><label for="mtDesignation">Designation</label><input id="mtDesignation" required maxlength="100" autocomplete="organization-title" placeholder="e.g. Mathematics Teacher"></div>
+                            <div class="mt-field"><label for="mtSubjects">Subjects taught</label><input id="mtSubjects" required maxlength="300" placeholder="Comma-separated subjects"></div>
+                            <div class="mt-field"><label for="mtPassword">Temporary password</label><input id="mtPassword" type="password" required minlength="8" autocomplete="new-password"><small>Use at least 8 characters and share it securely.</small></div>
+                            <div class="mt-field"><label for="mtProfilePhoto">Profile picture</label><input id="mtProfilePhoto" type="file" accept="image/*" required><small>Required. Choose an image up to 2 MB; it will be uploaded securely to R2 when the account is created.</small><div id="mtPhotoPreview" class="mt-photo-preview" aria-label="Profile picture preview"><i class="fas fa-user" aria-hidden="true"></i></div></div>
+                        </div>
+                        <div class="mt-create-actions">
+                            <p>Share the temporary password securely.</p>
+                            <button type="submit" class="primary-btn" id="mtCreateButton"><i class="fas fa-user-plus"></i> Create teacher account</button>
+                        </div>
+                        <p id="mtCreateStatus" class="mt-status" role="status" aria-live="polite"></p>
+                    </form>
+                </dialog>
+                <dialog id="mtDeleteDialog" class="mt-delete-dialog" aria-labelledby="mtDeleteDialogTitle">
+                    <div class="mt-delete-dialog-header">
+                        <div>
+                            <h3 id="mtDeleteDialogTitle"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Delete teacher account?</h3>
+                            <p>This permanently removes the teacher’s sign-in account and profile.</p>
+                        </div>
+                        <button type="button" class="mt-delete-dialog-close" aria-label="Close delete teacher dialog"><i class="fas fa-times" aria-hidden="true"></i></button>
                     </div>
-                </form>
+                    <div class="mt-delete-summary">
+                        <strong id="mtDeleteTeacherName"></strong>
+                        <span id="mtDeleteTeacherEmail"></span>
+                    </div>
+                    <p class="mt-delete-warning">The teacher’s photo and class-teacher assignments will be removed. Attendance records, leave/profile requests, and locations they created will be retained.</p>
+                    <form id="mtDeleteForm">
+                        <label class="mt-delete-confirm-field" for="mtDeleteConfirmEmail">
+                            <span id="mtDeleteConfirmLabel">Type the teacher’s email to confirm</span>
+                            <input id="mtDeleteConfirmEmail" type="text" autocomplete="off" spellcheck="false">
+                        </label>
+                        <p id="mtDeleteStatus" class="mt-status" role="status" aria-live="polite"></p>
+                        <div class="mt-delete-dialog-actions">
+                            <button type="button" class="secondary-btn mt-delete-dialog-close">Cancel</button>
+                            <button type="submit" id="mtDeleteConfirmButton" class="mt-delete-confirm-button" disabled><i class="fas fa-trash-alt" aria-hidden="true"></i> Permanently delete teacher</button>
+                        </div>
+                    </form>
+                </dialog>
                 <div class="mt-directory-head">
-                    <h3 class="mt-subheading">Teachers in this school <span class="badge bg-secondary" id="mtTeacherCount">0</span></h3>
-                    <input type="search" id="mtSearch" class="mt-search" placeholder="Search name or email">
+                    <div class="mt-directory-title">
+                        <h3 class="mt-subheading">Teachers in this school</h3>
+                        <span class="badge bg-secondary" id="mtTeacherCount">0</span>
+                    </div>
+                    <input type="search" id="mtSearch" class="mt-search" placeholder="Search teacher details">
                 </div>
                 <div id="mtDirectory"><p class="text-muted">Teacher accounts will appear here.</p></div>
                 <p id="mtStatus" class="mt-status" role="status" aria-live="polite"></p>
@@ -3344,9 +3742,17 @@
                         <div class="menu-item-icon"><i class="fas fa-chalkboard-teacher"></i></div>
                         <span class="menu-item-text">Teacher Sections</span>
                     </div>
+                    <div class="sidebar-menu-item-modern" data-section="manage-timetable">
+                        <div class="menu-item-icon"><i class="fas fa-calendar-week"></i></div>
+                        <span class="menu-item-text">Manage Timetable</span>
+                    </div>
                     <div class="sidebar-menu-item-modern" data-section="manage-courses">
                         <div class="menu-item-icon"><i class="fas fa-graduation-cap"></i></div>
                         <span class="menu-item-text" id="academic-management-menu-label">Manage Courses</span>
+                    </div>
+                    <div class="sidebar-menu-item-modern" data-section="manage-subjects">
+                        <div class="menu-item-icon"><i class="fas fa-book-open"></i></div>
+                        <span class="menu-item-text">Manage Subjects</span>
                     </div>
                     <div class="sidebar-menu-item-modern" data-section="notifications">
                         <div class="menu-item-icon">
@@ -4130,9 +4536,26 @@
                     .ta-section-options input{position:relative;z-index:2;flex:0 0 auto;width:18px;height:18px;margin:0;accent-color:#17714d;cursor:pointer;pointer-events:auto!important}
                     .ta-save-row{display:flex;justify-content:flex-end;margin-top:19px}
                     .ta-save-row #taSave{min-width:190px;min-height:46px}
+                    .ta-class-scope{margin-top:20px;padding-top:17px;border-top:1px solid #edf1ed}
+                    .ta-class-scope h4{margin:0 0 6px;color:#253c2e;font-size:1rem}
+                    .ta-class-scope p{margin:0 0 12px;color:#77857c;font-size:.84rem;line-height:1.5}
+                    .ta-class-section-options,.ta-subject-section-options{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:8px;max-height:260px;overflow:auto;padding:2px}
+                    .ta-class-section-options label,.ta-subject-section-options label{display:flex;align-items:flex-start;gap:9px;padding:10px;border:1px solid #e1e9e3;border-radius:10px;background:#fff;color:#34483a;font-size:.83rem;cursor:pointer}
+                    .ta-class-section-options input,.ta-subject-section-options input{flex:0 0 auto;margin:2px 0 0;accent-color:#17714d}
+                    .ta-class-section-options label.is-selected,.ta-subject-section-options label.is-selected{border-color:#65a879;background:#f0f8f1}
+                    .ta-subject-assignment-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+                    .ta-subject-assignment-form .form-group{margin:0}
+                    .ta-subject-assignment-form select{width:100%;min-height:42px}
+                    .ta-subject-assignment-form .ta-subject-sections{grid-column:1/-1}
+                    .ta-subject-assignment-form .ta-save-row{grid-column:1/-1;margin-top:0}
+                    .ta-subject-list{display:grid;gap:8px;margin-top:14px}
+                    .ta-subject-assignment{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #e1e9e3;border-radius:10px;background:#fbfdfb;font-size:.83rem}
+                    .ta-subject-assignment strong{display:block;color:#2d4235}
+                    .ta-subject-assignment small{display:block;margin-top:3px;color:#77857c}
+                    .ta-subject-remove{flex:0 0 auto}
                     .ta-status{max-width:1480px;margin:12px auto 0!important;color:#65776c!important}
                     @media(max-width:900px){.ta-workspace{grid-template-columns:1fr}.ta-empty-state{min-height:130px}}
-                    @media(max-width:600px){.teacher-assignments-panel .ta-card-body{padding:16px 12px 22px!important}.ta-intro{padding:18px;align-items:flex-start;flex-direction:column;gap:14px}.ta-pane,.ta-manage-card{padding:16px}.ta-search-row,.ta-role-grid{grid-template-columns:1fr}.ta-search-row #taLookup,.ta-save-row #taSave{width:100%}.ta-section-heading{align-items:flex-start;flex-direction:column}}
+                    @media(max-width:600px){.teacher-assignments-panel .ta-card-body{padding:16px 12px 22px!important}.ta-intro{padding:18px;align-items:flex-start;flex-direction:column;gap:14px}.ta-pane,.ta-manage-card{padding:16px}.ta-search-row,.ta-role-grid,.ta-subject-assignment-form{grid-template-columns:1fr}.ta-search-row #taLookup,.ta-save-row #taSave{width:100%}.ta-section-heading{align-items:flex-start;flex-direction:column}.ta-subject-assignment-form .ta-subject-sections,.ta-subject-assignment-form .ta-save-row{grid-column:auto}}
                 </style>
                 <section class="ta-intro"><div><p class="ta-intro-kicker">School access management</p><h3>Assign teachers to their sections</h3><p>Choose a teacher from this school, then manage teaching access and class teacher responsibilities.</p></div><span class="ta-intro-badge"><i class="fas fa-shield-alt"></i> School scoped</span></section>
                 <div class="ta-workspace">
@@ -4156,6 +4579,22 @@
                             <p class="ta-section-help">Section access controls the Students Record directory. Choose which assigned sections this teacher will lead as class teacher.</p>
                             <div id="taSectionOptions" class="ta-section-options"></div>
                             <div id="taClassTeacherSectionRow" class="ta-class-teacher-section" hidden><label>Class teacher for these sections</label><button type="button" id="taClassTeacherSectionToggle" class="ta-class-teacher-section-toggle" aria-expanded="false" aria-controls="taClassTeacherSectionMenu"><span>Choose assigned sections</span><i class="fas fa-chevron-down" aria-hidden="true"></i></button><div id="taClassTeacherSectionMenu" class="ta-class-teacher-section-menu" hidden><div id="taClassTeacherSectionOptions" class="ta-class-teacher-section-options"></div></div><small>Student profile and leave requests from selected sections go to this teacher.</small></div>
+                            <div class="ta-class-scope">
+                                <h4>Class-teacher timetable access</h4>
+                                <p>Select exact class sections this teacher leads. Their read-only timetable will show only these selections.</p>
+                                <div id="taClassTimetableSections" class="ta-class-section-options"><span class="text-muted">Class sections will load when a teacher is selected.</span></div>
+                            </div>
+                            <div class="ta-class-scope">
+                                <h4>Subject-teacher assignments</h4>
+                                <p>Assign this teacher to a subject in one or more class sections. Each subject can have one assigned teacher per section.</p>
+                                <div id="taSubjectAssignmentList" class="ta-subject-list"><span class="text-muted">Select a teacher to manage subject assignments.</span></div>
+                                <form id="taSubjectAssignmentForm" class="ta-subject-assignment-form">
+                                    <div class="form-group"><label for="taSubjectClass">Class</label><select id="taSubjectClass" disabled><option value="">Select a class</option></select></div>
+                                    <div class="form-group"><label for="taSubjectName">Subject</label><select id="taSubjectName" disabled><option value="">Select a class first</option></select></div>
+                                    <div class="form-group ta-subject-sections"><label>Sections for this subject</label><div id="taSubjectSections" class="ta-subject-section-options"><span class="text-muted">Select a class first.</span></div></div>
+                                    <div class="ta-save-row"><button type="submit" id="taAssignSubject" class="primary-btn" disabled><i class="fas fa-plus"></i> Assign subject to selected sections</button></div>
+                                </form>
+                            </div>
                             <div class="ta-save-row"><button type="button" id="taSave" class="primary-btn"><i class="fas fa-save"></i> Save assignments</button></div>
                         </div>
                     </section>
@@ -4163,6 +4602,61 @@
                 <div id="taStatus" class="ta-status" role="status" aria-live="polite"></div>
             </div>
         </div>
+    </div>
+
+    <div id="manage-timetable-section" class="section-template hidden">
+        <div class="card">
+            <div class="header">
+                <div class="header-content"><button class="section-menu-btn" type="button" aria-label="Open menu"><i class="fas fa-bars"></i></button><h2><i class="fas fa-calendar-week"></i> Manage Timetable</h2></div>
+                <button type="button" id="tmRefresh" class="secondary-btn"><i class="fas fa-rotate-right"></i> Refresh</button>
+            </div>
+            <div class="card-body tm-body">
+                <div class="tm-intro"><h3>Build section-by-section weekly schedules</h3><p>Configure school days and periods, then assign each class section’s subjects to a timetable grid. The assigned subject teacher is attached automatically.</p></div>
+                <div class="tm-settings">
+                    <div class="tm-settings-header"><div><h3>School timetable periods</h3><p>Enter period names and optional times. These periods are shared by all class timetables.</p></div><button type="button" id="tmSaveSettings" class="secondary-btn"><i class="fas fa-save"></i> Save periods</button></div>
+                    <div id="tmDays" class="tm-days"></div>
+                    <div id="tmPeriods" class="tm-periods"></div>
+                    <div class="tm-period-actions"><button type="button" id="tmAddPeriod" class="secondary-btn"><i class="fas fa-plus"></i> Add period</button></div>
+                </div>
+                <div class="tm-editor">
+                    <div class="tm-selectors">
+                        <label>Class<select id="tmClassSelect" disabled><option value="">Loading classes…</option></select></label>
+                        <label>Section<select id="tmSectionSelect" disabled><option value="">Select a class first</option></select></label>
+                        <button type="button" id="tmSaveSchedule" class="primary-btn" disabled><i class="fas fa-save"></i> Save timetable</button>
+                    </div>
+                    <p id="tmStatus" class="tm-status" role="status" aria-live="polite"></p>
+                    <div id="tmGridWrap" class="tm-grid-wrap"><div class="tm-empty">Choose a class and section to edit its timetable.</div></div>
+                </div>
+            </div>
+        </div>
+        <style>
+            #manage-timetable-section-active{position:relative!important;z-index:20!important;isolation:isolate;pointer-events:auto!important}
+            #manage-timetable-section-active .tm-body{padding:clamp(16px,3vw,36px)!important}
+            #manage-timetable-section-active input,#manage-timetable-section-active select,#manage-timetable-section-active button{position:relative!important;z-index:2!important;pointer-events:auto!important}
+            #manage-timetable-section-active .tm-intro,#manage-timetable-section-active .tm-settings,#manage-timetable-section-active .tm-editor{margin:0 0 18px;padding:20px;border:1px solid #e2eae3;border-radius:15px;background:#fff}
+            #manage-timetable-section-active .tm-intro{background:linear-gradient(120deg,#f2f9f3,#fff)}
+            #manage-timetable-section-active .tm-intro h3,#manage-timetable-section-active .tm-settings h3{margin:0;color:#263b2e}
+            #manage-timetable-section-active .tm-intro p,#manage-timetable-section-active .tm-settings p{margin:6px 0 0;color:#718077}
+            #manage-timetable-section-active .tm-settings-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+            #manage-timetable-section-active .tm-days{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0}
+            #manage-timetable-section-active .tm-days label{display:flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #dce8df;border-radius:9px;background:#fbfdfb;cursor:pointer}
+            #manage-timetable-section-active .tm-periods{display:grid;gap:8px}
+            #manage-timetable-section-active .tm-period-row{display:grid;grid-template-columns:minmax(120px,1fr) minmax(130px,.8fr) minmax(130px,.8fr) auto;gap:9px;align-items:center}
+            #manage-timetable-section-active .tm-period-row input{width:100%;min-height:40px;box-sizing:border-box;padding:8px 10px;border:1px solid #d5e0d8;border-radius:8px}
+            #manage-timetable-section-active .tm-period-actions{margin-top:10px}
+            #manage-timetable-section-active .tm-selectors{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}
+            #manage-timetable-section-active .tm-selectors label{display:grid;gap:6px;color:#405447;font-size:.84rem;font-weight:700}
+            #manage-timetable-section-active .tm-selectors select{min-height:42px;padding:8px 10px;border:1px solid #d5e0d8;border-radius:8px;background:white}
+            #manage-timetable-section-active .tm-grid-wrap{overflow:auto}
+            #manage-timetable-section-active .tm-grid{width:100%;min-width:900px;border-collapse:collapse}
+            #manage-timetable-section-active .tm-grid th,#manage-timetable-section-active .tm-grid td{min-width:120px;padding:9px;border:1px solid #e3ebe5;text-align:left;vertical-align:top}
+            #manage-timetable-section-active .tm-grid th{background:#f4f8f5;color:#52685a;font-size:.8rem}
+            #manage-timetable-section-active .tm-grid td:first-child{min-width:90px;background:#fafcfb;font-weight:700}
+            #manage-timetable-section-active .tm-grid select{width:100%;min-height:40px;padding:7px;border:1px solid #d5e0d8;border-radius:8px;background:#fff}
+            #manage-timetable-section-active .tm-status{min-height:1.5em;color:#5d7163}
+            #manage-timetable-section-active .tm-empty{padding:28px;border:1px dashed #d5e2d8;border-radius:12px;color:#718077;text-align:center}
+            @media(max-width:700px){#manage-timetable-section-active .tm-body{padding:14px!important}#manage-timetable-section-active .tm-settings,#manage-timetable-section-active .tm-editor{padding:15px}#manage-timetable-section-active .tm-selectors{grid-template-columns:1fr}#manage-timetable-section-active .tm-period-row{grid-template-columns:1fr 1fr}#manage-timetable-section-active .tm-settings-header{align-items:flex-start;flex-direction:column}}
+        </style>
     </div>
 
     <div id="manage-courses-section" class="section-template hidden course-management-panel">
@@ -4259,6 +4753,107 @@
                 </div>
                 <div id="active-devices-list" class="device-list">
                     <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="manage-subjects-section" class="section-template hidden subject-management-panel">
+        <div class="card">
+            <div class="header">
+                <div class="header-content">
+                    <button class="section-menu-btn" type="button" aria-label="Open menu"><i class="fas fa-bars"></i></button>
+                    <h2><i class="fas fa-book-open"></i> Manage Subjects</h2>
+                </div>
+                <button type="button" id="smRefresh" class="secondary-btn" data-action="refresh"><i class="fas fa-rotate-right"></i> Refresh</button>
+            </div>
+            <div class="card-body sm-body">
+                <style>
+                    .subject-management-panel.section-template{min-height:0!important;height:auto!important;flex:0 0 auto!important}
+                    .subject-management-panel{position:relative!important;z-index:20!important;isolation:isolate;pointer-events:auto!important}
+                    .subject-management-panel .header{position:static!important;top:auto!important;z-index:auto!important}
+                    .subject-management-panel .sm-body{width:100%!important;max-width:none!important;margin:0!important;padding:clamp(16px,3vw,38px) clamp(14px,4vw,56px) 28px!important;box-sizing:border-box!important}
+                    .subject-management-panel input,.subject-management-panel select,.subject-management-panel textarea,.subject-management-panel button{position:relative!important;z-index:2!important;pointer-events:auto!important;user-select:text}
+                    .sm-wrap{max-width:1120px;margin:0 auto}
+                    .sm-intro{margin:0 0 20px;padding:22px 26px;border:1px solid #dcebe0;border-radius:16px;background:linear-gradient(120deg,#f2f9f3,#fff)}
+                    .sm-intro h3{margin:0;color:#263b2e;font-size:1.2rem}
+                    .sm-intro p{margin:8px 0 0;color:#65776c;line-height:1.55}
+                    .sm-grid{display:grid;grid-template-columns:minmax(250px,.75fr) minmax(0,1.25fr);gap:18px;align-items:start}
+                    .sm-card{min-width:0;padding:22px;border:1px solid #e1e9e3;border-radius:16px;background:#fff;box-shadow:0 10px 28px rgba(30,56,39,.045)}
+                    .sm-card h3{margin:0 0 6px;color:#263b2e;font-size:1rem}
+                    .sm-card-description{margin:0 0 16px;color:#77857c;font-size:.86rem;line-height:1.5}
+                    .sm-field{display:grid;gap:7px;margin:0 0 14px;color:#334155;font-size:.88rem;font-weight:700}
+                    .sm-field select,.sm-field input{width:100%;min-height:44px;box-sizing:border-box;padding:9px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#1e293b;font:inherit;font-weight:400}
+                    .sm-field textarea{width:100%;min-height:96px;box-sizing:border-box;padding:10px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#1e293b;font:inherit;font-weight:400;resize:vertical}
+                    .sm-class-note{margin:0 0 16px;padding:11px 12px;border:1px solid #d7e8dc;border-radius:10px;background:#f4faf5;color:#476352;font-size:.83rem;line-height:1.5}
+                    .sm-add-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:end}
+                    .sm-add-row .sm-field{margin:0}
+                    .sm-add-row button{min-height:44px;white-space:nowrap}
+                    .sm-count{display:inline-flex;align-items:center;min-height:25px;margin-left:7px;padding:2px 9px;border-radius:999px;background:#eaf5ed;color:#26734d;font-size:.75rem;font-weight:800;vertical-align:middle}
+                    .sm-list-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;margin-bottom:13px}
+                    .sm-list-tools input,.sm-list-tools select{width:100%;min-height:40px;box-sizing:border-box;padding:8px 10px;border:1px solid #d5e0d8;border-radius:8px;background:#fff;color:#334155;font:inherit}
+                    .sm-copy-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:end;margin-top:15px;padding-top:15px;border-top:1px solid #edf1ed}
+                    .sm-copy-row .sm-field{margin:0}
+                    .sm-copy-row button{min-height:42px}
+                    .sm-subject-list{display:grid;gap:9px}
+                    .sm-subject-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #e3ebe5;border-radius:11px;background:#fbfdfb}
+                    .sm-subject-item strong{min-width:0;overflow-wrap:anywhere;color:#2d4235}
+                    .sm-remove{flex:0 0 auto;min-height:36px;padding:0 11px;border:1px solid #fecaca;border-radius:8px;background:#fff7f7;color:#a11b1b;font:inherit;font-size:.82rem;font-weight:700;cursor:pointer}
+                    .sm-remove:hover{background:#feecec}
+                    .sm-empty{padding:28px 16px;border:1px dashed #d3e1d7;border-radius:12px;color:#718077;text-align:center;background:#fbfdfb}
+                    .sm-status{min-height:1.5em;margin:14px 0 0;color:#65776c}
+                    .sm-status.is-error{color:#b42318}
+                    @media(max-width:760px){.sm-grid{grid-template-columns:1fr}.sm-card{padding:17px}.sm-intro{padding:18px}}
+                    @media(max-width:480px){.sm-add-row,.sm-copy-row,.sm-list-tools{grid-template-columns:1fr}.sm-add-row button,.sm-copy-row button{width:100%}}
+                </style>
+                <div class="sm-wrap">
+                    <section class="sm-intro">
+                        <h3>Set subjects for each class</h3>
+                        <p>Subjects are allotted to the whole class and shared by every section. Section-specific subject allotments are not used here.</p>
+                    </section>
+                    <div class="sm-grid">
+                        <section class="sm-card">
+                            <h3>Choose a class</h3>
+                            <p class="sm-card-description">Search and select a class to view or update its shared subject list.</p>
+                            <label class="sm-field" for="smClassSearch">
+                                Find a class
+                                <input id="smClassSearch" type="search" placeholder="Search by class name" autocomplete="off" disabled>
+                            </label>
+                            <label class="sm-field" for="smClassSelect">
+                                Class
+                                <select id="smClassSelect" disabled><option value="">Loading classes…</option></select>
+                            </label>
+                            <p class="sm-class-note">All sections of the selected class use the same subjects.</p>
+                            <form id="smSubjectForm">
+                                <label class="sm-field" for="smSubjectName">
+                                    Add one or more subjects
+                                    <textarea id="smSubjectName" maxlength="2000" autocomplete="off" placeholder="Mathematics&#10;Science&#10;English" required disabled></textarea>
+                                    <small>Enter one subject per line or separate names with commas.</small>
+                                </label>
+                                <div class="sm-add-row">
+                                    <span aria-hidden="true"></span>
+                                    <button type="submit" id="smAddSubject" class="primary-btn" disabled><i class="fas fa-plus"></i> Add subjects</button>
+                                </div>
+                            </form>
+                        </section>
+                        <section class="sm-card">
+                            <h3 id="smSubjectHeading">Class subjects <span id="smSubjectCount" class="sm-count">0</span></h3>
+                            <p class="sm-card-description">Subjects added here are class-wide and are not assigned separately by section.</p>
+                            <div class="sm-list-tools">
+                                <input id="smSubjectSearch" type="search" placeholder="Filter subjects" aria-label="Filter subjects" disabled>
+                                <button type="button" id="smExportSubjects" class="secondary-btn" disabled><i class="fas fa-download"></i> Export</button>
+                            </div>
+                            <div id="smSubjectList" class="sm-subject-list"><div class="sm-empty">Choose a class to see its subjects.</div></div>
+                            <div class="sm-copy-row">
+                                <label class="sm-field" for="smCopyFrom">
+                                    Copy missing subjects from another class
+                                    <select id="smCopyFrom" disabled><option value="">Choose a source class</option></select>
+                                </label>
+                                <button type="button" id="smCopySubjects" class="secondary-btn" disabled><i class="fas fa-copy"></i> Copy subjects</button>
+                            </div>
+                        </section>
+                    </div>
+                    <p id="smStatus" class="sm-status" role="status" aria-live="polite"></p>
                 </div>
             </div>
         </div>
@@ -4668,7 +5263,7 @@
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
-        import { getDatabase, ref, set, get, child, remove, update, onValue, push, serverTimestamp, query, orderByChild, equalTo, limitToLast } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
+        import { getDatabase, ref, set, get, child, remove, update, onValue, push, serverTimestamp, query, orderByChild, equalTo, limitToLast, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
 
         // Firebase Configuration
         const firebaseConfig = window.ROLLCALL_FIREBASE_CONFIG;
@@ -10175,6 +10770,11 @@
         let taTeacherId = null;
         let taTeacherSchoolId = null;
         let taTeacherRecord = null;
+        let taSchoolClasses = [];
+        let taExistingSubjectAssignments = [];
+        function teacherAssignmentKey(value) {
+            return Array.from(new TextEncoder().encode(String(value)), byte => byte.toString(16).padStart(2, '0')).join('');
+        }
         function teacherSectionPanel() {
             return document.getElementById('teacher-assignments-section-active') || document.getElementById('teacher-assignments-section');
         }
@@ -10182,6 +10782,80 @@
             return teacherSectionPanel()?.querySelector(`#${id}`) || null;
         }
         let taTeacherDirectory = [];
+        function scopedClassSections(classRecord) {
+            const map = new Map();
+            Object.entries(classRecord?.sectionsByYear || {}).forEach(([year, values]) => {
+                const list = Array.isArray(values) ? values : typeof values === 'string' ? values.split(',') : [];
+                list.forEach(value => {
+                    const name = String(value || '').trim();
+                    if (!name) return;
+                    const key = teacherAssignmentKey(`${year}|${name}`);
+                    map.set(key, {key, year: String(year), section: name, classId: classRecord.id, className: classRecord.courseName || classRecord.name || 'Class'});
+                });
+            });
+            return [...map.values()];
+        }
+        function renderClassTimetableSectionOptions(selected = []) {
+            const list = teacherSectionField('taClassTimetableSections');
+            if (!list) return;
+            const selectedKeys = new Set(selected.map(item => `${item.classId}|${teacherAssignmentKey(`${item.year || ''}|${item.section || ''}`)}`));
+            const options = taSchoolClasses.flatMap(record => scopedClassSections(record).map(section => {
+                const value = `${section.classId}|${section.key}`;
+                const label = `${section.className} · ${section.section}${section.year ? ` · Year ${section.year}` : ''}`;
+                return `<label><input type="checkbox" value="${courseAdminEscape(value)}" data-class-id="${courseAdminEscape(section.classId)}" data-section-name="${courseAdminEscape(section.section)}" data-year="${courseAdminEscape(section.year)}" ${selectedKeys.has(value) ? 'checked' : ''}><span>${courseAdminEscape(label)}</span></label>`;
+            }));
+            list.innerHTML = options.length ? options.join('') : '<span class="text-muted">No class sections are configured in Manage Courses yet.</span>';
+        }
+        function selectedClassTeacherSections() {
+            return [...(teacherSectionField('taClassTimetableSections')?.querySelectorAll('input:checked') || [])].map(input => ({
+                classId: input.dataset.classId,
+                className: taSchoolClasses.find(item => item.id === input.dataset.classId)?.courseName ||
+                    taSchoolClasses.find(item => item.id === input.dataset.classId)?.name || '',
+                section: input.dataset.sectionName,
+                year: input.dataset.year || ''
+            }));
+        }
+        function renderTeacherSubjectAssignments() {
+            const list = teacherSectionField('taSubjectAssignmentList');
+            const classSelect = teacherSectionField('taSubjectClass');
+            const subjectSelect = teacherSectionField('taSubjectName');
+            const assignButton = teacherSectionField('taAssignSubject');
+            if (!list || !classSelect || !subjectSelect) return;
+            const availableClasses = taSchoolClasses.filter(record => scopedClassSections(record).length);
+            classSelect.innerHTML = '<option value="">Select a class</option>' + availableClasses.map(record =>
+                `<option value="${courseAdminEscape(record.id)}">${courseAdminEscape(record.courseName || record.name)}</option>`
+            ).join('');
+            classSelect.disabled = !taTeacherId || !availableClasses.length;
+            const existing = taExistingSubjectAssignments.filter(item => item.teacherId === taTeacherId);
+            list.innerHTML = existing.length ? existing.map(item => `<div class="ta-subject-assignment"><div><strong>${courseAdminEscape(item.subject)}</strong><small>${courseAdminEscape(item.className)} · ${courseAdminEscape(item.section)}${item.year ? ` · Year ${courseAdminEscape(item.year)}` : ''}</small></div><button type="button" class="secondary-btn ta-subject-remove" data-assignment-class="${courseAdminEscape(item.classId)}" data-assignment-section="${courseAdminEscape(item.sectionKey)}" data-assignment-subject="${courseAdminEscape(item.subjectKey)}"><i class="fas fa-trash"></i> Remove</button></div>`).join('') : '<span class="text-muted">No subject assignments yet.</span>';
+            subjectSelect.disabled = true;
+            subjectSelect.innerHTML = '<option value="">Select a class first</option>';
+            if (assignButton) assignButton.disabled = true;
+            renderSubjectSectionOptions();
+        }
+        function renderSubjectSectionOptions() {
+            const classId = teacherSectionField('taSubjectClass')?.value;
+            const subjectSelect = teacherSectionField('taSubjectName');
+            const sectionList = teacherSectionField('taSubjectSections');
+            const assignButton = teacherSectionField('taAssignSubject');
+            const record = taSchoolClasses.find(item => item.id === classId);
+            const previousSubject = subjectSelect?.value;
+            const sections = record ? scopedClassSections(record) : [];
+            const subjects = record ? normalizeManagedSubjects(record.subjects ?? record.subject) : [];
+            if (subjectSelect) {
+                subjectSelect.innerHTML = '<option value="">Select a subject</option>' + subjects.map(subject =>
+                    `<option value="${courseAdminEscape(subject)}">${courseAdminEscape(subject)}</option>`
+                ).join('');
+                subjectSelect.disabled = !record || !subjects.length;
+                if (subjects.includes(previousSubject)) subjectSelect.value = previousSubject;
+            }
+            if (sectionList) {
+                sectionList.innerHTML = sections.length ? sections.map(section =>
+                    `<label><input type="checkbox" value="${courseAdminEscape(section.key)}" data-section-name="${courseAdminEscape(section.section)}" data-year="${courseAdminEscape(section.year)}"><span>${courseAdminEscape(section.section)}${section.year ? ` · Year ${courseAdminEscape(section.year)}` : ''}</span></label>`
+                ).join('') : '<span class="text-muted">This class has no sections configured.</span>';
+            }
+            if (assignButton) assignButton.disabled = !taTeacherId || !record || !subjects.length;
+        }
         function renderTeacherSectionDirectory() {
             const directory = teacherSectionField('taTeacherDirectory');
             if (!directory) return;
@@ -10269,6 +10943,8 @@
             const classTeacherToggle = teacherSectionField('taClassTeacherEnabled');
             const classTeacherSectionRow = teacherSectionField('taClassTeacherSectionRow');
             const classTeacherSectionOptions = teacherSectionField('taClassTeacherSectionOptions');
+            const classTimetableSections = teacherSectionField('taClassTimetableSections');
+            const subjectAssignments = teacherSectionField('taSubjectAssignmentList');
             const classTeacherSectionMenu = teacherSectionField('taClassTeacherSectionMenu');
             const classTeacherSectionToggle = teacherSectionField('taClassTeacherSectionToggle');
             const emptyState = teacherSectionField('taEmptyState');
@@ -10280,6 +10956,10 @@
             if (classTeacherToggle) classTeacherToggle.checked = false;
             if (classTeacherSectionRow) classTeacherSectionRow.hidden = true;
             if (classTeacherSectionOptions) classTeacherSectionOptions.replaceChildren();
+            if (classTimetableSections) classTimetableSections.innerHTML = '<span class="text-muted">Class sections will load when a teacher is selected.</span>';
+            if (subjectAssignments) subjectAssignments.innerHTML = '<span class="text-muted">Select a teacher to manage subject assignments.</span>';
+            taSchoolClasses = [];
+            taExistingSubjectAssignments = [];
             if (classTeacherSectionMenu) classTeacherSectionMenu.hidden = true;
             if (classTeacherSectionToggle) { classTeacherSectionToggle.disabled = true; classTeacherSectionToggle.setAttribute('aria-expanded', 'false'); }
             if (emptyState) emptyState.hidden = false;
@@ -10322,14 +11002,32 @@
                 });
                 if (!teacher) throw new Error('No teacher with this email is registered to your school.');
                 emailInput.value = teacher.email || email;
-                const [studentsSnap, schoolScopedUsersSnap, classesSnap, locationsSnap, schoolSectionsSnap, allLocationsSnap] = await Promise.all([
+                const [studentsSnap, schoolScopedUsersSnap, classesSnap, locationsSnap, schoolSectionsSnap, allLocationsSnap, schoolCoursesSnap, subjectAssignmentsSnap] = await Promise.all([
                     get(ref(database, `schoolUsers/${schoolId}`)),
                     get(query(ref(database, 'users'), orderByChild('schoolId'), equalTo(schoolId))),
                     get(ref(database, `schoolClasses/${schoolId}`)),
                     get(ref(database, `schoolLocations/${schoolId}`)),
                     get(ref(database, `schoolSections/${schoolId}`)),
-                    get(ref(database, 'locations'))
+                    get(ref(database, 'locations')),
+                    get(ref(database, `schoolCourses/${schoolId}`)),
+                    get(ref(database, `subjectTeacherAssignments/${schoolId}`))
                 ]);
+                taSchoolClasses = [];
+                schoolCoursesSnap.forEach(childSnap => {
+                    const record = childSnap.val() || {};
+                    if (record.courseName || record.name) taSchoolClasses.push({...record, id: childSnap.key});
+                });
+                taSchoolClasses.sort((a, b) => String(a.courseName || a.name).localeCompare(String(b.courseName || b.name)));
+                taExistingSubjectAssignments = [];
+                subjectAssignmentsSnap.forEach(classSnap => classSnap.forEach(sectionSnap => sectionSnap.forEach(subjectSnap => {
+                    const assignment = subjectSnap.val() || {};
+                    taExistingSubjectAssignments.push({
+                        ...assignment,
+                        classId: assignment.classId || classSnap.key,
+                        sectionKey: assignment.sectionKey || sectionSnap.key,
+                        subjectKey: assignment.subjectKey || subjectSnap.key
+                    });
+                })));
                 const sectionMap = new Map();
                 const addSections = value => {
                     const list = Array.isArray(value) ? value : (typeof value === 'string' ? value.split(',') : []);
@@ -10377,6 +11075,9 @@
                 const priorClassTeacherSections = classTeacherSections.length ? classTeacherSections : (teacher.classTeacherSection ? [teacher.classTeacherSection] : []);
                 const matchedPriorSections = priorClassTeacherSections.map(value => sections.find(name => name.toLowerCase() === String(value).trim().toLowerCase())).filter(Boolean);
                 updateClassTeacherSectionOptions(matchedPriorSections);
+                const classTeacherClassSections = Array.isArray(teacher.classTeacherClassSections) ? teacher.classTeacherClassSections : [];
+                renderClassTimetableSectionOptions(classTeacherClassSections);
+                renderTeacherSubjectAssignments();
                 classTeacherSectionRow.hidden = !classTeacherToggle.checked;
                 area.hidden = false;
                 if (emptyState) emptyState.hidden = true;
@@ -10395,12 +11096,17 @@
             const panel = teacherSectionPanel();
             if (!status) return;
             if (!taTeacherId || !taTeacherSchoolId || !adminAuth) { status.textContent = 'Find a teacher before saving assignments.'; return; }
-            const sections = [...panel.querySelectorAll('#taSectionOptions input:checked')].map(input => input.value);
             const isClassTeacher = teacherSectionField('taClassTeacherEnabled').checked;
-            const classTeacherSections = [...panel.querySelectorAll('#taClassTeacherSectionOptions input:checked')].map(input => input.value);
+            const classTeacherClassSections = selectedClassTeacherSections();
+            const selectedSections = [...panel.querySelectorAll('#taSectionOptions input:checked')].map(input => input.value);
+            const selectedClassTeacherSectionsLegacy = [...panel.querySelectorAll('#taClassTeacherSectionOptions input:checked')].map(input => input.value);
+            const scopedSections = isClassTeacher ? classTeacherClassSections.map(item => item.section) : [];
+            const sections = [...new Map([...selectedSections, ...scopedSections].map(section => [section.toLowerCase(), section])).values()];
+            const classTeacherSections = [...new Map([...selectedClassTeacherSectionsLegacy, ...scopedSections].map(section => [section.toLowerCase(), section])).values()];
             if (isClassTeacher && !sections.length) { status.textContent = 'Assign at least one section before assigning a class teacher.'; return; }
             if (isClassTeacher && !classTeacherSections.length) { status.textContent = 'Choose at least one assigned section for this teacher to lead.'; teacherSectionField('taClassTeacherSectionToggle')?.focus(); return; }
             if (isClassTeacher && classTeacherSections.some(classSection => !sections.some(section => section.toLowerCase() === classSection.toLowerCase()))) { status.textContent = 'Each class-teacher section must also be selected in Assigned sections.'; return; }
+            if (isClassTeacher && taSchoolClasses.length && !classTeacherClassSections.length) { status.textContent = 'Choose at least one exact class and section for the class-teacher timetable.'; teacherSectionField('taClassTimetableSections')?.scrollIntoView({behavior:'smooth', block:'center'}); return; }
             status.textContent = 'Saving section assignments…';
             try {
                 const adminSnap = await get(ref(database, `users/${adminAuth.uid}`));
@@ -10408,15 +11114,26 @@
                 if (adminProfile.role !== 'admin' || (adminProfile.schoolId || adminAuth.uid) !== taTeacherSchoolId) throw new Error('You can only assign sections within your own school.');
                 const mappingRef = ref(database, `classTeacherAssignments/${taTeacherSchoolId}`);
                 const mappingSnap = await get(mappingRef);
-                const selectedClassTeacherKeys = new Map(classTeacherSections.map(section => [classTeacherSectionKey(section), section]));
+                const scopedMappingRef = ref(database, `classTeacherAssignmentsByClass/${taTeacherSchoolId}`);
+                const scopedMappingSnap = await get(scopedMappingRef);
                 const mappingUpdates = {};
-                const conflicts = [];
+                const scopedMappingUpdates = {};
                 mappingSnap.forEach(child => {
                     const assignment = child.val() || {};
                     if (assignment.teacherId === taTeacherId) mappingUpdates[`${child.key}`] = null;
-                    else if (selectedClassTeacherKeys.has(child.key) && assignment.teacherId) conflicts.push(assignment);
                 });
-                if (conflicts.length) throw new Error(`${conflicts.map(item => item.section || 'A selected section').join(', ')} already has a class teacher. Reassign it first.`);
+                scopedMappingSnap.forEach(classSnap => classSnap.forEach(sectionSnap => {
+                    const assignment = sectionSnap.val() || {};
+                    if (assignment.teacherId === taTeacherId) scopedMappingUpdates[`classTeacherAssignmentsByClass/${taTeacherSchoolId}/${classSnap.key}/${sectionSnap.key}`] = null;
+                }));
+                const scopedConflicts = [];
+                for (const item of classTeacherClassSections) {
+                    const key = classTeacherSectionKey(`${item.year || ''}|${item.section}`);
+                    const snapshot = await get(ref(database, `classTeacherAssignmentsByClass/${taTeacherSchoolId}/${item.classId}/${key}`));
+                    const assignment = snapshot.val() || {};
+                    if (assignment.teacherId && assignment.teacherId !== taTeacherId) scopedConflicts.push(`${item.className} · ${item.section}`);
+                }
+                if (scopedConflicts.length) throw new Error(`${scopedConflicts.join(', ')} already has a class teacher. Reassign it first.`);
                 const rootUpdates = {
                     [`users/${taTeacherId}/assignedSections`]: sections,
                     [`users/${taTeacherId}/teacherType`]: isClassTeacher ? 'classTeacher' : 'teacher',
@@ -10424,10 +11141,12 @@
                     [`users/${taTeacherId}/roles`]: isClassTeacher ? ['teacher', 'classTeacher'] : ['teacher'],
                     [`users/${taTeacherId}/classTeacherSection`]: isClassTeacher ? classTeacherSections[0] : null,
                     [`users/${taTeacherId}/classTeacherSections`]: isClassTeacher ? classTeacherSections : [],
+                    [`users/${taTeacherId}/classTeacherClassSections`]: isClassTeacher ? classTeacherClassSections : [],
                     [`users/${taTeacherId}/sectionsAssignedAt`]: Date.now(),
                     [`users/${taTeacherId}/sectionsAssignedBy`]: adminAuth.uid
                 };
                 Object.entries(mappingUpdates).forEach(([key, value]) => { rootUpdates[`classTeacherAssignments/${taTeacherSchoolId}/${key}`] = value; });
+                Object.assign(rootUpdates, scopedMappingUpdates);
                 if (isClassTeacher) classTeacherSections.forEach(section => {
                     const key = classTeacherSectionKey(section);
                     rootUpdates[`classTeacherAssignments/${taTeacherSchoolId}/${key}`] = {
@@ -10440,6 +11159,21 @@
                         updatedBy: adminAuth.uid
                     };
                 });
+                if (isClassTeacher) classTeacherClassSections.forEach(item => {
+                    const key = classTeacherSectionKey(`${item.year || ''}|${item.section}`);
+                    rootUpdates[`classTeacherAssignmentsByClass/${taTeacherSchoolId}/${item.classId}/${key}`] = {
+                        teacherId: taTeacherId,
+                        teacherName: taTeacherRecord?.name || taTeacherRecord?.displayName || taTeacherRecord?.email || '',
+                        teacherEmail: taTeacherRecord?.email || '',
+                        schoolId: taTeacherSchoolId,
+                        classId: item.classId,
+                        className: item.className,
+                        section: item.section,
+                        year: item.year || '',
+                        updatedAt: Date.now(),
+                        updatedBy: adminAuth.uid
+                    };
+                });
                 await update(ref(database), rootUpdates);
                 if (taTeacherRecord) {
                     taTeacherRecord.teacherType = isClassTeacher ? 'classTeacher' : 'teacher';
@@ -10448,6 +11182,7 @@
                     taTeacherRecord.assignedSections = sections;
                     taTeacherRecord.classTeacherSection = isClassTeacher ? classTeacherSections[0] : '';
                     taTeacherRecord.classTeacherSections = isClassTeacher ? classTeacherSections : [];
+                    taTeacherRecord.classTeacherClassSections = isClassTeacher ? classTeacherClassSections : [];
                 }
                 status.textContent = `Saved access to ${sections.length} section${sections.length === 1 ? '' : 's'}${isClassTeacher ? ` and class-teacher responsibility for ${classTeacherSections.length} section${classTeacherSections.length === 1 ? '' : 's'}` : ''}.`;
             } catch (error) {
@@ -10455,9 +11190,116 @@
                 status.textContent = error.message || 'Unable to save assignments. Please try again.';
             }
         }
+        async function saveSubjectTeacherAssignments(event) {
+            event.preventDefault();
+            const status = teacherSectionField('taStatus');
+            const classId = teacherSectionField('taSubjectClass')?.value;
+            const subject = String(teacherSectionField('taSubjectName')?.value || '').trim();
+            const record = taSchoolClasses.find(item => item.id === classId);
+            const selectedSections = [...(teacherSectionField('taSubjectSections')?.querySelectorAll('input:checked') || [])];
+            const adminAuth = auth.currentUser;
+            if (!status || !taTeacherId || !taTeacherSchoolId || !adminAuth || !record || !subject) {
+                if (status) status.textContent = 'Select a class and subject before assigning sections.';
+                return;
+            }
+            if (!selectedSections.length) {
+                status.textContent = 'Select at least one class section for this subject.';
+                return;
+            }
+            try {
+                status.textContent = 'Checking subject teacher availability…';
+                const adminSnap = await get(ref(database, `users/${adminAuth.uid}`));
+                const adminProfile = adminSnap.val() || {};
+                if (adminProfile.role !== 'admin' || String(adminProfile.schoolId || adminAuth.uid) !== String(taTeacherSchoolId)) {
+                    throw new Error('You can only assign subjects within your own school.');
+                }
+                const subjectKey = teacherAssignmentKey(subject.toLocaleLowerCase());
+                const proposed = selectedSections.map(input => ({
+                    sectionKey: input.value,
+                    section: input.dataset.sectionName,
+                    year: input.dataset.year || '',
+                    path: `subjectTeacherAssignments/${taTeacherSchoolId}/${record.id}/${input.value}/${subjectKey}`
+                }));
+                const conflicts = [];
+                for (const item of proposed) {
+                    const assignmentSnap = await get(ref(database, item.path));
+                    const current = assignmentSnap.val() || {};
+                    if (current.teacherId && current.teacherId !== taTeacherId) {
+                        conflicts.push(`${item.section}${item.year ? ` (Year ${item.year})` : ''}`);
+                    }
+                }
+                if (conflicts.length) throw new Error(`${subject} already has another teacher in ${conflicts.join(', ')}. Reassign those sections first.`);
+                const updates = {};
+                const timestamp = Date.now();
+                proposed.forEach(item => {
+                    updates[item.path] = {
+                        schoolId: taTeacherSchoolId,
+                        classId: record.id,
+                        className: record.courseName || record.name || '',
+                        section: item.section,
+                        year: item.year,
+                        sectionKey: item.sectionKey,
+                        subject,
+                        subjectKey,
+                        teacherId: taTeacherId,
+                        teacherName: taTeacherRecord?.name || taTeacherRecord?.displayName || taTeacherRecord?.email || '',
+                        teacherEmail: taTeacherRecord?.email || '',
+                        assignedAt: timestamp,
+                        assignedBy: adminAuth.uid
+                    };
+                });
+                await update(ref(database), updates);
+                const savedRecords = proposed.map(item => ({
+                    ...updates[item.path],
+                    sectionKey: item.sectionKey,
+                    subjectKey,
+                    teacherId: taTeacherId
+                }));
+                taExistingSubjectAssignments = [
+                    ...taExistingSubjectAssignments.filter(item =>
+                        !(item.teacherId === taTeacherId && item.classId === record.id &&
+                            item.subjectKey === subjectKey && savedRecords.some(saved => saved.sectionKey === item.sectionKey))
+                    ),
+                    ...savedRecords
+                ];
+                renderTeacherSubjectAssignments();
+                status.textContent = `Assigned ${subject} to ${savedRecords.length} section${savedRecords.length === 1 ? '' : 's'} in ${record.courseName || record.name}.`;
+            } catch (error) {
+                console.error('Unable to save subject teacher assignments:', error);
+                status.textContent = error.message || 'Unable to save subject assignments.';
+            }
+        }
+        async function removeSubjectTeacherAssignment(button) {
+            const status = teacherSectionField('taStatus');
+            if (!taTeacherId || !taTeacherSchoolId || !status) return;
+            const classId = button.dataset.assignmentClass;
+            const sectionKey = button.dataset.assignmentSection;
+            const subjectKey = button.dataset.assignmentSubject;
+            const assignment = taExistingSubjectAssignments.find(item =>
+                item.teacherId === taTeacherId && item.classId === classId &&
+                item.sectionKey === sectionKey && item.subjectKey === subjectKey
+            );
+            if (!assignment) return;
+            button.disabled = true;
+            try {
+                const path = `subjectTeacherAssignments/${taTeacherSchoolId}/${classId}/${sectionKey}/${subjectKey}`;
+                const latest = await get(ref(database, path));
+                if (latest.val()?.teacherId !== taTeacherId) throw new Error('This assignment changed. Refresh the teacher list before removing it.');
+                await remove(ref(database, path));
+                taExistingSubjectAssignments = taExistingSubjectAssignments.filter(item => item !== assignment);
+                renderTeacherSubjectAssignments();
+                status.textContent = `Removed ${assignment.subject} from ${assignment.className} · ${assignment.section}.`;
+            } catch (error) {
+                console.error('Unable to remove subject teacher assignment:', error);
+                status.textContent = error.message || 'Unable to remove the subject assignment.';
+            } finally {
+                button.disabled = false;
+            }
+        }
         document.addEventListener('click', event => {
             const chosenTeacher = event.target.closest('.ta-select-teacher');
             if (chosenTeacher) lookupTeacherSectionAssignment(chosenTeacher.dataset.teacherId);
+            else if (event.target.closest('.ta-subject-remove')) removeSubjectTeacherAssignment(event.target.closest('.ta-subject-remove'));
             else if (event.target.closest('#taRefreshTeachers')) loadTeacherSectionDirectory();
             else if (event.target.closest('#taLookup')) lookupTeacherSectionAssignment();
             else if (event.target.closest('#taSave')) saveTeacherSectionAssignment();
@@ -10477,6 +11319,15 @@
         });
         document.addEventListener('change', event => {
             const input = event.target;
+            if (input instanceof HTMLSelectElement && input.matches('#taSubjectClass')) {
+                renderSubjectSectionOptions();
+                return;
+            }
+            if (input instanceof HTMLSelectElement && input.matches('#taSubjectName')) return;
+            if (input instanceof HTMLInputElement && input.matches('#taClassTimetableSections input[type="checkbox"], #taSubjectSections input[type="checkbox"]')) {
+                input.closest('label')?.classList.toggle('is-selected', input.checked);
+                return;
+            }
             if (input instanceof HTMLInputElement && input.matches('#taClassTeacherEnabled')) {
                 const sectionRow = teacherSectionPanel()?.querySelector('#taClassTeacherSectionRow');
                 if (sectionRow) sectionRow.hidden = !input.checked;
@@ -10493,6 +11344,9 @@
             if (!input.matches('#taSectionOptions input[type="checkbox"]')) return;
             input.closest('label')?.classList.toggle('is-selected', input.checked);
             updateClassTeacherSectionOptions();
+        });
+        document.addEventListener('submit', event => {
+            if (event.target?.matches('#taSubjectAssignmentForm')) saveSubjectTeacherAssignments(event);
         });
         document.addEventListener('keydown', event => {
             if (event.target?.id === 'taTeacherEmail' && event.key === 'Enter') { event.preventDefault(); lookupTeacherSectionAssignment(); }
@@ -10730,6 +11584,7 @@
                 batchStartYear: isSchoolAcademicMode() ? null : batchStart,
                 batchEndYear: isSchoolAcademicMode() ? null : batchEnd,
                 sectionsByYear,
+                subjects: normalizeManagedSubjects(previous.subjects),
                 schoolId: caSchoolId,
                 active: previous.active !== false,
                 createdAt: previous.createdAt || timestamp,
@@ -10796,6 +11651,340 @@
             loadTeacherSectionDirectory();
         }, {contentSized: true});
         window.AdminPanelAPI?.register('manage-courses', root => initCourseManagement(root), {contentSized: true});
+
+        let smPanelRoot = null;
+        let smSchoolId = '';
+        let smAdminUid = '';
+        let smClassRecords = [];
+        let smSaving = false;
+        function subjectManagementPanel(root = null) {
+            return root || (smPanelRoot?.isConnected ? smPanelRoot : null) ||
+                document.getElementById('manage-subjects-section-active') ||
+                document.getElementById('manage-subjects-section');
+        }
+        function subjectManagementField(id) {
+            return subjectManagementPanel()?.querySelector(`#${id}`) || null;
+        }
+        function normalizeManagedSubjects(value) {
+            const values = Array.isArray(value)
+                ? value
+                : typeof value === 'string' ? value.split(/[,\n\r]+/)
+                    : value && typeof value === 'object' ? Object.values(value) : [];
+            const unique = new Map();
+            values.forEach(item => {
+                const name = String(item || '').trim().replace(/\s+/g, ' ');
+                if (name && !unique.has(name.toLocaleLowerCase())) unique.set(name.toLocaleLowerCase(), name);
+            });
+            return [...unique.values()].sort((a, b) => a.localeCompare(b));
+        }
+        function setSubjectManagementStatus(message, isError = false) {
+            const status = subjectManagementField('smStatus');
+            if (!status) return;
+            status.textContent = message;
+            status.classList.toggle('is-error', isError);
+        }
+        function renderManagedSubjects() {
+            const classSelect = subjectManagementField('smClassSelect');
+            const subjectInput = subjectManagementField('smSubjectName');
+            const addButton = subjectManagementField('smAddSubject');
+            const list = subjectManagementField('smSubjectList');
+            const heading = subjectManagementField('smSubjectHeading');
+            const count = subjectManagementField('smSubjectCount');
+            const search = String(subjectManagementField('smSubjectSearch')?.value || '').trim().toLocaleLowerCase();
+            if (!classSelect || !list) return;
+            const record = smClassRecords.find(item => item.id === classSelect.value);
+            const subjects = record ? normalizeManagedSubjects(record.data.subjects ?? record.data.subject) : [];
+            if (heading) {
+                heading.firstChild.textContent = record ? `Subjects — ${record.data.name || record.data.courseName || 'Class'} ` : 'Class subjects ';
+            }
+            if (count) count.textContent = String(subjects.length);
+            if (subjectInput) subjectInput.disabled = !record || smSaving;
+            if (addButton) addButton.disabled = !record || smSaving;
+            const filteredSubjects = subjects.filter(name => name.toLocaleLowerCase().includes(search));
+            list.innerHTML = record
+                ? (subjects.length
+                    ? filteredSubjects.length
+                        ? filteredSubjects.map(name => `<div class="sm-subject-item"><strong>${courseAdminEscape(name)}</strong><button type="button" class="sm-remove" data-sm-remove="${courseAdminEscape(name)}" ${smSaving ? 'disabled' : ''} aria-label="Remove ${courseAdminEscape(name)}">Remove</button></div>`).join('')
+                        : '<div class="sm-empty">No subjects match your filter.</div>'
+                    : '<div class="sm-empty">No subjects have been added to this class yet.</div>')
+                : '<div class="sm-empty">Choose a class to see its subjects.</div>';
+        }
+        function renderSubjectClassOptions() {
+            const classSelect = subjectManagementField('smClassSelect');
+            const copySelect = subjectManagementField('smCopyFrom');
+            const filter = String(subjectManagementField('smClassSearch')?.value || '').trim().toLocaleLowerCase();
+            const selectedId = classSelect?.value || '';
+            if (classSelect) {
+                const filtered = smClassRecords.filter(item => String(item.data.name || item.data.courseName || '').toLocaleLowerCase().includes(filter));
+                classSelect.innerHTML = '<option value="">Select a class</option>' + filtered.map(({id, data}) =>
+                    `<option value="${courseAdminEscape(id)}">${courseAdminEscape(data.name || data.courseName)}${data.status === 'inactive' || data.active === false ? ' (Archived)' : ''}</option>`
+                ).join('');
+                classSelect.value = filtered.some(item => item.id === selectedId) ? selectedId : '';
+            }
+            if (copySelect) {
+                const currentId = classSelect?.value || '';
+                copySelect.innerHTML = '<option value="">Choose a source class</option>' + smClassRecords.filter(item => item.id !== currentId).map(({id, data}) =>
+                    `<option value="${courseAdminEscape(id)}">${courseAdminEscape(data.name || data.courseName)}</option>`
+                ).join('');
+                copySelect.disabled = smSaving || !currentId || smClassRecords.length < 2;
+            }
+        }
+        function updateSubjectManagementControls() {
+            renderSubjectClassOptions();
+            const classSelect = subjectManagementField('smClassSelect');
+            const subjectInput = subjectManagementField('smSubjectName');
+            const addButton = subjectManagementField('smAddSubject');
+            const refreshButton = subjectManagementField('smRefresh');
+            const classSearch = subjectManagementField('smClassSearch');
+            const subjectSearch = subjectManagementField('smSubjectSearch');
+            const exportButton = subjectManagementField('smExportSubjects');
+            const copyButton = subjectManagementField('smCopySubjects');
+            if (classSelect) classSelect.disabled = smSaving || smClassRecords.length === 0;
+            if (subjectInput) subjectInput.disabled = smSaving || !classSelect?.value;
+            if (addButton) addButton.disabled = smSaving || !classSelect?.value;
+            if (refreshButton) refreshButton.disabled = smSaving;
+            if (classSearch) classSearch.disabled = smSaving || smClassRecords.length === 0;
+            if (subjectSearch) subjectSearch.disabled = smSaving || !classSelect?.value;
+            if (exportButton) exportButton.disabled = smSaving || !classSelect?.value;
+            if (copyButton) copyButton.disabled = smSaving || !classSelect?.value || smClassRecords.length < 2;
+            renderManagedSubjects();
+        }
+        async function loadSubjectManagement() {
+            const classSelect = subjectManagementField('smClassSelect');
+            const list = subjectManagementField('smSubjectList');
+            if (!classSelect || !list) return;
+            const selectedId = classSelect.value;
+            classSelect.disabled = true;
+            classSelect.innerHTML = '<option value="">Loading classes…</option>';
+            list.innerHTML = '<div class="sm-empty"><i class="fas fa-spinner fa-spin"></i> Loading class subjects…</div>';
+            setSubjectManagementStatus('');
+            try {
+                const signedIn = auth.currentUser;
+                if (!signedIn) throw new Error('Sign in as an administrator to manage subjects.');
+                const adminSnapshot = await get(ref(database, `users/${signedIn.uid}`));
+                const adminProfile = adminSnapshot.val() || {};
+                if (adminProfile.role !== 'admin') throw new Error('Administrator access is required.');
+                smSchoolId = String(adminProfile.schoolId || signedIn.uid).trim();
+                smAdminUid = signedIn.uid;
+                const [classRead, courseRead] = await Promise.allSettled([
+                    get(ref(database, `schoolClasses/${smSchoolId}`)),
+                    get(ref(database, `schoolCourses/${smSchoolId}`))
+                ]);
+                if (classRead.status === 'rejected' && courseRead.status === 'rejected') {
+                    throw new Error(`Could not read either class list. ${classRead.reason?.message || ''} ${courseRead.reason?.message || ''}`.trim());
+                }
+                const classSnapshot = classRead.status === 'fulfilled' ? classRead.value : null;
+                const courseSnapshot = courseRead.status === 'fulfilled' ? courseRead.value : null;
+                smClassRecords = [];
+                classSnapshot?.forEach(childSnapshot => {
+                    const data = childSnapshot.val() || {};
+                    const name = data.name || data.className || data.courseName;
+                    if (name && (!data.schoolId || String(data.schoolId) === smSchoolId)) {
+                        smClassRecords.push({id: `class:${childSnapshot.key}`, recordId: childSnapshot.key, path: `schoolClasses/${smSchoolId}/${childSnapshot.key}`, data: {...data, name}, source: 'class'});
+                    }
+                });
+                const knownNames = new Set(smClassRecords.map(item => String(item.data.name).trim().toLocaleLowerCase()));
+                courseSnapshot?.forEach(childSnapshot => {
+                    const data = childSnapshot.val() || {};
+                    const name = data.courseName || data.name || data.className;
+                    const normalizedName = String(name || '').trim().toLocaleLowerCase();
+                    if (name && !knownNames.has(normalizedName) && (!data.schoolId || String(data.schoolId) === smSchoolId)) {
+                        smClassRecords.push({id: `course:${childSnapshot.key}`, recordId: childSnapshot.key, path: `schoolCourses/${smSchoolId}/${childSnapshot.key}`, data: {...data, name}, source: 'course'});
+                        knownNames.add(normalizedName);
+                    }
+                });
+                smClassRecords.sort((a, b) => String(a.data.name).localeCompare(String(b.data.name)));
+                renderSubjectClassOptions();
+                classSelect.value = smClassRecords.some(item => item.id === selectedId) ? selectedId : '';
+                updateSubjectManagementControls();
+                setSubjectManagementStatus(smClassRecords.length
+                    ? `Loaded ${smClassRecords.length} class${smClassRecords.length === 1 ? '' : 'es'}.`
+                    : 'No classes are configured yet. Add a class in Manage Courses first.');
+                if (classRead.status === 'rejected' || courseRead.status === 'rejected') {
+                    setSubjectManagementStatus(`Some classes may be missing because a class list could not be read: ${classRead.reason?.message || courseRead.reason?.message}`);
+                }
+            } catch (error) {
+                smClassRecords = [];
+                classSelect.innerHTML = '<option value="">Classes could not be loaded</option>';
+                updateSubjectManagementControls();
+                list.innerHTML = `<div class="sm-empty" style="color:#a13f39">${courseAdminEscape(error.message || 'Could not load classes.')}</div>`;
+                setSubjectManagementStatus(error.message || 'Could not load classes.', true);
+            }
+        }
+        async function changeClassSubjects(action, subjectValues) {
+            const classId = subjectManagementField('smClassSelect')?.value;
+            const record = smClassRecords.find(item => item.id === classId);
+            const subjectNames = normalizeManagedSubjects(subjectValues);
+            if (!record || !smSchoolId || !smAdminUid || !subjectNames.length) return;
+            const signedIn = auth.currentUser;
+            if (!signedIn || signedIn.uid !== smAdminUid) {
+                setSubjectManagementStatus('Your administrator session changed. Refresh the panel and try again.', true);
+                return;
+            }
+            smSaving = true;
+            updateSubjectManagementControls();
+            setSubjectManagementStatus(action === 'add' ? 'Adding subject…' : 'Removing subject…');
+            try {
+                const subjectsRef = ref(database, record.source === 'class' ? record.path : `${record.path}/subjects`);
+                const result = await runTransaction(subjectsRef, currentValue => {
+                    const isClassRecord = record.source === 'class';
+                    if (isClassRecord && (!currentValue || typeof currentValue !== 'object')) return;
+                    const currentSubjects = isClassRecord && currentValue && typeof currentValue === 'object'
+                        ? (currentValue.subjects ?? currentValue.subject)
+                        : currentValue;
+                    const subjects = normalizeManagedSubjects(currentSubjects ?? (record.data.subjects ?? record.data.subject));
+                    if (action === 'add') {
+                        const known = new Set(subjects.map(item => item.toLocaleLowerCase()));
+                        subjectNames.forEach(name => {
+                            if (!known.has(name.toLocaleLowerCase())) {
+                                subjects.push(name);
+                                known.add(name.toLocaleLowerCase());
+                            }
+                        });
+                        if (subjects.length === normalizeManagedSubjects(currentSubjects ?? (record.data.subjects ?? record.data.subject)).length) return;
+                    } else {
+                        const next = subjects.filter(item => !subjectNames.some(name => name.toLocaleLowerCase() === item.toLocaleLowerCase()));
+                        if (next.length === subjects.length) return;
+                        const sorted = next.sort((a, b) => a.localeCompare(b));
+                        return isClassRecord && currentValue && typeof currentValue === 'object'
+                            ? {...currentValue, subjects: sorted, subject: sorted.join(', ')}
+                            : sorted;
+                    }
+                    const sorted = subjects.sort((a, b) => a.localeCompare(b));
+                    return isClassRecord && currentValue && typeof currentValue === 'object'
+                        ? {...currentValue, subjects: sorted, subject: sorted.join(', ')}
+                        : sorted;
+                });
+                if (!result.committed) {
+                    setSubjectManagementStatus(action === 'add'
+                        ? 'All entered subjects are already listed for this class.'
+                        : 'The subject was already removed from this class.', true);
+                    return;
+                }
+                if (record.source === 'class') Object.assign(record.data, result.snapshot.val() || {});
+                else record.data.subjects = normalizeManagedSubjects(result.snapshot.val());
+                if (action === 'add') {
+                    const input = subjectManagementField('smSubjectName');
+                    if (input) input.value = '';
+                }
+                renderManagedSubjects();
+                setSubjectManagementStatus(action === 'add' ? 'Subject list updated for this class.' : 'Subject removed from this class.');
+            } catch (error) {
+                console.error('Could not update class subjects:', error);
+                setSubjectManagementStatus(error.message || 'Could not update this class subject list.', true);
+            } finally {
+                smSaving = false;
+                updateSubjectManagementControls();
+            }
+        }
+        async function copySubjectsToSelectedClass() {
+            const sourceId = subjectManagementField('smCopyFrom')?.value;
+            const targetId = subjectManagementField('smClassSelect')?.value;
+            const source = smClassRecords.find(item => item.id === sourceId);
+            const target = smClassRecords.find(item => item.id === targetId);
+            if (!source || !target || source.id === target.id) return;
+            const sourceSubjects = normalizeManagedSubjects(source.data.subjects ?? source.data.subject);
+            if (!sourceSubjects.length) {
+                setSubjectManagementStatus('The selected source class has no subjects to copy.', true);
+                return;
+            }
+            smSaving = true;
+            updateSubjectManagementControls();
+            setSubjectManagementStatus('Copying subjects to this class…');
+            try {
+                const targetRef = ref(database, target.source === 'class' ? target.path : `${target.path}/subjects`);
+                const result = await runTransaction(targetRef, currentValue => {
+                    const isClassRecord = target.source === 'class';
+                    if (isClassRecord && (!currentValue || typeof currentValue !== 'object')) return;
+                    const currentSubjects = isClassRecord && currentValue && typeof currentValue === 'object'
+                        ? (currentValue.subjects ?? currentValue.subject)
+                        : currentValue;
+                    const existing = normalizeManagedSubjects(currentSubjects ?? (target.data.subjects ?? target.data.subject));
+                    const known = new Set(existing.map(name => name.toLocaleLowerCase()));
+                    const merged = [...existing];
+                    sourceSubjects.forEach(name => {
+                        if (!known.has(name.toLocaleLowerCase())) {
+                            merged.push(name);
+                            known.add(name.toLocaleLowerCase());
+                        }
+                    });
+                    if (merged.length === existing.length) return;
+                    const sorted = merged.sort((a, b) => a.localeCompare(b));
+                    return isClassRecord && currentValue && typeof currentValue === 'object'
+                        ? {...currentValue, subjects: sorted, subject: sorted.join(', ')}
+                        : sorted;
+                });
+                if (result.committed) {
+                    if (target.source === 'class') Object.assign(target.data, result.snapshot.val() || {});
+                    else target.data.subjects = normalizeManagedSubjects(result.snapshot.val());
+                    renderManagedSubjects();
+                    setSubjectManagementStatus(`Copied missing subjects from ${source.data.name}.`);
+                } else {
+                    setSubjectManagementStatus('The selected class already has all of those subjects.', true);
+                }
+            } catch (error) {
+                console.error('Could not copy class subjects:', error);
+                setSubjectManagementStatus(error.message || 'Could not copy subjects to this class.', true);
+            } finally {
+                smSaving = false;
+                updateSubjectManagementControls();
+            }
+        }
+        function exportManagedSubjects() {
+            const classId = subjectManagementField('smClassSelect')?.value;
+            const record = smClassRecords.find(item => item.id === classId);
+            if (!record) return;
+            const subjects = normalizeManagedSubjects(record.data.subjects ?? record.data.subject);
+            const csv = ['Class,Subject', ...subjects.map(subject => `"${String(record.data.name).replace(/"/g, '""')}","${subject.replace(/"/g, '""')}"`)].join('\r\n');
+            const url = URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8'}));
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = `${String(record.data.name || 'class').replace(/[^a-z0-9_-]+/gi, '-')}-subjects.csv`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(url);
+        }
+        function initSubjectManagement(root = null) {
+            smPanelRoot = root || subjectManagementPanel();
+            const panel = subjectManagementPanel();
+            if (!panel || panel.dataset.subjectManagementBound === 'true') return;
+            panel.dataset.subjectManagementBound = 'true';
+            panel.querySelector('#smClassSelect')?.addEventListener('change', () => {
+                updateSubjectManagementControls();
+                setSubjectManagementStatus('');
+            });
+            panel.querySelector('#smClassSearch')?.addEventListener('input', () => {
+                updateSubjectManagementControls();
+            });
+            panel.querySelector('#smSubjectSearch')?.addEventListener('input', renderManagedSubjects);
+            panel.querySelector('#smSubjectForm')?.addEventListener('submit', event => {
+                event.preventDefault();
+                const input = subjectManagementField('smSubjectName');
+                const subjects = String(input?.value || '').split(/[,\n\r]+/).map(value => value.trim().replace(/\s+/g, ' ')).filter(Boolean);
+                if (!subjects.length) {
+                    setSubjectManagementStatus('Enter at least one subject name.', true);
+                    input?.focus();
+                    return;
+                }
+                if (subjects.some(name => name.length > 80)) {
+                    setSubjectManagementStatus('Each subject name must be 80 characters or fewer.', true);
+                    input?.focus();
+                    return;
+                }
+                changeClassSubjects('add', subjects);
+            });
+            panel.querySelector('#smSubjectList')?.addEventListener('click', event => {
+                const button = event.target instanceof Element ? event.target.closest('[data-sm-remove]') : null;
+                if (!button) return;
+                changeClassSubjects('remove', button.dataset.smRemove);
+            });
+            panel.querySelector('#smRefresh')?.addEventListener('click', loadSubjectManagement);
+            panel.querySelector('#smCopySubjects')?.addEventListener('click', copySubjectsToSelectedClass);
+            panel.querySelector('#smExportSubjects')?.addEventListener('click', exportManagedSubjects);
+            loadSubjectManagement();
+        }
+        window.AdminPanelAPI?.register('manage-subjects', root => initSubjectManagement(root), {contentSized: true});
 
 
 

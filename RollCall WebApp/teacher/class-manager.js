@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
         title.textContent = 'Edit Class';
         
         // Load class data
-        firebase.database().ref('classes/' + classId).once('value')
+        firebase.database().ref(`schoolClasses/${schoolIdForTeacher()}/${classId}`).once('value')
             .then((snapshot) => {
                 if (snapshot.exists()) {
                     const data = snapshot.val();
@@ -272,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         save.then(() => Promise.all([
             classRef.update(classData),
-            firebase.database().ref(`schoolClasses/${schoolIdForTeacher()}/${classId}`).set(Object.assign({ id: classId }, classData))
+            firebase.database().ref(`schoolClasses/${schoolIdForTeacher()}/${classId}`).update(Object.assign({ id: classId }, classData))
         ]))
             .then(() => {
                 hideClassModal();
