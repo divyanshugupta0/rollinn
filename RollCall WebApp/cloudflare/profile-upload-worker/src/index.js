@@ -66,13 +66,10 @@ function firebaseConfigScript(request, env) {
     const config = Object.fromEntries(
         Object.entries(configVariables).map(([key, envKey]) => [key, env[envKey].trim()])
     );
-    for (const [key, envKey] of [
-        ['measurementId', 'FIREBASE_MEASUREMENT_ID'],
-        ['profilePhotoPublicBaseUrl', 'PUBLIC_BASE_URL']
-    ]) {
-        if (env[envKey]?.trim()) config[key] = env[envKey].trim();
-    }
-    config.profileUploadWorkerUrl = new URL(request.url).origin + '/';
+    if (env.FIREBASE_MEASUREMENT_ID?.trim()) config.measurementId = env.FIREBASE_MEASUREMENT_ID.trim();
+    const workerUrl = new URL(request.url);
+    config.profileUploadWorkerUrl = `${workerUrl.origin}/`;
+    config.profilePhotoPublicBaseUrl = env.PUBLIC_BASE_URL?.trim() || `${workerUrl.origin}/file`;
 
     return new Response(
         `window.ROLLCALL_FIREBASE_CONFIG = Object.freeze(${JSON.stringify(config)});`,
