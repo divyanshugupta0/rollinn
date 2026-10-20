@@ -2,6 +2,22 @@
 document.addEventListener('DOMContentLoaded', function() {
     const teacherSchoolId = () => typeof currentTeacher !== 'undefined' && currentTeacher && currentTeacher.schoolId ? currentTeacher.schoolId : null;
     const belongsToTeacherSchool = record => !!teacherSchoolId() && record && record.schoolId === teacherSchoolId();
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[ch]));
+    }
+
+    window.isSchoolModeActive = function() {
+        return document.body.classList.contains('teacher-school-mode') || 
+               (typeof currentTeacher !== 'undefined' && currentTeacher && (currentTeacher.isSchoolMode || currentTeacher.institutionType === 'school'));
+    };
+
     // Initialize attendance section
     initAttendanceSection();
     
@@ -9,16 +25,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const attendanceSection = document.getElementById('attendanceSection');
         if (!attendanceSection) return;
         
+        const isSchool = window.isSchoolModeActive();
+
         // Add location/class management UI
         const locationManager = document.createElement('div');
         locationManager.className = 'location-manager';
         locationManager.innerHTML = `
             <div class="section-header">
-                <h2><i class="fas fa-map-marker-alt"></i> Manage Locations & Classes</h2>
-                <button id="addLocationBtn" class="primary-btn"><i class="fas fa-plus"></i> Add New Location</button>
+                <h2><i class="fas fa-${isSchool ? 'clipboard-check' : 'map-marker-alt'}"></i> <span id="attendanceSectionHeading">${isSchool ? 'Class Attendance' : 'Manage Locations & Classes'}</span></h2>
+                <button id="addLocationBtn" class="primary-btn" style="${isSchool ? 'display:none;' : ''}"><i class="fas fa-plus"></i> Add New Location</button>
             </div>
             
-            <div class="location-filters">
+            <div class="location-filters" style="${isSchool ? 'display:none;' : ''}">
                 <div class="form-group">
                     <input type="text" id="locationSearchInput" class="form-control" placeholder="Search locations...">
                 </div>
@@ -149,23 +167,26 @@ document.addEventListener('DOMContentLoaded', function() {
         addStyles();
         
         // Add event listeners
-        document.getElementById('addLocationBtn').addEventListener('click', showAddLocationModal);
-        document.getElementById('closeLocationModal').addEventListener('click', hideLocationModal);
-        document.getElementById('cancelLocationBtn').addEventListener('click', hideLocationModal);
-        document.getElementById('locationForm').addEventListener('submit', saveLocation);
-        document.getElementById('captureMobileLocationBtn').addEventListener('click', captureMobileLocation);
-        document.getElementById('fetchSharedLocationBtn').addEventListener('click', fetchSharedMobileCoordinates);
-        document.getElementById('showLocationQrBtn').addEventListener('click', showMobileCaptureQr);
-        document.getElementById('locationModal').addEventListener('click', event => {
+        document.getElementById('addLocationBtn')?.addEventListener('click', showAddLocationModal);
+        document.getElementById('closeLocationModal')?.addEventListener('click', hideLocationModal);
+        document.getElementById('cancelLocationBtn')?.addEventListener('click', hideLocationModal);
+        document.getElementById('locationForm')?.addEventListener('submit', saveLocation);
+        document.getElementById('captureMobileLocationBtn')?.addEventListener('click', captureMobileLocation);
+        document.getElementById('fetchSharedLocationBtn')?.addEventListener('click', fetchSharedMobileCoordinates);
+        document.getElementById('showLocationQrBtn')?.addEventListener('click', showMobileCaptureQr);
+        document.getElementById('locationModal')?.addEventListener('click', event => {
             if (event.target.id === 'locationModal') hideLocationModal();
         });
-        document.getElementById('addLocationSectionBtn').addEventListener('click', addLocationSection);
-        document.getElementById('locationSelectedSections').addEventListener('click', removeLocationSection);
-        document.getElementById('locationSearchInput').addEventListener('input', filterLocations);
-        document.getElementById('locationStatusFilter').addEventListener('change', filterLocations);
+        document.getElementById('addLocationSectionBtn')?.addEventListener('click', addLocationSection);
+        document.getElementById('locationSelectedSections')?.addEventListener('click', removeLocationSection);
+        document.getElementById('locationSearchInput')?.addEventListener('input', filterLocations);
+        document.getElementById('locationStatusFilter')?.addEventListener('change', filterLocations);
         ['latitude', 'longitude', 'locationRadius'].forEach(id => {
-            document.getElementById(id).addEventListener('input', updateTeacherLocationMap);
-            document.getElementById(id).addEventListener('change', updateTeacherLocationMap);
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', updateTeacherLocationMap);
+                el.addEventListener('change', updateTeacherLocationMap);
+            }
         });
         
         // Load locations
@@ -544,8 +565,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // Load locations
+    // Load locations (or auto-generated class cards for school mode)
     function loadLocations() {
+        if (typeof window.isSchoolModeActive === 'function' && window.isSchoolModeActive()) {
+            return window.loadSchoolClassCards();
+        }
+
         const locationsContainer = document.getElementById('locationsContainer');
         
         // Show loading indicator
@@ -594,6 +619,644 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             });
     }
+
+    // Auto-generate class cards for School Mode
+    window.loadSchoolClassCards = async function(customDate) {
+        const locationsContainer = document.getElementById('locationsContainer');
+        if (!locationsContainer) return;
+
+        locationsContainer.innerHTML = `
+            <div class="loader-container">
+                <div class="loader"></div>
+            </div>
+        `;
+
+        const schoolId = teacherSchoolId();
+        if (!schoolId) {
+            locationsContainer.innerHTML = '<div class="empty-state">Assign a school to this teacher account to view classes.</div>';
+            return;
+        }
+
+        try {
+            // In school mode, ensure heading says Class Attendance and Add Location is removed
+            const headingSpan = document.getElementById('attendanceSectionHeading');
+            if (headingSpan) headingSpan.textContent = 'Class Attendance';
+            const headingH2 = document.querySelector('.location-manager .section-header h2');
+            if (headingH2) headingH2.innerHTML = '<i class="fas fa-clipboard-check"></i> <span id="attendanceSectionHeading">Class Attendance</span>';
+            const addBtn = document.getElementById('addLocationBtn');
+            if (addBtn) addBtn.style.display = 'none';
+            const filterBox = document.querySelector('.location-manager .location-filters');
+            if (filterBox) filterBox.style.display = 'none';
+
+            // Query relevant records
+            const [scopedSnap, legacySnap, classesSnap, coursesSnap, usersSnap] = await Promise.all([
+                firebase.database().ref(`classTeacherAssignmentsByClass/${schoolId}`).once('value'),
+                firebase.database().ref(`classTeacherAssignments/${schoolId}`).once('value'),
+                firebase.database().ref(`schoolClasses/${schoolId}`).once('value'),
+                firebase.database().ref(`courses/${schoolId}`).once('value'),
+                firebase.database().ref(`schoolUsers/${schoolId}`).once('value')
+            ]);
+
+            const scopedAssignments = scopedSnap.val() || {};
+            const legacyAssignments = legacySnap.val() || {};
+            const schoolClasses = classesSnap.val() || {};
+            const courses = coursesSnap.val() || {};
+            const allStudents = [];
+            if (usersSnap.exists()) {
+                usersSnap.forEach(s => {
+                    const st = s.val();
+                    st.id = s.key;
+                    if (!st.role || st.role === 'student') allStudents.push(st);
+                });
+            }
+
+            const teacherId = typeof currentTeacher !== 'undefined' && currentTeacher ? (currentTeacher.id || currentTeacher.uid) : '';
+            const teacherEmail = typeof currentTeacher !== 'undefined' && currentTeacher ? (currentTeacher.email || '') : '';
+
+            // Collect all assigned classes and sections for this teacher
+            const classSectionMap = new Map();
+
+            // 1. Profile classTeacherClassSections
+            const profileScopes = Array.isArray(currentTeacher?.classTeacherClassSections) ? currentTeacher.classTeacherClassSections : [];
+            profileScopes.forEach(item => {
+                if (!item || !item.section) return;
+                const classId = item.classId || '';
+                const className = item.className || (courses[classId]?.courseName) || (schoolClasses[classId]?.className) || 'Class';
+                const section = String(item.section).trim();
+                const key = `${classId || className}_${section}`.toLowerCase();
+                classSectionMap.set(key, {
+                    classId,
+                    className,
+                    section,
+                    year: item.year || ''
+                });
+            });
+
+            // 2. classTeacherAssignmentsByClass
+            Object.entries(scopedAssignments).forEach(([clsId, sections]) => {
+                Object.entries(sections || {}).forEach(([secKey, assignment]) => {
+                    if (!assignment || assignment.teacherId !== teacherId) return;
+                    const section = String(assignment.section || '').trim();
+                    if (!section) return;
+                    const className = assignment.className || (courses[clsId]?.courseName) || (schoolClasses[clsId]?.className) || 'Class';
+                    const key = `${clsId}_${section}`.toLowerCase();
+                    if (!classSectionMap.has(key)) {
+                        classSectionMap.set(key, {
+                            classId: clsId,
+                            className,
+                            section,
+                            year: assignment.year || ''
+                        });
+                    }
+                });
+            });
+
+            // 3. Legacy classTeacherAssignments
+            Object.entries(legacyAssignments).forEach(([secKey, assignment]) => {
+                if (!assignment || assignment.teacherId !== teacherId) return;
+                const section = String(assignment.section || '').trim();
+                if (!section) return;
+                const className = assignment.className || 'Class';
+                const key = `legacy_${section}`.toLowerCase();
+                if (!classSectionMap.has(key)) {
+                    classSectionMap.set(key, {
+                        classId: '',
+                        className,
+                        section,
+                        year: ''
+                    });
+                }
+            });
+
+            // 4. Assigned sections from profile
+            const profileSections = [
+                ...(Array.isArray(currentTeacher?.classTeacherSections) ? currentTeacher.classTeacherSections : [currentTeacher?.classTeacherSections]),
+                ...(Array.isArray(currentTeacher?.assignedSections) ? currentTeacher.assignedSections : [currentTeacher?.assignedSections]),
+                currentTeacher?.classTeacherSection
+            ].filter(Boolean);
+
+            const uniqueSecs = [...new Set(profileSections.map(s => String(s).trim()))];
+            if (classSectionMap.size === 0 && uniqueSecs.length > 0) {
+                const defClass = currentTeacher?.assignedClass || currentTeacher?.className || 'Class';
+                uniqueSecs.forEach(sec => {
+                    const key = `${defClass}_${sec}`.toLowerCase();
+                    classSectionMap.set(key, {
+                        classId: currentTeacher?.classId || '',
+                        className: defClass,
+                        section: sec,
+                        year: ''
+                    });
+                });
+            }
+
+            // 5. Fallback from schoolClasses
+            if (classSectionMap.size === 0) {
+                Object.entries(schoolClasses).forEach(([clsId, clsData]) => {
+                    if (clsData.teacherId === teacherId || clsData.teacherEmail === teacherEmail) {
+                        const secs = Array.isArray(clsData.sections) ? clsData.sections : (clsData.section ? [clsData.section] : ['A']);
+                        secs.forEach(sec => {
+                            const key = `${clsId}_${sec}`.toLowerCase();
+                            classSectionMap.set(key, {
+                                classId: clsId,
+                                className: clsData.className || clsData.name || 'Class',
+                                section: sec,
+                                year: ''
+                            });
+                        });
+                    }
+                });
+            }
+
+            // Generate class cards - each section gets its own separate card!
+            const classCards = [];
+            window._teacherClassCardsMap = {};
+
+            classSectionMap.forEach((item) => {
+                const safeClassId = (item.classId || item.className).replace(/[^a-zA-Z0-9_-]/g, '_');
+                const safeSec = item.section.replace(/[^a-zA-Z0-9_-]/g, '_');
+                const cardId = `ct_${safeClassId}_${safeSec}`;
+
+                // Calculate enrolled students in this section
+                const normSec = item.section.trim().replace(/^section\s+/i, '').toLowerCase();
+                const matchingStudents = allStudents.filter(st => {
+                    const sSec = String(st.section || '').trim().replace(/^section\s+/i, '').toLowerCase();
+                    if (normSec && sSec && sSec !== normSec) return false;
+                    if (item.classId && st.classId && String(st.classId) !== String(item.classId)) return false;
+                    return true;
+                });
+
+                const card = {
+                    id: cardId,
+                    classId: item.classId,
+                    className: item.className,
+                    section: item.section,
+                    year: item.year,
+                    name: `${item.className} · Section ${item.section}`,
+                    location: `${item.className} · Section ${item.section}`,
+                    studentCount: matchingStudents.length,
+                    isSchoolClass: true,
+                    schoolId: schoolId
+                };
+
+                classCards.push(card);
+                window._teacherClassCardsMap[cardId] = card;
+            });
+
+            window._teacherClassCards = classCards;
+
+            // Check submitted status for the selected date
+            const dateInput = document.getElementById('attendanceFilterDate');
+            const selectedDate = customDate || (dateInput?.value ? formatDateForDatabase(new Date(dateInput.value)) : formatDateForDatabase(new Date()));
+
+            const submittedAttendances = {};
+            const promises = classCards.map(c => {
+                return firebase.database().ref(`attendance_by_location/${c.id}/${selectedDate}`).once('value')
+                    .then(snap => {
+                        if (snap.exists()) submittedAttendances[c.id] = snap.val();
+                    })
+                    .catch(() => {});
+            });
+
+            await Promise.all(promises);
+            window.submittedAttendances = submittedAttendances;
+
+            window.renderSchoolClassCards(classCards, submittedAttendances);
+
+        } catch (error) {
+            console.error('Error loading school class cards:', error);
+            locationsContainer.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Error loading classes: ${error.message}</p></div>`;
+        }
+    };
+
+    // Render School Mode Class Cards
+    window.renderSchoolClassCards = function(classCards, submittedAttendances) {
+        const locationsContainer = document.getElementById('locationsContainer');
+        if (!locationsContainer) return;
+
+        if (!classCards || classCards.length === 0) {
+            locationsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                    <p>No class teacher sections assigned to your account yet.</p>
+                    <small>Contact your school administrator to assign your class and section.</small>
+                </div>
+            `;
+            return;
+        }
+
+        locationsContainer.innerHTML = '';
+
+        classCards.forEach(card => {
+            const hasSubmitted = submittedAttendances && submittedAttendances[card.id] !== undefined;
+            const cardElem = document.createElement('div');
+            cardElem.className = `location-card school-class-card ${hasSubmitted ? 'submitted' : 'pending'}`;
+            cardElem.dataset.id = card.id;
+
+            cardElem.innerHTML = `
+                <div class="location-header">
+                    <h3><i class="fas fa-chalkboard"></i> ${escapeHtml(card.className)} · Section ${escapeHtml(card.section)}</h3>
+                    <div class="location-status ${hasSubmitted ? 'active' : 'inactive'}">
+                        ${hasSubmitted 
+                            ? '<i class="fas fa-check-circle"></i> Submitted' 
+                            : '<i class="fas fa-clock"></i> Pending'}
+                    </div>
+                </div>
+                <div class="location-body">
+                    <div class="location-class"><i class="fas fa-users"></i> ${card.studentCount} Students Enrolled</div>
+                    <div class="location-time"><i class="fas fa-calendar-day"></i> Daily Attendance Sheet</div>
+                </div>
+                <div class="location-actions">
+                    ${hasSubmitted ? 
+                        `<button type="button" class="action-btn modify-btn" data-id="${card.id}">
+                            <i class="fas fa-edit"></i> Edit Attendance
+                        </button>
+                        <button type="button" class="action-btn view-btn" data-id="${card.id}">
+                            <i class="fas fa-eye"></i> View Attendance
+                        </button>` : 
+                        `<button type="button" class="action-btn take-attendance-btn" data-id="${card.id}">
+                            <i class="fas fa-clipboard-check"></i> Take Attendance
+                        </button>`
+                    }
+                </div>
+            `;
+
+            if (hasSubmitted) {
+                cardElem.querySelector('.modify-btn')?.addEventListener('click', function() {
+                    window.openSchoolClassAttendance(this.dataset.id, true);
+                });
+                cardElem.querySelector('.view-btn')?.addEventListener('click', function() {
+                    window.openSchoolClassAttendance(this.dataset.id, false);
+                });
+            } else {
+                cardElem.querySelector('.take-attendance-btn')?.addEventListener('click', function() {
+                    window.openSchoolClassAttendance(this.dataset.id, true);
+                });
+            }
+
+            locationsContainer.appendChild(cardElem);
+        });
+    };
+
+    // Open School Class Attendance Sheet
+    window.openSchoolClassAttendance = async function(cardId, editable = true) {
+        const card = window._teacherClassCardsMap?.[cardId];
+        if (!card) {
+            console.error('Card not found for id:', cardId);
+            return;
+        }
+
+        currentClassData = card;
+
+        const popup = document.getElementById('attendancePopup');
+        if (!popup) return;
+        popup.style.display = 'flex';
+
+        // Update popup titles
+        const popupName = document.getElementById('popupClassName');
+        if (popupName) popupName.textContent = card.name;
+        const popupLoc = document.getElementById('popupClassLocation');
+        if (popupLoc) popupLoc.innerHTML = `<i class="fas fa-users"></i> Section: ${card.section} · ${card.className}`;
+        const popupTime = document.getElementById('popupClassTime');
+        if (popupTime) popupTime.innerHTML = `<i class="fas fa-calendar-day"></i> Daily Attendance Sheet`;
+
+        // Date setup
+        const filterDateInput = document.getElementById('attendanceFilterDate');
+        const popupDateInput = document.getElementById('popupAttendanceDate');
+        const todayStr = formatDateForDatabase(new Date());
+        const selectedDate = filterDateInput?.value ? formatDateForDatabase(new Date(filterDateInput.value)) : todayStr;
+        if (popupDateInput) {
+            popupDateInput.value = selectedDate;
+            popupDateInput.max = todayStr;
+        }
+
+        // Hide redundant workspace tools in school mode
+        const workspaceTools = document.getElementById('rcSessionStats');
+        if (workspaceTools) workspaceTools.style.display = 'none';
+
+        // Load students and roster
+        window.loadSchoolAttendanceSheet(card, selectedDate, editable);
+    };
+
+    // Load students for school attendance sheet
+    window.loadSchoolAttendanceSheet = async function(card, selectedDate, editable = true) {
+        const popupStudentList = document.getElementById('popupStudentList');
+        const loadingAnimation = document.getElementById('attendancePopupLoadingAnimation');
+        const submitBtn = document.getElementById('submitAttendancePopupBtn');
+        const attendanceSummary = document.getElementById('attendanceSummary');
+
+        if (loadingAnimation) loadingAnimation.classList.add('active');
+        if (popupStudentList) popupStudentList.style.display = 'none';
+        if (attendanceSummary) attendanceSummary.style.display = 'none';
+
+        try {
+            const schoolId = teacherSchoolId();
+            const snap = await firebase.database().ref(`schoolUsers/${schoolId}`).once('value');
+            const normSec = String(card.section || '').trim().replace(/^section\s+/i, '').toLowerCase();
+
+            students = [];
+            if (snap.exists()) {
+                snap.forEach(child => {
+                    const st = child.val();
+                    st.id = child.key;
+                    if (st.role && st.role !== 'student') return;
+
+                    const sSec = String(st.section || '').trim().replace(/^section\s+/i, '').toLowerCase();
+                    if (normSec && sSec && sSec !== normSec) return;
+                    if (card.classId && st.classId && String(st.classId) !== String(card.classId)) return;
+
+                    students.push(st);
+                });
+            }
+
+            students.sort((a, b) => {
+                const rollA = a.classRoll || a.rollNo || a.roll || '';
+                const rollB = b.classRoll || b.rollNo || b.roll || '';
+                if (rollA && rollB) return String(rollA).localeCompare(String(rollB), undefined, { numeric: true });
+                return (a.name || a.email || '').localeCompare(b.name || b.email || '');
+            });
+
+            // LocalStorage key: stores attendance draft in browser, NO per-student DB calls!
+            const draftKey = `rc_draft_${schoolId}_${card.id}_${selectedDate}`;
+            let localDraft = null;
+            let fromDraft = false;
+
+            try {
+                const rawDraft = localStorage.getItem(draftKey);
+                if (rawDraft) {
+                    localDraft = JSON.parse(rawDraft);
+                    fromDraft = true;
+                }
+            } catch (e) {
+                console.warn('Could not parse local draft', e);
+            }
+
+            attendanceData = {};
+
+            if (fromDraft && localDraft) {
+                Object.keys(localDraft).forEach(k => {
+                    if (!k.startsWith('_')) attendanceData[k] = localDraft[k];
+                });
+            } else {
+                // Check Firebase submitted attendance
+                const attSnap = await firebase.database().ref(`attendance_by_location/${card.id}/${selectedDate}`).once('value');
+                if (attSnap.exists()) {
+                    const existing = attSnap.val() || {};
+                    Object.keys(existing).forEach(k => {
+                        if (k !== '_meta' && typeof existing[k] === 'string') {
+                            attendanceData[k] = existing[k];
+                        }
+                    });
+                }
+            }
+
+            if (loadingAnimation) loadingAnimation.classList.remove('active');
+
+            window.renderSchoolRosterTable(students, attendanceData, draftKey, editable, fromDraft);
+
+        } catch (err) {
+            console.error('Error loading attendance sheet:', err);
+            if (loadingAnimation) loadingAnimation.classList.remove('active');
+            if (popupStudentList) {
+                popupStudentList.style.display = 'block';
+                popupStudentList.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Error: ${err.message}</p></div>`;
+            }
+        }
+    };
+
+    // Render Student Table for School Mode
+    window.renderSchoolRosterTable = function(studentsList, attData, draftKey, editable = true, fromDraft = false) {
+        const popupStudentList = document.getElementById('popupStudentList');
+        const submitBtn = document.getElementById('submitAttendancePopupBtn');
+        if (!popupStudentList) return;
+
+        popupStudentList.style.display = 'block';
+
+        if (studentsList.length === 0) {
+            popupStudentList.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-user-slash"></i>
+                    <p>No students enrolled in this section.</p>
+                </div>
+            `;
+            if (submitBtn) submitBtn.style.display = 'none';
+            return;
+        }
+
+        let tableHtml = `
+            ${fromDraft ? '<div class="alert alert-info" style="display:flex;align-items:center;gap:8px;padding:8px 14px;margin-bottom:12px;background:#e8f4fd;color:#0c5460;border-radius:8px;font-size:13px;"><i class="fas fa-info-circle"></i> Restored unsaved attendance draft from your device.</div>' : ''}
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:6px 0;flex-wrap:wrap;gap:10px;">
+                <div style="font-weight:700;font-size:15px;color:#26372e;"><i class="fas fa-user-graduate" style="color:#176b4d;margin-right:6px;"></i> Students (${studentsList.length})</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button type="button" id="markAllPresentBtn" class="secondary-btn" style="padding:6px 12px;font-size:12px;background:#e8f5e9;color:#1b5e20;border-color:#c8e6c9;"><i class="fas fa-check-double"></i> All Present</button>
+                    <button type="button" id="markAllAbsentBtn" class="secondary-btn" style="padding:6px 12px;font-size:12px;background:#ffebee;color:#b71c1c;border-color:#ffcdd2;"><i class="fas fa-times"></i> All Absent</button>
+                    <button type="button" id="clearAllDraftBtn" class="secondary-btn" style="padding:6px 12px;font-size:12px;color:#d9534f;"><i class="fas fa-trash-alt"></i> Clear Draft</button>
+                </div>
+            </div>
+            <div class="table-responsive" style="overflow-x:auto;">
+                <table class="attendance-table" style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f4f6f8;border-bottom:2px solid #e1e4e8;text-align:left;">
+                            <th style="padding:12px;width:50px;">#</th>
+                            <th style="padding:12px;">Student Name</th>
+                            <th style="padding:12px;width:120px;">Roll No</th>
+                            <th style="padding:12px;text-align:center;width:230px;">Attendance Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        studentsList.forEach((st, idx) => {
+            const roll = st.classRoll || st.rollNo || st.roll || (idx + 1);
+            const name = st.name || st.email || `Student ${idx + 1}`;
+            const currentStatus = attData[st.id] || '';
+
+            tableHtml += `
+                <tr class="student-row" data-student-id="${st.id}" style="border-bottom:1px solid #edf1ee;">
+                    <td style="padding:12px;color:#666;font-size:13px;">${idx + 1}</td>
+                    <td style="padding:12px;">
+                        <div style="font-weight:650;color:#222;font-size:14px;">${escapeHtml(name)}</div>
+                        ${st.email ? `<small style="color:#888;font-size:12px;">${escapeHtml(st.email)}</small>` : ''}
+                    </td>
+                    <td style="padding:12px;color:#555;font-weight:600;font-size:13px;">${escapeHtml(roll)}</td>
+                    <td style="padding:12px;text-align:center;">
+                        <div class="attendance-buttons" style="display:inline-flex;gap:8px;">
+                            <button type="button" class="attendance-btn present-btn ${currentStatus === 'present' ? 'active' : ''}" 
+                                data-student-id="${st.id}" data-status="present" style="min-width:85px;padding:6px 12px;cursor:pointer;border-radius:6px;">
+                                <i class="fas fa-check"></i> Present
+                            </button>
+                            <button type="button" class="attendance-btn absent-btn ${currentStatus === 'absent' ? 'active' : ''}" 
+                                data-student-id="${st.id}" data-status="absent" style="min-width:85px;padding:6px 12px;cursor:pointer;border-radius:6px;">
+                                <i class="fas fa-times"></i> Absent
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tableHtml += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        popupStudentList.innerHTML = tableHtml;
+
+        if (submitBtn) {
+            submitBtn.style.display = 'inline-flex';
+            const hasExisting = window.submittedAttendances && window.submittedAttendances[currentClassData?.id];
+            submitBtn.innerHTML = hasExisting ? '<i class="fas fa-save"></i> Update Attendance' : '<i class="fas fa-save"></i> Submit Attendance';
+            submitBtn.disabled = false;
+        }
+
+        // Persist draft to local storage only - NO database writes per student click
+        const persistDraft = () => {
+            try {
+                localStorage.setItem(draftKey, JSON.stringify(attendanceData));
+            } catch (e) {
+                console.warn('Could not save draft to localStorage', e);
+            }
+        };
+
+        // Event delegation for marking Present/Absent
+        popupStudentList.onclick = function(e) {
+            const btn = e.target.closest('.attendance-btn');
+            if (!btn) return;
+            const studentId = btn.getAttribute('data-student-id');
+            const status = btn.getAttribute('data-status');
+            if (!studentId || !status) return;
+
+            attendanceData[studentId] = status;
+
+            const row = btn.closest('.student-row');
+            if (row) {
+                row.querySelectorAll('.attendance-btn').forEach(b => {
+                    if (b.getAttribute('data-status') === status) {
+                        b.classList.add('active');
+                    } else {
+                        b.classList.remove('active');
+                    }
+                });
+            }
+
+            // ONLY local storage - NO DATABASE CALL!
+            persistDraft();
+        };
+
+        // Mark all present
+        document.getElementById('markAllPresentBtn')?.addEventListener('click', () => {
+            studentsList.forEach(st => { attendanceData[st.id] = 'present'; });
+            popupStudentList.querySelectorAll('.student-row').forEach(row => {
+                row.querySelector('.present-btn')?.classList.add('active');
+                row.querySelector('.absent-btn')?.classList.remove('active');
+            });
+            persistDraft();
+        });
+
+        // Mark all absent
+        document.getElementById('markAllAbsentBtn')?.addEventListener('click', () => {
+            studentsList.forEach(st => { attendanceData[st.id] = 'absent'; });
+            popupStudentList.querySelectorAll('.student-row').forEach(row => {
+                row.querySelector('.absent-btn')?.classList.add('active');
+                row.querySelector('.present-btn')?.classList.remove('active');
+            });
+            persistDraft();
+        });
+
+        // Clear local draft
+        document.getElementById('clearAllDraftBtn')?.addEventListener('click', () => {
+            if (confirm('Clear local draft attendance for this class?')) {
+                attendanceData = {};
+                try { localStorage.removeItem(draftKey); } catch (e) {}
+                popupStudentList.querySelectorAll('.attendance-btn').forEach(b => b.classList.remove('active'));
+            }
+        });
+    };
+
+    // Submit school attendance in a single batch to Firebase and clear local storage
+    window.submitSchoolAttendance = async function() {
+        if (!currentClassData || !teacherSchoolId()) {
+            alert('No class or school selected.');
+            return;
+        }
+
+        const dateInput = document.getElementById('popupAttendanceDate');
+        const selectedDate = dateInput?.value ? formatDateForDatabase(new Date(dateInput.value)) : formatDateForDatabase(new Date());
+        const draftKey = `rc_draft_${teacherSchoolId()}_${currentClassData.id}_${selectedDate}`;
+
+        // Ensure every student has a status (unmarked defaulted to absent)
+        students.forEach(st => {
+            if (!attendanceData[st.id]) attendanceData[st.id] = 'absent';
+        });
+
+        const presentCount = Object.values(attendanceData).filter(s => s === 'present').length;
+        const absentCount = students.length - presentCount;
+
+        const submitBtn = document.getElementById('submitAttendancePopupBtn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+        }
+
+        const payload = {
+            ...attendanceData,
+            _meta: {
+                schoolId: teacherSchoolId(),
+                locationId: currentClassData.id,
+                classId: currentClassData.classId || currentClassData.id,
+                className: currentClassData.className || currentClassData.name,
+                section: currentClassData.section || '',
+                teacherId: currentTeacher?.id || '',
+                teacherName: currentTeacher?.name || currentTeacher?.email || '',
+                date: selectedDate,
+                time: new Date().toLocaleTimeString('en-US', { hour12: false }),
+                timestamp: Date.now(),
+                status: 'submitted',
+                submitted: true,
+                stats: {
+                    total: students.length,
+                    present: presentCount,
+                    absent: absentCount
+                }
+            }
+        };
+
+        try {
+            // SINGLE write call to database
+            const updates = {};
+            updates[`attendance_by_location/${currentClassData.id}/${selectedDate}`] = payload;
+            updates[`attendance/${teacherSchoolId()}/${currentClassData.id}/${selectedDate}`] = payload;
+
+            await firebase.database().ref().update(updates);
+
+            // Clear draft from localStorage upon successful write!
+            try { localStorage.removeItem(draftKey); } catch (e) {}
+
+            // Update cache
+            window.submittedAttendances = window.submittedAttendances || {};
+            window.submittedAttendances[currentClassData.id] = payload;
+
+            alert(`Attendance submitted successfully! (${presentCount} Present, ${absentCount} Absent)`);
+
+            // Hide popup
+            const popup = document.getElementById('attendancePopup');
+            if (popup) popup.style.display = 'none';
+
+            // Refresh cards
+            if (typeof window.loadSchoolClassCards === 'function') {
+                window.loadSchoolClassCards(selectedDate);
+            }
+
+        } catch (err) {
+            console.error('Attendance submission failed:', err);
+            alert('Submission failed: ' + err.message);
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Submit Attendance';
+            }
+        }
+    };
     
     // Render locations
     function renderLocations(locations) {
@@ -728,6 +1391,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Take attendance for location
     function takeAttendanceForLocation(locationId) {
+        if (window._teacherClassCardsMap && window._teacherClassCardsMap[locationId]) {
+            if (typeof window.openSchoolClassAttendance === 'function') {
+                return window.openSchoolClassAttendance(locationId, true);
+            }
+            if (typeof selectClass === 'function') {
+                return selectClass(window._teacherClassCardsMap[locationId]);
+            }
+        }
         // Load location data
         firebase.database().ref('locations/' + locationId).once('value')
             .then((snapshot) => {
@@ -795,6 +1466,104 @@ document.addEventListener('DOMContentLoaded', function() {
         const style = document.createElement('style');
         style.id = 'attendance-manager-styles';
         style.textContent = `
+            body.teacher-school-mode #addLocationBtn,
+            body.teacher-school-mode .location-manager #addLocationBtn,
+            body.teacher-school-mode #locationModal,
+            body.teacher-school-mode .location-manager .location-filters {
+                display: none !important;
+            }
+            
+            .school-class-card {
+                background: white;
+                border-radius: 14px;
+                border: 1px solid #e1e9e2;
+                box-shadow: 0 4px 14px rgba(27,57,37,.06);
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                gap: 15px;
+                transition: transform .2s ease, box-shadow .2s ease;
+            }
+            
+            .school-class-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 8px 24px rgba(27,57,37,.12);
+            }
+            
+            .school-class-card.submitted {
+                border-top: 4px solid #176b4d;
+            }
+            
+            .school-class-card.pending {
+                border-top: 4px solid #f57c00;
+            }
+            
+            .school-class-card .location-header {
+                background: transparent !important;
+                padding: 0 !important;
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .school-class-card .location-header h3 {
+                margin: 0;
+                color: #233529;
+                font-size: 18px;
+                font-weight: 750;
+            }
+            
+            .school-class-card .location-status {
+                font-size: 11px;
+                font-weight: 700;
+                padding: 4px 10px;
+                border-radius: 20px;
+                text-transform: uppercase;
+                letter-spacing: .05em;
+            }
+            
+            .school-class-card .location-status.active {
+                background: #e8f5e9;
+                color: #1b5e20;
+            }
+            
+            .school-class-card .location-status.inactive {
+                background: #fff3e0;
+                color: #e65100;
+            }
+            
+            .school-class-card .location-body {
+                padding: 0 !important;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                color: #55675c;
+                font-size: 13px;
+            }
+            
+            .school-class-card .location-actions {
+                padding: 0 !important;
+                display: flex;
+                gap: 8px;
+                margin-top: 5px;
+            }
+            
+            .school-class-card .location-actions button {
+                flex: 1;
+                min-height: 40px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                font-weight: 650;
+                border-radius: 9px;
+                cursor: pointer;
+                font-size: 13px;
+                padding: 8px 12px;
+            }
+            
             .section-header {
                 display: flex;
                 justify-content: space-between;

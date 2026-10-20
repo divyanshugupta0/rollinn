@@ -4559,6 +4559,28 @@
                         currentTeacher.id = user.uid;
                         document.body.classList.add('teacher-authenticated');
 
+                        // Detect School Mode vs College Mode
+                        try {
+                            const schoolSnap = await firebase.database().ref(`schools/${currentTeacher.schoolId}`).once('value');
+                            const schoolData = schoolSnap.val() || {};
+                            const institutionType = (schoolData.type || schoolData.institutionType || 'school').toLowerCase();
+                            const isSchoolMode = institutionType === 'school' || institutionType === 'k12';
+                            currentTeacher.institutionType = institutionType;
+                            currentTeacher.isSchoolMode = isSchoolMode;
+                            document.body.classList.toggle('teacher-school-mode', isSchoolMode);
+                            
+                            if (isSchoolMode) {
+                                const headingSpan = document.getElementById('attendanceSectionHeading');
+                                if (headingSpan) headingSpan.textContent = 'Class Attendance';
+                                const addBtn = document.getElementById('addLocationBtn');
+                                if (addBtn) addBtn.style.display = 'none';
+                                const filterBox = document.querySelector('.location-manager .location-filters');
+                                if (filterBox) filterBox.style.display = 'none';
+                            }
+                        } catch (err) {
+                            console.warn('Could not determine school institution type', err);
+                        }
+
                         loginContainer.style.display = 'none';
                         document.querySelector('.sidebar').style.display = 'flex';
                         document.querySelector('.main-content').style.display = 'block';
@@ -4724,6 +4746,13 @@
         
         // Load active locations from the same source that admin.html uses
         function loadActiveClasses() {
+            if (document.body.classList.contains('teacher-school-mode') || currentTeacher?.isSchoolMode) {
+                if (typeof window.loadSchoolClassCards === 'function') {
+                    window.loadSchoolClassCards();
+                }
+                return;
+            }
+
             // Show loading indicator only in the class list
             classList.innerHTML = `
                 <div class="loader-container">
@@ -5031,6 +5060,10 @@
 
         // Enhanced submit attendance function with comprehensive debugging
         function submitAttendance() {
+            if (currentClassData?.isSchoolClass && typeof window.submitSchoolAttendance === 'function') {
+                return window.submitSchoolAttendance();
+            }
+
             // Prevent multiple submissions
             submitAttendancePopupBtn.disabled = true;
             
@@ -5087,6 +5120,10 @@
                 .then(() => {
                     console.log('ATTENDANCE SUBMITTED SUCCESSFULLY');
                     
+                    // Clear draft from localStorage
+                    const draftKey = `rc_draft_${currentTeacher.schoolId}_${currentClassData.id}_${selectedDate}`;
+                    try { localStorage.removeItem(draftKey); } catch (e) {}
+
                     // Update submitted attendances
                     submittedAttendances[currentClassData.id] = attendanceWithMeta;
                     
@@ -5097,7 +5134,11 @@
                     attendancePopup.style.display = 'none';
                     
                     // Reload class list to reflect submitted status
-                    renderClassList();
+                    if (document.body.classList.contains('teacher-school-mode') && typeof window.loadSchoolClassCards === 'function') {
+                        window.loadSchoolClassCards(selectedDate);
+                    } else {
+                        renderClassList();
+                    }
                     
                     // Reset button state
                     submitAttendancePopupBtn.disabled = false;
@@ -5356,6 +5397,16 @@
             // Make sure student list is hidden while loading
             popupStudentList.style.display = 'none';
             
+            // Check localStorage draft first
+            const draftKey = currentTeacher && currentTeacher.schoolId && currentClassData ? `rc_draft_${currentTeacher.schoolId}_${currentClassData.id}_${selectedDate}` : null;
+            let localDraft = null;
+            if (draftKey) {
+                try {
+                    const raw = localStorage.getItem(draftKey);
+                    if (raw) localDraft = JSON.parse(raw);
+                } catch (e) {}
+            }
+
             // Check if attendance exists for the selected date
             firebase.database().ref(`attendance_by_location/${currentClassData.id}/${selectedDate}`).once('value')
                 .then((snapshot) => {
@@ -5365,7 +5416,17 @@
                     // Reset attendance data
                     attendanceData = {};
                     
-                    if (snapshot.exists()) {
+                    if (localDraft) {
+                        // Restore draft from local storage
+                        Object.keys(localDraft).forEach(key => {
+                            if (!key.startsWith('_') && typeof localDraft[key] === 'string') {
+                                attendanceData[key] = localDraft[key];
+                            }
+                        });
+                        renderStudentList(true);
+                        submitAttendancePopupBtn.style.display = 'block';
+                        submitAttendancePopupBtn.innerHTML = '<i class="fas fa-save"></i> Submit Attendance';
+                    } else if (snapshot.exists()) {
                         // Attendance exists for this date
                         const existingAttendance = snapshot.val();
                         
@@ -5376,35 +5437,19 @@
                             }
                         });
                         
-                        // Render student list in view mode
-                        renderStudentList(false);
+                        // Can edit any time if today or in school mode
+                        const allowEdit = isToday || document.body.classList.contains('teacher-school-mode');
+                        renderStudentList(allowEdit);
                         
-                        // Show attendance summary
-                        const attendanceSummary = document.getElementById('attendanceSummary');
-                        attendanceSummary.style.display = 'flex';
-                        
-                        // Update summary counts
-                        const presentCount = Object.values(attendanceData).filter(status => status === 'present').length;
-                        const absentCount = students.length - presentCount;
-                        
-                        document.getElementById('popupPresentCount').textContent = presentCount;
-                        document.getElementById('popupAbsentCount').textContent = absentCount;
-                        document.getElementById('popupTotalCount').textContent = students.length;
-                        
-                        // Hide submit button
-                        submitAttendancePopupBtn.style.display = 'none';
+                        submitAttendancePopupBtn.style.display = allowEdit ? 'block' : 'none';
+                        submitAttendancePopupBtn.innerHTML = '<i class="fas fa-save"></i> Update Attendance';
                     } else {
                         // No attendance exists for this date
-                        if (isToday) {
+                        if (isToday || document.body.classList.contains('teacher-school-mode')) {
                             // Today: Allow taking attendance
                             renderStudentList(true);
-                            
-                            // Hide attendance summary
-                            const attendanceSummary = document.getElementById('attendanceSummary');
-                            attendanceSummary.style.display = 'none';
-                            
-                            // Show submit button
                             submitAttendancePopupBtn.style.display = 'block';
+                            submitAttendancePopupBtn.innerHTML = '<i class="fas fa-save"></i> Submit Attendance';
                         } else {
                             // Past date: Show empty state
                             popupStudentList.innerHTML = `
@@ -5414,10 +5459,6 @@
                                 </div>
                             `;
                             popupStudentList.style.display = 'block';
-                            
-                            // Hide summary and submit button
-                            const attendanceSummary = document.getElementById('attendanceSummary');
-                            attendanceSummary.style.display = 'none';
                             submitAttendancePopupBtn.style.display = 'none';
                         }
                     }
@@ -5470,6 +5511,18 @@
                     btn.classList.remove('active');
                 }
             });
+            
+            // Persist to local storage draft ONLY - NO individual database call!
+            if (currentTeacher && currentTeacher.schoolId && currentClassData) {
+                const dateVal = document.getElementById('popupAttendanceDate')?.value || document.getElementById('attendanceDate')?.value;
+                const selectedDate = dateVal ? formatDateForDatabase(dateVal) : formatDateForDatabase(new Date());
+                const draftKey = `rc_draft_${currentTeacher.schoolId}_${currentClassData.id}_${selectedDate}`;
+                try {
+                    localStorage.setItem(draftKey, JSON.stringify(attendanceData));
+                } catch (e) {
+                    console.warn('Could not save draft to localStorage', e);
+                }
+            }
             
             // Find the row to animate
             const row = buttons[0]?.closest('.student-row');
@@ -5562,25 +5615,6 @@
             confirmSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
             confirmSubmitBtn.disabled = true;
             
-            // Construct Firebase reference
-            const attendanceRef = firebase.database().ref(`attendance_by_location/${currentClassData.id}/${selectedDate}`);
-            
-            // First, check if attendance is already submitted
-            attendanceRef.once('value')
-                .then((snapshot) => {
-                    if (snapshot.exists()) {
-                        // Attendance already submitted for this class and date
-                        console.error('SUBMISSION FAILED: Attendance already submitted');
-                        showAlert(attendanceAlert, '<i class="fas fa-exclamation-triangle"></i> Attendance already submitted for this class and date', 'error');
-                        
-                        // Reset button state
-                        confirmSubmitBtn.innerHTML = originalBtnText;
-                        confirmSubmitBtn.disabled = false;
-                        confirmationPopup.style.display = 'none';
-                        
-                        return Promise.reject('already_submitted');
-                    }
-            
             // Add metadata to attendance
             const attendanceWithMeta = {
                 ...attendanceData,
@@ -5608,14 +5642,22 @@
                 }
             });
             
-                    // Submit attendance
-                    return attendanceRef.set(attendanceWithMeta);
-                })
+            // Construct Firebase reference
+            const attendanceRef = firebase.database().ref(`attendance_by_location/${currentClassData.id}/${selectedDate}`);
+            
+            // Submit attendance (allows updating anytime during the day)
+            attendanceRef.set(attendanceWithMeta)
                 .then(() => {
                     showAlert(attendanceAlert, '<i class="fas fa-check-circle"></i> Attendance submitted successfully!', 'success');
                     confirmSubmitBtn.innerHTML = originalBtnText;
                     confirmSubmitBtn.disabled = false;
                     confirmationPopup.style.display = 'none';
+                    
+                    // Clear local storage draft
+                    if (currentTeacher?.schoolId && currentClassData) {
+                        const draftKey = `rc_draft_${currentTeacher.schoolId}_${currentClassData.id}_${selectedDate}`;
+                        try { localStorage.removeItem(draftKey); } catch (e) {}
+                    }
                     
                     // Store the submitted attendance data
                     submittedAttendances[currentClassData.id] = attendanceWithMeta;
@@ -5624,9 +5666,6 @@
                     viewSubmittedAttendance(currentClassData);
                 })
                 .catch((error) => {
-                    // Skip already handled errors
-                    if (error === 'already_submitted') return;
-                    
                     console.error('Error submitting attendance:', error);
                     showAlert(attendanceAlert, '<i class="fas fa-exclamation-circle"></i> Error submitting attendance: ' + error.message, 'error');
                     confirmSubmitBtn.innerHTML = originalBtnText;
@@ -5805,14 +5844,25 @@
             
             console.log('Loading all students for attendance marking');
             
-            // Load all students from the database
+            // Load students from the database with class/section filtering for school mode
             firebase.database().ref('schoolUsers/' + currentTeacher.schoolId).once('value')
                 .then((snapshot) => {
                     students = [];
                     if (snapshot.exists()) {
+                        const targetSection = currentClassData?.section ? String(currentClassData.section).trim().replace(/^section\s+/i, '').toLowerCase() : '';
+                        const targetClassId = currentClassData?.classId ? String(currentClassData.classId).trim() : '';
+
                         snapshot.forEach((childSnapshot) => {
                             const student = childSnapshot.val();
                             student.id = childSnapshot.key;
+                            if (student.role && student.role !== 'student') return;
+
+                            if (targetSection) {
+                                const sSec = String(student.section || '').trim().replace(/^section\s+/i, '').toLowerCase();
+                                if (sSec && sSec !== targetSection) return;
+                            }
+                            if (targetClassId && student.classId && String(student.classId) !== targetClassId) return;
+
                             students.push(student);
                         });
                     }
@@ -6061,7 +6111,7 @@
             popupAttendanceDate.value = formattedDate;
             popupAttendanceDate.max = formattedDate; // Can't select future dates
             
-            if (submittedAttendance) {
+            if (submittedAttendance && !document.body.classList.contains('teacher-school-mode')) {
                 // View mode: Show submitted attendance
                 popupStudentList.style.display = 'block';
                 attendanceSummary.style.display = 'flex';
@@ -6070,10 +6120,11 @@
                 // Display submitted attendance
                 displaySubmittedAttendance(classData.id);
             } else {
-                // Take attendance mode
+                // Take/Edit attendance mode
                 popupStudentList.style.display = 'none';
                 attendanceSummary.style.display = 'none';
                 submitAttendancePopupBtn.style.display = 'block';
+                submitAttendancePopupBtn.innerHTML = submittedAttendance ? '<i class="fas fa-save"></i> Update Attendance' : '<i class="fas fa-save"></i> Submit Attendance';
                 
                 // Load students for attendance marking
                 loadStudentsForClass(classData.id);

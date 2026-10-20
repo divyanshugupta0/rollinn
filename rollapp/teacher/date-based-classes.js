@@ -101,6 +101,12 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
         
+        if (typeof window.isSchoolModeActive === 'function' && window.isSchoolModeActive()) {
+            if (typeof window.loadSchoolClassCards === 'function') {
+                return window.loadSchoolClassCards(formattedDate);
+            }
+        }
+        
         // Load locations from Firebase
         if (typeof currentTeacher === 'undefined' || !currentTeacher || !currentTeacher.schoolId) { if (locationsContainer) locationsContainer.innerHTML = '<div class="empty-state">Assign a school to this teacher account.</div>'; return; }
         firebase.database().ref(`schoolLocations/${currentTeacher.schoolId}`).once('value')
@@ -507,6 +513,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Helper functions for attendance actions
     function modifyAttendanceForLocation(locationId) {
+        if (window._teacherClassCardsMap && window._teacherClassCardsMap[locationId]) {
+            if (typeof window.openSchoolClassAttendance === 'function') {
+                return window.openSchoolClassAttendance(locationId, true);
+            }
+        }
         const selectedDate = document.getElementById('attendanceFilterDate')?.value || formatDateForDatabase(new Date());
         
         // Load location data
@@ -570,6 +581,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function viewAttendanceForLocation(locationId) {
+        if (window._teacherClassCardsMap && window._teacherClassCardsMap[locationId]) {
+            if (typeof window.openSchoolClassAttendance === 'function') {
+                return window.openSchoolClassAttendance(locationId, false);
+            }
+        }
         const selectedDate = document.getElementById('attendanceFilterDate')?.value || formatDateForDatabase(new Date());
         
         // Load location data

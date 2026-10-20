@@ -3,6 +3,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Override renderLocationsWithAttendanceStatus function
     const originalRenderLocationsWithAttendanceStatus = window.renderLocationsWithAttendanceStatus;
     window.renderLocationsWithAttendanceStatus = function(locations, submittedAttendances) {
+        if (typeof window.isSchoolModeActive === 'function' && window.isSchoolModeActive()) {
+            if (window._teacherClassCards && window._teacherClassCards.length > 0 && typeof window.renderSchoolClassCards === 'function') {
+                return window.renderSchoolClassCards(window._teacherClassCards, submittedAttendances);
+            }
+        }
         const locationsContainer = document.getElementById('locationsContainer');
         if (!locationsContainer) return;
         

@@ -95,6 +95,11 @@
         if (!id) return;
         if (status === 'unmarked') delete attendanceData[id];
         else attendanceData[id] = status;
+        if (currentTeacher && currentTeacher.schoolId && currentClassData) {
+            const date = formatDateForDatabase(document.getElementById('popupAttendanceDate')?.value || new Date());
+            const draftKey = `rc_draft_${currentTeacher.schoolId}_${currentClassData.id}_${date}`;
+            try { localStorage.setItem(draftKey, JSON.stringify(attendanceData)); } catch (e) {}
+        }
         refreshRows();
     }
     function visibleIds() {
@@ -181,11 +186,17 @@
         }
         try {
             const date = formatDateForDatabase(popupAttendanceDate.value);
-            const [classSnap, peopleSnap, savedSnap, draftSnap] = await Promise.all([
+            const draftKey = `rc_draft_${currentTeacher.schoolId}_${classId}_${date}`;
+            let localDraft = null;
+            try {
+                const raw = localStorage.getItem(draftKey);
+                if (raw) localDraft = JSON.parse(raw);
+            } catch (e) {}
+
+            const [classSnap, peopleSnap, savedSnap] = await Promise.all([
                 firebase.database().ref('classes/' + classId).once('value'),
                 firebase.database().ref(`schoolUsers/${currentTeacher.schoolId}`).once('value'),
-                sessionRef(classId, date).once('value'),
-                firebase.database().ref(`attendance_drafts/${classId}/${date}`).once('value')
+                sessionRef(classId, date).once('value')
             ]);
             const classRecord = classSnap.val() || (currentClassData && currentClassData.locationData) || currentClassData || {};
             if (classRecord.schoolId && classRecord.schoolId !== currentTeacher.schoolId) throw new Error('This class belongs to another school.');
@@ -196,14 +207,16 @@
                 person.id = person.id || child.key;
                 if (classMatchesStudent(person, Object.assign({ id: classId }, classRecord))) students.push(person);
             });
-            const saved = (savedSnap.exists() ? savedSnap.val() : draftSnap.val()) || {};
+            const saved = (localDraft || (savedSnap.exists() ? savedSnap.val() : null)) || {};
             attendanceData = {};
             Object.keys(saved).forEach(key => { if (key !== '_meta') attendanceData[key] = saved[key]; });
-            window.rcSessionLocked = !!(savedSnap.exists() || (saved._meta && (['submitted', 'locked'].includes(saved._meta.state) || saved._meta.submitted === true)));
-            if (saved._meta && saved._meta.state === 'locked') showWorkspaceNotice('This attendance session is locked and read-only.', true);
-            else if (saved._meta && saved._meta.state === 'draft') showWorkspaceNotice('Saved draft restored. Continue marking and submit when ready.', false);
+            const isSchoolMode = document.body.classList.contains('teacher-school-mode') || currentTeacher?.isSchoolMode;
+            window.rcSessionLocked = isSchoolMode ? false : !!(savedSnap.exists() || (saved._meta && (['submitted', 'locked'].includes(saved._meta.state) || saved._meta.submitted === true)));
+            if (!isSchoolMode && saved._meta && saved._meta.state === 'locked') showWorkspaceNotice('This attendance session is locked and read-only.', true);
+            else if (localDraft) showWorkspaceNotice('Restored unsaved attendance draft from your device.', false);
+            else if (saved._meta && (saved._meta.state === 'submitted' || saved._meta.submitted === true)) showWorkspaceNotice('Showing saved attendance. You can edit and update anytime.', false);
             const lockButton = document.getElementById('rcLockSessionBtn');
-            if (lockButton) lockButton.hidden = !(saved._meta && (saved._meta.state === 'submitted' || saved._meta.submitted === true) && saved._meta.state !== 'locked');
+            if (lockButton) lockButton.hidden = isSchoolMode || !(saved._meta && (saved._meta.state === 'submitted' || saved._meta.submitted === true) && saved._meta.state !== 'locked');
             renderRoster(!window.rcSessionLocked && popupAttendanceDate.value === formatDateForDatabase(new Date()));
         } catch (error) {
             students = [];
@@ -214,11 +227,11 @@
     async function saveDraft() {
         if (!currentTeacher || !currentTeacher.schoolId || !currentClassData || !students.length) return showWorkspaceNotice('A school, class, and enrolled roster are required before saving.', true);
         const date = formatDateForDatabase(popupAttendanceDate.value);
-        const record = Object.assign({}, attendanceData, { _meta: { classId: currentClassData.id, schoolId: currentTeacher.schoolId, date, state: 'draft', updatedAt: Date.now(), updatedBy: currentTeacher.id } });
+        const draftKey = `rc_draft_${currentTeacher.schoolId}_${currentClassData.id}_${date}`;
         try {
-            await firebase.database().ref(`attendance_drafts/${currentClassData.id}/${date}`).set(record);
-            showWorkspaceNotice('Draft saved. It is not submitted and will not be counted as final attendance.', false);
-        } catch (error) { showWorkspaceNotice('Draft save failed: ' + (error.message || 'database error'), true); }
+            localStorage.setItem(draftKey, JSON.stringify(attendanceData));
+            showWorkspaceNotice('Draft saved locally on this device. Database is not updated until you submit.', false);
+        } catch (error) { showWorkspaceNotice('Draft save failed: ' + (error.message || 'storage error'), true); }
     }
     async function lockSession() {
         if (!currentTeacher || !currentTeacher.schoolId || !currentClassData) return showWorkspaceNotice('A school and class are required.', true);
@@ -252,10 +265,16 @@
         });
         payload._meta = { classId: currentClassData.id, className: currentClassData.name || currentClassData.className || '', locationId: currentClassData.id, schoolId: currentTeacher.schoolId, teacherId: currentTeacher.id, teacherName: currentTeacher.name || currentTeacher.email || '', date, state: 'submitted', submitted: true, timestamp: Date.now(), stats: { total: students.length, present: students.filter(s => payload[s.id] === 'present').length, absent: students.filter(s => payload[s.id] === 'absent').length, late: students.filter(s => payload[s.id] === 'late').length, excused: students.filter(s => ['excused', 'onDuty'].includes(payload[s.id])).length, unmarked: students.filter(s => payload[s.id] === 'unmarked').length } };
         const ref = sessionRef(currentClassData.id, date);
-        const result = await ref.transaction(existing => existing === null ? payload : undefined, undefined, false);
-        if (!result.committed) throw new Error('An attendance session already exists for this class and date. Open it to review; do not overwrite it.');
+        await ref.set(payload);
+        try {
+            await firebase.database().ref(`attendance/${currentTeacher.schoolId}/${currentClassData.id}/${date}`).set(payload);
+        } catch (e) {}
+        // Clear draft from local storage on successful submit
+        const draftKey = `rc_draft_${currentTeacher.schoolId}_${currentClassData.id}_${date}`;
+        try { localStorage.removeItem(draftKey); } catch (e) {}
         try { await firebase.database().ref(`attendance_audit/${currentClassData.id}/${date}`).push({ action: 'submitted', actorId: currentTeacher.id, schoolId: currentTeacher.schoolId, timestamp: Date.now(), sessionState: 'submitted' }); }
-        catch (auditError) { console.error('Attendance saved, but the client audit record failed:', auditError); showWorkspaceNotice('Attendance saved, but its audit event could not be written. Contact your administrator.', true); }
+        catch (auditError) { console.error('Attendance saved, but the client audit record failed:', auditError); }
+        showWorkspaceNotice('Attendance saved successfully to database and local draft cleared.', false);
         return payload;
     }
 

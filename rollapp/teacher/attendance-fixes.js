@@ -45,6 +45,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             }
             
+            if (typeof window.isSchoolModeActive === 'function' && window.isSchoolModeActive()) {
+                if (typeof window.loadSchoolClassCards === 'function') {
+                    return window.loadSchoolClassCards(formatDateForDatabase(new Date(selectedDate)));
+                }
+            }
+            
             // Load locations from Firebase
             firebase.database().ref('locations').once('value')
                 .then((snapshot) => {
