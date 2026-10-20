@@ -27,7 +27,10 @@ const variables = {
 };
 
 const config = Object.fromEntries(Object.entries(variables)
-  .map(([key, envName]) => [key, process.env[envName]?.trim() || localEnv[envName] || ''])
+  .map(([key, envName]) => [
+    key,
+    process.env[envName]?.trim() || localEnv[envName] || ''
+  ])
   .filter(([, value]) => value));
 
 config.profileUploadWorkerUrl = process.env.PROFILE_UPLOAD_WORKER_URL?.trim() ||

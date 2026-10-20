@@ -19,19 +19,24 @@ Set the following variables in the build environment for production and preview 
 | `PROFILE_UPLOAD_WORKER_URL` | For profile uploads | HTTPS URL of the deployed profile-upload Worker |
 | `PROFILE_PHOTO_PUBLIC_BASE_URL` | For profile uploads | HTTPS custom domain serving the R2 profile-photo bucket |
 
-Run the build from the `RollCall WebApp` directory:
+Run the build from the repository root or the `RollCall WebApp` directory:
 
 ```sh
+# From the repository root
+npm run build
+
+# Or from RollCall WebApp
 npm run build
 ```
 
-The build command is `node scripts/generate-firebase-config.mjs`. It writes the runtime file into `auth/`; that generated file is ignored by Git and must be regenerated for each deployment.
+The repository-root build forwards to `RollCall WebApp`; the underlying command is `node scripts/generate-firebase-config.mjs`. It writes `RollCall WebApp/auth/firebase-config.runtime.js`, which must be generated before deployment because it is ignored by Git. Firebase settings come from the documented `FIREBASE_*` build environment variables, with `.env.local` used only for local development; no Firebase settings are hardcoded in the generator.
 
 ## Cloudflare Pages
 
 - Set the project root or base directory to `RollCall WebApp`.
 - Set the build command to `npm run build`.
 - Set the output directory to `.`.
+- If the project root/base directory is the repository root instead, use the repository-root `npm run build` script and set the output directory to `.`.
 - Add the `FIREBASE_*` values under the Pages build environment variables for production and preview as needed.
 - Profile images are uploaded through the authenticated Cloudflare Worker in `cloudflare/profile-upload-worker`; client-visible Firebase R2 endpoint, token, and access-key settings are no longer used by these upload flows.
 - Owner school registration creates the administrator in Firebase Authentication and links the account to `users/{uid}`, `schoolAdmins/{schoolId}`, and the school record. The administrator email must not already belong to another Firebase Authentication account.
@@ -42,6 +47,7 @@ The build command is `node scripts/generate-firebase-config.mjs`. It writes the 
 - Set the base directory to `RollCall WebApp`.
 - Set the build command to `npm run build`.
 - Set the publish directory to `.`.
+- If deploying from the repository root, use the root `npm run build` script and publish `.`.
 - Add the `FIREBASE_*` values in the site's environment variables, with build scope enabled.
 
 Firebase web configuration is delivered to browsers and is public by design. Do not put service account keys, Admin SDK credentials, or other server secrets in these variables. Protect data with Firebase Authentication and Realtime Database/Storage security rules.
