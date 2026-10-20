@@ -2,6 +2,33 @@
     const MAX_BYTES = 2 * 1024 * 1024;
     const allowedTypes = new Set(['image/webp', 'image/jpeg', 'image/png']);
 
+    function getWorkerUrls(config) {
+        let scriptUrl;
+        for (const script of document.scripts) {
+            try {
+                const candidate = new URL(script.src, window.location.href);
+                if (candidate.pathname.replace(/\/+$/, '') === '/firebase-config') {
+                    scriptUrl = candidate;
+                    break;
+                }
+            } catch (error) {
+                continue;
+            }
+        }
+
+        const inferredWorkerUrl = scriptUrl?.protocol === 'https:'
+            ? `${scriptUrl.origin}/`
+            : '';
+        const inferredPublicBaseUrl = scriptUrl?.protocol === 'https:'
+            ? `${scriptUrl.origin}/file`
+            : '';
+
+        return {
+            endpoint: String(config.profileUploadWorkerUrl || inferredWorkerUrl).trim(),
+            publicBaseUrl: String(config.profilePhotoPublicBaseUrl || inferredPublicBaseUrl).trim()
+        };
+    }
+
     async function upload(blob, user) {
         if (!(blob instanceof Blob) || blob.size === 0 || blob.size > MAX_BYTES) {
             throw new Error('Choose an image smaller than 2 MB.');
@@ -12,10 +39,8 @@
         if (!user || typeof user.getIdToken !== 'function') {
             throw new Error('Your sign-in session has expired. Sign in again.');
         }
-
         const config = window.ROLLCALL_FIREBASE_CONFIG || {};
-        const endpoint = String(config.profileUploadWorkerUrl || '').trim();
-        const publicBaseUrl = String(config.profilePhotoPublicBaseUrl || '').trim();
+        const { endpoint, publicBaseUrl } = getWorkerUrls(config);
         if (!endpoint || !publicBaseUrl) {
             throw new Error('The secure profile-photo upload service is not configured.');
         }
