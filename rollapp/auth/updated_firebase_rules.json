@@ -2,145 +2,324 @@
   "rules": {
     ".read": "auth != null",
     ".write": "auth != null",
+
+    "schools": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": ["code", "ownerId", "status"],
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "publicSchools": {
+      ".read": true,
+      ".write": "auth != null",
+      ".indexOn": ["code", "status", "subscriptionEndDate"]
+    },
+
+    "publicCourseCatalog": {
+      ".read": true,
+      "$schoolId": {
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)"
+      }
+    },
+
+    "schoolAdmins": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": ["email", "username", "schoolId"]
+    },
+
+    "schoolCodeReservations": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$code": {
+        ".validate": "newData.val() == null || (newData.hasChildren(['createdAt', 'ownerId']) && newData.child('createdAt').isString() && newData.child('ownerId').isString())"
+      }
+    },
+
+    "owners": {
+      "$ownerUid": {
+        ".read": "auth != null && auth.uid === $ownerUid",
+        ".write": "auth != null && auth.uid === $ownerUid"
+      }
+    },
+
     "users": {
       ".read": true,
       ".write": "auth != null",
-      "$uid": {
-        "faceDescriptor": {
-          ".write": true
-        }
-      },
       ".indexOn": [
         "email",
         "classRoll",
         "univRoll",
         "section",
         "role",
-        "schoolId"
-      ]
-    },
-    "publicCourseCatalog": {
-      ".read": true,
-      "$schoolId": {
-        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && (root.child('users').child(auth.uid).child('schoolId').val() === $schoolId || auth.uid === $schoolId)"
+        "schoolId",
+        "dob",
+        "dateOfBirth"
+      ],
+      "$uid": {
+        ".read": true,
+        ".write": "auth != null",
+        "faceDescriptor": {
+          ".write": true
+        }
       }
     },
-    "schools": {
-      ".indexOn": ["code"]
+
+    "schoolUsers": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": [
+          "email",
+          "role",
+          "section",
+          "classRoll",
+          "univRoll",
+          "dob",
+          "dateOfBirth"
+        ]
+      }
     },
-    "publicSchools": {
-      ".read": true,
-      ".write": "auth != null"
-    },
-    "deviceLogins": {
+
+    "schoolClasses": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-    "deviceLocks": {
-      ".read": true,
-      ".write": "auth != null"
-    },
-    "deviceFingerprintLocks": {
-      ".read": true,
-      ".write": "auth != null"
-    },
-    "userLocks": {
+
+    "schoolLocations": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
+
+    "schoolCourses": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "schoolTimetables": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "schoolTimetablesVersion": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "schoolTimetableSettings": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "timetables": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "classTeacherAssignments": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "classTeacherAssignmentsByClass": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "subjectTeacherAssignments": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "classTeacherProfileRequests": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "classTeacherLeaveRequests": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "teacher_leave_requests": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$schoolId": {
+        ".indexOn": ["teacherId", "status", "createdAt"]
+      }
+    },
+
+    "leave_requests": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$studentId": {
+        ".indexOn": ["status", "timestamp", "createdAt"]
+      }
+    },
+
     "attendance": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
+
     "user_attendance": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
+
     "attendance_by_location": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
+
+    "attendance_drafts": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "attendance_audit": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
     "locations": {
       ".read": "auth != null",
       ".write": "auth != null",
+      ".indexOn": ["section", "expiresAt", "active"],
       "$locationId": {
         "coordinates": {
           ".read": "auth != null",
           ".write": "auth != null || (newData.child('token').isString() && root.child('locationRequests').child(newData.child('token').val()).exists())"
         }
-      },
-      ".indexOn": [
-        "section",
-        "expiresAt",
-        "active"
-      ]
+      }
     },
+
     "locationRequests": {
       ".read": true,
       ".write": true
     },
+
+    "displayed_classes": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+
+    "deviceLogins": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "deviceLocks": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+
+    "deviceFingerprintLocks": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+
+    "userLocks": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "userSessions": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "device_unlock_requests": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "blockedUsers": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+
+    "faceRegistrationTokens": {
+      ".read": true,
+      ".write": true
+    },
+
     "notifications": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": [
-        "timestamp",
-        "recipients"
-      ]
+      ".indexOn": ["timestamp", "recipients"]
     },
+
     "passwordResetRequests": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": [
-        "email",
-        "status",
-        "timestamp"
-      ]
+      ".indexOn": ["email", "status", "timestamp"]
     },
+
     "profileRequests": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": [
-        "timestamp",
-        "status",
-        "userId"
-      ]
+      ".indexOn": ["timestamp", "status", "userId"]
     },
+
     "profile_update_requests": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": [
-        "ownerId",
-        "schoolId",
-        "status",
-        "timestamp"
-      ]
+      ".indexOn": ["ownerId", "schoolId", "status", "timestamp"]
     },
+
     "modificationRequests": {
       ".read": true,
       ".write": "auth != null",
-      ".indexOn": [
-        "timestamp",
-        "status",
-        "teacherId"
-      ]
+      ".indexOn": ["timestamp", "status", "teacherId"]
     },
+
+    "subscriptionExpiryOverlayCounts": {
+      "$schoolId": {
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)",
+          ".write": "auth != null && auth.uid === $uid && root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'teacher')"
+        }
+      }
+    },
+
+    "subscriptionResubscribeRequests": {
+      "$schoolId": {
+        "$requesterUid": {
+          ".read": "auth != null && (auth.uid === $requesterUid || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)",
+          ".write": "auth != null && ((auth.uid === $requesterUid && root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'teacher')) || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)"
+        }
+      }
+    },
+
     "schoolSettings": {
       "$schoolId": {
         ".read": "auth != null && (root.child('users').child(auth.uid).child('schoolId').val() === $schoolId || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)",
         ".write": "auth != null && (root.child('users').child(auth.uid).child('schoolId').val() === $schoolId || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)",
         ".validate": "newData.hasChildren(['schoolId']) && newData.child('schoolId').val() === $schoolId",
-        ".indexOn": [
-          "securityPinSetAt"
-        ]
+        ".indexOn": ["securityPinSetAt"]
       }
     },
+
     "accessibility_settings": {
       ".read": true,
       ".write": "auth != null"
     },
-    "faceRegistrationTokens": {
-      ".read": true,
-      ".write": true
+
+    "cloudflare_r2": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "cloudflare_endpoint": {
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
 }
