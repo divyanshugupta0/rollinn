@@ -220,10 +220,14 @@ function initializeClassTeacherRequests() {
     nav.addEventListener('click', event=>{
         if (!event.target.closest('[data-section="class-teacher-requests"]')) return;
         event.preventDefault();
-        document.querySelectorAll('.main-content .section-container').forEach(section=>{
-            const active=section===panel; section.classList.toggle('active',active); section.style.display=active?'block':'none'; section.setAttribute('aria-hidden',String(!active));
-        });
-        document.querySelectorAll('.sidebar-menu .menu-item').forEach(item=>{const active=item===nav;item.classList.toggle('active',active);if(active)item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');});
+        if (typeof window.switchTeacherSection === 'function') {
+            window.switchTeacherSection('class-teacher-requests');
+        } else {
+            document.querySelectorAll('.main-content .section-container').forEach(section=>{
+                const active=section===panel; section.classList.toggle('active',active); section.style.display=active?'block':'none'; section.setAttribute('aria-hidden',String(!active));
+            });
+            document.querySelectorAll('.sidebar-menu .menu-item').forEach(item=>{const active=item===nav;item.classList.toggle('active',active);if(active)item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');});
+        }
         load(firebase.auth().currentUser);
     });
     select.addEventListener('change',render);

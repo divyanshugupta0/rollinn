@@ -32,8 +32,15 @@
         item.classList.toggle('active', active);
         if (active) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
       });
-    };
-    nav.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); show(panel); });
+    nav.addEventListener('click', event => {
+        event.preventDefault();
+        if (typeof window.switchTeacherSection === 'function') {
+            window.switchTeacherSection('teacherLeaveRequests');
+            return;
+        }
+        event.stopPropagation();
+        show(panel);
+    });
     const db = firebase.database();
     const status = document.getElementById('tlrAlert');
     let uid = '', schoolId = '', teacherProfile = {};

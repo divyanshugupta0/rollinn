@@ -4566,6 +4566,12 @@
                         attendanceMarkingContainer.style.display = 'none';
                         viewSubmittedContainer.style.display = 'none';
                         console.log('Teacher authenticated:', user.email);
+
+                        const initialSection = (window.location.hash || '').replace(/^#/, '') || window._pendingTeacherSection || 'dashboard';
+                        if (typeof window.switchTeacherSection === 'function') {
+                            window.switchTeacherSection(initialSection, { updateUrl: false });
+                        }
+
                         ensureTeacherDob(user, profile).catch(err => console.error('Error ensuring teacher DOB:', err));
                         window.RollCallSubscriptionExpiry.showStaffExpiryOverlay({
                             user,
@@ -4609,6 +4615,13 @@
                 attendanceContainer.style.display = 'none';
                 currentTeacher = null;
                 students = [];
+                if (window.location.hash) {
+                    try {
+                        history.replaceState(null, '', window.location.pathname);
+                    } catch (e) {
+                        window.location.hash = '';
+                    }
+                }
             }
         });
         
@@ -6548,6 +6561,10 @@
             }
 
             function openPanel(section) {
+                if (typeof window.switchTeacherSection === 'function') {
+                    window.switchTeacherSection(section, { updateUrl: true });
+                    return;
+                }
                 document.querySelector('.sidebar-menu .menu-item[data-section="' + section + '"]')?.click();
             }
             document.getElementById('quickViewClassesBtn')?.addEventListener('click', () => openPanel('classes'));

@@ -22,6 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (menu) menu.addEventListener('click', event => {
         event.preventDefault();
+        if (typeof window.switchTeacherSection === 'function') {
+            window.switchTeacherSection('students');
+            return;
+        }
         document.querySelectorAll('.main-content .section-container').forEach(panel => {
             const active = panel === section;
             panel.classList.toggle('active', active);

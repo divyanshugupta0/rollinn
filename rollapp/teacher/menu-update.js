@@ -33,7 +33,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Add click event listener
-        timetableMenuItem.addEventListener('click', function() {
+        timetableMenuItem.addEventListener('click', function(e) {
+            if (typeof window.switchTeacherSection === 'function') {
+                e.preventDefault();
+                window.switchTeacherSection('timetable');
+                return;
+            }
             // Update active menu item
             document.querySelectorAll('.menu-item').forEach(item => {
                 item.classList.remove('active');
@@ -43,11 +48,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show timetable section
             document.querySelectorAll('.section-container').forEach(section => {
                 section.classList.remove('active');
+                section.style.display = 'none';
             });
             
             const timetableSection = document.getElementById('timetableSection');
             if (timetableSection) {
                 timetableSection.classList.add('active');
+                timetableSection.style.display = 'block';
             }
         });
     }
