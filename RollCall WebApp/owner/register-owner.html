@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Temporary Owner Setup · RollCall</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1d3026; background: #f1f5f2; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; background: radial-gradient(ellipse at top left, #e4f1e7 0, transparent 40%), #f1f5f2; }
+    .setup-card { width: min(100%, 520px); padding: clamp(25px, 6vw, 44px); border: 1px solid #dfe9e1; border-radius: 22px; background: #fff; box-shadow: 0 24px 70px rgba(26, 58, 39, .11); }
+    .brand { display: flex; align-items: center; gap: 13px; margin-bottom: 30px; }
+    .brand-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 15px; color: #176b4d; background: #eaf5ec; font-size: 20px; }
+    .brand strong, .brand small { display: block; }
+    .brand strong { font-size: 17px; letter-spacing: -.03em; }
+    .brand small { margin-top: 3px; color: #718078; font-size: 10px; font-weight: 800; letter-spacing: .13em; }
+    .eyebrow { color: #176b4d; font-size: 10px; font-weight: 800; letter-spacing: .16em; }
+    h1 { margin: 9px 0 8px; font-size: clamp(27px, 6vw, 34px); letter-spacing: -.05em; }
+    .intro { margin: 0 0 24px; color: #68786e; font-size: 14px; line-height: 1.65; }
+    .warning { display: flex; gap: 11px; margin: 0 0 23px; padding: 13px; border: 1px solid #f0dfb7; border-radius: 12px; color: #765317; background: #fff9eb; font-size: 12px; line-height: 1.5; }
+    .warning i { margin-top: 2px; }
+    label { display: block; margin: 16px 0 7px; color: #34483c; font-size: 12px; font-weight: 700; }
+    input { width: 100%; min-height: 48px; padding: 0 13px; border: 1px solid #d8e3db; border-radius: 10px; color: #1d3026; background: #fcfdfc; font: inherit; font-size: 14px; outline: none; }
+    input:focus { border-color: #5a9a72; box-shadow: 0 0 0 3px rgba(49, 126, 77, .12); }
+    .password-hint { margin: 7px 0 0; color: #7a887f; font-size: 11px; }
+    .submit { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 50px; margin-top: 23px; border: 0; border-radius: 11px; color: #fff; background: #176b4d; font: inherit; font-size: 14px; font-weight: 750; cursor: pointer; }
+    .submit:hover { background: #10563d; }
+    .submit:disabled { cursor: wait; opacity: .65; }
+    .status { display: none; margin-top: 16px; padding: 12px 13px; border: 1px solid #d8e3db; border-radius: 10px; color: #42554a; background: #f4f8f5; font-size: 13px; line-height: 1.5; }
+    .status.visible { display: block; }
+    .status.error { border-color: #f0d4cf; color: #8a3832; background: #fff5f3; }
+    .status.success { border-color: #cbe5d1; color: #23623e; background: #f0f8f2; }
+    .footer { margin: 22px 0 0; text-align: center; color: #859188; font-size: 11px; }
+    .footer a { color: #176b4d; font-weight: 700; text-decoration: none; }
+    .blocked { display: none; padding: 13px; border: 1px solid #f0d4cf; border-radius: 12px; color: #8a3832; background: #fff5f3; font-size: 13px; line-height: 1.55; }
+    .blocked.visible { display: block; }
+    #registrationForm.hidden { display: none; }
+    @media (max-width: 480px) { body { padding: 0; background: #fff; } .setup-card { min-height: 100vh; border: 0; border-radius: 0; box-shadow: none; } }
+  </style>
+</head>
+<body>
+  <main class="setup-card">
+    <div class="brand"><span class="brand-icon"><i class="fa-solid fa-chalkboard-user" aria-hidden="true"></i></span><span><strong>RollCall</strong><small>PLATFORM OWNER SETUP</small></span></div>
+    <span class="eyebrow">ONE TIME LOCAL SETUP</span>
+    <h1>Create the platform owner</h1>
+    <p class="intro">Create the first owner account, or reconnect an existing owner profile to a Firebase Authentication account that is missing.</p>
+    <div class="warning"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>Local setup only. Reconnecting an owner profile changes its sign-in email but preserves its school and settings data. Remove this page after recovery.</span></div>
+    <div id="blockedMessage" class="blocked" role="alert"></div>
+    <form id="registrationForm">
+      <label for="ownerName">Owner name</label>
+      <input id="ownerName" name="name" autocomplete="name" required maxlength="100" placeholder="Full name">
+      <label for="ownerEmail">Owner email</label>
+      <input id="ownerEmail" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="owner@organization.com">
+      <label for="ownerPassword">Password</label>
+      <input id="ownerPassword" name="password" type="password" autocomplete="new-password" required minlength="12" placeholder="At least 12 characters">
+      <p class="password-hint">Use at least 12 characters and avoid reusing a school account password.</p>
+      <label for="ownerPasswordConfirm">Confirm password</label>
+      <input id="ownerPasswordConfirm" name="passwordConfirm" type="password" autocomplete="new-password" required minlength="12" placeholder="Re-enter password">
+      <button id="submitButton" class="submit" type="submit"><i class="fa-solid fa-user-shield" aria-hidden="true"></i> Register first owner</button>
+    </form>
+    <div id="setupStatus" class="status" role="status" aria-live="polite"></div>
+    <p class="footer"><a href="./owner.html">Return to owner sign in</a></p>
+  </main>
+
+  <script src="../auth/firebase-config.runtime.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script>
+    (() => {
+      const form = document.getElementById('registrationForm');
+      const submitButton = document.getElementById('submitButton');
+      const status = document.getElementById('setupStatus');
+      const blocked = document.getElementById('blockedMessage');
+      const allowedHosts = new Set(['localhost', '127.0.0.1', '[::1]']);
+      let bootstrapApp = null;
+
+      function setStatus(message, type = '') {
+        status.textContent = message;
+        status.className = `status visible ${type}`.trim();
+      }
+
+      function disableRegistration(message) {
+        blocked.textContent = message;
+        blocked.classList.add('visible');
+        form.classList.add('hidden');
+      }
+
+      async function initialize() {
+        if (!allowedHosts.has(location.hostname)) {
+          disableRegistration('Owner setup is available only from localhost. This registration page cannot be used on a public host.');
+          return;
+        }
+        const config = window.ROLLCALL_FIREBASE_CONFIG;
+        if (!config || typeof firebase === 'undefined') {
+          disableRegistration('Firebase is not configured for this local build. Set the FIREBASE_* values in .env.local and run npm run build from the RollCall WebApp folder.');
+          return;
+        }
+        try {
+          bootstrapApp = firebase.apps.find(app => app.name === 'ownerBootstrap') || firebase.initializeApp(config, 'ownerBootstrap');
+        } catch (error) {
+          console.error('Owner registration setup could not be initialized:', error);
+          disableRegistration(`Could not check whether owner setup is available: ${error.message}`);
+        }
+      }
+
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (!bootstrapApp || !allowedHosts.has(location.hostname)) return;
+        const name = document.getElementById('ownerName').value.trim();
+        const email = document.getElementById('ownerEmail').value.trim().toLowerCase();
+        const password = document.getElementById('ownerPassword').value;
+        const passwordConfirm = document.getElementById('ownerPasswordConfirm').value;
+        if (password.length < 12) { setStatus('Choose a password with at least 12 characters.', 'error'); return; }
+        if (password !== passwordConfirm) { setStatus('The passwords do not match.', 'error'); return; }
+
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Creating owner account…';
+        let user = null;
+        let profileSaved = false;
+        try {
+          const credential = await bootstrapApp.auth().createUserWithEmailAndPassword(email, password);
+          user = credential.user;
+          // Rules require authentication to read the owner directory.
+          const latestOwners = await bootstrapApp.database().ref('owners').once('value');
+          const owners = latestOwners.val() || {};
+          const ownerEntries = Object.entries(owners).filter(([, record]) => record && typeof record === 'object');
+          let matchingOrphans = ownerEntries.filter(([, record]) => String(record.email || '').trim().toLowerCase() === email);
+          if (ownerEntries.length > 0 && matchingOrphans.length === 0) {
+            if (ownerEntries.length === 1) {
+              const [storedUid, storedOwner] = ownerEntries[0];
+              const storedEmail = String(storedOwner.email || '(no email stored)');
+              const shouldReconnect = window.confirm(
+                `The existing owner profile is stored as “${storedEmail}”. You entered “${email}”.\n\nReconnect that single owner profile to the new account? Existing school and settings data will be preserved, and the owner sign-in email will become ${email}.`
+              );
+              if (!shouldReconnect) {
+                await user.delete();
+                user = null;
+                setStatus(`No changes made. The existing owner profile email is ${storedEmail}. Enter that address or confirm recovery.`, 'error');
+                return;
+              }
+              matchingOrphans = [[storedUid, storedOwner]];
+            } else {
+              const storedEmails = ownerEntries.map(([, record]) => String(record.email || '(no email stored)')).join(', ');
+              await user.delete();
+              user = null;
+              setStatus(`Several owner profiles exist (${storedEmails}). For safety, no profile was changed. Use the correct profile email or remove the stale owner records from Firebase Database first.`, 'error');
+              return;
+            }
+          }
+          await user.updateProfile({ displayName: name });
+          const priorOwner = matchingOrphans.length ? matchingOrphans[0][1] : {};
+          const priorOwnerKey = matchingOrphans.length ? matchingOrphans[0][0] : null;
+          const ownerRecord = {
+            ...priorOwner,
+            uid: user.uid,
+            name,
+            email,
+            role: 'owner',
+            platformRole: 'owner',
+            createdAt: priorOwner.createdAt || firebase.database.ServerValue.TIMESTAMP,
+            status: 'active'
+          };
+          const profileRecord = { uid: user.uid, name, email, role: 'owner', createdAt: new Date().toISOString() };
+          const updates = {};
+          updates[`owners/${user.uid}`] = ownerRecord;
+          updates[`users/${user.uid}`] = profileRecord;
+          if (priorOwnerKey && priorOwnerKey !== user.uid) updates[`owners/${priorOwnerKey}`] = null;
+          await bootstrapApp.database().ref().update(updates);
+          profileSaved = true;
+          await bootstrapApp.auth().signOut();
+          form.classList.add('hidden');
+          setStatus(priorOwnerKey
+            ? 'The existing owner profile was reconnected to the new Firebase Authentication account. Sign in through the owner portal with this email and password.'
+            : 'The first platform owner was registered successfully. You can now sign in through the owner portal.', 'success');
+        } catch (error) {
+          console.error('Owner registration failed:', error);
+          setStatus(`Owner registration failed: ${error.message}`, 'error');
+          if (user && !profileSaved) await user.delete().catch(() => {});
+          await bootstrapApp.auth().signOut().catch(() => {});
+        } finally {
+          submitButton.disabled = false;
+          submitButton.innerHTML = '<i class="fa-solid fa-user-shield" aria-hidden="true"></i> Register first owner';
+        }
+      });
+
+      initialize();
+    })();
+  </script>
+</body>
+</html>

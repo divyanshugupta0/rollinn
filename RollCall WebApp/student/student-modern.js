@@ -1,0 +1,2122 @@
+/* ==========================================================================
+   RollCall Student Portal - Realtime Firebase Controller
+   No Sample Data • All Data Loaded Directly from Firebase RTDB
+   ========================================================================== */
+
+(function () {
+    'use strict';
+
+    // State
+    const state = {
+        activeTab: 'tab-overview',
+        currentUser: null,
+        schoolType: '',
+        mobileAttendanceEnabled: false,
+        locations: {},
+        attendanceRecords: [],
+        subjectStats: {},
+        overallStats: { attended: 0, total: 0, percentage: 0 },
+        leaveRequests: []
+    };
+
+    // Initialize once DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+        initLiveClock();
+        initNavigationTabs();
+        initMobileSidebar();
+        initNotificationsDrawer();
+        initTodayScheduleControls();
+        initAnnouncementsControls();
+        initBunkCalculator();
+        initLeavePortal();
+        initDigitalIdCard();
+        initProfileAndSecurity();
+        initInlineForgotPassword();
+        interceptLegacyButtons();
+        observeUserSession();
+        loadFirebaseAnnouncements();
+    });
+
+    /* ==========================================================================
+       Live Clock & Date Ticker
+       ========================================================================== */
+    function initLiveClock() {
+        const timeEl = document.getElementById('live-clock-ticker');
+        const dateEl = document.getElementById('live-date-ticker');
+
+        function updateTime() {
+            const now = new Date();
+            if (timeEl) {
+                timeEl.innerText = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+            }
+            if (dateEl) {
+                dateEl.innerText = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            }
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+    }
+
+    /* ==========================================================================
+       Navigation Tabs (Segmented Pill Design & Mobile Sidebar)
+       ========================================================================== */
+    function initNavigationTabs() {
+        const tabBtns = document.querySelectorAll('.nav-tab-btn');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetTab = btn.getAttribute('data-tab');
+                if (targetTab) {
+                    switchTab(targetTab);
+                }
+            });
+        });
+
+        // Jump buttons
+        document.querySelectorAll('[data-jump-tab]').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.preventDefault();
+                const jump = el.getAttribute('data-jump-tab');
+                if (jump) switchTab(jump);
+            });
+        });
+    }
+
+    /* ==========================================================================
+       Mobile Navigation Sidebar Drawer
+       ========================================================================== */
+    function initMobileSidebar() {
+        const toggleBtn = document.getElementById('mobile-sidebar-toggle');
+        const closeBtn = document.getElementById('mobile-sidebar-close');
+        const drawer = document.getElementById('mobile-sidebar-drawer');
+        const backdrop = document.getElementById('mobile-sidebar-backdrop');
+        const navBtns = document.querySelectorAll('.mobile-sidebar-tab');
+        const logoutBtn = document.getElementById('mobile-sidebar-logout');
+
+        function openSidebar() {
+            if (drawer) drawer.classList.add('open');
+            if (backdrop) backdrop.classList.add('open');
+            document.body.classList.add('mobile-sidebar-active');
+        }
+
+        function closeSidebar() {
+            if (drawer) drawer.classList.remove('open');
+            if (backdrop) backdrop.classList.remove('open');
+            document.body.classList.remove('mobile-sidebar-active');
+        }
+
+        if (toggleBtn) toggleBtn.addEventListener('click', openSidebar);
+        if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
+        if (backdrop) backdrop.addEventListener('click', closeSidebar);
+
+        navBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetTab = btn.getAttribute('data-tab');
+                if (targetTab) {
+                    switchTab(targetTab);
+                    closeSidebar();
+                }
+            });
+        });
+
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                closeSidebar();
+                const mainLogout = document.getElementById('logout-btn');
+                if (mainLogout) mainLogout.click();
+            });
+        }
+    }
+
+    function switchTab(tabId) {
+        if (tabId === 'tab-attendance' && !state.mobileAttendanceEnabled) {
+            showModernToast('Mobile attendance is not available for school accounts.', 'info');
+            tabId = 'tab-overview';
+        }
+        if (tabId === 'tab-analytics' && state.schoolType === 'school') {
+            tabId = 'tab-overview';
+        }
+        state.activeTab = tabId;
+
+        // Update desktop nav buttons
+        document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+        });
+
+        // Update mobile sidebar buttons
+        document.querySelectorAll('.mobile-sidebar-tab').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+        });
+
+        // Update panels
+        document.querySelectorAll('.student-tab-panel').forEach(panel => {
+            panel.classList.toggle('active', panel.id === tabId);
+        });
+
+        // Trigger tab specific data load
+        if (tabId === 'tab-overview' || tabId === 'tab-home') {
+            loadFirebaseAnnouncements();
+        } else if (tabId === 'tab-history') {
+            if (typeof window.loadAttendanceHistory === 'function') {
+                window.loadAttendanceHistory();
+            }
+        } else if (tabId === 'tab-analytics') {
+            renderSubjectAnalytics();
+        } else if (tabId === 'tab-idcard') {
+            renderDigitalId();
+        } else if (tabId === 'tab-profile') {
+            renderProfileDetails();
+            if (typeof window.loadProfileData === 'function') {
+                window.loadProfileData();
+            }
+        }
+    }
+    window.switchStudentTab = switchTab;
+
+    /* ==========================================================================
+       Slide-out Notifications Drawer (Popup-Free)
+       ========================================================================== */
+    function initNotificationsDrawer() {
+        const drawer = document.getElementById('notifications-drawer');
+        const backdrop = document.getElementById('drawer-backdrop');
+        const bellBtn = document.getElementById('notifications-btn');
+        const closeBtn = document.getElementById('drawer-close-btn');
+
+        function openDrawer() {
+            if (drawer) drawer.classList.add('open');
+            if (backdrop) backdrop.classList.add('open');
+            loadFirebaseNotifications();
+        }
+
+        function closeDrawer() {
+            if (drawer) drawer.classList.remove('open');
+            if (backdrop) backdrop.classList.remove('open');
+        }
+
+        if (bellBtn) {
+            bellBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openDrawer();
+            });
+        }
+
+        if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+        if (backdrop) backdrop.addEventListener('click', closeDrawer);
+    }
+
+    /* ==========================================================================
+       Observe Firebase Auth & RTDB Session
+       ========================================================================== */
+    function observeUserSession() {
+        // Poll for window.currentUser or firebase.auth()
+        const checkInterval = setInterval(() => {
+            const user = window.currentUser || (window.firebase?.auth && firebase.auth().currentUser);
+            if (user) {
+                state.currentUser = user;
+                clearInterval(checkInterval);
+                initFirebaseDataSync(user);
+            }
+        }, 600);
+    }
+
+    function initFirebaseDataSync(user) {
+        if (!window.firebase?.database) return;
+        const db = firebase.database();
+        const uid = user.uid;
+
+        // 1. Sync User Profile from RTDB
+        db.ref(`users/${uid}`).on('value', (snap) => {
+            const userData = snap.val();
+            if (userData) {
+                state.currentUser = { ...state.currentUser, ...userData };
+                loadSchoolMode(state.currentUser);
+                updateHeaderProfile(state.currentUser);
+                renderDigitalId();
+                renderProfileDetails();
+            }
+        });
+
+        // 2. Sync Real Class Locations & Today's Schedule from RTDB
+        db.ref('locations').on('value', (snap) => {
+            state.locations = snap.val() || {};
+            renderTodayScheduleFromDB();
+            loadStudentAttendanceRecords();
+        });
+
+        // 3. Sync Attendance Records from RTDB
+        db.ref('attendance_by_location').on('value', (snap) => {
+            state.attendanceByLocation = snap.val() || {};
+            renderTodayScheduleFromDB();
+            loadStudentAttendanceRecords();
+        });
+
+        // 3b. Sync Today's User Attendance
+        const currentTodayKey = getTodayDateString();
+        db.ref(`user_attendance/${uid}/${currentTodayKey}`).on('value', (snap) => {
+            state.userAttendanceToday = snap.val() || {};
+            renderTodayScheduleFromDB();
+        });
+
+        // 4. Sync Leave Requests from RTDB
+        db.ref(`leave_requests/${uid}`).on('value', (snap) => {
+            const data = snap.val() || {};
+            state.leaveRequests = Object.keys(data).map(k => ({ id: k, ...data[k] }));
+            renderLeaveRequests();
+        });
+
+        // 5. Sync Announcements (Campus wide) from RTDB in real time
+        db.ref('announcements').on('value', () => loadFirebaseAnnouncements());
+
+        // 6. Sync Notifications from RTDB in real time
+        db.ref('notifications').on('value', () => loadFirebaseNotifications());
+        if (uid) {
+            db.ref(`notifications/${uid}`).on('value', () => loadFirebaseNotifications());
+        }
+
+        let schoolModeLoadPromise = null;
+        function loadSchoolMode(profile) {
+            const schoolId = String(profile?.schoolId || '').trim();
+            if (!schoolId || schoolModeLoadPromise) return schoolModeLoadPromise;
+            schoolModeLoadPromise = firebase.database().ref(`schools/${schoolId}/type`).once('value')
+                .then(snapshot => {
+                    state.schoolType = String(snapshot.val() || '').trim().toLowerCase();
+                    state.mobileAttendanceEnabled = state.schoolType !== 'school';
+                    const isSchoolMode = state.schoolType === 'school';
+                    document.body.classList.toggle('student-school-mode', isSchoolMode);
+                    document.documentElement.dataset.institutionType = state.schoolType || 'college';
+                    if (isSchoolMode && state.activeTab === 'tab-attendance') {
+                        switchTab('tab-overview');
+                    }
+                    if (isSchoolMode && state.activeTab === 'tab-analytics') {
+                        switchTab('tab-overview');
+                    }
+                    applyProfileInstitutionMode(isSchoolMode);
+                    renderTodayScheduleFromDB();
+                    renderDigitalId();
+                    renderProfileDetails();
+                })
+                .catch(error => {
+                    console.error('Could not determine the institution mode:', error);
+                    state.mobileAttendanceEnabled = false;
+                });
+            return schoolModeLoadPromise;
+        }
+        window.rollCallStudentMode = {
+            isMobileAttendanceEnabled: () => state.mobileAttendanceEnabled,
+            isSchoolMode: () => state.schoolType === 'school'
+        };
+    }
+
+    /* ==========================================================================
+       Header & Profile Updates
+       ========================================================================== */
+    function updateHeaderProfile(user) {
+        const nameEl = document.getElementById('user-name');
+        const heroNameEl = document.getElementById('hero-user-name');
+        const avatarEl = document.getElementById('user-profile-img');
+        const mobileNameEl = document.getElementById('mobile-sidebar-user-name');
+        const mobileAvatarEl = document.getElementById('mobile-sidebar-avatar');
+
+        if (nameEl && user.name) nameEl.innerText = user.name;
+        if (heroNameEl && user.name) heroNameEl.innerText = user.name;
+        if (mobileNameEl && user.name) mobileNameEl.innerText = user.name;
+        if (avatarEl && user.profilePhoto) avatarEl.src = user.profilePhoto;
+        if (mobileAvatarEl && user.profilePhoto) mobileAvatarEl.src = user.profilePhoto;
+    }
+
+    function applyProfileInstitutionMode(isSchoolMode) {
+        const setHidden = (id, hidden) => {
+            const element = document.getElementById(id);
+            if (element) element.hidden = hidden;
+        };
+
+        setHidden('prof-hero-univ-tag', isSchoolMode);
+        setHidden('prof-row-univ-roll', isSchoolMode);
+        setHidden('prof-row-dept', isSchoolMode);
+        setHidden('prof-row-batch', isSchoolMode);
+        setHidden('prof-row-eligibility', isSchoolMode);
+        setHidden('prof-hardware-security-card', isSchoolMode);
+        setHidden('prof-biometric-security-card', isSchoolMode);
+        setHidden('prof-edit-univ-roll-group', isSchoolMode);
+        setHidden('prof-edit-year-group', isSchoolMode);
+        setHidden('prof-edit-dept-group', isSchoolMode);
+        setHidden('prof-edit-batch-group', isSchoolMode);
+
+        const courseLabel = document.getElementById('prof-course-label');
+        const editCourseLabel = document.getElementById('prof-edit-course-label');
+        const academicCardTitle = document.querySelector('#prof-row-univ-roll')
+            ?.closest('.profile-detail-card')
+            ?.querySelector('.panel-header .panel-title');
+        if (courseLabel) courseLabel.innerHTML = `<i class="fas fa-book-open"></i> ${isSchoolMode ? 'Class' : 'Course / Program'}`;
+        if (editCourseLabel) editCourseLabel.innerHTML = `<i class="fas fa-book"></i> ${isSchoolMode ? 'Class' : 'Course / Program'}`;
+        if (academicCardTitle) academicCardTitle.innerHTML = `<i class="fas fa-graduation-cap"></i> ${isSchoolMode ? 'School Details' : 'Academic Credentials'}`;
+    }
+
+    /* ==========================================================================
+       Load Real Attendance & Compute Stats from RTDB (Zero Dummy Data)
+       ========================================================================== */
+    function loadStudentAttendanceRecords() {
+        if (!state.currentUser || !window.firebase?.database) return;
+        const db = firebase.database();
+        const uid = state.currentUser.uid;
+        const studentSection = (state.currentUser.section || '').trim().toLowerCase();
+
+        Promise.all([
+            db.ref('attendance_by_location').once('value'),
+            db.ref('locations').once('value')
+        ]).then(([attSnap, locSnap]) => {
+            const globalAtt = attSnap.val() || {};
+            const locations = locSnap.val() || {};
+
+            let totalConducted = 0;
+            let presentCount = 0;
+            const subjectMap = {};
+            const attendedDates = [];
+
+            // Process all locations matching student section
+            Object.keys(globalAtt).forEach(locId => {
+                const locDates = globalAtt[locId];
+                const locMeta = locations[locId] || { name: 'Class Session' };
+                const locSection = String(locMeta.section || '').trim().toLowerCase();
+
+                // Relevance check: same section or general
+                const isRelevant = !locSection || locSection === 'general' || locSection.includes(studentSection);
+
+                if (isRelevant) {
+                    const subjectTitle = locMeta.name || 'Subject Class';
+                    if (!subjectMap[subjectTitle]) {
+                        subjectMap[subjectTitle] = { attended: 0, total: 0, code: locMeta.subjectCode || '' };
+                    }
+
+                    Object.keys(locDates).forEach(dateStr => {
+                        const sessionAttendees = locDates[dateStr];
+                        totalConducted++;
+                        subjectMap[subjectTitle].total++;
+
+                        if (sessionAttendees && sessionAttendees[uid]) {
+                            presentCount++;
+                            subjectMap[subjectTitle].attended++;
+                            attendedDates.push(new Date(dateStr).getTime());
+                        }
+                    });
+                }
+            });
+
+            // Calculate overall percentage
+            const percentage = totalConducted > 0 ? Math.round((presentCount / totalConducted) * 100) : 0;
+            state.overallStats = { attended: presentCount, total: totalConducted, percentage };
+            state.subjectStats = subjectMap;
+
+            // Compute consecutive streak
+            attendedDates.sort((a, b) => b - a);
+            let streak = 0;
+            if (attendedDates.length > 0) {
+                streak = calculateStreak(attendedDates);
+            }
+
+            // Update KPI cards in Overview Tab
+            updateOverviewKPIs(presentCount, totalConducted, percentage, streak);
+            if (state.schoolType !== 'school') {
+                renderSubjectAnalytics();
+                updateBunkPredictorOptions();
+                renderProfileEligibility();
+            }
+        }).catch(err => {
+            console.error('Attendance sync error:', err);
+        });
+    }
+
+    function calculateStreak(dates) {
+        if (!dates || dates.length === 0) return 0;
+        let count = 1;
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        for (let i = 0; i < dates.length - 1; i++) {
+            const diff = Math.round((dates[i] - dates[i + 1]) / oneDayMs);
+            if (diff === 1) {
+                count++;
+            } else if (diff > 1) {
+                break;
+            }
+        }
+        return count;
+    }
+
+    function updateOverviewKPIs(attended, total, percentage, streak) {
+        const kpiAttended = document.getElementById('kpi-attended-classes');
+        const kpiTotal = document.getElementById('kpi-total-classes');
+        const gaugeText = document.getElementById('overview-gauge-text');
+        const gaugeCircle = document.getElementById('overview-gauge-circle');
+        const streakEl = document.getElementById('overview-streak-count');
+
+        if (kpiAttended) kpiAttended.innerText = `${percentage}%`;
+        if (kpiTotal) kpiTotal.innerText = `${attended} / ${total}`;
+        if (gaugeText) gaugeText.innerText = `${percentage}%`;
+        if (streakEl) streakEl.innerText = `${streak} Days`;
+
+        if (gaugeCircle) {
+            const circumference = 2 * Math.PI * 28;
+            const offset = circumference - (percentage / 100) * circumference;
+            gaugeCircle.style.strokeDashoffset = offset;
+        }
+    }
+
+    /* ==========================================================================
+       Today's Schedule Rendered from RTDB (Only Held or Added Today)
+       ========================================================================== */
+    function getTodayDateString(d = new Date()) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function isSameDateAsToday(dateVal) {
+        if (!dateVal) return false;
+        const d = (dateVal instanceof Date) ? dateVal : new Date(dateVal);
+        if (isNaN(d.getTime())) return false;
+        const today = new Date();
+        return d.getFullYear() === today.getFullYear() &&
+               d.getMonth() === today.getMonth() &&
+               d.getDate() === today.getDate();
+    }
+
+    function parseTimeToday(timeVal) {
+        if (!timeVal) return null;
+        if (typeof timeVal === 'number' && Number.isFinite(timeVal)) {
+            return new Date(timeVal);
+        }
+        if (typeof timeVal === 'string') {
+            const trimmed = timeVal.trim();
+            if (/^\d+$/.test(trimmed)) {
+                return new Date(Number(trimmed));
+            }
+            if (trimmed.includes('-') || trimmed.includes('/')) {
+                const parsed = new Date(trimmed);
+                if (!isNaN(parsed.getTime())) return parsed;
+            }
+            const match = trimmed.match(/^(\d{1,2}):(\d{2})(?:\s*([AP]M))?$/i);
+            if (match) {
+                let hours = parseInt(match[1], 10);
+                const minutes = parseInt(match[2], 10);
+                const meridian = match[3] ? match[3].toUpperCase() : null;
+                if (meridian === 'PM' && hours < 12) hours += 12;
+                if (meridian === 'AM' && hours === 12) hours = 0;
+                const d = new Date();
+                d.setHours(hours, minutes, 0, 0);
+                return d;
+            }
+        }
+        return null;
+    }
+
+    function isClassForToday(cls, todayStr) {
+        if (!cls) return false;
+
+        // 1. HELD TODAY: Attendance records exist for today in global records
+        const attByLoc = state.attendanceByLocation || {};
+        const locAttToday = attByLoc[cls.id]?.[todayStr];
+        if (locAttToday && Object.keys(locAttToday).length > 0) {
+            return true;
+        }
+
+        // Current student marked attendance today for this class
+        const uid = state.currentUser?.uid;
+        if (uid && state.userAttendanceToday?.[cls.id]) {
+            return true;
+        }
+        if (uid && locAttToday?.[uid]) {
+            return true;
+        }
+
+        // Explicitly held today according to date fields
+        if (cls.lastHeld && isSameDateAsToday(cls.lastHeld)) return true;
+        if (cls.heldAt && isSameDateAsToday(cls.heldAt)) return true;
+
+        // 2. ADDED TODAY: Class was added or scheduled for today
+        if (cls.createdAt && isSameDateAsToday(cls.createdAt)) return true;
+        if (cls.created_at && isSameDateAsToday(cls.created_at)) return true;
+        if (cls.addedAt && isSameDateAsToday(cls.addedAt)) return true;
+        if (cls.timestamp && isSameDateAsToday(cls.timestamp)) return true;
+        if (cls.activatedAt && isSameDateAsToday(cls.activatedAt)) return true;
+        if (cls.startedAt && isSameDateAsToday(cls.startedAt)) return true;
+        if (cls.updatedAt && isSameDateAsToday(cls.updatedAt) && (cls.status === 'active' || cls.isActive === true)) return true;
+
+        // Explicit schedule dates matching today
+        if (cls.date === todayStr || isSameDateAsToday(cls.date)) return true;
+        if (cls.scheduledDate === todayStr || isSameDateAsToday(cls.scheduledDate)) return true;
+        if (cls.startDate === todayStr || isSameDateAsToday(cls.startDate)) return true;
+        if (cls.scheduledStart && isSameDateAsToday(cls.scheduledStart)) return true;
+        if (cls.expiresAt && isSameDateAsToday(cls.expiresAt)) return true;
+
+        // Strictly false if not held today and not added today.
+        return false;
+    }
+
+    function isClassActiveNow(cls) {
+        if (!cls) return false;
+        // Explicitly inactive
+        if (cls.status === 'inactive' || cls.isActive === false) return false;
+
+        const now = Date.now();
+
+        // Check if expired
+        if (cls.expiresAt) {
+            const expTime = new Date(cls.expiresAt).getTime();
+            if (expTime && now > expTime) return false;
+        }
+
+        // Check start and end time if specified
+        const startTime = parseTimeToday(cls.scheduledStart || cls.startTime);
+        const endTime = parseTimeToday(cls.scheduledEnd || cls.endTime);
+
+        if (startTime && now < startTime.getTime()) {
+            return false; // Upcoming, not started yet
+        }
+
+        if (endTime && now > endTime.getTime()) {
+            return false; // Ended
+        }
+
+        // Active status or within valid time window
+        if (cls.status === 'active' || cls.isActive === true) {
+            return true;
+        }
+
+        if (startTime && endTime && now >= startTime.getTime() && now <= endTime.getTime()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function isClassUpcoming(cls) {
+        if (!cls) return false;
+        if (cls.status === 'inactive' || cls.isActive === false) return false;
+        const now = Date.now();
+        const startTime = parseTimeToday(cls.scheduledStart || cls.startTime);
+        if (startTime && now < startTime.getTime()) {
+            return true;
+        }
+        return false;
+    }
+
+    function renderTodayScheduleFromDB() {
+        const container = document.getElementById('today-schedule-list');
+        if (!container) return;
+
+        const isSchoolMode = window.rollCallStudentMode?.isSchoolMode?.() === true || state.schoolType === 'school';
+        const locations = state.locations || {};
+        const studentSection = (state.currentUser?.section || '').trim().toLowerCase();
+        const uid = state.currentUser?.uid;
+        const todayStr = getTodayDateString();
+
+        const todaySchedule = [];
+
+        Object.keys(locations).forEach(id => {
+            const loc = locations[id];
+            const locSec = String(loc.section || '').trim().toLowerCase();
+            
+            // Check if user attended today
+            const attendedToday = !!(uid && (state.attendanceByLocation?.[id]?.[todayStr]?.[uid] || state.userAttendanceToday?.[id]));
+            const matchesSection = attendedToday || !locSec || locSec === 'general' || locSec === 'all' || !studentSection || locSec.includes(studentSection) || studentSection.includes(locSec);
+
+            if (matchesSection && isClassForToday({ id, ...loc }, todayStr)) {
+                todaySchedule.push({ id, ...loc });
+            }
+        });
+
+        if (todaySchedule.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state" style="text-align: center; padding: 28px; color: var(--sp-text-muted);">
+                    <i class="fas fa-calendar-check" style="font-size: 2rem; margin-bottom: 8px; display: block; color: var(--sp-primary);"></i>
+                    No classes held or added today.
+                </div>`;
+            return;
+        }
+
+        // Sort: Active classes first, then upcoming, then present/absent
+        todaySchedule.sort((a, b) => {
+            const aActive = isClassActiveNow(a) ? 1 : 0;
+            const bActive = isClassActiveNow(b) ? 1 : 0;
+            return bActive - aActive;
+        });
+
+        container.innerHTML = todaySchedule.map(cls => {
+            const start = cls.scheduledStart || cls.startTime || '10:00 AM';
+            const end = cls.scheduledEnd || cls.endTime || '11:30 AM';
+            const safeClassName = cls.name || 'Lecture Session';
+
+            // Check if current user marked attendance for this class today
+            const locAttToday = (state.attendanceByLocation?.[cls.id]?.[todayStr]) || {};
+            const isMarkedInLoc = !!(uid && locAttToday[uid]);
+            const isMarkedInUser = !!(uid && state.userAttendanceToday?.[cls.id]);
+            const isMarked = isMarkedInLoc || isMarkedInUser;
+
+            const active = isClassActiveNow(cls);
+            const upcoming = isClassUpcoming(cls);
+
+            let statusTagHtml = '';
+            let actionHtml = '';
+            let cardClass = 'schedule-card-item';
+            let cardStatus = 'absent';
+            let cardTitle = safeClassName;
+            let canClickToMark = false;
+
+            if (isSchoolMode) {
+                cardStatus = isMarked ? 'present' : 'school-pending';
+                statusTagHtml = '';
+                actionHtml = isMarked
+                    ? `
+                        <div class="schedule-status-badge present">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Present</span>
+                        </div>`
+                    : `
+                        <div class="schedule-status-badge upcoming">
+                            <i class="fas fa-clipboard-check"></i>
+                            <span>Daily attendance taken by school</span>
+                        </div>`;
+                cardClass += isMarked ? ' attended-card' : ' school-schedule-card';
+                cardTitle = isMarked
+                    ? `Attendance recorded for ${safeClassName}`
+                    : `${safeClassName}: attendance is recorded by your school once per day`;
+            } else if (isMarked) {
+                // 1. Marked -> Present (single prominent Present badge, no Mark Attendance button)
+                cardStatus = 'present';
+                statusTagHtml = '';
+                actionHtml = `
+                    <div class="schedule-status-badge present">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Present</span>
+                    </div>`;
+                cardClass += ' attended-card';
+                cardTitle = `Attendance Marked: Present for ${safeClassName}`;
+            } else if (active) {
+                // 2. Active Now & Not Marked -> Active Now tag + Mark Attendance button
+                cardStatus = 'active';
+                statusTagHtml = '<span class="status-tag tag-now"><i class="fas fa-satellite-dish"></i> Active Now</span>';
+                actionHtml = `
+                    <div class="schedule-mark-attendance-btn">
+                        <span>Mark Attendance</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </div>`;
+                cardClass += ' active-now clickable-class-schedule-card';
+                cardTitle = `Click to Mark Attendance for ${safeClassName}`;
+                canClickToMark = true;
+            } else if (upcoming) {
+                // 3. Upcoming today -> Scheduled badge (no Mark Attendance button)
+                cardStatus = 'upcoming';
+                statusTagHtml = '';
+                actionHtml = `
+                    <div class="schedule-status-badge upcoming">
+                        <i class="fas fa-clock"></i>
+                        <span>Upcoming</span>
+                    </div>`;
+                cardClass += ' upcoming-card';
+                cardTitle = `${safeClassName} scheduled to start at ${start}`;
+            } else {
+                // 4. Otherwise not marked & not active -> Absent (single prominent Absent badge, no Mark Attendance button)
+                cardStatus = 'absent';
+                statusTagHtml = '';
+                actionHtml = `
+                    <div class="schedule-status-badge absent">
+                        <i class="fas fa-times-circle"></i>
+                        <span>Absent</span>
+                    </div>`;
+                cardClass += ' absent-card';
+                cardTitle = `Attendance Not Marked: Absent for ${safeClassName}`;
+            }
+
+            return `
+                <div class="${cardClass}" 
+                     data-class-id="${cls.id}" 
+                     data-class-name="${encodeURIComponent(safeClassName)}"
+                     data-can-mark="${canClickToMark}"
+                     data-status="${cardStatus}"
+                     title="${cardTitle}">
+                    <div class="schedule-time-box">
+                        <span class="time-start">${start}</span>
+                        <span class="time-end">${end}</span>
+                    </div>
+                    <div class="schedule-details">
+                        <div class="subject-name">${safeClassName}</div>
+                        <div class="teacher-room">
+                            <span><i class="fas fa-chalkboard-teacher"></i> ${cls.teacherName || 'Faculty'}</span>
+                            <span><i class="fas fa-location-dot"></i> Section ${cls.section || 'General'}</span>
+                        </div>
+                    </div>
+                    <div class="schedule-action-col">
+                        ${statusTagHtml}
+                        ${actionHtml}
+                    </div>
+                </div>`;
+        }).join('');
+
+        // Attach click listeners to cards
+        container.querySelectorAll('.schedule-card-item').forEach(card => {
+            card.addEventListener('click', () => {
+                const canMark = card.getAttribute('data-can-mark') === 'true';
+                const status = card.getAttribute('data-status');
+                const classId = card.getAttribute('data-class-id');
+                const className = decodeURIComponent(card.getAttribute('data-class-name') || 'Class');
+
+                if (canMark) {
+                    switchTab('tab-attendance');
+
+                    // Pre-select location/class if dropdown exists
+                    const locSelect = document.getElementById('location-select') || document.getElementById('class-select');
+                    if (locSelect && classId) {
+                        locSelect.value = classId;
+                        locSelect.dispatchEvent(new Event('change'));
+                    }
+
+                    showModernToast(`Navigated to Mark Attendance for ${className}`, 'info', 2500);
+
+                    const targetSec = document.getElementById('scanner-container') || document.getElementById('tab-attendance');
+                    if (targetSec) {
+                        setTimeout(() => targetSec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+                    }
+                } else if (status === 'present') {
+                    showModernToast(`Attendance marked for ${className}: Present`, 'success', 2200);
+                } else if (status === 'absent') {
+                    showModernToast(`Session ended. Attendance not marked: Absent`, 'error', 2200);
+                } else if (status === 'upcoming') {
+                    showModernToast(`${className} is scheduled for later today.`, 'info', 2200);
+                } else if (status === 'school-pending') {
+                    showModernToast('Your school records attendance once per class each day.', 'info', 2200);
+                }
+            });
+        });
+    }
+    window.renderTodaySchedule = renderTodayScheduleFromDB;
+
+    function initTodayScheduleControls() {
+        const refreshBtn = document.getElementById('refresh-classes-btn');
+        if (refreshBtn && !refreshBtn.dataset.listenerBound) {
+            refreshBtn.dataset.listenerBound = 'true';
+            refreshBtn.addEventListener('click', async () => {
+                const icon = refreshBtn.querySelector('i');
+                if (icon) icon.classList.add('fa-spin');
+                try {
+                    if (window.firebase?.database && state.currentUser?.uid) {
+                        const db = firebase.database();
+                        const uid = state.currentUser.uid;
+                        const todayKey = getTodayDateString();
+                        const [locSnap, attSnap, userAttSnap] = await Promise.all([
+                            db.ref('locations').once('value'),
+                            db.ref('attendance_by_location').once('value'),
+                            db.ref(`user_attendance/${uid}/${todayKey}`).once('value')
+                        ]);
+                        state.locations = locSnap.val() || {};
+                        state.attendanceByLocation = attSnap.val() || {};
+                        state.userAttendanceToday = userAttSnap.val() || {};
+                    }
+                    renderTodayScheduleFromDB();
+                    loadStudentAttendanceRecords();
+                    showModernToast("Schedule refreshed successfully", "success", 1800);
+                } catch (err) {
+                    console.error("Error refreshing schedule:", err);
+                    renderTodayScheduleFromDB();
+                    showModernToast("Schedule updated", "info", 1800);
+                } finally {
+                    if (icon) icon.classList.remove('fa-spin');
+                }
+            });
+        }
+    }
+
+    /* ==========================================================================
+       Campus Announcements from RTDB (Realtime & Auto-Loading)
+       ========================================================================== */
+    const ANNOUNCEMENTS_CACHE_KEY = 'rollcall_announcements_cache_v1';
+    let announcementsListenerAttached = false;
+    let announcementsRetryTimer = null;
+
+    function formatTimeAgo(ts) {
+        if (!ts) return 'Recent';
+        let timeNum = (typeof ts === 'number') ? ts : new Date(ts).getTime();
+        if (isNaN(timeNum)) return String(ts);
+        const diff = Math.floor((Date.now() - timeNum) / 1000);
+        if (diff < 60) return 'Just now';
+        if (diff < 3600) return `${Math.floor(diff / 60)} mins ago`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+        if (diff < 172800) return 'Yesterday';
+        return new Date(timeNum).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function getAnnouncementIcon(category, type) {
+        const text = (String(category || '') + ' ' + String(type || '')).toLowerCase();
+        if (text.includes('exam') || text.includes('test') || text.includes('grade') || text.includes('academic')) {
+            return '<i class="fas fa-graduation-cap" style="color:var(--sp-primary)"></i>';
+        }
+        if (text.includes('alert') || text.includes('urgent') || text.includes('warning') || text.includes('important')) {
+            return '<i class="fas fa-triangle-exclamation" style="color:var(--sp-warning)"></i>';
+        }
+        if (text.includes('event') || text.includes('hackathon') || text.includes('workshop') || text.includes('seminar') || text.includes('tech')) {
+            return '<i class="fas fa-laptop-code" style="color:var(--sp-info)"></i>';
+        }
+        if (text.includes('holiday') || text.includes('leave') || text.includes('closure')) {
+            return '<i class="fas fa-calendar-day" style="color:var(--sp-success)"></i>';
+        }
+        return '<i class="fas fa-bullhorn" style="color:var(--sp-primary)"></i>';
+    }
+
+    function renderAnnouncementsList(items) {
+        const container = document.getElementById('campus-announcements-list');
+        if (!container) return;
+
+        if (!items || items.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state" style="text-align: center; padding: 24px; color: var(--sp-text-muted);">
+                    <i class="fas fa-bullhorn" style="font-size: 1.8rem; margin-bottom: 8px; display: block; color: var(--sp-text-subtle);"></i>
+                    No active campus announcements.
+                </div>`;
+            return;
+        }
+
+        // Sort newest first
+        items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+        container.innerHTML = items.map(item => `
+            <div class="drawer-item">
+                <div class="drawer-item-title">${getAnnouncementIcon(item.category, item.type)} ${item.title}</div>
+                <div class="drawer-item-desc">${item.desc}</div>
+                <div class="drawer-item-time">${formatTimeAgo(item.timestamp)} • ${item.sender}</div>
+            </div>
+        `).join('');
+    }
+
+    function parseAnnouncementsData(annData) {
+        if (!annData) return [];
+        const items = [];
+        Object.keys(annData).forEach(k => {
+            const a = annData[k];
+            if (!a) return;
+            items.push({
+                id: k,
+                title: a.title || a.subject || 'Campus Announcement',
+                desc: a.message || a.desc || a.text || a.content || '',
+                timestamp: a.timestamp || a.createdAt || (a.date ? new Date(a.date).getTime() : 0),
+                sender: a.sender || a.department || a.sentBy || 'Academic Office',
+                category: a.category || a.type || 'General',
+                type: a.type || 'info'
+            });
+        });
+        return items;
+    }
+
+    function loadCachedAnnouncements() {
+        try {
+            const raw = localStorage.getItem(ANNOUNCEMENTS_CACHE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    renderAnnouncementsList(parsed);
+                    return true;
+                }
+            }
+        } catch (e) {
+            // ignore cache parse errors
+        }
+        return false;
+    }
+
+    function cacheAnnouncements(items) {
+        try {
+            if (Array.isArray(items)) {
+                localStorage.setItem(ANNOUNCEMENTS_CACHE_KEY, JSON.stringify(items));
+            }
+        } catch (e) {
+            // ignore cache write errors
+        }
+    }
+
+    function loadFirebaseAnnouncements(isManualRefresh = false) {
+        const container = document.getElementById('campus-announcements-list');
+        if (!container) return;
+
+        // Display cached announcements immediately so UI is never blank
+        if (!isManualRefresh) {
+            loadCachedAnnouncements();
+        }
+
+        const hasModularDb = window.database && window.ref && (typeof window.onValue === 'function' || typeof window.get === 'function');
+        const hasCompatDb = typeof window.firebase !== 'undefined' && typeof window.firebase.database === 'function' && window.firebase.apps && window.firebase.apps.length > 0;
+
+        if (!hasModularDb && !hasCompatDb) {
+            // Auto retry shortly when Firebase finishes initializing
+            if (announcementsRetryTimer) clearTimeout(announcementsRetryTimer);
+            announcementsRetryTimer = setTimeout(() => {
+                loadFirebaseAnnouncements(isManualRefresh);
+            }, 300);
+            return;
+        }
+
+        // 1. Modular SDK query & real-time sync
+        if (hasModularDb) {
+            try {
+                const annRef = window.ref(window.database, 'announcements');
+
+                if (!announcementsListenerAttached && typeof window.onValue === 'function') {
+                    announcementsListenerAttached = true;
+                    window.onValue(annRef, (snapshot) => {
+                        const items = parseAnnouncementsData(snapshot.val());
+                        cacheAnnouncements(items);
+                        renderAnnouncementsList(items);
+                    }, (err) => {
+                        console.warn('Realtime announcements listener error:', err);
+                    });
+                }
+
+                if (typeof window.get === 'function') {
+                    window.get(annRef).then((snapshot) => {
+                        const items = parseAnnouncementsData(snapshot.val());
+                        cacheAnnouncements(items);
+                        renderAnnouncementsList(items);
+                    }).catch((err) => {
+                        console.warn('Modular announcements get error:', err);
+                    });
+                }
+                return;
+            } catch (e) {
+                console.warn('Error querying modular announcements:', e);
+            }
+        }
+
+        // 2. Fallback to Compat SDK
+        if (hasCompatDb) {
+            try {
+                const db = window.firebase.database();
+                const annQuery = db.ref('announcements').limitToLast(25);
+
+                if (!announcementsListenerAttached) {
+                    announcementsListenerAttached = true;
+                    annQuery.on('value', (snap) => {
+                        const items = parseAnnouncementsData(snap.val());
+                        cacheAnnouncements(items);
+                        renderAnnouncementsList(items);
+                    }, (err) => {
+                        console.warn('Compat announcements listener error:', err);
+                    });
+                }
+
+                annQuery.once('value').then((annSnap) => {
+                    const items = parseAnnouncementsData(annSnap.val());
+                    cacheAnnouncements(items);
+                    renderAnnouncementsList(items);
+                }).catch((err) => {
+                    console.error('Error loading announcements:', err);
+                    if (!loadCachedAnnouncements()) {
+                        container.innerHTML = `
+                            <div class="empty-state" style="text-align: center; padding: 24px; color: var(--sp-text-muted);">
+                                <i class="fas fa-triangle-exclamation" style="font-size: 1.8rem; margin-bottom: 8px; display: block; color: var(--sp-warning);"></i>
+                                Could not load announcements. Please try again.
+                            </div>`;
+                    }
+                });
+            } catch (err) {
+                console.error('Compat database query error:', err);
+            }
+        }
+    }
+    window.loadFirebaseAnnouncements = loadFirebaseAnnouncements;
+
+    function initAnnouncementsControls() {
+        const refreshBtn = document.getElementById('refresh-announcements-btn');
+        if (refreshBtn && !refreshBtn.dataset.listenerBound) {
+            refreshBtn.dataset.listenerBound = 'true';
+            refreshBtn.addEventListener('click', async () => {
+                const icon = refreshBtn.querySelector('i');
+                if (icon) icon.classList.add('fa-spin');
+                try {
+                    loadFirebaseAnnouncements(true);
+                    showModernToast("Announcements updated", "info", 1800);
+                } finally {
+                    setTimeout(() => { if (icon) icon.classList.remove('fa-spin'); }, 500);
+                }
+            });
+        }
+    }
+
+    function loadFirebaseNotifications() {
+        const container = document.getElementById('notifications-container');
+        const badge = document.getElementById('notification-badge');
+        if (!window.firebase?.database) return;
+
+        const db = firebase.database();
+        const uid = state.currentUser?.uid;
+
+        const promises = [
+            db.ref('notifications').limitToLast(25).once('value')
+        ];
+        if (uid) {
+            promises.push(db.ref(`notifications/${uid}`).limitToLast(25).once('value'));
+        }
+
+        Promise.all(promises).then((snapshots) => {
+            const items = [];
+            const seenKeys = new Set();
+
+            snapshots.forEach(snap => {
+                const data = snap.val() || {};
+                Object.keys(data).forEach(k => {
+                    const n = data[k];
+                    if (!n || seenKeys.has(k)) return;
+                    seenKeys.add(k);
+                    items.push({
+                        id: k,
+                        title: n.title || 'Notification',
+                        desc: n.message || n.body || n.text || '',
+                        timestamp: n.timestamp || (n.date ? new Date(n.date).getTime() : 0),
+                        sender: n.sentByEmail || n.sentBy || 'System Alert',
+                        type: n.type || 'info',
+                        category: n.category || 'Notification'
+                    });
+                });
+            });
+
+            // Update badge count
+            if (badge) {
+                const count = items.length;
+                badge.innerText = count > 99 ? '99+' : count;
+                badge.style.display = count > 0 ? 'inline-flex' : 'none';
+            }
+
+            if (!container) return;
+
+            if (items.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="text-align: center; padding: 30px; color: var(--sp-text-muted);">
+                        <i class="fas fa-bell-slash" style="font-size: 2rem; margin-bottom: 8px; display: block; color: var(--sp-text-subtle);"></i>
+                        No notifications found.
+                    </div>`;
+                return;
+            }
+
+            items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            container.innerHTML = items.map(n => `
+                <div class="drawer-item">
+                    <div class="drawer-item-title">${getAnnouncementIcon(n.type, n.category)} ${n.title || 'Notification'}</div>
+                    <div class="drawer-item-desc">${n.desc}</div>
+                    <div class="drawer-item-time">${formatTimeAgo(n.timestamp)} • ${n.sender}</div>
+                </div>
+            `).join('');
+        }).catch(err => {
+            console.error('Error loading notifications:', err);
+            if (container) {
+                container.innerHTML = `
+                    <div class="empty-state" style="text-align: center; padding: 30px; color: var(--sp-text-muted);">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 8px; display: block; color: var(--sp-warning);"></i>
+                        Could not load notifications.
+                    </div>`;
+            }
+        });
+    }
+    window.loadFirebaseNotifications = loadFirebaseNotifications;
+
+    /* ==========================================================================
+       Subject-wise Analytics & Health Matrix (From RTDB Data)
+       ========================================================================== */
+    function renderSubjectAnalytics() {
+        const container = document.getElementById('subject-health-container');
+        if (!container) return;
+
+        const subjects = state.subjectStats || {};
+        const keys = Object.keys(subjects);
+
+        if (keys.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state" style="text-align: center; padding: 28px; color: var(--sp-text-muted);">
+                    <i class="fas fa-chart-pie" style="font-size: 2.2rem; margin-bottom: 10px; display: block; color: var(--sp-primary);"></i>
+                    Attendance analytics will appear here once attendance records are logged.
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = keys.map(name => {
+            const s = subjects[name];
+            const pct = s.total > 0 ? Math.round((s.attended / s.total) * 100) : 0;
+            const statusClass = pct >= 75 ? 'progress-safe' : pct >= 65 ? 'progress-warning' : 'progress-danger';
+            return `
+                <div class="subject-health-row">
+                    <div class="subject-health-header">
+                        <span>${name}</span>
+                        <span><strong>${pct}%</strong> (${s.attended}/${s.total})</span>
+                    </div>
+                    <div class="health-progress-track">
+                        <div class="health-progress-bar ${statusClass}" style="width: ${pct}%"></div>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    /* ==========================================================================
+       Bunk & Recovery Calculator
+       ========================================================================== */
+    function initBunkCalculator() {
+        const slider = document.getElementById('bunk-sim-slider');
+        const sliderVal = document.getElementById('bunk-sim-val');
+        const verdictBox = document.getElementById('bunk-verdict-card');
+        const subjectSelect = document.getElementById('bunk-subject-select');
+
+        function calculateBunk() {
+            if (!slider || !sliderVal || !verdictBox) return;
+            const skipCount = parseInt(slider.value) || 0;
+            sliderVal.innerText = skipCount;
+
+            const selected = subjectSelect ? subjectSelect.value : 'all';
+            let attended = state.overallStats.attended;
+            let total = state.overallStats.total;
+
+            if (selected !== 'all' && state.subjectStats[selected]) {
+                attended = state.subjectStats[selected].attended;
+                total = state.subjectStats[selected].total;
+            }
+
+            if (total === 0) {
+                verdictBox.className = 'bunk-verdict-card';
+                verdictBox.innerHTML = `
+                    <i class="fas fa-circle-info" style="font-size: 1.5rem;"></i>
+                    <div>
+                        <div>No classes recorded yet.</div>
+                        <div style="font-size: 0.8rem; opacity: 0.85;">Simulator will calculate dynamically once attendance data is available.</div>
+                    </div>`;
+                return;
+            }
+
+            const newTotal = total + skipCount;
+            const newPercentage = Math.round((attended / newTotal) * 100);
+
+            if (newPercentage >= 75) {
+                verdictBox.className = 'bunk-verdict-card';
+                verdictBox.innerHTML = `
+                    <i class="fas fa-circle-check" style="font-size: 1.5rem;"></i>
+                    <div>
+                        <div>Attendance after skipping <strong>${skipCount}</strong> classes: <strong>${newPercentage}%</strong></div>
+                        <div style="font-size: 0.8rem; opacity: 0.85;">Safe zone! You stay above the mandatory 75% threshold.</div>
+                    </div>`;
+            } else {
+                verdictBox.className = 'bunk-verdict-card danger';
+                const deficit = Math.ceil((0.75 * newTotal - attended) / 0.25);
+                verdictBox.innerHTML = `
+                    <i class="fas fa-triangle-exclamation" style="font-size: 1.5rem;"></i>
+                    <div>
+                        <div>Attendance after skipping <strong>${skipCount}</strong> classes: <strong>${newPercentage}%</strong></div>
+                        <div style="font-size: 0.8rem; opacity: 0.85;">Warning: Drops below 75%! You must attend <strong>${Math.max(1, deficit)}</strong> consecutive classes to recover.</div>
+                    </div>`;
+            }
+        }
+
+        if (slider) slider.addEventListener('input', calculateBunk);
+        if (subjectSelect) subjectSelect.addEventListener('change', calculateBunk);
+    }
+
+    function updateBunkPredictorOptions() {
+        const select = document.getElementById('bunk-subject-select');
+        if (!select) return;
+        const subjects = Object.keys(state.subjectStats || {});
+
+        select.innerHTML = '<option value="all">Overall Aggregate (All Subjects)</option>' +
+            subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+
+    /* ==========================================================================
+       Leave & OD Portal (Direct RTDB Sync)
+       ========================================================================== */
+    function initLeavePortal() {
+        const form = document.getElementById('leave-request-form');
+
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!state.currentUser || !window.firebase?.database) {
+                    showModernToast('Please sign in to submit leave requests.', 'warning');
+                    return;
+                }
+
+                const type = document.getElementById('leave-type')?.value;
+                const from = document.getElementById('leave-from')?.value;
+                const to = document.getElementById('leave-to')?.value;
+                const reason = document.getElementById('leave-reason')?.value;
+
+                if (!from || !to || !reason) {
+                    showModernToast('Please fill all required fields.', 'warning');
+                    return;
+                }
+
+                const uid = state.currentUser.uid;
+                const db = firebase.database();
+                try {
+                    const profileSnap = await db.ref(`users/${uid}`).once('value');
+                    const profile = profileSnap.val() || {};
+                    const schoolId = profile.schoolId || state.currentUser.schoolId || '';
+                    const section = String(profile.section || state.currentUser.section || '').trim();
+                    const sectionKey = Array.from(new TextEncoder().encode(section), byte => byte.toString(16).padStart(2, '0')).join('');
+                    if (profile.role !== 'student' || !schoolId || !section) throw new Error('Your school and section must be set on your student profile.');
+                    const teacherSnap = await db.ref(`classTeacherAssignments/${schoolId}/${sectionKey}`).once('value');
+                    const assignment = teacherSnap.val() || {};
+                    if (!assignment.teacherId || assignment.schoolId !== schoolId || String(assignment.section || '').trim().toLowerCase() !== section.toLowerCase()) throw new Error('No class teacher is assigned to your section yet. Please contact your school administrator.');
+
+                    const requestId = db.ref(`leave_requests/${uid}`).push().key;
+                    const createdAt = Date.now();
+                    const newReq = {
+                        type, from, to, reason,
+                        status: 'Pending Review', createdAt,
+                        requesterRole: 'student', schoolId, section,
+                        classTeacherId: assignment.teacherId,
+                        studentName: profile.name || state.currentUser.name || 'Student',
+                        studentRoll: profile.univRoll || state.currentUser.univRoll || ''
+                    };
+                    const updates = {};
+                    updates[`leave_requests/${uid}/${requestId}`] = newReq;
+                    updates[`classTeacherLeaveRequests/${assignment.teacherId}/${requestId}`] = { requestId, studentId: uid, schoolId, section, createdAt, status: 'Pending Review' };
+                    updates[`notifications/${assignment.teacherId}/${db.ref(`notifications/${assignment.teacherId}`).push().key}`] = {
+                        title: 'Student leave request',
+                        message: `${newReq.studentName} submitted a ${type} request for section ${section} (${from} to ${to}).`,
+                        type: 'info', category: 'Leave request', senderRole: 'student', senderId: uid, schoolId, section, timestamp: createdAt
+                    };
+                    await db.ref().update(updates);
+                    form.reset();
+                    showModernToast(`Leave application sent to your class teacher for section ${section}.`, 'success');
+                } catch (err) {
+                    showModernToast('Submission error: ' + err.message, 'error');
+                }
+            });
+        }
+    }
+
+    function renderLeaveRequests() {
+        const listContainer = document.getElementById('leave-history-list');
+        const kpiLeaves = document.getElementById('kpi-leaves-taken');
+        if (!listContainer) return;
+
+        const requests = state.leaveRequests || [];
+        const approvedCount = requests.filter(r => (r.status || '').toLowerCase() === 'approved').length;
+        if (kpiLeaves) kpiLeaves.innerText = `${approvedCount} Days`;
+
+        if (requests.length === 0) {
+            listContainer.innerHTML = `
+                <div class="empty-state" style="text-align: center; padding: 28px; color: var(--sp-text-muted);">
+                    <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 8px; display: block; color: var(--sp-text-subtle);"></i>
+                    No leave requests submitted yet.
+                </div>`;
+            return;
+        }
+
+        listContainer.innerHTML = requests.map(item => {
+            const statusLower = (item.status || '').toLowerCase();
+            const badgeClass = statusLower === 'approved' ? 'tag-present' : statusLower === 'rejected' ? 'tag-absent' : 'tag-upcoming';
+            return `
+                <div class="schedule-card-item">
+                    <div class="schedule-details">
+                        <div class="subject-name">${item.type}</div>
+                        <div class="teacher-room">
+                            <i class="fas fa-calendar-alt"></i> ${item.from} to ${item.to} • ${item.reason}
+                        </div>
+                    </div>
+                    <div>
+                        <span class="status-tag ${badgeClass}">${item.status || 'Pending'}</span>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    /* ==========================================================================
+       Digital Student ID (3D Flip Card from RTDB)
+       ========================================================================== */
+    function initDigitalIdCard() {
+        const flipper = document.getElementById('student-id-flipper');
+        const flipBtn = document.getElementById('flip-id-btn');
+
+        function toggleFlip() {
+            if (flipper) flipper.classList.toggle('flipped');
+        }
+
+        if (flipper) flipper.addEventListener('click', toggleFlip);
+        if (flipBtn) flipBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleFlip();
+        });
+    }
+
+    function renderDigitalId() {
+        if (window.currentUser && (!state.currentUser || !state.currentUser.uid)) {
+            state.currentUser = window.currentUser;
+        }
+        const user = (state.currentUser && state.currentUser.uid)
+            ? state.currentUser
+            : (window.currentUser || (window.firebase?.auth && firebase.auth().currentUser) || state.currentUser || {});
+        const authUser = window.firebase?.auth && firebase.auth().currentUser;
+        const isSchoolMode = window.rollCallStudentMode?.isSchoolMode?.() === true || state.schoolType === 'school';
+
+        const nameEl = document.getElementById('id-card-name');
+        const roleEl = document.getElementById('id-card-role');
+        const rollEl = document.getElementById('id-card-roll');
+        const univEl = document.getElementById('id-card-univ');
+        const secEl = document.getElementById('id-card-sec');
+        const photoEl = document.getElementById('id-card-photo');
+        const validEl = document.getElementById('id-card-valid');
+        const collegeEl = document.getElementById('id-card-college');
+        const subtitleEl = document.getElementById('id-card-subtitle');
+        const universityRollRow = document.getElementById('id-card-univ-row');
+        const validThruRow = document.getElementById('id-card-valid-row');
+        const institutionIcon = document.querySelector('.id-college-logo i');
+        const codeValEl = document.getElementById('id-card-code-val');
+        const bloodEl = document.getElementById('id-card-blood');
+        const emergencyEl = document.getElementById('id-card-emergency');
+        const qrContainer = document.getElementById('id-card-qr-container');
+
+        // 1. Student Name & Photo
+        const displayName = user.name || authUser?.displayName || (user.email ? user.email.split('@')[0] : 'Student');
+        if (nameEl) nameEl.innerText = displayName;
+
+        const defaultAvatar = 'https://cdn.pixabay.com/photo/2016/11/14/17/39/person-1824144_960_720.png';
+        if (photoEl) photoEl.src = user.profilePhoto || defaultAvatar;
+
+        // 2. Program / Course / Branch
+        const courseDisplay = isSchoolMode
+            ? (user.className || user.courseName || user.course || 'School Student')
+            : (user.course || user.department || user.branch || 'Undergraduate Student');
+        if (roleEl) roleEl.innerText = isSchoolMode && courseDisplay !== 'School Student'
+            ? `Class ${courseDisplay}`
+            : courseDisplay;
+
+        // 3. College / Institution Name
+        const instName = user.institution || user.schoolName || user.collegeName || user.school || 'INSTITUTE OF TECHNOLOGY';
+        if (collegeEl) collegeEl.innerText = instName.toUpperCase();
+
+        // 4. University Roll & Class Roll
+        if (univEl) univEl.innerText = user.univRoll || 'Not Set';
+        if (universityRollRow) universityRollRow.hidden = isSchoolMode;
+        if (validThruRow) validThruRow.hidden = isSchoolMode;
+        if (subtitleEl) subtitleEl.innerText = isSchoolMode ? 'SCHOOL STUDENT ID' : 'STUDENT IDENTITY CARD';
+        if (institutionIcon) {
+            institutionIcon.classList.toggle('fa-school', isSchoolMode);
+            institutionIcon.classList.toggle('fa-university', !isSchoolMode);
+        }
+        if (rollEl) rollEl.innerText = user.classRoll || 'Not Set';
+
+        // 5. Section
+        if (secEl) secEl.innerText = user.section ? `Sec ${user.section}` : 'N/A';
+
+        // 6. Valid Thru / Academic Batch
+        let validThru = user.academicBatch || user.batch;
+        if (validThru) {
+            const match = String(validThru).match(/\d{4}$/);
+            if (match) validThru = match[0];
+        } else {
+            validThru = (new Date().getFullYear() + 4).toString();
+        }
+        if (validEl) validEl.innerText = validThru;
+
+        // 7. Encrypted Pass Identifier
+        if (codeValEl) {
+            codeValEl.innerText = user.univRoll || user.classRoll || (user.uid ? user.uid.slice(0, 10).toUpperCase() : 'ROLLCALL');
+        }
+
+        // 8. Back Face: Blood Group & Emergency Contact
+        if (bloodEl) bloodEl.innerText = user.bloodGroup || user.blood || 'Not Provided';
+        if (emergencyEl) emergencyEl.innerText = user.emergencyContact || user.emergency || user.mobile || 'Not Provided';
+
+        // 9. Back Face: Live Verification QR Code
+        if (qrContainer) {
+            const qrPayload = isSchoolMode
+                ? `ROLLCALL-PASS|TYPE:SCHOOL|UID:${user.uid || ''}|NAME:${displayName}|CLASS:${courseDisplay}|ROLL:${user.classRoll || ''}|SECTION:${user.section || ''}`
+                : `ROLLCALL-PASS|UID:${user.uid || ''}|NAME:${displayName}|UNIV:${user.univRoll || ''}|ROLL:${user.classRoll || ''}|BATCH:${validThru}`;
+            if (typeof QRCode !== 'undefined') {
+                try {
+                    qrContainer.innerHTML = '';
+                    new QRCode(qrContainer, {
+                        text: qrPayload,
+                        width: 76,
+                        height: 76,
+                        colorDark: '#0f172a',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                } catch (e) {
+                    qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=76x76&data=${encodeURIComponent(qrPayload)}&color=0f172a&bgcolor=ffffff" alt="Verification QR" style="width:76px;height:76px;border-radius:6px;background:#fff;padding:3px;">`;
+                }
+            } else {
+                qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=76x76&data=${encodeURIComponent(qrPayload)}&color=0f172a&bgcolor=ffffff" alt="Verification QR" style="width:76px;height:76px;border-radius:6px;background:#fff;padding:3px;">`;
+            }
+        }
+    }
+    window.renderDigitalId = renderDigitalId;
+
+    /* ==========================================================================
+       In-Card Forgot Password (Popup-Free)
+       ========================================================================== */
+    function initInlineForgotPassword() {
+        const forgotLink = document.getElementById('forgot-password-link');
+        const backLink = document.getElementById('back-to-login-link');
+        const loginFormWrap = document.getElementById('standard-login-fields');
+        const resetFormWrap = document.getElementById('inline-reset-fields');
+
+        if (forgotLink && loginFormWrap && resetFormWrap) {
+            forgotLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginFormWrap.style.display = 'none';
+                resetFormWrap.style.display = 'block';
+            });
+        }
+
+        if (backLink && loginFormWrap && resetFormWrap) {
+            backLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                resetFormWrap.style.display = 'none';
+                loginFormWrap.style.display = 'block';
+            });
+        }
+    }
+
+    /* ==========================================================================
+       Intercept Legacy Buttons (Suppress disruptive popups)
+       ========================================================================== */
+    function interceptLegacyButtons() {
+        const historyBtn = document.getElementById('history-btn');
+        if (historyBtn) {
+            historyBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                switchTab('tab-history');
+            }, true);
+        }
+
+        const profileBtn = document.getElementById('profile-btn');
+        if (profileBtn) {
+            profileBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                switchTab('tab-profile');
+                if (typeof window.loadProfileData === 'function') window.loadProfileData();
+            }, true);
+        }
+
+        const notificationBtn = document.getElementById('notifications-btn');
+        if (notificationBtn) {
+            notificationBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                const drawer = document.getElementById('notifications-drawer');
+                const backdrop = document.getElementById('drawer-backdrop');
+                if (drawer) drawer.classList.add('open');
+                if (backdrop) backdrop.classList.add('open');
+                loadFirebaseNotifications();
+            }, true);
+        }
+    }
+
+    /* ==========================================================================
+       Profile & Security Tab Controller (Comprehensive User Details)
+       ========================================================================== */
+    function detectClientOS() {
+        const ua = navigator.userAgent || '';
+        if (/windows phone/i.test(ua)) return 'Windows Phone';
+        if (/win(dows)?/i.test(ua)) return 'Windows 11 / 10 (x64)';
+        if (/android/i.test(ua)) return 'Android Device';
+        if (/ipad|iphone|ipod/i.test(ua)) return 'Apple iOS (Mobile)';
+        if (/mac(intosh)?/i.test(ua)) return 'Apple macOS';
+        if (/linux/i.test(ua)) return 'Linux / GNU';
+        return navigator.platform || 'Universal Desktop';
+    }
+
+    function detectClientBrowser() {
+        const ua = navigator.userAgent || '';
+        if (/edg\//i.test(ua)) return 'Microsoft Edge (Chromium)';
+        if (/opr\/|opera/i.test(ua)) return 'Opera Browser';
+        if (/chrome|crios/i.test(ua)) return 'Google Chrome';
+        if (/firefox|fxios/i.test(ua)) return 'Mozilla Firefox';
+        if (/safari/i.test(ua)) return 'Apple Safari';
+        return 'Standard Browser Engine';
+    }
+
+    function getHardwareFingerprint() {
+        if (typeof window.generateDeviceFingerprint === 'function') {
+            try {
+                const fp = window.generateDeviceFingerprint();
+                if (fp) return fp;
+            } catch (e) {}
+        }
+        const stored = localStorage.getItem('rollcall_device_lock_profile_v1');
+        if (stored) {
+            try {
+                const p = JSON.parse(stored);
+                if (p.deviceFingerprint) return p.deviceFingerprint;
+            } catch (e) {}
+        }
+        // Fallback robust hash
+        const raw = `${navigator.userAgent}-${screen.width}x${screen.height}-${navigator.hardwareConcurrency || 4}-${navigator.language}`;
+        return 'HW-' + btoa(raw).replace(/[/+=]/g, '').slice(0, 24);
+    }
+
+    function initProfileAndSecurity() {
+        // 1. Toggle edit panel
+        const toggleEditBtn = document.getElementById('prof-toggle-edit-btn');
+        const editPanel = document.getElementById('prof-edit-panel');
+        const closeEditBtn = document.getElementById('prof-edit-close-btn');
+        const cancelEditBtn = document.getElementById('prof-edit-cancel-btn');
+        const submitEditBtn = document.getElementById('prof-edit-submit-btn');
+
+        const sectionKey = value => Array.from(new TextEncoder().encode(String(value || '').trim()), byte => byte.toString(16).padStart(2, '0')).join('');
+        async function submitToClassTeacher(db, user, request) {
+            const profileSnap = await db.ref(`users/${user.uid}`).once('value');
+            const profile = profileSnap.val() || {};
+            const schoolId = profile.schoolId || user.schoolId;
+            const section = String(profile.section || user.section || '').trim();
+            if (profile.role !== 'student' || !schoolId || !section) throw new Error('Your school and section must be set on your student profile before requesting a profile update.');
+            const assignmentSnap = await db.ref(`classTeacherAssignments/${schoolId}/${sectionKey(section)}`).once('value');
+            const assignment = assignmentSnap.val() || {};
+            if (!assignment.teacherId || assignment.schoolId !== schoolId || String(assignment.section || '').trim().toLowerCase() !== section.toLowerCase()) {
+                throw new Error('No class teacher is assigned to your section yet. Please contact your school administrator.');
+            }
+            const requestId = db.ref('profile_update_requests').push().key;
+            const timestamp = firebase.database.ServerValue.TIMESTAMP;
+            const requestData = {
+                ...request,
+                userId:user.uid,
+                userName:profile.name || user.name || (user.email ? user.email.split('@')[0] : 'Student'),
+                userEmail:profile.email || user.email || '',
+                schoolId,
+                section,
+                classTeacherId:assignment.teacherId,
+                requestType:request.requestType || 'Profile Details Update',
+                timestamp,
+                status:'pending'
+            };
+            const updates = {};
+            updates[`profile_update_requests/${requestId}`] = requestData;
+            updates[`classTeacherProfileRequests/${assignment.teacherId}/${requestId}`] = {
+                requestId,
+                studentId:user.uid,
+                schoolId,
+                section,
+                timestamp,
+                status:'pending'
+            };
+            updates[`notifications/${assignment.teacherId}/${db.ref(`notifications/${assignment.teacherId}`).push().key}`] = {
+                title:'Student profile request',
+                message:`${requestData.userName} submitted a ${requestData.requestType.toLowerCase()} for section ${section}.`,
+                type:'info', category:'Profile request', timestamp,
+                senderRole:'student', senderId:user.uid, schoolId, section
+            };
+            await db.ref().update(updates);
+            return {requestId, section};
+        }
+
+        async function openEditPanel() {
+            if (!editPanel) return;
+            const user = state.currentUser || {};
+            const isSchoolMode = user.registrationType === 'school' || state.schoolType === 'school';
+            applyProfileInstitutionMode(isSchoolMode);
+            // Populate edit inputs
+            const nameIn = document.getElementById('prof-edit-name');
+            const emailIn = document.getElementById('prof-edit-email');
+            const mobIn = document.getElementById('prof-edit-mobile');
+            const emIn = document.getElementById('prof-edit-emergency');
+            const rollIn = document.getElementById('prof-edit-roll');
+            const univIn = document.getElementById('prof-edit-univ-roll');
+            const secIn = document.getElementById('prof-edit-section');
+            const courseIn = document.getElementById('prof-edit-course');
+            const deptIn = document.getElementById('prof-edit-dept');
+            const bloodIn = document.getElementById('prof-edit-blood');
+            const batchIn = document.getElementById('prof-edit-batch');
+
+            const authUser = window.firebase?.auth && firebase.auth().currentUser;
+            if (nameIn) nameIn.value = user.name || authUser?.displayName || '';
+            if (emailIn) emailIn.value = user.email || authUser?.email || '';
+            if (mobIn) mobIn.value = user.mobile || user.mobileNumber || user.phoneNumber || user.phoneNo || user.phone || user.contactNumber || '';
+            if (emIn) emIn.value = user.emergencyContact || user.emergency || '';
+            if (rollIn) rollIn.value = user.classRoll || user.classRollNo || user.class_roll || user.rollNumber || user.rollNo || user.roll || '';
+            if (univIn) univIn.value = user.univRoll || '';
+            if (secIn && courseIn && window.rollCallStudentCourseCatalog) {
+                try {
+                    await window.rollCallStudentCourseCatalog.configure({
+                        schoolId: user.schoolId || '',
+                        courseSelectId: 'prof-edit-course',
+                        yearSelectId: 'prof-edit-year',
+                        sectionSelectId: 'prof-edit-section',
+                        courseId: user.courseId || user.courseName || user.course || '',
+                        year: String(user.academicYear || user.year || ''),
+                        section: user.section || '',
+                        institutionType: isSchoolMode ? 'school' : 'university'
+                    });
+                } catch (error) { console.error('Could not load the school course list for profile editing:', error); }
+            }
+            if (deptIn) deptIn.value = user.department || user.branch || '';
+            if (bloodIn) bloodIn.value = user.bloodGroup || user.blood || '';
+            if (batchIn) batchIn.value = user.batch || user.academicBatch || '';
+
+            editPanel.style.display = 'block';
+            editPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function closeEditPanel() {
+            if (editPanel) editPanel.style.display = 'none';
+        }
+
+        if (toggleEditBtn) toggleEditBtn.addEventListener('click', openEditPanel);
+        if (closeEditBtn) closeEditBtn.addEventListener('click', closeEditPanel);
+        if (cancelEditBtn) cancelEditBtn.addEventListener('click', closeEditPanel);
+
+        // 2. Submit edit profile request
+        if (submitEditBtn) {
+            submitEditBtn.addEventListener('click', async () => {
+                const user = state.currentUser || (window.firebase?.auth && firebase.auth().currentUser);
+                if (!user || !user.uid) {
+                    showModernToast('Please sign in to update credentials.', 'warning');
+                    return;
+                }
+
+                const creditsLeft = Math.max(3 - Number(user.profileUpdateUsed || 0), 0);
+                if (creditsLeft <= 0) {
+                    showModernToast('Update limit reached (3/3 used). Contact admin.', 'error');
+                    return;
+                }
+
+                const deptVal = (document.getElementById('prof-edit-dept')?.value || '').trim();
+                const bloodVal = (document.getElementById('prof-edit-blood')?.value || '').trim();
+                const batchVal = (document.getElementById('prof-edit-batch')?.value || '').trim();
+                const selectedCourseId = document.getElementById('prof-edit-course')?.value || '';
+                const isSchoolMode = user.registrationType === 'school' || state.schoolType === 'school';
+                const academicYear = isSchoolMode ? 1 : Number(document.getElementById('prof-edit-year')?.value || 0);
+                let courseRecord = null;
+                try { courseRecord = await window.rollCallStudentCourseCatalog?.getCourse(user.schoolId || '', selectedCourseId); }
+                catch (error) { console.error('Could not verify the selected course:', error); }
+                const selectedSection = document.getElementById('prof-edit-section')?.value || '';
+                if (!courseRecord || !academicYear || !(Array.isArray(courseRecord.sectionsByYear?.[String(academicYear)]) && courseRecord.sectionsByYear[String(academicYear)].includes(selectedSection))) {
+                    showModernToast('Select a course, academic year, and section from your school catalogue.', 'warning');
+                    return;
+                }
+
+                const updatedData = {
+                    name: (document.getElementById('prof-edit-name')?.value || '').trim(),
+                    mobile: (document.getElementById('prof-edit-mobile')?.value || '').trim(),
+                    emergencyContact: (document.getElementById('prof-edit-emergency')?.value || '').trim(),
+                    classRoll: (document.getElementById('prof-edit-roll')?.value || '').trim(),
+                    ...(!isSchoolMode ? {univRoll: (document.getElementById('prof-edit-univ-roll')?.value || '').trim()} : {}),
+                    section: selectedSection,
+                    courseId: selectedCourseId,
+                    course: courseRecord.courseName || '',
+                    courseName: courseRecord.courseName || '',
+                    courseNickname: courseRecord.courseNickname || '',
+                    ...(isSchoolMode
+                        ? {className: courseRecord.courseName || ''}
+                        : {academicYear, year: academicYear, batch: courseRecord.batch || '', department: deptVal, branch: deptVal}),
+                    bloodGroup: bloodVal,
+                    ...(!isSchoolMode ? {batch: batchVal, academicBatch: batchVal} : {}),
+                    updatedAt: firebase.database.ServerValue.TIMESTAMP
+                };
+
+                if (!updatedData.name) {
+                    showModernToast('Full Name cannot be empty.', 'warning');
+                    return;
+                }
+
+                submitEditBtn.disabled = true;
+                submitEditBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+                try {
+                    const db = firebase.database();
+                    // Route profile changes through the class teacher assigned to this student's section.
+                    const routed = await submitToClassTeacher(db, user, {
+                        requestType: 'Profile Details Update',
+                        currentData: {
+                            name: user.name || '',
+                            email: user.email || '',
+                            mobile: user.mobile || user.mobileNumber || user.phoneNumber || user.phoneNo || user.phone || user.contactNumber || '',
+                            classRoll: user.classRoll || user.classRollNo || user.class_roll || user.rollNumber || user.rollNo || user.roll || '',
+                            section: user.section || '',
+                            courseId: user.courseId || '',
+                            course: user.course || '',
+                            bloodGroup: user.bloodGroup || user.blood || '',
+                            ...(isSchoolMode
+                                ? {className: user.className || user.courseName || user.course || ''}
+                                : {
+                                    univRoll: user.univRoll || '',
+                                    academicYear: user.academicYear || user.year || '',
+                                    year: user.academicYear || user.year || '',
+                                    department: user.department || user.branch || '',
+                                    branch: user.branch || user.department || '',
+                                    batch: user.batch || user.academicBatch || '',
+                                    academicBatch: user.academicBatch || user.batch || ''
+                                })
+                        },
+                        requestedData: updatedData
+                    });
+
+                    // Consume credit
+                    await db.ref(`users/${user.uid}/profileUpdateUsed`).transaction(curr => (Number(curr || 0) + 1));
+
+                    showModernToast(`Profile update request sent to your class teacher for section ${routed.section}.`, 'success');
+                    closeEditPanel();
+                } catch (err) {
+                    console.error('Update request failed:', err);
+                    showModernToast('Failed to submit request: ' + err.message, 'error');
+                } finally {
+                    submitEditBtn.disabled = false;
+                    submitEditBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Update Request';
+                }
+            });
+        }
+
+        // 3. Avatar photo upload trigger - sends the edit request to the student's class teacher
+        const avatarInput = document.getElementById('prof-avatar-file-input');
+        if (avatarInput) {
+            avatarInput.addEventListener('change', async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                if (!file.type.startsWith('image/')) {
+                    showModernToast('Please select a valid image file.', 'warning');
+                    return;
+                }
+                if (file.size > 2 * 1024 * 1024) {
+                    showModernToast('Photo must be smaller than 2MB.', 'warning');
+                    return;
+                }
+
+                const user = state.currentUser || (window.firebase?.auth && firebase.auth().currentUser);
+                if (!user || !user.uid) return;
+
+                showModernToast('Uploading photo for your class teacher to review...', 'info');
+
+                try {
+                    let photoUrl = null;
+                    if (typeof window.uploadProfilePhoto === 'function') {
+                        const result = await window.uploadProfilePhoto(file, user.uid);
+                        photoUrl = result.publicUrl;
+                    } else {
+                        // Base64 fallback preview
+                        photoUrl = await new Promise((res, rej) => {
+                            const reader = new FileReader();
+                            reader.onload = ev => res(ev.target.result);
+                            reader.onerror = rej;
+                            reader.readAsDataURL(file);
+                        });
+                    }
+
+                    if (photoUrl) {
+                        const db = firebase.database();
+                        // Route profile photo changes to the class teacher assigned to the student's section.
+                        const routed = await submitToClassTeacher(db, user, {
+                            requestType: 'Profile Photo Update',
+                            currentData: {
+                                profilePhoto: user.profilePhoto || ''
+                            },
+                            requestedData: {
+                                profilePhoto: photoUrl
+                            }
+                        });
+
+                        showModernToast(`Profile photo request sent to your class teacher for section ${routed.section}.`, 'success');
+                    }
+                } catch (err) {
+                    console.error('Photo upload error:', err);
+                    showModernToast('Photo upload request failed: ' + err.message, 'error');
+                } finally {
+                    avatarInput.value = '';
+                }
+            });
+        }
+
+        // 4. Copy Hardware Fingerprint Button
+        const copyFpBtn = document.getElementById('prof-copy-device-id');
+        if (copyFpBtn) {
+            copyFpBtn.addEventListener('click', () => {
+                const fp = getHardwareFingerprint();
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(fp).then(() => {
+                        showModernToast('Hardware Device Lock ID copied to clipboard!', 'success');
+                    }).catch(() => {
+                        showModernToast(fp, 'info');
+                    });
+                } else {
+                    showModernToast(fp, 'info');
+                }
+            });
+        }
+
+        // 5. Request Device Transfer / Reset
+        const devResetBtn = document.getElementById('prof-btn-request-device-reset');
+        if (devResetBtn) {
+            devResetBtn.addEventListener('click', async () => {
+                const user = state.currentUser || (window.firebase?.auth && firebase.auth().currentUser);
+                if (!user || !user.uid) return;
+
+                if (!confirm('Do you want to submit a request to unlink your current device and register a new one?')) {
+                    return;
+                }
+
+                try {
+                    const db = firebase.database();
+                    await db.ref(`device_unlock_requests/${user.uid}`).set({
+                        email: user.email || '',
+                        name: user.name || '',
+                        univRoll: user.univRoll || '',
+                        deviceFingerprint: getHardwareFingerprint(),
+                        platform: detectClientOS(),
+                        browser: detectClientBrowser(),
+                        timestamp: firebase.database.ServerValue.TIMESTAMP,
+                        status: 'pending'
+                    });
+                    showModernToast('Device transfer request sent to College Admin for approval.', 'success');
+                } catch (err) {
+                    showModernToast('Failed to submit device request: ' + err.message, 'error');
+                }
+            });
+        }
+
+        // Render initial data if user is already in session
+        renderProfileDetails();
+    }
+
+    function renderProfileDetails() {
+        if (window.currentUser && (!state.currentUser || !state.currentUser.uid)) {
+            state.currentUser = window.currentUser;
+        }
+        const user = (state.currentUser && state.currentUser.uid)
+            ? state.currentUser
+            : (window.currentUser || (window.firebase?.auth && firebase.auth().currentUser) || state.currentUser || {});
+        const authUser = window.firebase?.auth && firebase.auth().currentUser;
+        const isSchoolMode = state.schoolType === 'school' || user.registrationType === 'school';
+        const mobile = user.mobile || user.mobileNumber || user.phoneNumber || user.phoneNo || user.phone || user.contactNumber || '';
+        const classRoll = user.classRoll || user.classRollNo || user.class_roll || user.rollNumber || user.rollNo || user.roll || '';
+        const dateOfBirth = user.dateOfBirth || user.dob || user.birthDate || '';
+        const formatDateOfBirth = value => {
+            const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            const date = match
+                ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+                : new Date(value);
+            return Number.isNaN(date.getTime())
+                ? 'Not provided'
+                : date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+        };
+        applyProfileInstitutionMode(isSchoolMode);
+
+        // --- 1. HERO BANNER ---
+        const heroAvatar = document.getElementById('prof-hero-avatar');
+        const heroName = document.getElementById('prof-hero-name');
+        const heroDept = document.getElementById('prof-hero-dept');
+        const heroUniv = document.getElementById('prof-hero-univ');
+        const heroRoll = document.getElementById('prof-hero-roll');
+        const heroSec = document.getElementById('prof-hero-sec');
+        const creditsCount = document.getElementById('prof-credits-count');
+
+        const defaultAvatar = 'https://cdn.pixabay.com/photo/2016/11/14/17/39/person-1824144_960_720.png';
+        if (heroAvatar) heroAvatar.src = user.profilePhoto || defaultAvatar;
+        if (heroName) heroName.innerText = user.name || authUser?.displayName || (user.email ? user.email.split('@')[0] : 'Student');
+        if (heroDept) heroDept.innerText = isSchoolMode
+            ? `Class ${user.className || user.courseName || user.course || 'Not assigned'}`
+            : (user.course || user.department || user.branch || 'B.Tech Computer Science & Engineering');
+        if (heroUniv) heroUniv.innerText = user.univRoll || 'Not Assigned';
+        if (heroRoll) heroRoll.innerText = classRoll || 'Not Assigned';
+        if (heroSec) heroSec.innerText = user.section || 'A';
+
+        const usedCredits = Number(user.profileUpdateUsed || 0);
+        const creditsLeft = Math.max(3 - usedCredits, 0);
+        if (creditsCount) creditsCount.innerText = `${creditsLeft}/3`;
+
+        // --- 2. CARD 1: PERSONAL & CONTACT INFO ---
+        const valName = document.getElementById('prof-val-name');
+        const valEmail = document.getElementById('prof-val-email');
+        const valMobile = document.getElementById('prof-val-mobile');
+        const valEmergency = document.getElementById('prof-val-emergency');
+        const valBlood = document.getElementById('prof-val-blood');
+        const valStatus = document.getElementById('prof-val-status');
+
+        if (valName) valName.innerText = user.name || authUser?.displayName || '-';
+        if (valEmail) valEmail.innerText = user.email || authUser?.email || '-';
+        if (valMobile) valMobile.innerText = mobile || 'Not Registered';
+        const valDateOfBirth = document.getElementById('prof-val-date-of-birth');
+        if (valDateOfBirth) valDateOfBirth.innerText = dateOfBirth ? formatDateOfBirth(dateOfBirth) : 'Not provided';
+        if (valEmergency) valEmergency.innerText = user.emergencyContact || user.emergency || mobile || 'Not Provided';
+        if (valBlood) valBlood.innerText = user.bloodGroup || user.blood || 'Not Provided';
+        if (valStatus) {
+            if (user.blocked === true) {
+                valStatus.innerHTML = '<span class="badge-status-pill danger"><i class="fas fa-ban"></i> Account Suspended</span>';
+            } else {
+                valStatus.innerHTML = '<span class="badge-status-pill success"><i class="fas fa-circle-check"></i> Active (Good Standing)</span>';
+            }
+        }
+
+        // --- 3. CARD 2: ACADEMIC CREDENTIALS ---
+        const valUnivRoll = document.getElementById('prof-val-univ-roll');
+        const valClassRoll = document.getElementById('prof-val-class-roll');
+        const valCourse = document.getElementById('prof-val-course');
+        const valDept = document.getElementById('prof-val-dept');
+        const valSection = document.getElementById('prof-val-section');
+        const valBatch = document.getElementById('prof-val-batch');
+
+        if (valUnivRoll) valUnivRoll.innerText = user.univRoll || 'Not Set';
+        if (valClassRoll) valClassRoll.innerText = classRoll || 'Not Set';
+        if (valCourse) valCourse.innerText = isSchoolMode
+            ? (user.className || user.courseName || user.course || 'Not assigned')
+            : (user.course || 'B.Tech Computer Science & Engineering');
+        if (valDept) valDept.innerText = user.department || user.branch || 'Computer Science & Engineering';
+        if (valSection) valSection.innerText = user.section ? `Section ${user.section}` : 'Section A';
+        if (valBatch) valBatch.innerText = user.academicBatch || user.batch || '2023 - 2027';
+
+        if (!isSchoolMode) renderProfileEligibility();
+
+        // --- 4. CARD 3: HARDWARE LOCK & SECURITY ---
+        const osEl = document.getElementById('prof-val-os');
+        const brEl = document.getElementById('prof-val-browser');
+        const dispEl = document.getElementById('prof-val-display');
+        const tzEl = document.getElementById('prof-val-tz');
+        const lastLoginEl = document.getElementById('prof-val-last-login');
+
+        if (!isSchoolMode && osEl) osEl.innerText = detectClientOS();
+        if (!isSchoolMode && brEl) brEl.innerText = detectClientBrowser();
+        if (!isSchoolMode && dispEl) dispEl.innerText = `${window.screen.width} × ${window.screen.height} (${window.screen.colorDepth}-bit)`;
+        if (!isSchoolMode && tzEl) {
+            tzEl.innerText = (typeof Intl !== 'undefined' && Intl.DateTimeFormat)
+                ? Intl.DateTimeFormat().resolvedOptions().timeZone
+                : 'UTC';
+        }
+        if (!isSchoolMode && lastLoginEl) {
+            if (authUser?.metadata?.lastSignInTime) {
+                lastLoginEl.innerText = new Date(authUser.metadata.lastSignInTime).toLocaleString('en-US', {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+            } else {
+                lastLoginEl.innerText = 'Active Now (Secure Session)';
+            }
+        }
+
+        // --- 5. CARD 4: BIOMETRIC CREDENTIALS ---
+        const faceStatusEl = document.getElementById('prof-val-face-status');
+        const createdAtEl = document.getElementById('prof-val-created-at');
+
+        if (faceStatusEl && !isSchoolMode) {
+            renderFaceIdStatus(user, faceStatusEl);
+        }
+        if (!isSchoolMode && createdAtEl) {
+            if (authUser?.metadata?.creationTime) {
+                createdAtEl.innerText = new Date(authUser.metadata.creationTime).toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'short', day: 'numeric'
+                });
+            } else {
+                createdAtEl.innerText = 'Academic Year 2023-24';
+            }
+        }
+    }
+
+    async function renderFaceIdStatus(user, faceStatusEl) {
+        if (!faceStatusEl) return;
+        const uid = user?.uid || (window.firebase?.auth && firebase.auth().currentUser?.uid);
+        if (!uid) {
+            faceStatusEl.innerHTML = '<span class="badge-status-pill warning"><i class="fas fa-user-slash"></i> Please Sign In</span>';
+            return;
+        }
+
+        let isEnrolled = Boolean(user.faceDescriptor || user.faceData || user.facialVector || user.faceRegistered);
+
+        if (!isEnrolled && window.firebase?.database) {
+            try {
+                const snap = await firebase.database().ref(`users/${uid}/faceDescriptor`).once('value');
+                if (snap.exists() && snap.val()) {
+                    isEnrolled = true;
+                    user.faceDescriptor = snap.val();
+                }
+            } catch (err) {
+                console.warn('Face ID check error:', err);
+            }
+        }
+
+        if (isEnrolled) {
+            faceStatusEl.innerHTML = '<span class="badge-status-pill success"><i class="fas fa-circle-check"></i> Enrolled</span>';
+        } else {
+            faceStatusEl.innerHTML = `
+                <button type="button" class="modern-btn-primary" id="btn-register-face-prof" style="padding: 6px 14px; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-camera"></i> Register Face ID
+                </button>
+            `;
+            const regBtn = document.getElementById('btn-register-face-prof');
+            if (regBtn) {
+                regBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    regBtn.disabled = true;
+                    regBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Launching...';
+
+                    try {
+                        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                        let accessToken = '';
+                        for (let i = 0; i < 32; i++) {
+                            accessToken += chars.charAt(Math.floor(Math.random() * chars.length));
+                        }
+                        accessToken += '_' + Date.now();
+
+                        const db = firebase.database();
+                        await db.ref(`faceRegistrationTokens/${accessToken}`).set({
+                            uid: uid,
+                            email: user.email || (window.firebase?.auth && firebase.auth().currentUser?.email) || '',
+                            name: user.name || (window.firebase?.auth && firebase.auth().currentUser?.displayName) || '',
+                            classRoll: user.classRoll || '',
+                            univRoll: user.univRoll || '',
+                            createdAt: Date.now(),
+                            expiresAt: Date.now() + (10 * 60 * 1000)
+                        });
+
+                        window.location.href = `face-attendance.html?token=${accessToken}`;
+                    } catch (err) {
+                        console.error('Error starting face registration:', err);
+                        showModernToast('Failed to start face registration: ' + err.message, 'error');
+                        regBtn.disabled = false;
+                        regBtn.innerHTML = '<i class="fas fa-camera"></i> Register Face ID';
+                    }
+                });
+            }
+        }
+    }
+
+    function renderProfileEligibility() {
+        const elBadge = document.getElementById('prof-val-eligibility');
+        if (!elBadge) return;
+        const pct = state.overallStats?.percentage || 0;
+        const total = state.overallStats?.total || 0;
+
+        if (total === 0) {
+            elBadge.innerHTML = '<span class="badge-status-pill warning"><i class="fas fa-clock"></i> Computing Sessions...</span>';
+        } else if (pct >= 75) {
+            elBadge.innerHTML = `<span class="badge-status-pill success"><i class="fas fa-circle-check"></i> Eligible for Exams (${pct}%)</span>`;
+        } else {
+            elBadge.innerHTML = `<span class="badge-status-pill danger"><i class="fas fa-triangle-exclamation"></i> Attendance Alert (${pct}% &lt; 75%)</span>`;
+        }
+    }
+    window.renderProfileDetails = renderProfileDetails;
+
+    /* ==========================================================================
+       Toast Helper
+       ========================================================================== */
+    function showModernToast(message, type = 'info', duration = 3500) {
+        let container = document.getElementById('sp-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'sp-toast-container';
+            container.className = 'sp-toast-container';
+            document.body.appendChild(container);
+        }
+
+        const icons = {
+            success: 'fa-check-circle',
+            warning: 'fa-exclamation-triangle',
+            error: 'fa-circle-xmark',
+            info: 'fa-circle-info'
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `sp-toast toast-${type}`;
+        toast.innerHTML = `<i class="fas ${icons[type] || 'fa-info-circle'}"></i><span>${message}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(40px)';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+    window.showModernToast = showModernToast;
+    window._rollcallStudentState = state;
+
+})();

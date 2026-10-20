@@ -1,0 +1,16 @@
+name = "rollcall-worker"
+main = "src/index.js"
+compatibility_date = "2026-10-20"
+
+[[r2_buckets]]
+binding = "PROFILE_PHOTOS"
+bucket_name = "replace-with-profile-photos-bucket"
+
+[vars]
+FIREBASE_PROJECT_ID = "firefly-64eef"
+FIREBASE_API_KEY = "replace-with-firebase-web-api-key"
+FIREBASE_DATABASE_URL = "https://firefly-64eef-default-rtdb.asia-southeast1.firebasedatabase.app"
+ALLOWED_ORIGINS = "http://localhost:3000,https://rollinn.netlify.app,https://geetakalp.onrender.com,https://rollcall.codesynq.me"
+PUBLIC_BASE_URL = "https://rollcall-worker.divyanshugupta415.workers.dev/file"
+BREVO_SENDER_EMAIL = "replace-with-verified-sender@example.com"
+BREVO_SENDER_NAME = "RollCall"

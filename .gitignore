@@ -1,0 +1,31 @@
+# Local environment and deployment secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+.dev.vars
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+**/keystore/
+**/*signing*.properties
+**/*release*.properties
+
+# Service-account credentials
+*service-account*.json
+*service_account*.json
+
+# Generated client runtime configuration
+/RollCall WebApp/auth/firebase-config.runtime.js
+
+# Cloudflare local state
+.wrangler/
+
+# Generated build output
+**/.gradle/
+**/build/
