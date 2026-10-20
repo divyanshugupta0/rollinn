@@ -1479,7 +1479,6 @@
                         <button type="submit" class="owner-login-submit"><span><i class="fas fa-arrow-right-to-bracket" aria-hidden="true"></i> Sign in to owner portal</span><i class="fas fa-arrow-right owner-submit-arrow" aria-hidden="true"></i></button>
                     </form>
                     <div class="owner-auth-security"><span class="owner-security-icon"><i class="fas fa-shield-alt"></i></span><span><strong>Protected workspace</strong><small>Your sign-in is secured by Firebase Authentication.</small></span></div>
-                    <a href="./register-owner.html" id="localOwnerSetupLink" style="display:none; margin-top:18px; color:#176b4d; font-size:12px; font-weight:700; text-align:center; text-decoration:none;">Temporary first-owner setup (localhost)</a>
                 </div>
             </section>
         </main>
@@ -2542,11 +2541,6 @@
             once: true,
             disable: true
         });
-
-        if (['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) {
-            const setupLink = document.getElementById('localOwnerSetupLink');
-            if (setupLink) setupLink.style.display = 'block';
-        }
 
         // Owner authentication and school records use the same Firebase project.
         let currentUser = null;
