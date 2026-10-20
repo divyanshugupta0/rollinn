@@ -1,8 +1,0 @@
-{
-  "name": "rollcall-webapp",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "build": "node scripts/generate-firebase-config.mjs"
-  }
-}

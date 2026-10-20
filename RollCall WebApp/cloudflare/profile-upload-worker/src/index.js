@@ -41,6 +41,51 @@ function allowedOrigins(env) {
     return new Set([...allowOrigins, ...configuredOrigins]);
 }
 
+function firebaseConfigScript(request, env) {
+    const configVariables = {
+        apiKey: 'FIREBASE_API_KEY',
+        authDomain: 'FIREBASE_AUTH_DOMAIN',
+        databaseURL: 'FIREBASE_DATABASE_URL',
+        projectId: 'FIREBASE_PROJECT_ID',
+        storageBucket: 'FIREBASE_STORAGE_BUCKET',
+        messagingSenderId: 'FIREBASE_MESSAGING_SENDER_ID',
+        appId: 'FIREBASE_APP_ID'
+    };
+    const missing = Object.values(configVariables).filter(key => !env[key]?.trim());
+    if (missing.length) {
+        return new Response(`throw new Error(${JSON.stringify(`Firebase Worker configuration is missing: ${missing.join(', ')}`)});`, {
+            status: 503,
+            headers: {
+                'Cache-Control': 'no-store',
+                'Content-Type': 'application/javascript; charset=utf-8',
+                'X-Content-Type-Options': 'nosniff'
+            }
+        });
+    }
+
+    const config = Object.fromEntries(
+        Object.entries(configVariables).map(([key, envKey]) => [key, env[envKey].trim()])
+    );
+    for (const [key, envKey] of [
+        ['measurementId', 'FIREBASE_MEASUREMENT_ID'],
+        ['profilePhotoPublicBaseUrl', 'PUBLIC_BASE_URL']
+    ]) {
+        if (env[envKey]?.trim()) config[key] = env[envKey].trim();
+    }
+    config.profileUploadWorkerUrl = new URL(request.url).origin + '/';
+
+    return new Response(
+        `window.ROLLCALL_FIREBASE_CONFIG = Object.freeze(${JSON.stringify(config)});`,
+        {
+            headers: {
+                'Cache-Control': 'no-store',
+                'Content-Type': 'application/javascript; charset=utf-8',
+                'X-Content-Type-Options': 'nosniff'
+            }
+        }
+    );
+}
+
 function decodeBase64Url(value) {
     const base64 = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=');
     const binary = atob(base64);
@@ -562,12 +607,16 @@ export default {
         const origin = request.headers.get('Origin');
         const origins = allowedOrigins(env);
         const allowedOrigin = origin && origins.has(origin) ? origin : '';
+        const url = new URL(request.url);
+        if (url.pathname === '/firebase-config') {
+            if (request.method !== 'GET') return new Response('Method not allowed.', { status: 405 });
+            return firebaseConfigScript(request, env);
+        }
         if (request.method === 'OPTIONS') {
             if (!allowedOrigin) return new Response(null, { status: 403 });
             return new Response(null, { status: 204, headers: corsHeaders(allowedOrigin) });
         }
 
-        const url = new URL(request.url);
         if (url.pathname.endsWith('/password-reset')) {
             if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);
             if (request.method !== 'POST') return response({ error: 'Method not allowed.' }, 405, allowedOrigin);

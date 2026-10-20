@@ -1,60 +1,43 @@
 # RollCall WebApp deployment
 
-Every portal reads one Firebase project configuration from the generated file `auth/firebase-config.runtime.js`. The build creates that file from deployment environment variables, so Firebase settings do not need to be copied into portal source files.
+Every portal loads Firebase configuration at request time from the existing RollCall Worker’s `/firebase-config` JavaScript endpoint. This uses the Worker’s Cloudflare runtime variables directly, so no generated config file, Pages Function, or build command is required. Localhost uses the same endpoint.
 
-## Build settings
+## Firebase Worker variables
 
-Set the following variables in the build environment for production and preview deployments:
+Configure these under the existing `rollcall-worker` Worker’s **Settings > Variables and Secrets**. These are public Firebase web-app settings, not private credentials:
 
-| Variable | Required | Firebase value |
+| Variable | Required | Purpose |
 | --- | --- | --- |
-| `FIREBASE_API_KEY` | Yes | Web API key |
-| `FIREBASE_AUTH_DOMAIN` | Yes | Auth domain |
+| `FIREBASE_API_KEY` | Yes | Firebase Web API key |
+| `FIREBASE_AUTH_DOMAIN` | Yes | Firebase Auth domain |
 | `FIREBASE_DATABASE_URL` | Yes | Realtime Database URL |
-| `FIREBASE_PROJECT_ID` | Yes | Project ID |
-| `FIREBASE_STORAGE_BUCKET` | Yes | Storage bucket |
+| `FIREBASE_PROJECT_ID` | Yes | Firebase project ID |
+| `FIREBASE_STORAGE_BUCKET` | Yes | Firebase Storage bucket |
 | `FIREBASE_MESSAGING_SENDER_ID` | Yes | Messaging sender ID |
-| `FIREBASE_APP_ID` | Yes | Web app ID |
+| `FIREBASE_APP_ID` | Yes | Firebase web app ID |
 | `FIREBASE_MEASUREMENT_ID` | No | Analytics measurement ID |
-| `PROFILE_UPLOAD_WORKER_URL` | For profile uploads | HTTPS URL of the deployed profile-upload Worker |
-| `PROFILE_PHOTO_PUBLIC_BASE_URL` | For profile uploads | HTTPS custom domain serving the R2 profile-photo bucket |
+| `PUBLIC_BASE_URL` | For profile uploads | HTTPS base URL serving profile photos |
 
-Run the build from the repository root or the `RollCall WebApp` directory:
-
-```sh
-# From the repository root
-npm run build
-
-# Or from RollCall WebApp
-npm run build
-```
-
-The repository-root build forwards to `RollCall WebApp`; the underlying command is `node scripts/generate-firebase-config.mjs`. It writes `RollCall WebApp/auth/firebase-config.runtime.js`, which must be generated before deployment because it is ignored by Git. Firebase settings come from the documented `FIREBASE_*` build environment variables, with `.env.local` used only for local development; no Firebase settings are hardcoded in the generator.
+Set these on the Worker itself, not only on the Pages project. The Worker API key is the public Firebase Web API key; never configure the Firebase service-account JSON or Brevo key as frontend config.
 
 ## Cloudflare Pages
 
-- Set the project root or base directory to `RollCall WebApp`.
-- Set the build command to `npm run build`.
-- Set the output directory to `.`.
-- If the project root/base directory is the repository root instead, use the repository-root `npm run build` script and set the output directory to `.`.
-- Add the `FIREBASE_*` values under the Pages build environment variables for production and preview as needed.
+- Deploy the static app from either the repository root or `RollCall WebApp`; no build command is needed for Firebase configuration.
+- The browser loads configuration from the existing Worker, so Pages build/runtime variables are not used for Firebase initialization. Localhost uses that same Worker endpoint; it does not read Cloudflare variables from the local machine.
+- Deploy the updated `cloudflare/profile-upload-worker` source to the existing Worker. If a required Worker variable is missing, `/firebase-config` returns a clear JavaScript error naming it.
 - Profile images are uploaded through the authenticated Cloudflare Worker in `cloudflare/profile-upload-worker`; client-visible Firebase R2 endpoint, token, and access-key settings are no longer used by these upload flows.
 - Owner school registration creates the administrator in Firebase Authentication and links the account to `users/{uid}`, `schoolAdmins/{schoolId}`, and the school record. The administrator email must not already belong to another Firebase Authentication account.
 - Administrator security PINs and database-management verification are stored per school/college at `schoolSettings/{schoolId}/securityPinHash`; no global administrator PIN is used.
 
 ## Netlify
 
-- Set the base directory to `RollCall WebApp`.
-- Set the build command to `npm run build`.
-- Set the publish directory to `.`.
-- If deploying from the repository root, use the root `npm run build` script and publish `.`.
-- Add the `FIREBASE_*` values in the site's environment variables, with build scope enabled.
+The static site can also be hosted on other providers because Firebase configuration is loaded from the existing Cloudflare Worker.
 
-Firebase web configuration is delivered to browsers and is public by design. Do not put service account keys, Admin SDK credentials, or other server secrets in these variables. Protect data with Firebase Authentication and Realtime Database/Storage security rules.
+Firebase web configuration is returned to browsers and is public by design. Do not put service-account keys, Admin SDK credentials, or other private secrets in these variables. Protect data with Firebase Authentication and Realtime Database/Storage security rules.
 
 ## Existing Cloudflare Worker
 
-Profile photos and password-reset emails use the existing `https://rollcall-worker.divyanshugupta415.workers.dev/` Worker; no second Worker hostname is required. Defaults are included in the generated Firebase runtime config. Override `PROFILE_UPLOAD_WORKER_URL` and `PROFILE_PHOTO_PUBLIC_BASE_URL` only when using a different deployment.
+Profile photos, password-reset emails, and Firebase web configuration use the existing `https://rollcall-worker.divyanshugupta415.workers.dev/` Worker; no second Worker hostname is required. The configuration endpoint derives the upload Worker URL from its request URL and uses `PUBLIC_BASE_URL` for public profile photos.
 
 The updated Worker source in `cloudflare/profile-upload-worker` keeps the existing `/file/...` image-serving route and two-step `POST`/`PUT` upload contract, while adding Firebase ID-token verification and short-lived signed upload URLs. Deploy it as the existing Worker (`name = "rollcall-worker"`), keep the existing `PROFILE_PHOTOS` R2 binding and bucket, and include every consuming site's exact origin in `ALLOWED_ORIGINS`. The Worker includes `http://localhost:3000`, `https://rollinn.netlify.app`, `https://geetakalp.onrender.com`, and `https://rollcall.codesynq.me` as defaults; add any other sites as comma-separated origins in the Worker configuration. Requests from unlisted origins are rejected for API routes and preflight, and are not granted cross-origin access to photos.
 

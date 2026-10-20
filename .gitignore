@@ -20,9 +20,6 @@
 *service-account*.json
 *service_account*.json
 
-# Generated client runtime configuration
-/RollCall WebApp/auth/firebase-config.runtime.js
-
 # Cloudflare local state
 .wrangler/
 
