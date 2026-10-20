@@ -32,6 +32,8 @@
         item.classList.toggle('active', active);
         if (active) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
       });
+    };
+
     nav.addEventListener('click', event => {
         event.preventDefault();
         if (typeof window.switchTeacherSection === 'function') {
