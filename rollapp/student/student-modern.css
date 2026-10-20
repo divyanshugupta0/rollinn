@@ -1941,20 +1941,27 @@ body:has(#login-section:not(.hidden)) {
     position: relative;
     display: flex;
     align-items: center;
+    width: 100%;
 }
 
 .login-input-icon {
-    position: absolute;
-    left: 14px;
+    position: absolute !important;
+    left: 15px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
     color: var(--sp-text-subtle);
     font-size: 1rem;
     pointer-events: none;
     transition: var(--sp-transition);
+    z-index: 2;
 }
 
-.login-styled-input {
-    width: 100%;
-    padding: 13px 42px 13px 42px;
+.login-styled-input,
+.login-input-container input.login-styled-input {
+    width: 100% !important;
+    padding: 13px 44px 13px 44px !important;
+    padding-left: 44px !important;
+    padding-right: 44px !important;
     border: 1px solid var(--sp-border);
     border-radius: var(--sp-radius-md);
     background: var(--sp-bg-main);
@@ -1962,7 +1969,7 @@ body:has(#login-section:not(.hidden)) {
     font-size: 0.95rem;
     font-weight: 500;
     transition: var(--sp-transition);
-    box-sizing: border-box;
+    box-sizing: border-box !important;
 }
 
 .login-styled-input:focus {
@@ -1970,6 +1977,16 @@ body:has(#login-section:not(.hidden)) {
     border-color: var(--sp-primary);
     background: var(--sp-bg-card);
     box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+}
+
+.login-input-container input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.login-input-container input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
 }
 
 .login-styled-input:focus + .login-input-icon {
@@ -2949,7 +2966,9 @@ body:has(#login-section:not(.hidden)) {
 
     .login-styled-input {
         font-size: 16px !important; /* Prevents iOS auto-zoom on input focus */
-        padding: 13px 14px 13px 42px !important;
+        padding: 13px 44px 13px 44px !important;
+        padding-left: 44px !important;
+        padding-right: 44px !important;
     }
 
     .btn-login-submit {

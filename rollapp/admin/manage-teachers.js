@@ -430,11 +430,15 @@
         const phone = activeRoot.querySelector('#mtPhone').value.trim();
         const designation = activeRoot.querySelector('#mtDesignation').value.trim();
         const subjectsTaught = activeRoot.querySelector('#mtSubjects').value.split(',').map(subject => subject.trim()).filter(Boolean);
+        const dob = activeRoot.querySelector('#mtDob')?.value?.trim() || '';
         const password = activeRoot.querySelector('#mtPassword').value;
         const profilePhotoFile = activeRoot.querySelector('#mtProfilePhoto').files?.[0] || null;
         const button = activeRoot.querySelector('#mtCreateButton');
-        if (!name || !email || !phone || !designation || !subjectsTaught.length || password.length < 8 || !profilePhotoFile) {
-            return status('Complete all required teacher details, select a profile picture, and use a password with at least 8 characters.', 'error');
+        if (!name || !email || !dob || !phone || !designation || !subjectsTaught.length || password.length < 8 || !profilePhotoFile) {
+            return status('Complete all required teacher details (including date of birth), select a profile picture, and use a password with at least 8 characters.', 'error');
+        }
+        if (dob > new Date().toISOString().split('T')[0]) {
+            return status('Teacher date of birth cannot be in the future.', 'error');
         }
         if (!profilePhotoFile.type.startsWith('image/') || profilePhotoFile.size > 2 * 1024 * 1024) {
             return status('Choose a valid profile picture smaller than 2 MB.', 'error');
@@ -461,6 +465,8 @@
                 name,
                 username: email.split('@')[0],
                 email: createdUser.email || email,
+                dob,
+                dateOfBirth: dob,
                 phone,
                 designation,
                 subjectsTaught,

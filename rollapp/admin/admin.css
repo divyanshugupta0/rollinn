@@ -806,10 +806,62 @@ button.delete-btn:hover {
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
 }
 
-#login-section button {
+#login-section button:not(.forgot-link-btn):not(.toggle-password) {
     width: 100%;
     margin-top: 15px;
     padding: 16px;
+}
+
+.login-row-helper {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 6px;
+    margin-bottom: 2px;
+}
+
+#login-section .forgot-link-btn,
+.forgot-link-btn {
+    all: unset !important;
+    display: inline-block !important;
+    box-sizing: border-box !important;
+    width: auto !important;
+    max-width: fit-content !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 0 0 auto !important;
+    padding: 2px 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: var(--primary-color, #2563eb) !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    line-height: 1.4 !important;
+    letter-spacing: normal !important;
+    text-align: right !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
+    transform: none !important;
+    transition: color 0.15s ease, text-decoration 0.15s ease !important;
+}
+
+#login-section .forgot-link-btn:hover,
+.forgot-link-btn:hover {
+    color: var(--primary-dark, #1d4ed8) !important;
+    text-decoration: underline !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+#login-section .forgot-link-btn:focus-visible,
+.forgot-link-btn:focus-visible {
+    outline: 2px solid var(--primary-color, #2563eb) !important;
+    outline-offset: 2px !important;
+    border-radius: 4px !important;
 }
 
 #login-section input {

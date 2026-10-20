@@ -7,6 +7,7 @@
     <title>RollCall Attendance System</title>
 <script src="https://rollcall-worker.divyanshugupta415.workers.dev/firebase-config"></script>
     <script src="../shared/profile-upload.js"></script>
+    <script src="../shared/password-reset.js"></script>
     <script src="../auth/subscription-expiry.js"></script>
         <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
@@ -278,6 +279,29 @@
             background: var(--bg-primary);
             color: var(--text-primary);
             font-weight: 500;
+        }
+
+        .login-input-container input.login-styled-input,
+        .login-input-container input[type="email"],
+        .login-input-container input[type="password"],
+        .login-input-container input[type="text"],
+        .login-input-container input[type="date"],
+        input.login-styled-input,
+        .login-styled-input {
+            padding: 13px 44px 13px 44px !important;
+            padding-left: 44px !important;
+            padding-right: 44px !important;
+            box-sizing: border-box !important;
+        }
+
+        .login-input-container .login-input-icon,
+        .login-input-icon {
+            position: absolute !important;
+            left: 15px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            pointer-events: none !important;
+            z-index: 2 !important;
         }
 
         input:focus,
@@ -3234,30 +3258,22 @@
                 <div id="inline-reset-fields" class="in-card-forgot-panel">
                     <h3 style="font-size:1.15rem; font-weight:700; margin-bottom:6px;">Reset Password</h3>
                     <p style="font-size:0.85rem; color:var(--sp-text-muted); margin-bottom:20px;">
-                        Provide your verified academic records to request a secure password reset.
+                        Provide your registered email and date of birth to request a secure password reset.
                     </p>
 
                     <div class="login-field-wrap">
                         <label class="login-field-label" for="reset-email">Registered Email</label>
                         <div class="login-input-container">
-                            <input type="email" id="reset-email" class="login-styled-input" placeholder="Enter student email">
+                            <input type="email" id="reset-email" class="login-styled-input" placeholder="Enter student email" autocomplete="email" required>
                             <i class="fas fa-envelope login-input-icon"></i>
                         </div>
                     </div>
 
                     <div class="login-field-wrap">
-                        <label class="login-field-label" for="reset-roll">Class Roll Number</label>
+                        <label class="login-field-label" for="reset-dob">Date of Birth (DOB)</label>
                         <div class="login-input-container">
-                            <input type="text" id="reset-roll" class="login-styled-input" placeholder="e.g. 14">
-                            <i class="fas fa-id-badge login-input-icon"></i>
-                        </div>
-                    </div>
-
-                    <div class="login-field-wrap">
-                        <label class="login-field-label" for="reset-univ-roll">University Roll Number</label>
-                        <div class="login-input-container">
-                            <input type="text" id="reset-univ-roll" class="login-styled-input" placeholder="e.g. 2024CS089">
-                            <i class="fas fa-university login-input-icon"></i>
+                            <input type="date" id="reset-dob" class="login-styled-input" required>
+                            <i class="fas fa-calendar-alt login-input-icon"></i>
                         </div>
                     </div>
 
@@ -11732,102 +11748,122 @@
 
     <!-- Add this before the closing body tag -->
     <script>
-        // Forgot password functionality (Safeguarded)
+        // Forgot password functionality with Cloudflare Worker & credential verification
+        function showResetPanel() {
+            const loginFormWrap = document.getElementById('standard-login-fields');
+            const resetFormWrap = document.getElementById('inline-reset-fields');
+            if (loginFormWrap) loginFormWrap.style.display = 'none';
+            if (resetFormWrap) {
+                resetFormWrap.style.display = 'block';
+                resetFormWrap.classList.remove('hidden');
+            }
+            const modal = document.getElementById('forgot-password-modal');
+            if (modal) modal.classList.add('visible');
+
+            const statusEl = document.getElementById('reset-status');
+            if (statusEl) {
+                statusEl.classList.add('hidden');
+                statusEl.style.display = 'none';
+                statusEl.textContent = '';
+            }
+        }
+
+        function showLoginPanel() {
+            const loginFormWrap = document.getElementById('standard-login-fields');
+            const resetFormWrap = document.getElementById('inline-reset-fields');
+            if (resetFormWrap) {
+                resetFormWrap.style.display = 'none';
+                resetFormWrap.classList.add('hidden');
+            }
+            if (loginFormWrap) loginFormWrap.style.display = 'block';
+
+            const modal = document.getElementById('forgot-password-modal');
+            if (modal) modal.classList.remove('visible');
+
+            const statusEl = document.getElementById('reset-status');
+            if (statusEl) {
+                statusEl.classList.add('hidden');
+                statusEl.style.display = 'none';
+                statusEl.textContent = '';
+            }
+        }
+
+        function openForgotPasswordModal() {
+            showResetPanel();
+            const emailEl = document.getElementById('reset-email');
+            const dobEl = document.getElementById('reset-dob');
+            if (emailEl) emailEl.value = '';
+            if (dobEl) {
+                dobEl.value = '';
+                try {
+                    dobEl.max = new Date().toISOString().split('T')[0];
+                } catch (e) {}
+            }
+        }
+
+        function closeForgotPasswordModal() {
+            showLoginPanel();
+        }
+
         const forgotPwdLink = document.getElementById('forgot-password-link');
         if (forgotPwdLink) {
             forgotPwdLink.addEventListener('click', function (e) {
                 e.preventDefault();
-                openForgotPasswordModal();
+                showResetPanel();
             });
         }
 
-        function openForgotPasswordModal() {
-            const modal = document.getElementById('forgot-password-modal');
-            if (modal) modal.classList.add('visible');
-            const emailEl = document.getElementById('reset-email');
-            const rollEl = document.getElementById('reset-roll');
-            const univRollEl = document.getElementById('reset-univ-roll');
-            const statusEl = document.getElementById('reset-status');
-            if (emailEl) emailEl.value = '';
-            if (rollEl) rollEl.value = '';
-            if (univRollEl) univRollEl.value = '';
-            if (statusEl) statusEl.classList.add('hidden');
-        }
-
-        function closeForgotPasswordModal() {
-            const modal = document.getElementById('forgot-password-modal');
-            if (modal) modal.classList.remove('visible');
+        const backToLoginLink = document.getElementById('back-to-login-link');
+        if (backToLoginLink) {
+            backToLoginLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                showLoginPanel();
+            });
         }
 
         const submitResetBtn = document.getElementById('submit-reset-request');
         if (submitResetBtn) {
-            submitResetBtn.addEventListener('click', function () {
+            submitResetBtn.addEventListener('click', async function () {
                 const emailEl = document.getElementById('reset-email');
-                const rollEl = document.getElementById('reset-roll');
-                const univRollEl = document.getElementById('reset-univ-roll');
+                const dobEl = document.getElementById('reset-dob');
                 const email = emailEl ? emailEl.value.trim() : '';
-                const classRoll = rollEl ? rollEl.value.trim() : '';
-                const univRoll = univRollEl ? univRollEl.value.trim() : '';
+                const dob = dobEl ? dobEl.value.trim() : '';
 
-                if (!email || !classRoll || !univRoll) {
-                    showResetStatus('Please fill in all fields', 'error');
+                if (!email || !dob) {
+                    showResetStatus('Please enter both your registered email and date of birth.', 'error');
                     return;
                 }
 
-                // First check if there's already a pending request
-                const db = window.firebase ? firebase.database() : null;
-                if (!db) return;
-                db.ref('passwordResetRequests').orderByChild('email').equalTo(email).once('value')
-                    .then((snapshot) => {
-                        if (snapshot.exists()) {
-                            const requests = snapshot.val();
-                            const pendingRequest = Object.values(requests).find(req => req.status === 'pending');
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    showResetStatus('Please enter a valid email address.', 'error');
+                    return;
+                }
 
-                            if (pendingRequest) {
-                                showResetStatus('A password reset request is already pending for this email', 'warning');
-                                return;
-                            }
-                        }
+                const originalBtnHtml = submitResetBtn.innerHTML;
+                submitResetBtn.disabled = true;
+                submitResetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying & Sending...';
+                showResetStatus('Verifying student records with server…', 'warning');
 
-                        // Verify user details
-                        db.ref('users').orderByChild('email').equalTo(email).once('value')
-                            .then((snapshot) => {
-                                if (snapshot.exists()) {
-                                    const userData = Object.values(snapshot.val())[0];
+                try {
+                    if (!window.RollCallPasswordReset || typeof window.RollCallPasswordReset.send !== 'function') {
+                        throw new Error('Secure password reset service is loading. Please try again.');
+                    }
 
-                                    if (userData.classRoll === classRoll && userData.univRoll === univRoll) {
-                                        // Create password reset request
-                                        const requestRef = db.ref('passwordResetRequests').push();
-                                        requestRef.set({
-                                            email: email,
-                                            timestamp: Date.now(),
-                                            status: 'pending',
-                                            classRoll: classRoll,
-                                            univRoll: univRoll
-                                        })
-                                            .then(() => {
-                                                showResetStatus('Password reset request submitted successfully. Please wait for admin approval.', 'success');
-                                                setTimeout(() => {
-                                                    closeForgotPasswordModal();
-                                                }, 3000);
-                                            })
-                                            .catch((error) => {
-                                                showResetStatus('Error submitting request: ' + error.message, 'error');
-                                            });
-                                    } else {
-                                        showResetStatus('Invalid roll numbers. Please check and try again.', 'error');
-                                    }
-                                } else {
-                                    showResetStatus('No account found with this email address', 'error');
-                                }
-                            })
-                            .catch((error) => {
-                                showResetStatus('Error verifying details: ' + error.message, 'error');
-                            });
-                    })
-                    .catch((error) => {
-                        showResetStatus('Error checking existing requests: ' + error.message, 'error');
+                    const message = await window.RollCallPasswordReset.send(email, {
+                        dob,
+                        portal: 'student'
                     });
+
+                    showResetStatus(message || 'Password reset link has been sent to your registered email address. Please check your inbox.', 'success');
+                    if (emailEl) emailEl.value = '';
+                    if (dobEl) dobEl.value = '';
+                } catch (error) {
+                    console.error('Password reset error:', error);
+                    showResetStatus(error.message || 'Unable to process password reset request. Please check your details.', 'error');
+                } finally {
+                    submitResetBtn.disabled = false;
+                    submitResetBtn.innerHTML = originalBtnHtml;
+                }
             });
         }
 
@@ -11837,6 +11873,7 @@
                 statusDiv.textContent = message;
                 statusDiv.className = `status-indicator ${type}`;
                 statusDiv.classList.remove('hidden');
+                statusDiv.style.display = 'block';
             }
         }
 

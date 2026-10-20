@@ -1835,12 +1835,23 @@
                                                             <div class="col-md-6">
                                                                 <div class="mb-3">
                                                                     <label for="schoolAdminContactEmail"
-                                                                        class="form-label">Administrator Email</label>
+                                                                        class="form-label">Administrator Email *</label>
                                                                     <input type="email" class="form-control"
                                                                         id="schoolAdminContactEmail" required>
                                                                 </div>
                                                             </div>
                                                             <div class="col-md-6">
+                                                                <div class="mb-3">
+                                                                    <label for="schoolAdminDob"
+                                                                        class="form-label">Administrator Date of Birth (DOB) *</label>
+                                                                    <input type="date" class="form-control"
+                                                                        id="schoolAdminDob" required>
+                                                                    <div class="form-text">Required for account recovery and password reset verification.</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="col-md-12">
                                                                 <div class="mb-3">
                                                                     <label for="schoolAdminPhotoUrl"
                                                                         class="form-label">Administrator Profile Image</label>
@@ -2599,19 +2610,36 @@
                 const emailInput = document.getElementById('email');
                 const email = emailInput?.value.trim();
                 if (!email) {
-                    showAlert('Enter your account email first, then choose Forgot password again.', 'warning');
+                    showAlert('Enter your account email first, then click Forgot password.', 'warning');
                     emailInput?.focus();
                     return;
                 }
-                if (!ownerAuth) {
-                    showAlert('Password reset is unavailable because Firebase has not initialized. Check the setup message on this page.', 'danger');
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    showAlert('Enter a valid email address.', 'warning');
+                    emailInput?.focus();
                     return;
                 }
+                const btn = document.getElementById('loginForgotPassword');
+                const origHtml = btn ? btn.innerHTML : '';
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                }
+                showAlert('Sending password reset instructions...', 'info');
+
                 try {
-                    await window.RollCallPasswordReset.send(email);
-                    showAlert('If an account exists for that email, password reset instructions will be sent.', 'success');
+                    if (!window.RollCallPasswordReset || typeof window.RollCallPasswordReset.send !== 'function') {
+                        throw new Error('Password reset service is loading. Please try again.');
+                    }
+                    const msg = await window.RollCallPasswordReset.send(email, { portal: 'owner' });
+                    showAlert(msg || 'If an account exists for that email, password reset instructions will be sent.', 'success');
                 } catch (error) {
                     showAlert(`Could not send password reset email: ${error.message}`, 'danger');
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = origHtml;
+                    }
                 }
             });
             document.getElementById('toggleOwnerPassword')?.addEventListener('click', event => {
@@ -3082,9 +3110,91 @@
 
         // This duplicate code is removed
 
+        function ensureOwnerDob(user, userData) {
+            const existingDob = userData?.dob || userData?.dateOfBirth;
+            if (existingDob) return Promise.resolve(existingDob);
+            return new Promise((resolve) => {
+                if (document.getElementById('owner-dob-setup-overlay')) return resolve();
+                const overlay = document.createElement('div');
+                overlay.id = 'owner-dob-setup-overlay';
+                overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483001;display:grid;place-items:center;padding:20px;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);';
+                overlay.innerHTML = `
+                    <div role="dialog" aria-modal="true" style="width:min(100%,460px);background:#fff;border-radius:18px;padding:30px;box-shadow:0 25px 80px rgba(0,0,0,.35);font-family:system-ui,-apple-system,sans-serif">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+                            <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:#eaf5ed;color:#176b4d;font-size:1.3rem"><i class="fas fa-calendar-alt"></i></span>
+                            <div>
+                                <h2 style="margin:0;font-size:1.35rem;font-weight:700;color:#0f172a">Date of Birth Required</h2>
+                                <p style="margin:2px 0 0;font-size:0.85rem;color:#64748b">Owner account security & recovery setup</p>
+                            </div>
+                        </div>
+                        <p style="color:#475569;font-size:0.92rem;line-height:1.5;margin:0 0 20px">
+                            Please provide your Date of Birth (DOB). This is required to verify your identity and enable password reset recovery for your owner account.
+                        </p>
+                        <div style="margin-bottom:16px">
+                            <label style="display:block;font-weight:600;font-size:0.9rem;color:#1e293b;margin-bottom:8px" for="ownerDobInput">Your Date of Birth (DOB) *</label>
+                            <input id="ownerDobInput" type="date" required style="width:100%;box-sizing:border-box;padding:12px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:1rem;color:#0f172a;outline:none">
+                        </div>
+                        <p id="ownerDobError" role="alert" style="min-height:20px;font-size:0.86rem;color:#b42318;margin:6px 0 16px"></p>
+                        <button id="saveOwnerDobBtn" type="button" style="width:100%;padding:13px;border:0;border-radius:10px;background:#176b4d;color:#fff;font-size:0.98rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background 0.2s">
+                            <i class="fas fa-check-circle"></i> Save Date of Birth
+                        </button>
+                    </div>`;
+                document.body.appendChild(overlay);
+                const dobInput = overlay.querySelector('#ownerDobInput');
+                const error = overlay.querySelector('#ownerDobError');
+                const button = overlay.querySelector('#saveOwnerDobBtn');
+                try {
+                    dobInput.max = new Date().toISOString().split('T')[0];
+                } catch (e) {}
+                dobInput.focus();
+
+                button.addEventListener('click', async () => {
+                    const dob = dobInput.value.trim();
+                    if (!dob) {
+                        error.textContent = 'Please choose your date of birth.';
+                        return;
+                    }
+                    if (dob > new Date().toISOString().split('T')[0]) {
+                        error.textContent = 'Date of birth cannot be in the future.';
+                        return;
+                    }
+                    button.disabled = true;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                    try {
+                        const updates = {
+                            [`owners/${user.uid}/dob`]: dob,
+                            [`owners/${user.uid}/dateOfBirth`]: dob,
+                            [`users/${user.uid}/dob`]: dob,
+                            [`users/${user.uid}/dateOfBirth`]: dob
+                        };
+                        try {
+                            await ownerAuth.database().ref().update(updates);
+                        } catch (rootErr) {
+                            await ownerAuth.database().ref(`owners/${user.uid}`).update({ dob, dateOfBirth: dob }).catch(() => {});
+                            await ownerAuth.database().ref(`users/${user.uid}`).update({ dob, dateOfBirth: dob }).catch(() => {});
+                        }
+                        if (userData) {
+                            userData.dob = dob;
+                            userData.dateOfBirth = dob;
+                        }
+                        if (currentUser) {
+                            currentUser.dob = dob;
+                            currentUser.dateOfBirth = dob;
+                        }
+                        overlay.remove();
+                        resolve(dob);
+                    } catch (err) {
+                        button.disabled = false;
+                        button.innerHTML = '<i class="fas fa-check-circle"></i> Save Date of Birth';
+                        error.textContent = err.message || 'Could not save date of birth. Please try again.';
+                    }
+                });
+            });
+        }
+
         // Show app content and hide login
         function showApp(user) {
-            verifyOwnerAccess(user).then(() => {
+            verifyOwnerAccess(user).then((verifiedRecord) => {
             document.getElementById('loginContainer').style.display = 'none';
             document.getElementById('appContent').style.display = 'block';
 
@@ -3096,10 +3206,27 @@
 
             // Try to get user's display name and settings from owner database
             ownerAuth.database().ref('owners/' + user.uid).once('value')
-                .then((snapshot) => {
-                    if (snapshot.exists()) {
-                        const userData = snapshot.val();
+                .then(async (snapshot) => {
+                    const userData = snapshot.exists() ? (snapshot.val() || {}) : (verifiedRecord || {});
 
+                    if (!userData.dob && !userData.dateOfBirth) {
+                        try {
+                            const userSnap = await ownerAuth.database().ref('users/' + user.uid).once('value');
+                            if (userSnap.exists()) {
+                                const uVal = userSnap.val() || {};
+                                if (uVal.dob || uVal.dateOfBirth) {
+                                    userData.dob = uVal.dob || uVal.dateOfBirth;
+                                    userData.dateOfBirth = userData.dob;
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('Could not inspect users node for owner DOB:', e);
+                        }
+                    }
+
+                    ensureOwnerDob(user, userData).catch(err => console.error('Error ensuring owner DOB:', err));
+
+                    if (snapshot.exists()) {
                         // Update user name if available
                         if (userData.name) {
                             document.getElementById('loggedInUserName').textContent = userData.name;
@@ -3195,6 +3322,7 @@
             document.getElementById('loginContainer').style.display = 'flex';
             document.getElementById('appContent').style.display = 'none';
             if (!ownerAuth?.auth().currentUser) window.__rollCallOwnerAuthorizedUid = null;
+            document.getElementById('owner-dob-setup-overlay')?.remove();
 
             // Reset form and clear any previous alerts
             document.getElementById('loginForm').reset();

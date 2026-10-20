@@ -188,6 +188,8 @@ function completeRegistration() {
     const adminData = {
         username: document.getElementById('adminUsername').value,
         password: document.getElementById('adminPassword').value,
+        dob: document.getElementById('adminDob')?.value || '',
+        dateOfBirth: document.getElementById('adminDob')?.value || '',
         email: document.getElementById('adminEmail').value
     };
     
@@ -209,7 +211,9 @@ function completeRegistration() {
         ...schoolData,
         admin: {
             username: adminData.username,
-            email: adminData.email
+            email: adminData.email,
+            dob: adminData.dob,
+            dateOfBirth: adminData.dateOfBirth
         },
         subscription: {
             plan: selectedPlan,
@@ -227,45 +231,6 @@ function completeRegistration() {
     const newSchoolRef = database.ref('schools').push();
     const schoolId = newSchoolRef.key;
     
-    // Save to school's Firebase
-    newSchoolRef.set(completeSchoolData)
-        .then(() => {
-            // Save admin credentials for login
-            return database.ref('schoolAdmins/' + schoolId).set({
-                username: adminData.username,
-                email: adminData.email,
-                password: adminData.password,
-                schoolId: schoolId,
-                createdAt: new Date().toISOString()
-            });
-        })
-        .then(() => {
-            // Save to owner's Firebase with subscription plan
-            if (currentUser) {
-                return ownerAuth.database().ref('owners/' + currentUser.uid + '/schools/' + schoolId).set({
-                    ...completeSchoolData,
-                    schoolId: schoolId,
-                    subscription: {
-                        plan: selectedPlan,
-                        startDate: startDate.toISOString(),
-                        endDate: endDate.toISOString(),
-                        status: 'active'
-                    }
-                });
-            }
-            return Promise.resolve();
-        })
-        .then(() => {
-            showAlert('School registered successfully!', 'success');
-            resetRegistrationForm();
-        })
-        .catch((error) => {
-            console.error('Error registering school:', error);
-            showAlert('Error registering school: ' + error.message, 'danger');
-        });base
-    const newSchoolRef = database.ref('schools').push();
-    const schoolId = newSchoolRef.key;
-    
     // Save school data to school's Firebase
     newSchoolRef.set(completeSchoolData)
         .then(() => {
@@ -274,6 +239,8 @@ function completeRegistration() {
                 username: adminData.username,
                 email: adminData.email,
                 password: adminData.password, // In a real app, this should be hashed
+                dob: adminData.dob,
+                dateOfBirth: adminData.dateOfBirth,
                 schoolId: schoolId,
                 createdAt: new Date().toISOString()
             });
@@ -353,8 +320,9 @@ function validateRegistrationForm() {
         return false;
     }
     
-    if (!principalName || !principalEmail || !schoolPhone || !adminUsername || !adminPassword) {
-        showAlert('Please fill in all required contact information fields', 'danger');
+    const adminDob = document.getElementById('adminDob')?.value || '';
+    if (!principalName || !principalEmail || !schoolPhone || !adminUsername || !adminDob || !adminPassword) {
+        showAlert('Please fill in all required contact information fields, including Admin DOB', 'danger');
         showRegistrationStep(2);
         return false;
     }

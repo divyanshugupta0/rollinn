@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RollCall WebApp - Portal Hub</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>RollCall - Portal Hub</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -18,7 +21,9 @@
             --slate-50: #f8fafc;
         }
 
-        *, *::before, *::after {
+        *,
+        *::before,
+        *::after {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
@@ -28,7 +33,7 @@
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: var(--slate-50);
-            background-image: 
+            background-image:
                 radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
                 radial-gradient(at 100% 0%, rgba(14, 165, 233, 0.08) 0px, transparent 50%),
                 radial-gradient(at 50% 100%, rgba(79, 70, 229, 0.05) 0px, transparent 50%);
@@ -165,12 +170,21 @@
             opacity: 1;
         }
 
-        .portal-card.admin::before { background: var(--brand-gradient); }
-        .portal-card.teacher::before { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
-        .portal-card.owner::before { background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); }
-        .portal-card.student::before { background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); }
-        .portal-card.location::before { background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); }
-        .portal-card.registration::before { background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%); }
+        .portal-card.admin::before {
+            background: var(--brand-gradient);
+        }
+
+        .portal-card.teacher::before {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        }
+
+        .portal-card.owner::before {
+            background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+        }
+
+        .portal-card.student::before {
+            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+        }
 
         .card-icon-wrap {
             width: 56px;
@@ -188,12 +202,25 @@
             transform: scale(1.1) rotate(-4deg);
         }
 
-        .portal-card.admin .card-icon-wrap { background: rgba(99, 102, 241, 0.12); color: var(--brand-primary); }
-        .portal-card.teacher .card-icon-wrap { background: rgba(16, 185, 129, 0.12); color: #059669; }
-        .portal-card.owner .card-icon-wrap { background: rgba(245, 158, 11, 0.12); color: #d97706; }
-        .portal-card.student .card-icon-wrap { background: rgba(14, 165, 233, 0.12); color: #0284c7; }
-        .portal-card.location .card-icon-wrap { background: rgba(139, 92, 246, 0.12); color: #7c3aed; }
-        .portal-card.registration .card-icon-wrap { background: rgba(244, 63, 94, 0.12); color: #e11d48; }
+        .portal-card.admin .card-icon-wrap {
+            background: rgba(99, 102, 241, 0.12);
+            color: var(--brand-primary);
+        }
+
+        .portal-card.teacher .card-icon-wrap {
+            background: rgba(16, 185, 129, 0.12);
+            color: #059669;
+        }
+
+        .portal-card.owner .card-icon-wrap {
+            background: rgba(245, 158, 11, 0.12);
+            color: #d97706;
+        }
+
+        .portal-card.student .card-icon-wrap {
+            background: rgba(14, 165, 233, 0.12);
+            color: #0284c7;
+        }
 
         .card-title {
             font-size: 1.25rem;
@@ -237,6 +264,7 @@
         }
     </style>
 </head>
+
 <body>
     <header>
         <div class="brand">
@@ -255,7 +283,7 @@
 
     <main>
         <div class="hero">
-            <div class="hero-badge"><i class="fas fa-th-large"></i> RollCall WebApp Suite</div>
+            <div class="hero-badge"><i class="fas fa-th-large"></i> rollapp Suite</div>
             <h1>Select Your Workspace Portal</h1>
             <p>Access attendance records, manage geo-fences, view analytics, and control class sessions securely.</p>
         </div>
@@ -269,7 +297,8 @@
                     <span>Admin Panel</span>
                     <i class="fas fa-arrow-right"></i>
                 </div>
-                <div class="card-desc">Redesigned Enterprise Dashboard with attendance logs, location mapping, device locks, and user permissions.</div>
+                <div class="card-desc">Redesigned Enterprise Dashboard with attendance logs, location mapping, device
+                    locks, and user permissions.</div>
                 <div class="card-action">Open Admin Dashboard <i class="fas fa-arrow-right"></i></div>
             </a>
 
@@ -281,7 +310,8 @@
                     <span>Teacher Portal</span>
                     <i class="fas fa-arrow-right"></i>
                 </div>
-                <div class="card-desc">Initiate live class sessions, verify attendance codes, monitor statistics, and manage student timetables.</div>
+                <div class="card-desc">Initiate live class sessions, verify attendance codes, monitor statistics, and
+                    manage student timetables.</div>
                 <div class="card-action">Open Teacher Portal <i class="fas fa-arrow-right"></i></div>
             </a>
 
@@ -293,7 +323,8 @@
                     <span>Owner Portal</span>
                     <i class="fas fa-arrow-right"></i>
                 </div>
-                <div class="card-desc">Institution registration, school analytics, subscription billing, and multi-tenant administrator setup.</div>
+                <div class="card-desc">Institution registration, school analytics, subscription billing, and
+                    multi-tenant administrator setup.</div>
                 <div class="card-action">Open Owner Portal <i class="fas fa-arrow-right"></i></div>
             </a>
 
@@ -305,38 +336,16 @@
                     <span>Student Attendance</span>
                     <i class="fas fa-arrow-right"></i>
                 </div>
-                <div class="card-desc">Real-time GPS geofenced check-in, QR scanning, and face recognition attendance registration.</div>
+                <div class="card-desc">Real-time GPS geofenced check-in, QR scanning, and face recognition attendance
+                    registration.</div>
                 <div class="card-action">Open Student Portal <i class="fas fa-arrow-right"></i></div>
-            </a>
-
-            <a href="location/location-qr-new.html" class="portal-card location">
-                <div class="card-icon-wrap">
-                    <i class="fas fa-map-marked-alt"></i>
-                </div>
-                <div class="card-title">
-                    <span>Location & QR Hub</span>
-                    <i class="fas fa-arrow-right"></i>
-                </div>
-                <div class="card-desc">Generate dynamic location QR tokens, capture mobile coordinates, and calibrate geofence radii.</div>
-                <div class="card-action">Open Location Tools <i class="fas fa-arrow-right"></i></div>
-            </a>
-
-            <a href="registration/registration-page.html" class="portal-card registration">
-                <div class="card-icon-wrap">
-                    <i class="fas fa-user-plus"></i>
-                </div>
-                <div class="card-title">
-                    <span>School Registration</span>
-                    <i class="fas fa-arrow-right"></i>
-                </div>
-                <div class="card-desc">Onboarding wizard for new educational institutions and student bulk enrollment.</div>
-                <div class="card-action">Open Registration <i class="fas fa-arrow-right"></i></div>
             </a>
         </div>
     </main>
 
     <footer>
-        RollCall WebApp &bull; Organized by Feature & Function &bull; Modern Enterprise Design
+        rollapp &bull; Organized by Feature & Function &bull; Modern Enterprise Design
     </footer>
 </body>
+
 </html>

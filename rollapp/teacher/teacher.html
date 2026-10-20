@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -3100,6 +3100,53 @@
             white-space: normal !important;
         }
         body:not(.teacher-authenticated) #loginContainer .login-security-note { justify-content: flex-start !important; }
+        body:not(.teacher-authenticated) #loginContainer .teacher-login-options {
+            display: flex !important;
+            justify-content: flex-end !important;
+            margin: -6px 0 2px !important;
+        }
+        body:not(.teacher-authenticated) #loginContainer .teacher-forgot-btn,
+        .teacher-forgot-btn {
+            all: unset !important;
+            display: inline-block !important;
+            box-sizing: border-box !important;
+            width: auto !important;
+            max-width: fit-content !important;
+            min-width: 0 !important;
+            min-height: 0 !important;
+            margin: 0 0 0 auto !important;
+            padding: 2px 0 !important;
+            background: transparent !important;
+            background-color: transparent !important;
+            background-image: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            color: #176b4d !important;
+            font-size: 0.85rem !important;
+            font-weight: 500 !important;
+            line-height: 1.4 !important;
+            letter-spacing: normal !important;
+            text-align: right !important;
+            text-decoration: none !important;
+            cursor: pointer !important;
+            transform: none !important;
+            transition: color 0.15s ease, text-decoration 0.15s ease !important;
+        }
+        body:not(.teacher-authenticated) #loginContainer .teacher-forgot-btn:hover,
+        .teacher-forgot-btn:hover {
+            color: #0f4a35 !important;
+            text-decoration: underline !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+        body:not(.teacher-authenticated) #loginContainer .teacher-forgot-btn:focus-visible,
+        .teacher-forgot-btn:focus-visible {
+            outline: 2px solid #176b4d !important;
+            outline-offset: 2px !important;
+            border-radius: 4px !important;
+        }
         @media (max-width: 520px) {
             body:not(.teacher-authenticated) .main-content > .container { padding: 18px 14px !important; }
             body:not(.teacher-authenticated) #loginContainer.login-container { width: 100% !important; border-radius: 18px !important; }
@@ -3612,6 +3659,9 @@
                     <div class="form-group">
                         <label for="password"><i class="fas fa-lock"></i> Password</label>
                         <input type="password" id="password" name="password" autocomplete="current-password" required placeholder="Enter your password">
+                    </div>
+                    <div class="teacher-login-options">
+                        <button type="button" id="teacherForgotPassword" class="teacher-forgot-btn">Forgot password?</button>
                     </div>
                     <button type="submit"><i class="fas fa-arrow-right-to-bracket" aria-hidden="true"></i> Sign in to workspace</button>
                 </form>
@@ -4219,6 +4269,7 @@
     <script src="teacher-settings-profile.js"></script>
     <script src="attendance-manager.js"></script>
     <script src="class-manager.js"></script>
+    <script src="timetable-cache.js"></script>
     <script src="classes-schedule.js"></script>
     <script src="location-features.js"></script>
     <script src="reports-dashboard.js"></script>
@@ -4295,6 +4346,41 @@
         const loadAttendanceBtn = document.getElementById('loadAttendanceBtn');
         const submitAttendanceBtn = document.getElementById('submitAttendanceBtn');
         const logoutBtn = document.getElementById('logoutBtn');
+        const teacherForgotBtn = document.getElementById('teacherForgotPassword');
+        if (teacherForgotBtn) {
+            teacherForgotBtn.addEventListener('click', async function () {
+                const emailInput = document.getElementById('email');
+                const email = emailInput ? emailInput.value.trim() : '';
+                if (!email) {
+                    showAlert(loginAlert, 'Please enter your email address first, then click Forgot password.', 'error');
+                    emailInput?.focus();
+                    return;
+                }
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    showAlert(loginAlert, 'Please enter a valid email address.', 'error');
+                    emailInput?.focus();
+                    return;
+                }
+                const originalHtml = teacherForgotBtn.innerHTML;
+                teacherForgotBtn.disabled = true;
+                teacherForgotBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                showAlert(loginAlert, 'Sending password reset instructions...', 'info');
+
+                try {
+                    if (!window.RollCallPasswordReset || typeof window.RollCallPasswordReset.send !== 'function') {
+                        throw new Error('Password reset service is loading. Please try again.');
+                    }
+                    const msg = await window.RollCallPasswordReset.send(email, { portal: 'teacher' });
+                    showAlert(loginAlert, msg || 'Password reset link sent to your email. Please check your inbox.', 'success');
+                } catch (err) {
+                    console.error('Teacher password reset error:', err);
+                    showAlert(loginAlert, err.message || 'Unable to send reset email. Please try again.', 'error');
+                } finally {
+                    teacherForgotBtn.disabled = false;
+                    teacherForgotBtn.innerHTML = originalHtml;
+                }
+            });
+        }
         
         // New DOM Elements
         const classSelectionContainer = document.getElementById('classSelectionContainer');
@@ -4358,6 +4444,81 @@
                 console.error('Error setting auth persistence:', error);
             });
             
+        function ensureTeacherDob(user, profile) {
+            const existingDob = profile?.dob || profile?.dateOfBirth;
+            if (existingDob) return Promise.resolve(existingDob);
+            return new Promise((resolve) => {
+                if (document.getElementById('teacher-dob-setup-overlay')) return resolve();
+                const overlay = document.createElement('div');
+                overlay.id = 'teacher-dob-setup-overlay';
+                overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483001;display:grid;place-items:center;padding:20px;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);';
+                overlay.innerHTML = `
+                    <div role="dialog" aria-modal="true" style="width:min(100%,460px);background:#fff;border-radius:18px;padding:30px;box-shadow:0 25px 80px rgba(0,0,0,.35);font-family:system-ui,-apple-system,sans-serif">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+                            <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:#eaf5ed;color:#176b4d;font-size:1.3rem"><i class="fas fa-calendar-alt"></i></span>
+                            <div>
+                                <h2 style="margin:0;font-size:1.35rem;font-weight:700;color:#0f172a">Date of Birth Required</h2>
+                                <p style="margin:2px 0 0;font-size:0.85rem;color:#64748b">Faculty account security & recovery setup</p>
+                            </div>
+                        </div>
+                        <p style="color:#475569;font-size:0.92rem;line-height:1.5;margin:0 0 20px">
+                            Please provide your Date of Birth (DOB). This is required to verify your identity and enable password reset recovery for your teacher account.
+                        </p>
+                        <div style="margin-bottom:16px">
+                            <label style="display:block;font-weight:600;font-size:0.9rem;color:#1e293b;margin-bottom:8px" for="teacherDobInput">Your Date of Birth (DOB) *</label>
+                            <input id="teacherDobInput" type="date" required style="width:100%;box-sizing:border-box;padding:12px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:1rem;color:#0f172a;outline:none">
+                        </div>
+                        <p id="teacherDobError" role="alert" style="min-height:20px;font-size:0.86rem;color:#b42318;margin:6px 0 16px"></p>
+                        <button id="saveTeacherDobBtn" type="button" style="width:100%;padding:13px;border:0;border-radius:10px;background:#176b4d;color:#fff;font-size:0.98rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background 0.2s">
+                            <i class="fas fa-check-circle"></i> Save Date of Birth
+                        </button>
+                    </div>`;
+                document.body.appendChild(overlay);
+                const dobInput = overlay.querySelector('#teacherDobInput');
+                const error = overlay.querySelector('#teacherDobError');
+                const button = overlay.querySelector('#saveTeacherDobBtn');
+                try {
+                    dobInput.max = new Date().toISOString().split('T')[0];
+                } catch (e) {}
+                dobInput.focus();
+
+                button.addEventListener('click', async () => {
+                    const dob = dobInput.value.trim();
+                    if (!dob) {
+                        error.textContent = 'Please choose your date of birth.';
+                        return;
+                    }
+                    if (dob > new Date().toISOString().split('T')[0]) {
+                        error.textContent = 'Date of birth cannot be in the future.';
+                        return;
+                    }
+                    button.disabled = true;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                    try {
+                        const updates = {
+                            [`users/${user.uid}/dob`]: dob,
+                            [`users/${user.uid}/dateOfBirth`]: dob
+                        };
+                        await firebase.database().ref().update(updates);
+                        if (profile) {
+                            profile.dob = dob;
+                            profile.dateOfBirth = dob;
+                        }
+                        if (currentTeacher) {
+                            currentTeacher.dob = dob;
+                            currentTeacher.dateOfBirth = dob;
+                        }
+                        overlay.remove();
+                        resolve(dob);
+                    } catch (err) {
+                        button.disabled = false;
+                        button.innerHTML = '<i class="fas fa-check-circle"></i> Save Date of Birth';
+                        error.textContent = err.message || 'Could not save date of birth. Please try again.';
+                    }
+                });
+            });
+        }
+
         // Check authentication state on page load
         firebase.auth().onAuthStateChanged((user) => {
             if (user) {
@@ -4405,6 +4566,7 @@
                         attendanceMarkingContainer.style.display = 'none';
                         viewSubmittedContainer.style.display = 'none';
                         console.log('Teacher authenticated:', user.email);
+                        ensureTeacherDob(user, profile).catch(err => console.error('Error ensuring teacher DOB:', err));
                         window.RollCallSubscriptionExpiry.showStaffExpiryOverlay({
                             user,
                             profile: currentTeacher,
@@ -4439,6 +4601,7 @@
             } else {
                 // User is signed out
                 if (currentTeacher?.id) window.RollCallSubscriptionExpiry?.clearStaffExpiryState(currentTeacher.id);
+                document.getElementById('teacher-dob-setup-overlay')?.remove();
                 document.body.classList.remove('teacher-authenticated');
                 loginContainer.style.display = 'block';
                 document.querySelector('.sidebar').style.display = 'none';

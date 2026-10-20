@@ -28,13 +28,19 @@
             headers.Authorization = `Bearer ${await user.getIdToken()}`;
         }
 
+        const payload = {
+            email: normalizedEmail
+        };
+        if (options.targetUid) payload.targetUid = String(options.targetUid);
+        if (options.dob) payload.dob = String(options.dob).trim();
+        if (options.classRoll) payload.classRoll = String(options.classRoll).trim();
+        if (options.univRoll) payload.univRoll = String(options.univRoll).trim();
+        if (options.portal) payload.portal = String(options.portal).trim();
+
         const response = await fetch(endpoint.href, {
             method: 'POST',
             headers,
-            body: JSON.stringify({
-                email: normalizedEmail,
-                targetUid: options.targetUid ? String(options.targetUid) : undefined
-            }),
+            body: JSON.stringify(payload),
             credentials: 'omit',
             redirect: 'error',
             referrerPolicy: 'no-referrer'

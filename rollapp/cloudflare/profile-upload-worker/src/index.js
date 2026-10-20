@@ -570,15 +570,127 @@ async function readJsonWithinLimit(request, maxBytes) {
     }
 }
 
+function normalizeDate(str) {
+    if (!str) return '';
+    const s = String(str).trim();
+    const isoMatch = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+    if (isoMatch) {
+        return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+    }
+    const dmyMatch = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+    if (dmyMatch) {
+        return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
+    }
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) {
+        return d.toISOString().split('T')[0];
+    }
+    return s.toLowerCase();
+}
+
 async function handlePasswordReset(request, env, origin) {
     const payload = await readJsonWithinLimit(request, 4096);
     if (!payload) return response({ error: 'Invalid password reset request.' }, 400, origin);
 
     const email = String(payload.email || '').trim().toLowerCase();
     const targetUid = typeof payload.targetUid === 'string' ? payload.targetUid.trim() : '';
+    const dob = typeof payload.dob === 'string' ? payload.dob.trim() : '';
+    const classRoll = typeof payload.classRoll === 'string' ? payload.classRoll.trim() : '';
+    const univRoll = typeof payload.univRoll === 'string' ? payload.univRoll.trim() : '';
+    const portal = typeof payload.portal === 'string' ? payload.portal.trim().toLowerCase() : '';
+    const isStudentVerification = Boolean(portal === 'student' || dob);
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
         (targetUid && !/^[A-Za-z0-9_-]{1,128}$/.test(targetUid))) {
         return response({ error: 'Enter a valid email address.' }, 400, origin);
+    }
+
+    if (isStudentVerification) {
+        if (!dob) {
+            return response({ error: 'Date of birth is required.' }, 400, origin);
+        }
+
+        try {
+            const accessToken = await getFirebaseAccessToken(env);
+            const baseUrl = String(env.FIREBASE_DATABASE_URL || '').replace(/\/+$/, '');
+            if (!baseUrl) throw new Error('Firebase database URL is not configured.');
+
+            // Query user by email using service account authorization
+            const query = new URLSearchParams({
+                orderBy: '"email"',
+                equalTo: JSON.stringify(email),
+                access_token: accessToken
+            });
+            const searchResponse = await fetch(`${baseUrl}/users.json?${query.toString()}`);
+            if (!searchResponse.ok) {
+                console.error('Firebase student lookup failed:', searchResponse.status);
+                return response({ error: 'Verification service is temporarily unavailable. Try again shortly.' }, 503, origin);
+            }
+
+            const matchedUsers = await searchResponse.json();
+            if (!matchedUsers || typeof matchedUsers !== 'object' || Object.keys(matchedUsers).length === 0) {
+                return response({ error: 'No student account was found with this email address.' }, 404, origin);
+            }
+
+            let studentUser = null;
+            let studentUid = null;
+            for (const [uid, u] of Object.entries(matchedUsers)) {
+                if (u && typeof u === 'object') {
+                    studentUid = uid;
+                    studentUser = u;
+                    break;
+                }
+            }
+
+            if (!studentUser) {
+                return response({ error: 'No student account was found with this email address.' }, 404, origin);
+            }
+
+            // Verify credentials against student record in database
+            const storedDob = studentUser.dateOfBirth || studentUser.dob || studentUser.birthDate || '';
+            const normalizedStoredDob = normalizeDate(storedDob);
+            const normalizedInputDob = normalizeDate(dob);
+
+            if (!normalizedStoredDob || normalizedStoredDob !== normalizedInputDob) {
+                return response({ error: 'Invalid details. Date of birth does not match our records.' }, 400, origin);
+            }
+
+            // Generate password reset link and send via Brevo email
+            const resetLink = await generatePasswordResetLink(env, email);
+            if (resetLink) {
+                await sendBrevoPasswordReset(env, email, resetLink);
+            } else {
+                throw new Error('Failed to generate password reset link.');
+            }
+
+            // Record request in passwordResetRequests
+            try {
+                const reqUrl = new URL(`${baseUrl}/passwordResetRequests.json`);
+                reqUrl.searchParams.set('access_token', accessToken);
+                await fetch(reqUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email,
+                        dob,
+                        studentUid,
+                        status: 'sent',
+                        timestamp: Date.now(),
+                        sentAt: new Date().toISOString(),
+                        portal: 'student'
+                    })
+                });
+            } catch (logErr) {
+                console.warn('Failed to record password reset request log:', logErr);
+            }
+
+            return response({
+                message: 'Password reset link has been sent to your registered email address. Please check your inbox.'
+            }, 200, origin);
+        } catch (error) {
+            console.error('Student password reset error:', error);
+            return response({ error: error.message || 'Password reset is temporarily unavailable. Try again later.' }, 503, origin);
+        }
     }
 
     const authorization = request.headers.get('Authorization') || '';

@@ -368,6 +368,7 @@
                     <div class="col-md-4"><label class="form-label" for="ownerTeacherSchool">School / college</label><select id="ownerTeacherSchool" class="form-select" required><option value="">Select an institution</option></select></div>
                     <div class="col-md-4"><label class="form-label" for="ownerTeacherName">Full name</label><input id="ownerTeacherName" class="form-control" required maxlength="120"></div>
                     <div class="col-md-4"><label class="form-label" for="ownerTeacherEmail">Email address</label><input id="ownerTeacherEmail" type="email" class="form-control" required autocomplete="email"></div>
+                    <div class="col-md-4"><label class="form-label" for="ownerTeacherDob">Date of birth (DOB) *</label><input id="ownerTeacherDob" type="date" class="form-control" required><div class="form-text">Used for identity verification and password reset.</div></div>
                     <div class="col-md-4"><label class="form-label" for="ownerTeacherPassword">Temporary password</label><input id="ownerTeacherPassword" type="password" class="form-control" required minlength="8" autocomplete="new-password"><div class="form-text">At least 8 characters. Share it with the teacher securely.</div></div>
                     <div class="col-md-4"><label class="form-label" for="ownerTeacherRole">Teacher role</label><select id="ownerTeacherRole" class="form-select"><option value="teacher">Teacher</option><option value="classTeacher">Class Teacher</option></select></div>
                     <div class="col-md-4"><label class="form-label" for="ownerTeacherSections">Sections</label><input id="ownerTeacherSections" class="form-control" placeholder="e.g. 8-A, 8-B"><div class="form-text">Required for Class Teacher; assigns access to these sections.</div></div>
@@ -440,13 +441,15 @@
         const school = (schools || []).find(item => item.id === schoolId);
         const name = document.getElementById('ownerTeacherName').value.trim();
         const email = document.getElementById('ownerTeacherEmail').value.trim().toLowerCase();
+        const dob = document.getElementById('ownerTeacherDob')?.value?.trim() || '';
         const password = document.getElementById('ownerTeacherPassword').value;
         const role = document.getElementById('ownerTeacherRole').value === 'classTeacher' ? 'classTeacher' : 'teacher';
         const sections = ownerTeacherSections(document.getElementById('ownerTeacherSections').value);
         const button = document.getElementById('ownerCreateTeacherButton');
         if (!currentUser || !database) return notify('The owner database is not connected. Please reconnect and try again.', 'danger');
         if (!school) return notify('Select a valid school or college.', 'warning');
-        if (!name || !email || password.length < 8) return notify('Enter the teacher name, email, and a password with at least 8 characters.', 'warning');
+        if (!name || !email || !dob || password.length < 8) return notify('Enter the teacher name, email, date of birth, and a password with at least 8 characters.', 'warning');
+        if (dob > new Date().toISOString().split('T')[0]) return notify('Date of birth cannot be in the future.', 'warning');
         if (role === 'classTeacher' && !sections.length) return notify('Enter at least one section for a Class Teacher account.', 'warning');
 
         button.disabled = true;
@@ -464,6 +467,8 @@
                 name,
                 email: teacherEmail,
                 username: email.split('@')[0],
+                dob,
+                dateOfBirth: dob,
                 role: 'teacher',
                 schoolId,
                 schoolName: school.name || '',

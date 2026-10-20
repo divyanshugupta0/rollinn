@@ -2530,29 +2530,42 @@
             width: 100%;
         }
 
-        #login-section .input-wrap i {
-            position: absolute;
-            left: 14px;
-            color: var(--gray-400);
+        #login-section .input-wrap > i:first-child,
+        #login-section .input-wrap > i.fa-envelope,
+        #login-section .input-wrap > i.fa-lock {
+            position: absolute !important;
+            left: 15px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            color: var(--gray-400) !important;
+            font-size: 15px !important;
+            pointer-events: none !important;
+            z-index: 2 !important;
         }
 
-        #login-section .input-wrap input {
-            width: 100%;
-            height: 46px;
-            padding: 0 44px 0 42px;
-            border: 1px solid var(--gray-200);
-            border-radius: 12px;
-            background: var(--gray-50);
-            font-size: 0.95rem;
-            color: var(--gray-800);
-            transition: var(--transition);
+        #login-section .input-wrap input,
+        #login-section .input-wrap input[type="email"],
+        #login-section .input-wrap input[type="password"] {
+            width: 100% !important;
+            height: 48px !important;
+            min-height: 48px !important;
+            padding: 0 46px 0 44px !important;
+            padding-left: 44px !important;
+            padding-right: 46px !important;
+            border: 1px solid var(--gray-200) !important;
+            border-radius: 12px !important;
+            background: var(--gray-50) !important;
+            font-size: 0.95rem !important;
+            color: var(--gray-800) !important;
+            box-sizing: border-box !important;
+            transition: var(--transition) !important;
         }
 
         #login-section .input-wrap input:focus {
             outline: none;
-            background: white;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+            background: white !important;
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
         }
 
         #login-section .toggle-password {
@@ -2573,9 +2586,15 @@
             transform: translateY(-50%);
             padding: 0 !important;
             min-width: 0;
-            box-shadow: none !important;
-            line-height: 1;
-            margin: 0 !important;
+            z-index: 3 !important;
+        }
+
+        #login-section .toggle-password i {
+            position: static !important;
+            transform: none !important;
+            left: auto !important;
+            color: inherit !important;
+            font-size: 14px !important;
         }
 
         #login-section .toggle-password:hover {
@@ -3617,6 +3636,7 @@
                             <div class="mt-field"><label for="mtPhone">Phone number</label><input id="mtPhone" type="tel" required maxlength="24" autocomplete="tel" placeholder="+91 98765 43210"></div>
                             <div class="mt-field"><label for="mtDesignation">Designation</label><input id="mtDesignation" required maxlength="100" autocomplete="organization-title" placeholder="e.g. Mathematics Teacher"></div>
                             <div class="mt-field"><label for="mtSubjects">Subjects taught</label><input id="mtSubjects" required maxlength="300" placeholder="Comma-separated subjects"></div>
+                            <div class="mt-field"><label for="mtDob">Date of birth (DOB) *</label><input id="mtDob" type="date" required><small>Required for identity verification and password reset.</small></div>
                             <div class="mt-field"><label for="mtPassword">Temporary password</label><input id="mtPassword" type="password" required minlength="8" autocomplete="new-password"><small>Use at least 8 characters and share it securely.</small></div>
                             <div class="mt-field"><label for="mtProfilePhoto">Profile picture</label><input id="mtProfilePhoto" type="file" accept="image/*" required><small>Required. Choose an image up to 2 MB; it will be uploaded securely to R2 when the account is created.</small><div id="mtPhotoPreview" class="mt-photo-preview" aria-label="Profile picture preview"><i class="fas fa-user" aria-hidden="true"></i></div></div>
                         </div>
@@ -3901,6 +3921,9 @@
                                 </div>
                                 <div id="caps-warning" class="caps-warning" role="status" aria-live="polite">Caps Lock
                                     is on</div>
+                                <div class="login-row-helper">
+                                    <button type="button" id="admin-forgot-password-btn" class="forgot-link-btn">Forgot password?</button>
+                                </div>
                             </div>
                             <div class="login-status-float">
                                 <div id="login-status" class="status-indicator hidden" role="status"
@@ -4481,8 +4504,10 @@
             <div class="card-body ta-card-body">
                 <style>
                     .teacher-assignments-panel.section-template,.course-management-panel.section-template{min-height:0!important;height:auto!important;flex:0 0 auto!important}
+                    .teacher-assignments-panel{position:relative!important;z-index:30!important;isolation:isolate;pointer-events:auto!important}
                     .teacher-assignments-panel .header{position:static!important;top:auto!important;z-index:auto!important}
                     .teacher-assignments-panel .ta-card-body{width:100%!important;max-width:none!important;margin:0!important;padding:clamp(18px,3vw,38px) clamp(16px,4vw,56px) 28px!important}
+                    .teacher-assignments-panel input,.teacher-assignments-panel select,.teacher-assignments-panel button{position:relative!important;z-index:2!important;pointer-events:auto!important}
                     .ta-intro{max-width:1480px;margin:0 auto 22px;padding:22px 26px;display:flex;justify-content:space-between;align-items:center;gap:24px;border:1px solid #dcebe0;border-radius:18px;background:linear-gradient(120deg,#f4faf5,#fff)}
                     .ta-intro-kicker{margin:0 0 6px;color:#23744e;font-size:.72rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
                     .ta-intro h3{margin:0;color:#20372a;font-size:clamp(1.2rem,2vw,1.65rem)}
@@ -4539,9 +4564,11 @@
                     .ta-class-scope{margin-top:20px;padding-top:17px;border-top:1px solid #edf1ed}
                     .ta-class-scope h4{margin:0 0 6px;color:#253c2e;font-size:1rem}
                     .ta-class-scope p{margin:0 0 12px;color:#77857c;font-size:.84rem;line-height:1.5}
+                    .ta-subject-assignment-form,.ta-subject-assignment-form *{pointer-events:auto}
+                    .ta-subject-assignment-form select,.ta-subject-assignment-form button{position:relative;z-index:3;cursor:pointer}
                     .ta-class-section-options,.ta-subject-section-options{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:8px;max-height:260px;overflow:auto;padding:2px}
-                    .ta-class-section-options label,.ta-subject-section-options label{display:flex;align-items:flex-start;gap:9px;padding:10px;border:1px solid #e1e9e3;border-radius:10px;background:#fff;color:#34483a;font-size:.83rem;cursor:pointer}
-                    .ta-class-section-options input,.ta-subject-section-options input{flex:0 0 auto;margin:2px 0 0;accent-color:#17714d}
+                    .ta-class-section-options label,.ta-subject-section-options label{display:flex;align-items:flex-start;gap:9px;padding:10px;border:1px solid #e1e9e3;border-radius:10px;background:#fff;color:#34483a;font-size:.83rem;cursor:pointer;pointer-events:auto}
+                    .ta-class-section-options input,.ta-subject-section-options input{position:relative;z-index:2;flex:0 0 auto;margin:2px 0 0;accent-color:#17714d;cursor:pointer;pointer-events:auto}
                     .ta-class-section-options label.is-selected,.ta-subject-section-options label.is-selected{border-color:#65a879;background:#f0f8f1}
                     .ta-subject-assignment-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
                     .ta-subject-assignment-form .form-group{margin:0}
@@ -4576,14 +4603,9 @@
                                 <label class="ta-role-option"><input type="checkbox" id="taClassTeacherEnabled"><span><strong>Class Teacher role</strong><small>Assign this teacher as class teacher for one or more sections.</small></span></label>
                             </div></div>
                             <div class="ta-section-heading"><h4>Assigned sections</h4><span>Choose the sections this teacher can access</span></div>
-                            <p class="ta-section-help">Section access controls the Students Record directory. Choose which assigned sections this teacher will lead as class teacher.</p>
+                            <p class="ta-section-help">Section access controls the Students Record directory. Choose the sections this teacher leads as class teacher; timetable access is granted automatically for matching class sections.</p>
                             <div id="taSectionOptions" class="ta-section-options"></div>
                             <div id="taClassTeacherSectionRow" class="ta-class-teacher-section" hidden><label>Class teacher for these sections</label><button type="button" id="taClassTeacherSectionToggle" class="ta-class-teacher-section-toggle" aria-expanded="false" aria-controls="taClassTeacherSectionMenu"><span>Choose assigned sections</span><i class="fas fa-chevron-down" aria-hidden="true"></i></button><div id="taClassTeacherSectionMenu" class="ta-class-teacher-section-menu" hidden><div id="taClassTeacherSectionOptions" class="ta-class-teacher-section-options"></div></div><small>Student profile and leave requests from selected sections go to this teacher.</small></div>
-                            <div class="ta-class-scope">
-                                <h4>Class-teacher timetable access</h4>
-                                <p>Select exact class sections this teacher leads. Their read-only timetable will show only these selections.</p>
-                                <div id="taClassTimetableSections" class="ta-class-section-options"><span class="text-muted">Class sections will load when a teacher is selected.</span></div>
-                            </div>
                             <div class="ta-class-scope">
                                 <h4>Subject-teacher assignments</h4>
                                 <p>Assign this teacher to a subject in one or more class sections. Each subject can have one assigned teacher per section.</p>
@@ -4613,10 +4635,17 @@
             <div class="card-body tm-body">
                 <div class="tm-intro"><h3>Build section-by-section weekly schedules</h3><p>Configure school days and periods, then assign each class section’s subjects to a timetable grid. The assigned subject teacher is attached automatically.</p></div>
                 <div class="tm-settings">
-                    <div class="tm-settings-header"><div><h3>School timetable periods</h3><p>Enter period names and optional times. These periods are shared by all class timetables.</p></div><button type="button" id="tmSaveSettings" class="secondary-btn"><i class="fas fa-save"></i> Save periods</button></div>
+                    <div class="tm-settings-header"><div><h3>School timetable intervals</h3><p>Set the school day start and end once. Periods are evenly calculated from the configured number of classes and applied to every class timetable.</p></div><button type="button" id="tmSaveSettings" class="secondary-btn"><i class="fas fa-save"></i> Save intervals</button></div>
                     <div id="tmDays" class="tm-days"></div>
+                    <div class="tm-time-settings">
+                        <label>School day starts<input type="time" id="tmStartTime" value="08:00"></label>
+                        <label>School day ends<input type="time" id="tmEndTime" value="14:00"></label>
+                        <label class="tm-lunch-toggle"><input type="checkbox" id="tmLunchEnabled" checked> Include lunch break</label>
+                        <label>Lunch after period<select id="tmLunchAfter"></select></label>
+                        <label>Lunch duration in minutes <small>(leave blank to use one class interval)</small><input type="number" id="tmLunchDuration" min="1" max="240" placeholder="Class interval"></label>
+                    </div>
                     <div id="tmPeriods" class="tm-periods"></div>
-                    <div class="tm-period-actions"><button type="button" id="tmAddPeriod" class="secondary-btn"><i class="fas fa-plus"></i> Add period</button></div>
+                    <div class="tm-period-actions"><button type="button" id="tmAddPeriod" class="secondary-btn"><i class="fas fa-plus"></i> Add class interval</button></div>
                 </div>
                 <div class="tm-editor">
                     <div class="tm-selectors">
@@ -4625,6 +4654,7 @@
                         <button type="button" id="tmSaveSchedule" class="primary-btn" disabled><i class="fas fa-save"></i> Save timetable</button>
                     </div>
                     <p id="tmStatus" class="tm-status" role="status" aria-live="polite"></p>
+                    <div id="tmConflictBanner" class="tm-conflict-banner" style="display:none"></div>
                     <div id="tmGridWrap" class="tm-grid-wrap"><div class="tm-empty">Choose a class and section to edit its timetable.</div></div>
                 </div>
             </div>
@@ -4640,8 +4670,14 @@
             #manage-timetable-section-active .tm-settings-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
             #manage-timetable-section-active .tm-days{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0}
             #manage-timetable-section-active .tm-days label{display:flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #dce8df;border-radius:9px;background:#fbfdfb;cursor:pointer}
+            #manage-timetable-section-active .tm-time-settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:0 0 14px;padding:14px;border:1px solid #e5ece6;border-radius:12px;background:#fbfdfb}
+            #manage-timetable-section-active .tm-time-settings label{display:grid;align-content:start;gap:6px;color:#405447;font-size:.82rem;font-weight:700}
+            #manage-timetable-section-active .tm-time-settings label small{color:#718077;font-size:.72rem;font-weight:400}
+            #manage-timetable-section-active .tm-time-settings input[type="time"],#manage-timetable-section-active .tm-time-settings input[type="number"],#manage-timetable-section-active .tm-time-settings select{width:100%;min-height:40px;box-sizing:border-box;padding:7px 9px;border:1px solid #d5e0d8;border-radius:8px;background:#fff}
+            #manage-timetable-section-active .tm-time-settings .tm-lunch-toggle{display:flex;align-items:center;gap:8px}
+            #manage-timetable-section-active .tm-lunch-toggle input{width:17px;height:17px;accent-color:#17714d}
             #manage-timetable-section-active .tm-periods{display:grid;gap:8px}
-            #manage-timetable-section-active .tm-period-row{display:grid;grid-template-columns:minmax(120px,1fr) minmax(130px,.8fr) minmax(130px,.8fr) auto;gap:9px;align-items:center}
+            #manage-timetable-section-active .tm-period-row{display:grid;grid-template-columns:minmax(120px,1fr) auto;gap:9px;align-items:center}
             #manage-timetable-section-active .tm-period-row input{width:100%;min-height:40px;box-sizing:border-box;padding:8px 10px;border:1px solid #d5e0d8;border-radius:8px}
             #manage-timetable-section-active .tm-period-actions{margin-top:10px}
             #manage-timetable-section-active .tm-selectors{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}
@@ -4652,9 +4688,19 @@
             #manage-timetable-section-active .tm-grid th,#manage-timetable-section-active .tm-grid td{min-width:120px;padding:9px;border:1px solid #e3ebe5;text-align:left;vertical-align:top}
             #manage-timetable-section-active .tm-grid th{background:#f4f8f5;color:#52685a;font-size:.8rem}
             #manage-timetable-section-active .tm-grid td:first-child{min-width:90px;background:#fafcfb;font-weight:700}
+            #manage-timetable-section-active .tm-grid .tm-interval-row td{background:#f7faf7;color:#42614d;font-size:.78rem;font-weight:700;white-space:nowrap}
+            #manage-timetable-section-active .tm-grid .tm-lunch-cell{background:#fff8e8;color:#89651d;text-align:center}
             #manage-timetable-section-active .tm-grid select{width:100%;min-height:40px;padding:7px;border:1px solid #d5e0d8;border-radius:8px;background:#fff}
             #manage-timetable-section-active .tm-status{min-height:1.5em;color:#5d7163}
             #manage-timetable-section-active .tm-empty{padding:28px;border:1px dashed #d5e2d8;border-radius:12px;color:#718077;text-align:center}
+            #manage-timetable-section-active .tm-cell-conflict{background:#fff3f2!important;border:2px solid #e02424!important}
+            #manage-timetable-section-active .tm-cell-conflict select{border-color:#e02424!important;background:#fff9f9!important;color:#991b1b!important;font-weight:700}
+            #manage-timetable-section-active .tm-slot-conflict-tag{display:block;margin-top:6px;padding:6px 8px;border-radius:6px;background:#fde8e8;border:1px solid #f8b4b4;color:#9b1c1c;font-size:.72rem;line-height:1.35}
+            #manage-timetable-section-active .tm-conflict-banner{margin:0 0 16px}
+            #manage-timetable-section-active .tm-conflict-alert{padding:12px 16px;border-radius:10px;background:#fdf2f2;border:1px solid #f8b4b4;color:#9b1c1c}
+            #manage-timetable-section-active .tm-conflict-alert-header{display:flex;align-items:center;gap:8px;font-size:.88rem;font-weight:700}
+            #manage-timetable-section-active .tm-conflict-alert-header i{color:#e02424;font-size:1.1rem}
+            #manage-timetable-section-active .tm-conflict-list{margin:8px 0 0;padding-left:20px;font-size:.8rem;line-height:1.5}
             @media(max-width:700px){#manage-timetable-section-active .tm-body{padding:14px!important}#manage-timetable-section-active .tm-settings,#manage-timetable-section-active .tm-editor{padding:15px}#manage-timetable-section-active .tm-selectors{grid-template-columns:1fr}#manage-timetable-section-active .tm-period-row{grid-template-columns:1fr 1fr}#manage-timetable-section-active .tm-settings-header{align-items:flex-start;flex-direction:column}}
         </style>
     </div>
@@ -6275,6 +6321,41 @@
                 });
             }
 
+            const adminForgotBtn = document.getElementById('admin-forgot-password-btn');
+            if (adminForgotBtn) {
+                adminForgotBtn.addEventListener('click', async () => {
+                    const email = emailInput ? emailInput.value.trim() : '';
+                    if (!email) {
+                        showLoginStatus('Please enter your admin email address first, then click Forgot password.', 'warning');
+                        emailInput?.focus();
+                        return;
+                    }
+                    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                        showLoginStatus('Please enter a valid email address.', 'error');
+                        emailInput?.focus();
+                        return;
+                    }
+                    const originalHtml = adminForgotBtn.innerHTML;
+                    adminForgotBtn.disabled = true;
+                    adminForgotBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                    showLoginStatus('Sending password reset instructions...', 'warning');
+
+                    try {
+                        if (!window.RollCallPasswordReset || typeof window.RollCallPasswordReset.send !== 'function') {
+                            throw new Error('Password reset service is loading. Please try again.');
+                        }
+                        const msg = await window.RollCallPasswordReset.send(email, { portal: 'admin' });
+                        showLoginStatus(msg || 'Password reset link sent to your registered email. Check your inbox.', 'success');
+                    } catch (err) {
+                        console.error('Admin password reset error:', err);
+                        showLoginStatus(err.message || 'Unable to send reset email. Please try again.', 'error');
+                    } finally {
+                        adminForgotBtn.disabled = false;
+                        adminForgotBtn.innerHTML = originalHtml;
+                    }
+                });
+            }
+
             updateLoginLockUI();
         }
 
@@ -6536,6 +6617,88 @@
             });
         }
 
+        function ensureAdminDob(user, userData) {
+            const existingDob = userData?.dob || userData?.dateOfBirth;
+            if (existingDob) return Promise.resolve(existingDob);
+            return new Promise((resolve) => {
+                if (document.getElementById('admin-dob-setup-overlay')) return resolve();
+                const overlay = document.createElement('div');
+                overlay.id = 'admin-dob-setup-overlay';
+                overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483001;display:grid;place-items:center;padding:20px;background:rgba(15,23,42,.75);backdrop-filter:blur(4px);';
+                overlay.innerHTML = `
+                    <div role="dialog" aria-modal="true" style="width:min(100%,460px);background:#fff;border-radius:18px;padding:30px;box-shadow:0 25px 80px rgba(0,0,0,.35);font-family:system-ui,-apple-system,sans-serif">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+                            <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:#eff6ff;color:#2563eb;font-size:1.3rem"><i class="fas fa-calendar-alt"></i></span>
+                            <div>
+                                <h2 style="margin:0;font-size:1.35rem;font-weight:700;color:#0f172a">Date of Birth Required</h2>
+                                <p style="margin:2px 0 0;font-size:0.85rem;color:#64748b">Account recovery and security setup</p>
+                            </div>
+                        </div>
+                        <p style="color:#475569;font-size:0.92rem;line-height:1.5;margin:0 0 20px">
+                            Please provide your Date of Birth (DOB). This is required to verify your identity and enable password reset recovery for your administrator account.
+                        </p>
+                        <div style="margin-bottom:16px">
+                            <label style="display:block;font-weight:600;font-size:0.9rem;color:#1e293b;margin-bottom:8px" for="adminDobInput">Your Date of Birth (DOB) *</label>
+                            <input id="adminDobInput" type="date" required style="width:100%;box-sizing:border-box;padding:12px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:1rem;color:#0f172a;outline:none">
+                        </div>
+                        <p id="adminDobError" role="alert" style="min-height:20px;font-size:0.86rem;color:#b42318;margin:6px 0 16px"></p>
+                        <button id="saveAdminDobBtn" type="button" style="width:100%;padding:13px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-size:0.98rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background 0.2s">
+                            <i class="fas fa-check-circle"></i> Save Date of Birth
+                        </button>
+                    </div>`;
+                document.body.appendChild(overlay);
+                const dobInput = overlay.querySelector('#adminDobInput');
+                const error = overlay.querySelector('#adminDobError');
+                const button = overlay.querySelector('#saveAdminDobBtn');
+                try {
+                    dobInput.max = new Date().toISOString().split('T')[0];
+                } catch (e) {}
+                dobInput.focus();
+
+                button.addEventListener('click', async () => {
+                    const dob = dobInput.value.trim();
+                    if (!dob) {
+                        error.textContent = 'Please choose your date of birth.';
+                        return;
+                    }
+                    if (dob > new Date().toISOString().split('T')[0]) {
+                        error.textContent = 'Date of birth cannot be in the future.';
+                        return;
+                    }
+                    button.disabled = true;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                    try {
+                        const schoolId = String(userData?.schoolId || '').trim();
+                        const updates = {
+                            [`users/${user.uid}/dob`]: dob,
+                            [`users/${user.uid}/dateOfBirth`]: dob
+                        };
+                        if (schoolId) {
+                            updates[`schools/${schoolId}/contacts/admin/dob`] = dob;
+                            updates[`schools/${schoolId}/contacts/admin/dateOfBirth`] = dob;
+                            updates[`schoolAdmins/${schoolId}/dob`] = dob;
+                            updates[`schoolAdmins/${schoolId}/dateOfBirth`] = dob;
+                        }
+                        await update(ref(database), updates);
+                        if (userData) {
+                            userData.dob = dob;
+                            userData.dateOfBirth = dob;
+                        }
+                        if (currentUser) {
+                            currentUser.dob = dob;
+                            currentUser.dateOfBirth = dob;
+                        }
+                        overlay.remove();
+                        resolve(dob);
+                    } catch (err) {
+                        button.disabled = false;
+                        button.innerHTML = '<i class="fas fa-check-circle"></i> Save Date of Birth';
+                        error.textContent = err.message || 'Could not save date of birth. Please try again.';
+                    }
+                });
+            });
+        }
+
         function continueAdminLogin(user, userData, deviceId, currentTime) {
             set(ref(database, `deviceLogins/${user.uid}`), {
                 deviceId: deviceId,
@@ -6603,15 +6766,17 @@
                                     window.__schoolGateVerified.add(user.uid);
                                     applyAdminInstitutionMode(userData)
                                         .then(() => ensureAdminSecurityPin(user, userData))
+                                        .then(() => ensureAdminDob(user, userData))
                                         .then(() => continueAdminLogin(user, userData, deviceId, currentTime))
-                                        .catch((error) => showLoginStatus(`Security PIN setup failed: ${error.message}`, 'error'));
+                                        .catch((error) => showLoginStatus(`Security setup failed: ${error.message}`, 'error'));
                                 }).catch((error) => showLoginStatus(`School connection required: ${error.message}`, 'error'));
                                 return;
                             }
                             applyAdminInstitutionMode(userData)
                                 .then(() => ensureAdminSecurityPin(user, userData))
+                                .then(() => ensureAdminDob(user, userData))
                                 .then(() => continueAdminLogin(user, userData, deviceId, currentTime))
-                                .catch((error) => showLoginStatus(`Security PIN setup failed: ${error.message}`, 'error'));
+                                .catch((error) => showLoginStatus(`Security setup failed: ${error.message}`, 'error'));
                             return;
                         } else {
                             showLoginStatus("Access denied. You need admin privileges to access this panel.", 'error');
@@ -6830,6 +6995,23 @@
 
             // Update sidebar with admin info
             if (currentUser) {
+                const adminUser = auth.currentUser;
+                if (adminUser && (!currentUser.dob && !currentUser.dateOfBirth)) {
+                    get(ref(database, `users/${adminUser.uid}`)).then(snap => {
+                        const val = snap.val() || {};
+                        if (!val.dob && !val.dateOfBirth) {
+                            ensureAdminDob(adminUser, val).then(dob => {
+                                if (dob) {
+                                    currentUser.dob = dob;
+                                    currentUser.dateOfBirth = dob;
+                                }
+                            });
+                        } else {
+                            currentUser.dob = val.dob || val.dateOfBirth;
+                            currentUser.dateOfBirth = val.dateOfBirth || val.dob;
+                        }
+                    }).catch(console.warn);
+                }
                 const sidebarAdminName = document.getElementById('sidebar-admin-name');
                 const sidebarAdminEmail = document.getElementById('sidebar-admin-email');
                 const sidebarUserAvatar = document.getElementById('sidebar-user-avatar');
@@ -10771,6 +10953,7 @@
         let taTeacherSchoolId = null;
         let taTeacherRecord = null;
         let taSchoolClasses = [];
+        let taSchoolSectionsList = [];
         let taExistingSubjectAssignments = [];
         function teacherAssignmentKey(value) {
             return Array.from(new TextEncoder().encode(String(value)), byte => byte.toString(16).padStart(2, '0')).join('');
@@ -10793,27 +10976,35 @@
                     map.set(key, {key, year: String(year), section: name, classId: classRecord.id, className: classRecord.courseName || classRecord.name || 'Class'});
                 });
             });
+            if (!map.size) {
+                const fallbackList = Array.isArray(classRecord?.sections)
+                    ? classRecord.sections
+                    : typeof (classRecord?.sections || classRecord?.section) === 'string'
+                        ? (classRecord.sections || classRecord.section).split(',')
+                        : [];
+                const year = String(classRecord?.year || '1');
+                fallbackList.forEach(value => {
+                    const name = String(value || '').trim();
+                    if (!name) return;
+                    const key = teacherAssignmentKey(`${year}|${name}`);
+                    map.set(key, {key, year: String(year), section: name, classId: classRecord.id, className: classRecord.courseName || classRecord.name || 'Class'});
+                });
+            }
+            if (!map.size && taSchoolSectionsList && taSchoolSectionsList.length) {
+                taSchoolSectionsList.forEach(name => {
+                    const cleanName = String(name || '').trim();
+                    if (!cleanName) return;
+                    const key = teacherAssignmentKey(`1|${cleanName}`);
+                    map.set(key, {key, year: '1', section: cleanName, classId: classRecord.id, className: classRecord.courseName || classRecord.name || 'Class'});
+                });
+            }
             return [...map.values()];
         }
-        function renderClassTimetableSectionOptions(selected = []) {
-            const list = teacherSectionField('taClassTimetableSections');
-            if (!list) return;
-            const selectedKeys = new Set(selected.map(item => `${item.classId}|${teacherAssignmentKey(`${item.year || ''}|${item.section || ''}`)}`));
-            const options = taSchoolClasses.flatMap(record => scopedClassSections(record).map(section => {
-                const value = `${section.classId}|${section.key}`;
-                const label = `${section.className} · ${section.section}${section.year ? ` · Year ${section.year}` : ''}`;
-                return `<label><input type="checkbox" value="${courseAdminEscape(value)}" data-class-id="${courseAdminEscape(section.classId)}" data-section-name="${courseAdminEscape(section.section)}" data-year="${courseAdminEscape(section.year)}" ${selectedKeys.has(value) ? 'checked' : ''}><span>${courseAdminEscape(label)}</span></label>`;
-            }));
-            list.innerHTML = options.length ? options.join('') : '<span class="text-muted">No class sections are configured in Manage Courses yet.</span>';
-        }
-        function selectedClassTeacherSections() {
-            return [...(teacherSectionField('taClassTimetableSections')?.querySelectorAll('input:checked') || [])].map(input => ({
-                classId: input.dataset.classId,
-                className: taSchoolClasses.find(item => item.id === input.dataset.classId)?.courseName ||
-                    taSchoolClasses.find(item => item.id === input.dataset.classId)?.name || '',
-                section: input.dataset.sectionName,
-                year: input.dataset.year || ''
-            }));
+        function classTeacherTimetableSections(sectionNames) {
+            const selected = new Set(sectionNames.map(section => String(section).trim().toLocaleLowerCase()));
+            return taSchoolClasses.flatMap(record =>
+                scopedClassSections(record).filter(section => selected.has(section.section.toLocaleLowerCase()))
+            );
         }
         function renderTeacherSubjectAssignments() {
             const list = teacherSectionField('taSubjectAssignmentList');
@@ -10822,15 +11013,16 @@
             const assignButton = teacherSectionField('taAssignSubject');
             if (!list || !classSelect || !subjectSelect) return;
             const availableClasses = taSchoolClasses.filter(record => scopedClassSections(record).length);
-            classSelect.innerHTML = '<option value="">Select a class</option>' + availableClasses.map(record =>
+            const currentSelectedClass = classSelect.value;
+            classSelect.innerHTML = `<option value="">${availableClasses.length ? 'Select a class' : 'No classes with sections available'}</option>` + availableClasses.map(record =>
                 `<option value="${courseAdminEscape(record.id)}">${courseAdminEscape(record.courseName || record.name)}</option>`
             ).join('');
             classSelect.disabled = !taTeacherId || !availableClasses.length;
+            if (currentSelectedClass && availableClasses.some(record => String(record.id) === String(currentSelectedClass))) {
+                classSelect.value = currentSelectedClass;
+            }
             const existing = taExistingSubjectAssignments.filter(item => item.teacherId === taTeacherId);
             list.innerHTML = existing.length ? existing.map(item => `<div class="ta-subject-assignment"><div><strong>${courseAdminEscape(item.subject)}</strong><small>${courseAdminEscape(item.className)} · ${courseAdminEscape(item.section)}${item.year ? ` · Year ${courseAdminEscape(item.year)}` : ''}</small></div><button type="button" class="secondary-btn ta-subject-remove" data-assignment-class="${courseAdminEscape(item.classId)}" data-assignment-section="${courseAdminEscape(item.sectionKey)}" data-assignment-subject="${courseAdminEscape(item.subjectKey)}"><i class="fas fa-trash"></i> Remove</button></div>`).join('') : '<span class="text-muted">No subject assignments yet.</span>';
-            subjectSelect.disabled = true;
-            subjectSelect.innerHTML = '<option value="">Select a class first</option>';
-            if (assignButton) assignButton.disabled = true;
             renderSubjectSectionOptions();
         }
         function renderSubjectSectionOptions() {
@@ -10838,16 +11030,19 @@
             const subjectSelect = teacherSectionField('taSubjectName');
             const sectionList = teacherSectionField('taSubjectSections');
             const assignButton = teacherSectionField('taAssignSubject');
-            const record = taSchoolClasses.find(item => item.id === classId);
+            const record = taSchoolClasses.find(item => String(item.id) === String(classId));
             const previousSubject = subjectSelect?.value;
             const sections = record ? scopedClassSections(record) : [];
-            const subjects = record ? normalizeManagedSubjects(record.subjects ?? record.subject) : [];
+            const subjects = record ? normalizeManagedSubjects([record.subjects, record.subject]) : [];
             if (subjectSelect) {
-                subjectSelect.innerHTML = '<option value="">Select a subject</option>' + subjects.map(subject =>
+                const prompt = !record ? 'Select a class first' : subjects.length ? 'Select a subject' : 'No subjects configured for this class';
+                subjectSelect.innerHTML = `<option value="">${prompt}</option>` + subjects.map(subject =>
                     `<option value="${courseAdminEscape(subject)}">${courseAdminEscape(subject)}</option>`
                 ).join('');
                 subjectSelect.disabled = !record || !subjects.length;
-                if (subjects.includes(previousSubject)) subjectSelect.value = previousSubject;
+                if (previousSubject && subjects.includes(previousSubject)) {
+                    subjectSelect.value = previousSubject;
+                }
             }
             if (sectionList) {
                 sectionList.innerHTML = sections.length ? sections.map(section =>
@@ -10943,7 +11138,6 @@
             const classTeacherToggle = teacherSectionField('taClassTeacherEnabled');
             const classTeacherSectionRow = teacherSectionField('taClassTeacherSectionRow');
             const classTeacherSectionOptions = teacherSectionField('taClassTeacherSectionOptions');
-            const classTimetableSections = teacherSectionField('taClassTimetableSections');
             const subjectAssignments = teacherSectionField('taSubjectAssignmentList');
             const classTeacherSectionMenu = teacherSectionField('taClassTeacherSectionMenu');
             const classTeacherSectionToggle = teacherSectionField('taClassTeacherSectionToggle');
@@ -10956,9 +11150,17 @@
             if (classTeacherToggle) classTeacherToggle.checked = false;
             if (classTeacherSectionRow) classTeacherSectionRow.hidden = true;
             if (classTeacherSectionOptions) classTeacherSectionOptions.replaceChildren();
-            if (classTimetableSections) classTimetableSections.innerHTML = '<span class="text-muted">Class sections will load when a teacher is selected.</span>';
             if (subjectAssignments) subjectAssignments.innerHTML = '<span class="text-muted">Select a teacher to manage subject assignments.</span>';
+            const subjectClass = teacherSectionField('taSubjectClass');
+            const subjectName = teacherSectionField('taSubjectName');
+            const subjectSections = teacherSectionField('taSubjectSections');
+            const assignButton = teacherSectionField('taAssignSubject');
+            if (subjectClass) { subjectClass.innerHTML = '<option value="">Select a class</option>'; subjectClass.disabled = true; }
+            if (subjectName) { subjectName.innerHTML = '<option value="">Select a class first</option>'; subjectName.disabled = true; }
+            if (subjectSections) subjectSections.innerHTML = '<span class="text-muted">Select a class first.</span>';
+            if (assignButton) assignButton.disabled = true;
             taSchoolClasses = [];
+            taSchoolSectionsList = [];
             taExistingSubjectAssignments = [];
             if (classTeacherSectionMenu) classTeacherSectionMenu.hidden = true;
             if (classTeacherSectionToggle) { classTeacherSectionToggle.disabled = true; classTeacherSectionToggle.setAttribute('aria-expanded', 'false'); }
@@ -11013,10 +11215,106 @@
                     get(ref(database, `subjectTeacherAssignments/${schoolId}`))
                 ]);
                 taSchoolClasses = [];
-                schoolCoursesSnap.forEach(childSnap => {
-                    const record = childSnap.val() || {};
-                    if (record.courseName || record.name) taSchoolClasses.push({...record, id: childSnap.key});
+                const classMapById = new Map();
+                const classMapByName = new Map();
+                classesSnap.forEach(child => {
+                    const data = child.val() || {};
+                    const name = data.courseName || data.name || data.className;
+                    if (name) {
+                        const entry = { ...data, id: child.key, source: 'class' };
+                        classMapById.set(String(child.key), entry);
+                        classMapByName.set(String(name).trim().toLowerCase(), entry);
+                    }
                 });
+
+                const sectionsByCourseId = new Map();
+                const sectionsByCourseName = new Map();
+                schoolSectionsSnap.forEach(child => {
+                    const sec = child.val() || {};
+                    const secName = typeof sec === 'string' ? sec : sec.name;
+                    if (!secName) return;
+                    const secYear = String(sec.year || '1');
+                    if (sec.courseId) {
+                        if (!sectionsByCourseId.has(String(sec.courseId))) sectionsByCourseId.set(String(sec.courseId), []);
+                        sectionsByCourseId.get(String(sec.courseId)).push({ name: secName, year: secYear });
+                    }
+                    const cName = sec.courseName || sec.className;
+                    if (cName) {
+                        const norm = String(cName).trim().toLowerCase();
+                        if (!sectionsByCourseName.has(norm)) sectionsByCourseName.set(norm, []);
+                        sectionsByCourseName.get(norm).push({ name: secName, year: secYear });
+                    }
+                });
+
+                const seenClassNames = new Set();
+                schoolCoursesSnap.forEach(childSnap => {
+                    const courseData = childSnap.val() || {};
+                    const name = courseData.courseName || courseData.name || courseData.className;
+                    if (!name) return;
+                    const normName = String(name).trim().toLowerCase();
+                    seenClassNames.add(normName);
+                    const matchingClass = classMapById.get(String(childSnap.key)) || classMapByName.get(normName) || {};
+
+                    const mergedSubjects = [
+                        ...new Set([
+                            ...normalizeManagedSubjects(courseData.subjects ?? courseData.subject),
+                            ...normalizeManagedSubjects(matchingClass.subjects ?? matchingClass.subject)
+                        ])
+                    ];
+
+                    let sectionsByYear = courseData.sectionsByYear || matchingClass.sectionsByYear || {};
+                    if (!Object.keys(sectionsByYear).length) {
+                        const fallbackSections = sectionsByCourseId.get(String(childSnap.key)) || sectionsByCourseName.get(normName) || [];
+                        if (fallbackSections.length) {
+                            sectionsByYear = {};
+                            fallbackSections.forEach(item => {
+                                if (!sectionsByYear[item.year]) sectionsByYear[item.year] = [];
+                                if (!sectionsByYear[item.year].includes(item.name)) sectionsByYear[item.year].push(item.name);
+                            });
+                        }
+                    }
+
+                    taSchoolClasses.push({
+                        ...matchingClass,
+                        ...courseData,
+                        id: childSnap.key,
+                        courseName: name,
+                        name: name,
+                        subjects: mergedSubjects,
+                        sectionsByYear: Object.keys(sectionsByYear).length ? sectionsByYear : (courseData.sectionsByYear || matchingClass.sectionsByYear || {})
+                    });
+                });
+
+                classesSnap.forEach(childSnap => {
+                    const classData = childSnap.val() || {};
+                    const name = classData.courseName || classData.name || classData.className;
+                    if (!name) return;
+                    const normName = String(name).trim().toLowerCase();
+                    if (seenClassNames.has(normName)) return;
+                    seenClassNames.add(normName);
+
+                    let sectionsByYear = classData.sectionsByYear || {};
+                    if (!Object.keys(sectionsByYear).length) {
+                        const fallbackSections = sectionsByCourseId.get(String(childSnap.key)) || sectionsByCourseName.get(normName) || [];
+                        if (fallbackSections.length) {
+                            sectionsByYear = {};
+                            fallbackSections.forEach(item => {
+                                if (!sectionsByYear[item.year]) sectionsByYear[item.year] = [];
+                                if (!sectionsByYear[item.year].includes(item.name)) sectionsByYear[item.year].push(item.name);
+                            });
+                        }
+                    }
+
+                    taSchoolClasses.push({
+                        ...classData,
+                        id: childSnap.key,
+                        courseName: name,
+                        name: name,
+                        subjects: normalizeManagedSubjects(classData.subjects ?? classData.subject),
+                        sectionsByYear
+                    });
+                });
+
                 taSchoolClasses.sort((a, b) => String(a.courseName || a.name).localeCompare(String(b.courseName || b.name)));
                 taExistingSubjectAssignments = [];
                 subjectAssignmentsSnap.forEach(classSnap => classSnap.forEach(sectionSnap => sectionSnap.forEach(subjectSnap => {
@@ -11051,6 +11349,7 @@
                     if (String(record.schoolId||'')===String(schoolId)||record.createdBy===adminAuth.uid) addSections(record.section||record.sections);
                 });
                 const sections = [...sectionMap.values()].sort((a,b) => a.localeCompare(b));
+                taSchoolSectionsList = sections;
                 taTeacherId = teacher.id;
                 taTeacherSchoolId = schoolId;
                 taTeacherRecord = teacher;
@@ -11075,8 +11374,6 @@
                 const priorClassTeacherSections = classTeacherSections.length ? classTeacherSections : (teacher.classTeacherSection ? [teacher.classTeacherSection] : []);
                 const matchedPriorSections = priorClassTeacherSections.map(value => sections.find(name => name.toLowerCase() === String(value).trim().toLowerCase())).filter(Boolean);
                 updateClassTeacherSectionOptions(matchedPriorSections);
-                const classTeacherClassSections = Array.isArray(teacher.classTeacherClassSections) ? teacher.classTeacherClassSections : [];
-                renderClassTimetableSectionOptions(classTeacherClassSections);
                 renderTeacherSubjectAssignments();
                 classTeacherSectionRow.hidden = !classTeacherToggle.checked;
                 area.hidden = false;
@@ -11097,16 +11394,14 @@
             if (!status) return;
             if (!taTeacherId || !taTeacherSchoolId || !adminAuth) { status.textContent = 'Find a teacher before saving assignments.'; return; }
             const isClassTeacher = teacherSectionField('taClassTeacherEnabled').checked;
-            const classTeacherClassSections = selectedClassTeacherSections();
             const selectedSections = [...panel.querySelectorAll('#taSectionOptions input:checked')].map(input => input.value);
             const selectedClassTeacherSectionsLegacy = [...panel.querySelectorAll('#taClassTeacherSectionOptions input:checked')].map(input => input.value);
-            const scopedSections = isClassTeacher ? classTeacherClassSections.map(item => item.section) : [];
-            const sections = [...new Map([...selectedSections, ...scopedSections].map(section => [section.toLowerCase(), section])).values()];
-            const classTeacherSections = [...new Map([...selectedClassTeacherSectionsLegacy, ...scopedSections].map(section => [section.toLowerCase(), section])).values()];
+            const sections = [...new Map(selectedSections.map(section => [section.toLowerCase(), section])).values()];
+            const classTeacherSections = [...new Map(selectedClassTeacherSectionsLegacy.map(section => [section.toLowerCase(), section])).values()];
+            const classTeacherClassSections = isClassTeacher ? classTeacherTimetableSections(classTeacherSections) : [];
             if (isClassTeacher && !sections.length) { status.textContent = 'Assign at least one section before assigning a class teacher.'; return; }
             if (isClassTeacher && !classTeacherSections.length) { status.textContent = 'Choose at least one assigned section for this teacher to lead.'; teacherSectionField('taClassTeacherSectionToggle')?.focus(); return; }
             if (isClassTeacher && classTeacherSections.some(classSection => !sections.some(section => section.toLowerCase() === classSection.toLowerCase()))) { status.textContent = 'Each class-teacher section must also be selected in Assigned sections.'; return; }
-            if (isClassTeacher && taSchoolClasses.length && !classTeacherClassSections.length) { status.textContent = 'Choose at least one exact class and section for the class-teacher timetable.'; teacherSectionField('taClassTimetableSections')?.scrollIntoView({behavior:'smooth', block:'center'}); return; }
             status.textContent = 'Saving section assignments…';
             try {
                 const adminSnap = await get(ref(database, `users/${adminAuth.uid}`));
@@ -11184,7 +11479,7 @@
                     taTeacherRecord.classTeacherSections = isClassTeacher ? classTeacherSections : [];
                     taTeacherRecord.classTeacherClassSections = isClassTeacher ? classTeacherClassSections : [];
                 }
-                status.textContent = `Saved access to ${sections.length} section${sections.length === 1 ? '' : 's'}${isClassTeacher ? ` and class-teacher responsibility for ${classTeacherSections.length} section${classTeacherSections.length === 1 ? '' : 's'}` : ''}.`;
+                status.textContent = `Saved access to ${sections.length} section${sections.length === 1 ? '' : 's'}${isClassTeacher ? `, class-teacher responsibility for ${classTeacherSections.length} section${classTeacherSections.length === 1 ? '' : 's'}, and timetable access for ${classTeacherClassSections.length} class section${classTeacherClassSections.length === 1 ? '' : 's'}` : ''}.`;
             } catch (error) {
                 console.error('Unable to save teacher section assignments:', error);
                 status.textContent = error.message || 'Unable to save assignments. Please try again.';
@@ -11297,6 +11592,7 @@
             }
         }
         document.addEventListener('click', event => {
+            if (!(event.target instanceof Element)) return;
             const chosenTeacher = event.target.closest('.ta-select-teacher');
             if (chosenTeacher) lookupTeacherSectionAssignment(chosenTeacher.dataset.teacherId);
             else if (event.target.closest('.ta-subject-remove')) removeSubjectTeacherAssignment(event.target.closest('.ta-subject-remove'));
@@ -11304,7 +11600,13 @@
             else if (event.target.closest('#taLookup')) lookupTeacherSectionAssignment();
             else if (event.target.closest('#taSave')) saveTeacherSectionAssignment();
             else if (event.target.closest('#taReset')) resetTeacherSectionAssignment();
-            else if (event.target.closest('#taClassTeacherSectionToggle')) {
+            else if (event.target.closest('#taAssignSubject')) {
+                const form = teacherSectionField('taSubjectAssignmentForm');
+                if (form) {
+                    event.preventDefault();
+                    saveSubjectTeacherAssignments(event);
+                }
+            } else if (event.target.closest('#taClassTeacherSectionToggle')) {
                 const toggle = teacherSectionField('taClassTeacherSectionToggle');
                 const menu = teacherSectionField('taClassTeacherSectionMenu');
                 if (toggle && menu && !toggle.disabled) {
@@ -11319,34 +11621,43 @@
         });
         document.addEventListener('change', event => {
             const input = event.target;
-            if (input instanceof HTMLSelectElement && input.matches('#taSubjectClass')) {
+            if (!input || !(input instanceof Element)) return;
+            if (input.matches('#taSubjectClass')) {
                 renderSubjectSectionOptions();
                 return;
             }
-            if (input instanceof HTMLSelectElement && input.matches('#taSubjectName')) return;
-            if (input instanceof HTMLInputElement && input.matches('#taClassTimetableSections input[type="checkbox"], #taSubjectSections input[type="checkbox"]')) {
+            if (input.matches('#taSubjectSections input[type="checkbox"]')) {
                 input.closest('label')?.classList.toggle('is-selected', input.checked);
                 return;
             }
-            if (input instanceof HTMLInputElement && input.matches('#taClassTeacherEnabled')) {
+            if (input.matches('#taClassTeacherEnabled')) {
                 const sectionRow = teacherSectionPanel()?.querySelector('#taClassTeacherSectionRow');
                 if (sectionRow) sectionRow.hidden = !input.checked;
                 input.closest('label')?.classList.toggle('is-selected', input.checked);
                 updateClassTeacherSectionOptions();
                 return;
             }
-            if (!(input instanceof HTMLInputElement)) return;
             if (input.matches('#taClassTeacherSectionOptions input[type="checkbox"]')) {
                 input.closest('label')?.classList.toggle('is-selected', input.checked);
                 updateClassTeacherSectionOptions();
                 return;
             }
-            if (!input.matches('#taSectionOptions input[type="checkbox"]')) return;
-            input.closest('label')?.classList.toggle('is-selected', input.checked);
-            updateClassTeacherSectionOptions();
+            if (input.matches('#taSectionOptions input[type="checkbox"]')) {
+                input.closest('label')?.classList.toggle('is-selected', input.checked);
+                updateClassTeacherSectionOptions();
+                return;
+            }
+        });
+        document.addEventListener('input', event => {
+            if (event.target instanceof Element && event.target.matches('#taSubjectClass')) {
+                renderSubjectSectionOptions();
+            }
         });
         document.addEventListener('submit', event => {
-            if (event.target?.matches('#taSubjectAssignmentForm')) saveSubjectTeacherAssignments(event);
+            const form = event.target;
+            if (form instanceof HTMLFormElement && form.matches('#taSubjectAssignmentForm')) {
+                saveSubjectTeacherAssignments(event);
+            }
         });
         document.addEventListener('keydown', event => {
             if (event.target?.id === 'taTeacherEmail' && event.key === 'Enter') { event.preventDefault(); lookupTeacherSectionAssignment(); }
@@ -11666,13 +11977,25 @@
             return subjectManagementPanel()?.querySelector(`#${id}`) || null;
         }
         function normalizeManagedSubjects(value) {
-            const values = Array.isArray(value)
-                ? value
-                : typeof value === 'string' ? value.split(/[,\n\r]+/)
-                    : value && typeof value === 'object' ? Object.values(value) : [];
+            let values = [];
+            if (Array.isArray(value)) {
+                value.forEach(v => {
+                    if (Array.isArray(v)) values.push(...v);
+                    else if (typeof v === 'string') values.push(...v.split(/[,\n\r]+/));
+                    else if (v && typeof v === 'object') values.push(...Object.values(v));
+                    else if (v) values.push(v);
+                });
+            } else if (typeof value === 'string') {
+                values = value.split(/[,\n\r]+/);
+            } else if (value && typeof value === 'object') {
+                values = Object.values(value);
+            }
             const unique = new Map();
             values.forEach(item => {
-                const name = String(item || '').trim().replace(/\s+/g, ' ');
+                const rawName = (item && typeof item === 'object')
+                    ? (item.name || item.subject || item.title || item.subjectName || item.value || '')
+                    : item;
+                const name = String(rawName || '').trim().replace(/\s+/g, ' ');
                 if (name && !unique.has(name.toLocaleLowerCase())) unique.set(name.toLocaleLowerCase(), name);
             });
             return [...unique.values()].sort((a, b) => a.localeCompare(b));

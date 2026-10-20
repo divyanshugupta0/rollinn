@@ -26,3 +26,7 @@
 # Generated build output
 **/.gradle/
 **/build/
+
+# Local folders
+YouPI-PG/
+

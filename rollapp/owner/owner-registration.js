@@ -7,7 +7,7 @@
     const ids = [
         'schoolName', 'schoolType', 'schoolAddress', 'city', 'state', 'zipCode',
         'principalName', 'principalEmail', 'schoolPhone', 'adminName',
-        'schoolAdminUsername', 'schoolAdminContactEmail', 'schoolAdminPassword',
+        'schoolAdminUsername', 'schoolAdminContactEmail', 'schoolAdminDob', 'schoolAdminPassword',
         'studentCapacity'
     ];
 
@@ -95,7 +95,7 @@
         return number === 1
             ? ['schoolName', 'schoolType', 'schoolAddress', 'city', 'state', 'zipCode']
             : number === 2
-                ? ['principalName', 'principalEmail', 'schoolPhone']
+                ? ['principalName', 'principalEmail', 'schoolPhone', 'adminName', 'schoolAdminUsername', 'schoolAdminContactEmail', 'schoolAdminDob', 'schoolAdminPassword']
                 : ['studentCapacity'];
     }
 
@@ -263,7 +263,7 @@
         bootstrap.Modal.getOrCreateInstance(modal).show();
     }
 
-    async function createAdministratorAccount({ email, password, name, username, schoolId, schoolName }) {
+    async function createAdministratorAccount({ email, password, name, username, schoolId, schoolName, dob }) {
         if (!ownerAuth?.options || typeof firebase === 'undefined') {
             throw new Error('Firebase Authentication is not available for administrator account creation.');
         }
@@ -282,6 +282,8 @@
                     name,
                     username,
                     email: credential.user.email || email,
+                    dob: dob || null,
+                    dateOfBirth: dob || null,
                     role: 'admin',
                     schoolId,
                     schoolName,
@@ -348,20 +350,21 @@
                 photoURL = await uploadImage(image, reference.key);
             }
             stage = 'creating the administrator Firebase Authentication account';
-            button('Creating administrator account...', true);
+            const adminDob = value('schoolAdminDob');
             const administrator = await createAdministratorAccount({
                 email: adminEmail,
                 password: adminPassword,
                 name: value('adminName'),
                 username: value('schoolAdminUsername'),
                 schoolId: reference.key,
-                schoolName: value('schoolName')
+                schoolName: value('schoolName'),
+                dob: adminDob
             });
             const school = {
                 schoolId: reference.key, name: value('schoolName'), code, type: value('schoolType'),
                 establishedYear: value('establishedYear'),
                 address: { complete: value('schoolAddress'), city: value('city'), state: value('state'), zipCode: value('zipCode') },
-                contacts: { principal: { name: value('principalName'), email: value('principalEmail') }, admin: { uid: administrator.uid, name: value('adminName'), username: value('schoolAdminUsername'), email: adminEmail, photoURL }, phone: value('schoolPhone'), alternatePhone: value('alternatePhone') },
+                contacts: { principal: { name: value('principalName'), email: value('principalEmail') }, admin: { uid: administrator.uid, name: value('adminName'), username: value('schoolAdminUsername'), email: adminEmail, dob: adminDob, dateOfBirth: adminDob, photoURL }, phone: value('schoolPhone'), alternatePhone: value('alternatePhone') },
                 details: { capacity: Number(value('studentCapacity')) || 0, currentStudents: Number(value('currentStudents')) || 0, teacherCount: Number(value('teacherCount')) || 0, accreditation: value('accreditation'), website: value('website') },
                 facilities: { library: document.getElementById('hasLibrary')?.checked === true, computerLab: document.getElementById('hasLab')?.checked === true, sports: document.getElementById('hasSports')?.checked === true, transportation: document.getElementById('hasTransport')?.checked === true },
                 subscription: { plan: plan.name, planId: plan.id, price: Number(plan.price || 0) + selectedTopups.reduce((sum, item) => sum + item.price, 0), basePlanPrice: Number(plan.price || 0), currency: plan.currency || 'INR', durationMonths: Number(plan.durationMonths), autoRenew: plan.autoRenew === true, studentCapacity: Number(plan.studentCapacity || value('studentCapacity')), teacherCapacity: Number(plan.teacherCapacity || 0), topups: selectedTopups, status: 'active', startDate: start.toISOString(), endDate: end.toISOString() },
@@ -371,7 +374,7 @@
             button('Saving registration...', true);
             await database.ref().update({
                 [`schools/${reference.key}`]: school,
-                [`schoolAdmins/${reference.key}`]: { ...school.contacts.admin, authUid: administrator.uid, password: adminPassword, schoolId: reference.key, createdAt: start.toISOString() },
+                [`schoolAdmins/${reference.key}`]: { ...school.contacts.admin, authUid: administrator.uid, password: adminPassword, dob: adminDob, dateOfBirth: adminDob, schoolId: reference.key, createdAt: start.toISOString() },
                 [`users/${administrator.uid}`]: { ...administrator.profile, profilePhoto: photoURL || null },
                 [`publicSchools/${reference.key}`]: { name: school.name, code: school.code, type: school.type, status: 'Active', subscriptionEndDate: end.toISOString(), updatedAt: Date.now() }
             });
