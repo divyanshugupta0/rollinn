@@ -6,7 +6,7 @@
     "schools": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["code", "ownerId", "status"],
+      ".indexOn": ["code", "ownerId", "status", "type", "institutionType"],
       "$schoolId": {
         ".read": "auth != null",
         ".write": "auth != null"
@@ -58,7 +58,8 @@
         "role",
         "schoolId",
         "dob",
-        "dateOfBirth"
+        "dateOfBirth",
+        "classId"
       ],
       "$uid": {
         ".read": true,
@@ -82,24 +83,55 @@
           "classRoll",
           "univRoll",
           "dob",
-          "dateOfBirth"
+          "dateOfBirth",
+          "classId",
+          "className",
+          "enrolledClassId"
         ]
       }
     },
 
     "schoolClasses": {
       ".read": "auth != null",
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": ["teacherId", "teacherEmail", "status"]
+      }
+    },
+
+    "classes": {
+      ".read": "auth != null",
       ".write": "auth != null"
     },
 
     "schoolLocations": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": ["teacherId", "teacherEmail", "status", "section"]
+      }
     },
 
     "schoolCourses": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "courses": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     },
 
     "schoolTimetables": {
@@ -124,17 +156,30 @@
 
     "classTeacherAssignments": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": ["teacherId", "section"]
+      }
     },
 
     "classTeacherAssignmentsByClass": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     },
 
     "subjectTeacherAssignments": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     },
 
     "classTeacherProfileRequests": {
@@ -170,10 +215,32 @@
 
     "user_attendance": {
       ".read": "auth != null",
+      ".write": "auth != null",
+      "$userId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "student_attendance": {
+      ".read": "auth != null",
       ".write": "auth != null"
     },
 
     "attendance_by_location": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$classOrLocationId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$date": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        }
+      }
+    },
+
+    "attendance_locations": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
@@ -191,13 +258,19 @@
     "locations": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["section", "expiresAt", "active"],
+      ".indexOn": ["section", "expiresAt", "active", "schoolId"],
       "$locationId": {
         "coordinates": {
           ".read": "auth != null",
           ".write": "auth != null || (newData.child('token').isString() && root.child('locationRequests').child(newData.child('token').val()).exists())"
         }
       }
+    },
+
+    "announcements": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": ["timestamp", "schoolId"]
     },
 
     "locationRequests": {
@@ -253,7 +326,7 @@
     "notifications": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["timestamp", "recipients"]
+      ".indexOn": ["timestamp", "recipients", "schoolId"]
     },
 
     "passwordResetRequests": {
