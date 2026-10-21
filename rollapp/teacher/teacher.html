@@ -371,6 +371,9 @@
             gap: 12px;
         }
         
+        /* Mobile sidebar toggle button – hidden by default, shown only on mobile via media query */
+        #mobileSidebarToggle { display: none; }
+
         .sidebar-user {
             display: flex;
             align-items: center;
@@ -3052,22 +3055,9 @@
             body { display: flex; }
             body:not(.teacher-authenticated) { padding: 0; }
             body:not(.teacher-authenticated) .main-content > .container { min-height: 100svh; padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)); }
-            /* Slim left sidebar on mobile */
-            .sidebar { top: 0; bottom: 0; left: 0; width: 64px; height: 100vh; flex-direction: column; border-radius: 0; box-shadow: 4px 0 20px rgba(16,45,31,.12); }
-            .sidebar-header { display: flex; padding: 16px 0; justify-content: center; }
-            .sidebar-logo span { display: none; }
-            .sidebar-toggle { display: none; }
-            .sidebar-footer { display: flex; padding: 12px 0; justify-content: center; }
-            .sidebar-menu { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; width: 100%; padding: 8px 6px; overflow-y: auto; overflow-x: hidden; }
-            .menu-item { flex: initial; min-width: 0; margin: 2px 0; padding: 11px 0; flex-direction: row; justify-content: center; gap: 0; border-radius: 9px; }
-            .menu-item span { display: none; }
-            .menu-item i { min-width: 0; font-size: 16px; }
-            .menu-item.active::before { left: -6px; top: 10px; bottom: 10px; right: auto; width: 3px; height: auto; border-radius: 0 3px 3px 0; }
-            .sidebar-collapsed { width: 64px; }
-            .sidebar-collapsed .sidebar-logo span, .sidebar-collapsed .menu-item span, .sidebar-collapsed .user-info { display: none; }
-            .sidebar-collapsed .menu-item { justify-content: center; padding: 11px 0; }
-            .user-info { display: none; }
-            .main-content, .main-content-expanded { margin-left: 64px; width: calc(100% - 64px); }
+            /* On mobile the sidebar is hidden; main content is full-width */
+            .sidebar { display: none !important; }
+            .main-content, .main-content-expanded { margin-left: 0; width: 100%; }
             .container { padding: 20px 14px 26px; }
             .header { align-items: flex-start; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; }
             .header h1 { font-size: 22px; }
@@ -3476,51 +3466,86 @@
             body.teacher-authenticated .main-content { margin-left:78px; width:calc(100% - 78px); }
         }
         @media(max-width:680px) {
-            /* Slim left sidebar replaces bottom nav bar on mobile */
-            body.teacher-authenticated { display:flex; padding:0; }
+            /* Mobile: sidebar is a full slide-in drawer, hidden by default */
+            body.teacher-authenticated { display:block; padding:0; }
+
+            /* Sidebar: hidden off-screen to the left */
             body.teacher-authenticated .sidebar {
-                position:fixed; z-index:1000;
+                position:fixed; z-index:1100;
                 inset:0 auto 0 0;
                 display:flex; flex-direction:column;
-                width:64px; height:100%;
-                min-height:0; border-radius:0;
-                box-shadow:4px 0 24px rgba(16,45,31,.16);
+                width:260px; height:100%;
+                border-radius:0;
+                box-shadow:none;
+                transform:translateX(-260px);
+                transition:transform 0.28s cubic-bezier(0.4,0,0.2,1), box-shadow 0.28s ease;
             }
+            /* Sidebar open state */
+            body.teacher-authenticated.mobile-sidebar-open .sidebar {
+                transform:translateX(0);
+                box-shadow:8px 0 36px rgba(16,45,31,.32);
+            }
+
+            /* Full sidebar layout inside drawer */
             body.teacher-authenticated .sidebar-header {
-                display:flex; min-height:auto;
-                padding:16px 0; justify-content:center;
-                border-bottom:1px solid rgba(255,255,255,.1);
+                display:flex; min-height:82px; padding:22px 20px;
+                justify-content:space-between; align-items:center;
+                border-bottom:1px solid rgba(255,255,255,.12);
             }
-            body.teacher-authenticated .sidebar-logo span { display:none; }
             body.teacher-authenticated .sidebar-toggle { display:none; }
+            body.teacher-authenticated .sidebar-logo span { display:block; }
             body.teacher-authenticated .sidebar-footer {
-                display:flex; justify-content:center;
-                align-items:center; flex-direction:column;
-                padding:12px 0; gap:8px;
-                border-top:1px solid rgba(255,255,255,.1);
+                display:flex; padding:14px 16px;
+                border-top:1px solid rgba(255,255,255,.12);
             }
             body.teacher-authenticated .sidebar-user {
-                flex-direction:column; align-items:center;
-                justify-content:center; gap:8px; width:100%;
+                flex-direction:row; align-items:center;
+                justify-content:space-between; gap:10px; width:100%;
             }
-            body.teacher-authenticated .user-info { display:none; }
+            body.teacher-authenticated .user-info { display:flex; }
             body.teacher-authenticated .sidebar-menu {
                 display:flex; flex-direction:column;
                 align-items:stretch; justify-content:flex-start;
-                width:100%; padding:10px 7px;
+                width:100%; padding:18px 12px;
                 overflow-y:auto; overflow-x:hidden;
             }
             body.teacher-authenticated .menu-item {
-                flex:initial; min-width:0; min-height:44px;
-                margin:2px 0; padding:10px 0;
-                flex-direction:row; justify-content:center;
-                gap:0; border-radius:9px;
+                flex:initial; min-width:0; min-height:46px;
+                margin:4px 0; padding:12px 14px;
+                flex-direction:row; justify-content:flex-start;
+                gap:12px; border-radius:11px;
             }
-            body.teacher-authenticated .menu-item span { display:none; }
-            body.teacher-authenticated .menu-item i { min-width:0; font-size:16px; }
-            body.teacher-authenticated .menu-item.active::before { top:10px; right:auto; bottom:10px; left:-7px; width:3px; height:auto; border-radius:0 4px 4px 0; }
-            body.teacher-authenticated .main-content,body.teacher-authenticated .main-content-expanded { width:calc(100% - 64px); margin-left:64px; }
-            body.teacher-authenticated .container { padding:18px 14px 24px; }
+            body.teacher-authenticated .menu-item span { display:block; font-size:13px; }
+            body.teacher-authenticated .menu-item i { min-width:21px; font-size:15px; }
+            body.teacher-authenticated .menu-item.active::before {
+                top:10px; right:auto; bottom:10px; left:-12px;
+                width:3px; height:auto; border-radius:0 4px 4px 0;
+            }
+
+            /* Main content: full width (sidebar is overlay, not in flow) */
+            body.teacher-authenticated .main-content,
+            body.teacher-authenticated .main-content-expanded { width:100%; margin-left:0; }
+            body.teacher-authenticated .container { padding:18px 14px 24px 60px; }
+
+            /* Floating hamburger button */
+            #mobileSidebarToggle {
+                display:flex !important;
+                position:fixed;
+                top:14px; left:14px;
+                z-index:1050;
+                width:40px; height:40px;
+                align-items:center; justify-content:center;
+                border:0; border-radius:12px;
+                background:linear-gradient(135deg,#124e39,#0c3d2d);
+                color:#c7e36b;
+                font-size:16px;
+                cursor:pointer;
+                box-shadow:0 4px 16px rgba(16,45,31,.28);
+                transition:background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+            }
+            #mobileSidebarToggle:hover { background:#0c3d2d; box-shadow:0 6px 20px rgba(16,45,31,.36); transform:scale(1.05); }
+
+            /* Section headers get left padding to not hide behind the button */
             body.teacher-authenticated .section-container > .header { min-height:48px; margin-bottom:15px; padding-bottom:12px; }
             body.teacher-authenticated .header h1 { font-size:21px; }
             body.teacher-authenticated .teacher-info { padding:7px 9px; font-size:0; }
@@ -4571,6 +4596,7 @@
     <script src="timetable-cleanup.js"></script>
     <script src="fix-duplicates.js"></script>
     <script src="timetable-panel.js"></script>
+    <script src="mobile-sidebar.js"></script>
     <script>
         // Initialize UI state immediately to prevent blank screen
         window.addEventListener('load', function() {
