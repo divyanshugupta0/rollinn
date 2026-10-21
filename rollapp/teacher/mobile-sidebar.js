@@ -23,6 +23,14 @@
         return document.body.classList.contains('teacher-authenticated');
     }
 
+    /** Strip any inline margin/width set by the desktop sidebar-toggle JS */
+    function resetMainContentLayout() {
+        document.querySelectorAll('.main-content, .main-content-expanded').forEach(el => {
+            el.style.marginLeft = '';
+            el.style.width = '';
+        });
+    }
+
     // ── Sidebar state ──────────────────────────────────────────────────────────
 
     function openSidebar() {
@@ -43,6 +51,8 @@
             toggleBtn.setAttribute('aria-expanded', 'false');
             toggleBtn.innerHTML = '<i class="fas fa-bars" aria-hidden="true"></i>';
         }
+        // Ensure main content is always full-width when drawer is closed
+        resetMainContentLayout();
     }
 
     function toggleSidebar() {
@@ -122,6 +132,9 @@
         toggleBtn = createToggleButton();
         bindMenuItems();
 
+        // Reset any inline margin/width from the desktop sidebar-toggle JS
+        resetMainContentLayout();
+
         // Escape key closes drawer
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape' && document.body.classList.contains(OPEN_CLASS)) {
@@ -142,6 +155,8 @@
                 if (backdrop) backdrop.style.display = 'none';
             } else {
                 if (toggleBtn) toggleBtn.style.display = '';
+                // Reset any inline styles desktop JS may have set
+                resetMainContentLayout();
                 if (!initialized && isAuthenticated()) init();
             }
         }, 80);

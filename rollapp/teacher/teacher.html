@@ -3228,9 +3228,12 @@
             background: #f3f6f3;
             transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        body.teacher-authenticated .main-content-expanded {
-            margin-left: 78px !important;
-            width: calc(100% - 78px) !important;
+        /* Collapsed sidebar: used only on desktop */
+        @media (min-width: 681px) {
+            body.teacher-authenticated .main-content-expanded {
+                margin-left: 78px !important;
+                width: calc(100% - 78px) !important;
+            }
         }
 
         /* Collapsed Sidebar Rules (Decreases width to 78px) */
@@ -3524,10 +3527,14 @@
                 width:3px; height:auto; border-radius:0 4px 4px 0;
             }
 
-            /* Main content: full width (sidebar is overlay, not in flow) */
+            /* Main content: always full-width on mobile — sidebar is a fixed overlay */
             body.teacher-authenticated .main-content,
-            body.teacher-authenticated .main-content-expanded { width:100%; margin-left:0; }
-            body.teacher-authenticated .container { padding:18px 14px 24px; }
+            body.teacher-authenticated .main-content-expanded,
+            body.teacher-authenticated .main-content.main-content-expanded {
+                width: 100% !important;
+                margin-left: 0 !important;
+            }
+            body.teacher-authenticated .container { padding: 18px 14px 24px; }
 
             /* Floating hamburger button */
             #mobileSidebarToggle {
