@@ -1414,7 +1414,7 @@
                             teacherPhone: u.phone || u.mobile,
                             subject: u.subject || u.specialization || u.department,
                             cabin: u.cabin || u.room || u.office,
-                            avatar: u.profileImage || u.photoURL || u.avatar,
+                            avatar: u.profilePhoto || u.photoURL || u.photoUrl || u.profilePic || u.profileImage || u.avatar || '',
                             section: section,
                             className: className
                         };
@@ -1423,16 +1423,19 @@
                 }
             }
 
-            // If teacherId is present, enrich with latest profile from users/${teacherId}
+            // If teacherId is present, enrich with latest profile from users/${teacherId} and teachers/${teacherId}
             if (teacherData && teacherData.teacherId) {
-                const tSnap = await db.ref(`users/${teacherData.teacherId}`).once('value');
-                const tUser = tSnap.val() || {};
-                teacherData.name = tUser.name || tUser.fullName || teacherData.teacherName || 'Assigned Educator';
+                const [userSnap, teacherSnap] = await Promise.all([
+                    db.ref(`users/${teacherData.teacherId}`).once('value'),
+                    db.ref(`teachers/${teacherData.teacherId}`).once('value')
+                ]);
+                const tUser = { ...(teacherSnap.val() || {}), ...(userSnap.val() || {}) };
+                teacherData.name = tUser.name || tUser.fullName || tUser.displayName || teacherData.teacherName || 'Assigned Educator';
                 teacherData.email = tUser.email || teacherData.teacherEmail || '';
-                teacherData.phone = tUser.phone || tUser.mobile || teacherData.teacherPhone || '';
+                teacherData.phone = tUser.phone || tUser.mobile || tUser.phoneNumber || teacherData.teacherPhone || '';
                 teacherData.subject = tUser.subject || tUser.specialization || tUser.department || teacherData.subject || '';
                 teacherData.cabin = tUser.cabin || tUser.room || tUser.office || teacherData.cabin || 'Staff Room';
-                teacherData.avatar = tUser.profileImage || tUser.photoURL || tUser.avatar || teacherData.avatar || '';
+                teacherData.avatar = tUser.profilePhoto || tUser.photoURL || tUser.photoUrl || tUser.profilePic || tUser.profileImage || tUser.avatar || tUser.photo || teacherData.avatar || '';
             }
 
         } catch (err) {
@@ -1442,6 +1445,20 @@
         renderClassTeacherCard(container, profField, teacherData, section, className);
     }
     window.loadClassTeacherInfo = loadClassTeacherInfo;
+
+    function getTeacherAvatarSvg(name = 'T') {
+        const initial = (name.trim().charAt(0) || 'T').toUpperCase();
+        const colors = [
+            ['#4f46e5', '#3730a3'],
+            ['#0891b2', '#0e7490'],
+            ['#059669', '#047857'],
+            ['#7c3aed', '#6d28d9'],
+            ['#d97706', '#b45309']
+        ];
+        const colorIndex = (initial.charCodeAt(0) || 0) % colors.length;
+        const [c1, c2] = colors[colorIndex];
+        return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${encodeURIComponent(c1)}"/><stop offset="100%" stop-color="${encodeURIComponent(c2)}"/></linearGradient></defs><rect width="100%" height="100%" rx="24" fill="url(%23g)"/><text x="50%" y="54%" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-weight="700" font-size="44" fill="%23ffffff" dominant-baseline="middle" text-anchor="middle">${initial}</text></svg>`;
+    }
 
     function renderClassTeacherCard(container, profField, teacher, section, className) {
         if (profField) {
@@ -1470,7 +1487,10 @@
         const phone = escapeHtml(teacher.phone || '');
         const subject = escapeHtml(teacher.subject || '');
         const cabin = escapeHtml(teacher.cabin || '');
-        const avatar = teacher.avatar || 'https://cdn.pixabay.com/photo/2016/11/14/17/39/person-1824144_960_720.png';
+        const fallbackSvg = getTeacherAvatarSvg(name);
+        const avatar = (teacher.avatar && typeof teacher.avatar === 'string' && (teacher.avatar.startsWith('http') || teacher.avatar.startsWith('data:')))
+            ? teacher.avatar
+            : fallbackSvg;
         const secLabel = escapeHtml(section ? `Sec ${section}` : 'General');
         const clsLabel = escapeHtml(className || 'Class');
 
@@ -1478,7 +1498,7 @@
             <div class="class-teacher-card-content">
                 <div class="ct-header-row">
                     <div class="ct-avatar-wrap">
-                        <img src="${avatar}" alt="${name}" class="ct-avatar-img" onerror="this.src='https://cdn.pixabay.com/photo/2016/11/14/17/39/person-1824144_960_720.png'">
+                        <img src="${avatar}" alt="${name}" class="ct-avatar-img" onerror="this.onerror=null; this.src='${fallbackSvg}';">
                         <span class="ct-badge-dot" title="Assigned Class Mentor"></span>
                     </div>
                     <div class="ct-info">
@@ -1493,8 +1513,7 @@
                     ${phone ? `<a href="tel:${phone}" class="ct-chip ct-chip-interactive" title="Call teacher"><i class="fas fa-phone"></i> ${phone}</a>` : ''}
                 </div>
                 <div class="ct-actions-row">
-                    ${email ? `<a href="mailto:${email}" class="ct-action-btn primary"><i class="fas fa-envelope"></i> Message</a>` : ''}
-                    <button type="button" class="ct-action-btn secondary" id="ct-request-leave-btn"><i class="fas fa-paper-plane"></i> Apply Leave</button>
+                    <button type="button" class="ct-action-btn primary" id="ct-request-leave-btn"><i class="fas fa-paper-plane"></i> Apply Leave</button>
                 </div>
             </div>
         `;
