@@ -1550,7 +1550,7 @@
                     </div>
                 </div>
                 <div class="ct-details-chips">
-                    ${cabin ? `<span class="ct-chip ct-chip-location" title="Staff Room / Location: ${cabin}"><i class="fas fa-location-dot"></i> ${cabin}</span>` : ''}
+                    ${cabin ? `<span class="ct-chip ct-chip-location" title="Staff Room / Faculty Lounge: ${cabin}"><i class="fas fa-school"></i> ${cabin}</span>` : ''}
                     ${subject ? `<span class="ct-chip ct-chip-subject" title="Subject: ${subject}"><i class="fas fa-book-open"></i> ${subject}</span>` : ''}
                     ${email ? `<a href="mailto:${email}" class="ct-chip ct-chip-email ct-chip-interactive" title="Send email to ${email}"><i class="fas fa-envelope"></i> ${email}</a>` : ''}
                     ${phone ? `<a href="tel:${phone}" class="ct-chip ct-chip-phone ct-chip-interactive" title="Call ${phone}"><i class="fas fa-phone"></i> ${escapeHtml(formatPhoneNumber(phone))}</a>` : ''}
