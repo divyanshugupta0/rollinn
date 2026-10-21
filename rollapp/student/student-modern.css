@@ -5803,40 +5803,83 @@ button.refresh-cooldown {
 .ct-details-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
+    align-items: center;
+    gap: 6px;
+    margin: 3px 0 1px 0;
 }
 
 .ct-chip {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 0.70rem;
+    gap: 5px;
+    font-size: 0.72rem;
     font-weight: 600;
     color: var(--sp-text-main);
     background: var(--sp-bg-main);
     border: 1px solid var(--sp-border);
-    padding: 2px 7px;
-    border-radius: var(--sp-radius-sm);
+    padding: 3px 9px;
+    border-radius: 6px;
     text-decoration: none;
-    transition: var(--sp-transition);
+    line-height: 1.35;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
 }
 
 .ct-chip i {
+    font-size: 0.70rem;
+}
+
+.ct-chip.ct-chip-location {
+    background: rgba(14, 165, 233, 0.08);
+    border-color: rgba(14, 165, 233, 0.28);
+    color: #0369a1;
+}
+
+.ct-chip.ct-chip-location i {
+    color: #0ea5e9;
+}
+
+.ct-chip.ct-chip-email {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.28);
+    color: #4338ca;
+}
+
+.ct-chip.ct-chip-email i {
     color: var(--sp-primary);
-    font-size: 0.65rem;
+}
+
+.ct-chip.ct-chip-phone {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.28);
+    color: #047857;
+}
+
+.ct-chip.ct-chip-phone i {
+    color: #10b981;
+}
+
+.ct-chip.ct-chip-subject {
+    background: rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.28);
+    color: #b45309;
+}
+
+.ct-chip.ct-chip-subject i {
+    color: #f59e0b;
 }
 
 .ct-chip-interactive:hover {
-    border-color: var(--sp-primary);
-    background: var(--sp-primary-light);
-    color: var(--sp-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
+    filter: brightness(1.05);
 }
 
 .ct-actions-row {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-top: 2px;
+    margin-top: 4px;
 }
 
 .ct-action-btn {

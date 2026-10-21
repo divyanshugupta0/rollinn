@@ -1434,7 +1434,7 @@
                 teacherData.email = tUser.email || teacherData.teacherEmail || '';
                 teacherData.phone = tUser.phone || tUser.mobile || tUser.phoneNumber || teacherData.teacherPhone || '';
                 teacherData.subject = tUser.subject || tUser.specialization || tUser.department || teacherData.subject || '';
-                teacherData.cabin = tUser.cabin || tUser.room || tUser.office || teacherData.cabin || 'Staff Room';
+                teacherData.cabin = cleanCabinLocation(tUser.cabin || tUser.room || tUser.office || teacherData.cabin);
                 teacherData.avatar = tUser.profilePhoto || tUser.photoURL || tUser.photoUrl || tUser.profilePic || tUser.profileImage || tUser.avatar || tUser.photo || teacherData.avatar || '';
             }
 
@@ -1445,6 +1445,49 @@
         renderClassTeacherCard(container, profField, teacherData, section, className);
     }
     window.loadClassTeacherInfo = loadClassTeacherInfo;
+
+    function cleanCabinLocation(val) {
+        if (!val) return 'Staff Room';
+        if (typeof val === 'object') {
+            val = val.name || val.room || val.cabin || val.location || val.title || 'Staff Room';
+        }
+        let s = String(val).trim();
+        if (s.includes('{') || s.includes('}')) {
+            try {
+                const parsed = JSON.parse(s);
+                if (typeof parsed === 'object' && parsed !== null) {
+                    s = parsed.name || parsed.room || parsed.cabin || parsed.location || 'Staff Room';
+                }
+            } catch (e) {
+                s = s.replace(/[{}\[\]"']/g, '').trim();
+            }
+        }
+        // Strip accidental punctuation, braces, quotes, prefixes like R{;}, Room:, Cabin:
+        s = s.replace(/^[\s\r\n\t"'{};:,]+/, '')
+             .replace(/[\s\r\n\t"'{};:,]+$/, '')
+             .trim();
+        s = s.replace(/^(room|cabin|office|location|loc|r)[\s:.-]+/i, '').trim();
+        s = s.replace(/^["']+|["']+$/g, '').trim();
+
+        if (!s || s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null') {
+            return 'Staff Room';
+        }
+        if (/^\d+[A-Z]?$/i.test(s)) {
+            return `Room ${s}`;
+        }
+        if (s.toLowerCase() === 'staff room' || s.toLowerCase() === 'staffroom') {
+            return 'Staff Room';
+        }
+        return s;
+    }
+
+    function formatPhoneNumber(num) {
+        if (!num) return '';
+        const clean = String(num).trim();
+        const match = clean.match(/^(\+91)(\d{5})(\d{5})$/);
+        if (match) return `${match[1]} ${match[2]} ${match[3]}`;
+        return clean;
+    }
 
     function getTeacherAvatarSvg(name = 'T') {
         const initial = (name.trim().charAt(0) || 'T').toUpperCase();
@@ -1486,7 +1529,7 @@
         const email = escapeHtml(teacher.email || '');
         const phone = escapeHtml(teacher.phone || '');
         const subject = escapeHtml(teacher.subject || '');
-        const cabin = escapeHtml(teacher.cabin || '');
+        const cabin = escapeHtml(cleanCabinLocation(teacher.cabin));
         const fallbackSvg = getTeacherAvatarSvg(name);
         const avatar = (teacher.avatar && typeof teacher.avatar === 'string' && (teacher.avatar.startsWith('http') || teacher.avatar.startsWith('data:')))
             ? teacher.avatar
@@ -1507,10 +1550,10 @@
                     </div>
                 </div>
                 <div class="ct-details-chips">
-                    ${subject ? `<span class="ct-chip"><i class="fas fa-book-open"></i> ${subject}</span>` : ''}
-                    ${cabin ? `<span class="ct-chip"><i class="fas fa-door-open"></i> ${cabin}</span>` : ''}
-                    ${email ? `<a href="mailto:${email}" class="ct-chip ct-chip-interactive" title="Send email"><i class="fas fa-envelope"></i> ${email}</a>` : ''}
-                    ${phone ? `<a href="tel:${phone}" class="ct-chip ct-chip-interactive" title="Call teacher"><i class="fas fa-phone"></i> ${phone}</a>` : ''}
+                    ${cabin ? `<span class="ct-chip ct-chip-location" title="Staff Room / Location: ${cabin}"><i class="fas fa-location-dot"></i> ${cabin}</span>` : ''}
+                    ${subject ? `<span class="ct-chip ct-chip-subject" title="Subject: ${subject}"><i class="fas fa-book-open"></i> ${subject}</span>` : ''}
+                    ${email ? `<a href="mailto:${email}" class="ct-chip ct-chip-email ct-chip-interactive" title="Send email to ${email}"><i class="fas fa-envelope"></i> ${email}</a>` : ''}
+                    ${phone ? `<a href="tel:${phone}" class="ct-chip ct-chip-phone ct-chip-interactive" title="Call ${phone}"><i class="fas fa-phone"></i> ${escapeHtml(formatPhoneNumber(phone))}</a>` : ''}
                 </div>
                 <div class="ct-actions-row">
                     <button type="button" class="ct-action-btn primary" id="ct-request-leave-btn"><i class="fas fa-paper-plane"></i> Apply Leave</button>
