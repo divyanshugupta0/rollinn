@@ -3203,7 +3203,7 @@
                     <div class="login-field-wrap">
                         <label class="login-field-label" for="password">Password</label>
                         <div class="login-input-container">
-                            <input type="password" id="password" class="login-styled-input" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" autocomplete="current-password" required>
+                            <input type="password" id="password" class="login-styled-input" placeholder="Enter your password" autocomplete="current-password" required>
                             <i class="fas fa-lock login-input-icon"></i>
                             <button type="button" class="login-eye-toggle" id="toggle-password" aria-label="Show password">
                                 <i class="fas fa-eye" id="password-toggle-icon"></i>
@@ -3232,10 +3232,12 @@
                     </div>
 
                     <!-- Security & Attendance Policy Note -->
-                    <div class="login-security-policy-note">
-                        <div class="policy-note-header">
-                            <i class="fas fa-shield-halved"></i> Security & Device Lock Policy
-                        </div>
+                    <details class="login-security-policy-note" id="login-security-policy" open>
+                        <summary class="policy-note-header">
+                            <i class="fas fa-shield-halved" aria-hidden="true"></i>
+                            <span>Security & Device Lock Policy</span>
+                            <i class="fas fa-chevron-down policy-note-chevron" aria-hidden="true"></i>
+                        </summary>
                         <ul class="policy-note-list">
                             <li>
                                 <i class="fas fa-mobile-screen"></i>
@@ -3250,7 +3252,12 @@
                                 <span><strong>Blocked Accounts:</strong> If your access is blocked, contact your teacher to unblock you.</span>
                             </li>
                         </ul>
-                    </div>
+                    </details>
+                    <script>
+                        if (window.matchMedia('(max-width: 640px)').matches) {
+                            document.getElementById('login-security-policy')?.removeAttribute('open');
+                        }
+                    </script>
                 </div>
 
                 <!-- In-Card Forgot Password Request Form (No Popup!) -->

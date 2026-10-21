@@ -2562,6 +2562,30 @@ body:has(#login-section:not(.hidden)) {
     letter-spacing: 0.03em;
 }
 
+.login-security-policy-note .policy-note-header {
+    list-style: none;
+    cursor: pointer;
+}
+
+.login-security-policy-note .policy-note-header::-webkit-details-marker {
+    display: none;
+}
+
+.login-security-policy-note .policy-note-header .policy-note-chevron {
+    margin-left: auto;
+    transition: transform 160ms ease;
+}
+
+.login-security-policy-note[open] .policy-note-header .policy-note-chevron {
+    transform: rotate(180deg);
+}
+
+@media (min-width: 641px) {
+    .login-security-policy-note .policy-note-header {
+        cursor: default;
+    }
+}
+
 .login-security-policy-note .policy-note-list {
     margin: 0;
     padding-left: 0;
