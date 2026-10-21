@@ -1599,9 +1599,6 @@
         const schoolEl = document.getElementById('tr-detail-school');
         if (schoolEl) schoolEl.textContent = schoolName;
 
-        const idEl = document.getElementById('tr-detail-id');
-        if (idEl) idEl.textContent = teacherId;
-
         modal.style.display = 'flex';
         // Force reflow for CSS transition
         void modal.offsetWidth;

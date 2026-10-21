@@ -6246,11 +6246,6 @@ button.refresh-cooldown {
     color: #7c3aed;
 }
 
-.tr-item-icon.id {
-    background: rgba(100, 116, 139, 0.12);
-    color: #475569;
-}
-
 .tr-item-text {
     display: flex;
     flex-direction: column;
@@ -6304,6 +6299,127 @@ button.refresh-cooldown {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+}
+
+/* ==========================================================================
+   Mobile-Optimized / Minimized Modal Styles (<= 600px)
+   ========================================================================== */
+@media (max-width: 600px) {
+    .teacher-review-modal-overlay {
+        padding: 10px;
+        align-items: center;
+    }
+
+    .teacher-review-modal-content {
+        max-width: 100%;
+        max-height: 88vh;
+        border-radius: 16px;
+    }
+
+    .teacher-review-modal-header {
+        padding: 10px 14px;
+    }
+
+    .tr-modal-title {
+        font-size: 0.88rem;
+    }
+
+    .teacher-review-modal-body {
+        padding: 12px 14px;
+        gap: 10px;
+    }
+
+    .tr-hero {
+        padding: 2px 0;
+    }
+
+    .tr-avatar-wrap {
+        width: 52px;
+        height: 52px;
+        margin-bottom: 6px;
+    }
+
+    .tr-hero-avatar {
+        border-radius: 14px;
+        border-width: 2px;
+    }
+
+    .tr-verified-badge {
+        width: 16px;
+        height: 16px;
+        font-size: 8px;
+    }
+
+    .tr-hero-name {
+        font-size: 1.02rem;
+        margin-bottom: 2px;
+    }
+
+    .tr-hero-role {
+        font-size: 0.74rem;
+        margin-bottom: 6px;
+    }
+
+    .tr-badges-row {
+        gap: 5px;
+    }
+
+    .tr-pill {
+        font-size: 0.66rem;
+        padding: 2px 8px;
+    }
+
+    .tr-details-card {
+        padding: 10px;
+        border-radius: 10px;
+    }
+
+    .tr-section-title {
+        font-size: 0.70rem;
+        margin-bottom: 8px;
+    }
+
+    .tr-details-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+    .tr-grid-item {
+        padding: 6px 8px;
+        gap: 7px;
+        border-radius: 6px;
+    }
+
+    .tr-item-icon {
+        width: 26px;
+        height: 26px;
+        min-width: 26px;
+        font-size: 0.74rem;
+        border-radius: 6px;
+    }
+
+    .tr-item-label {
+        font-size: 0.58rem;
+    }
+
+    .tr-item-val,
+    .tr-item-link {
+        font-size: 0.72rem;
+    }
+
+    .teacher-review-modal-footer {
+        padding: 10px 14px;
+        gap: 8px;
+    }
+
+    .teacher-review-modal-footer .btn-primary,
+    .teacher-review-modal-footer .btn-secondary {
+        padding: 7px 10px;
+        font-size: 0.75rem;
+        flex: 1;
+        justify-content: center;
+        text-align: center;
+    }
 }
 
 
