@@ -6284,6 +6284,32 @@ button.refresh-cooldown {
     color: var(--sp-primary-dark);
 }
 
+/* Modal Header Close Button */
+.teacher-review-modal-header .modal-close,
+.tr-modal-close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--sp-bg-card);
+    border: 1px solid var(--sp-border);
+    color: var(--sp-text-muted) !important;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--sp-transition);
+    padding: 0;
+}
+
+.teacher-review-modal-header .modal-close:hover,
+.tr-modal-close-btn:hover {
+    background: var(--sp-primary-light);
+    color: var(--sp-primary) !important;
+    border-color: var(--sp-primary);
+    transform: rotate(90deg);
+}
+
 /* Modal Footer */
 .teacher-review-modal-footer {
     display: flex;
@@ -6295,10 +6321,52 @@ button.refresh-cooldown {
     background: var(--sp-bg-main);
 }
 
-.tr-modal-leave-btn {
+.teacher-review-modal-footer .tr-modal-leave-btn,
+.teacher-review-modal-footer .btn-primary {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    background: var(--sp-primary) !important;
+    color: #ffffff !important;
+    border: 1px solid transparent !important;
+    padding: 8px 16px;
+    border-radius: var(--sp-radius-sm);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--sp-transition);
+    text-decoration: none;
+}
+
+.teacher-review-modal-footer .tr-modal-leave-btn:hover,
+.teacher-review-modal-footer .btn-primary:hover {
+    background: var(--sp-primary-dark) !important;
+    box-shadow: 0 3px 10px rgba(99, 102, 241, 0.35);
+    color: #ffffff !important;
+}
+
+.teacher-review-modal-footer .tr-modal-dismiss-btn,
+.teacher-review-modal-footer .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--sp-bg-card) !important;
+    color: var(--sp-text-main) !important;
+    border: 1px solid var(--sp-border) !important;
+    padding: 8px 16px;
+    border-radius: var(--sp-radius-sm);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--sp-transition);
+    text-decoration: none;
+}
+
+.teacher-review-modal-footer .tr-modal-dismiss-btn:hover,
+.teacher-review-modal-footer .btn-secondary:hover {
+    background: var(--sp-bg-main) !important;
+    color: var(--sp-primary) !important;
+    border-color: var(--sp-primary) !important;
 }
 
 /* ==========================================================================
