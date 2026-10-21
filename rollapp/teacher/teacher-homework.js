@@ -15,48 +15,101 @@
         // Avoid duplicate initialization
         if (document.getElementById('homeworkSection')) return;
 
-        // Inject Modern Styles
+        // Ensure sidebar menu item has the exact matching FontAwesome icon
+        let nav = sidebar.querySelector('[data-section="homework"]');
+        if (nav) {
+            nav.innerHTML = '<i class="fas fa-book"></i><span>Homework</span>';
+        } else {
+            nav = document.createElement('div');
+            nav.className = 'menu-item';
+            nav.dataset.section = 'homework';
+            nav.innerHTML = '<i class="fas fa-book"></i><span>Homework</span>';
+            
+            // Insert right after classes
+            const anchor = sidebar.querySelector('[data-section="classes"]');
+            if (anchor && anchor.nextSibling) {
+                sidebar.insertBefore(nav, anchor.nextSibling);
+            } else {
+                sidebar.appendChild(nav);
+            }
+        }
+
+        // Inject Professional CSS
         const style = document.createElement('style');
         style.id = 'teacher-homework-styles';
         style.textContent = `
             .thm-shell {
-                max-width: 1200px;
+                max-width: 1300px;
                 margin: 0 auto;
                 color: #1e293b;
                 padding-bottom: 40px;
+                width: 100%;
             }
-            .thm-hero {
+
+            /* Professional Header */
+            .thm-header-wrap {
                 display: flex;
-                justify-content: space-between;
                 align-items: center;
+                justify-content: space-between;
                 gap: 20px;
-                margin: 16px 0 20px;
-                padding: 24px 28px;
-                border: 1px solid #dcebe0;
-                border-radius: 20px;
-                background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
-                box-shadow: 0 10px 28px rgba(22, 101, 52, 0.06);
+                background: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-radius: 16px;
+                padding: 22px 28px;
+                margin: 6px 0 22px;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+                position: relative;
+                overflow: hidden;
             }
-            .thm-hero-title h2 {
-                margin: 0 0 6px 0;
-                color: #14532d;
-                font-size: 1.55rem;
+            .thm-header-wrap::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 4px;
+                height: 100%;
+                background: #166534;
+            }
+            .thm-header-kicker {
+                font-size: 0.72rem;
+                font-weight: 700;
+                color: #166534;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-bottom: 4px;
+            }
+            .thm-header-title {
+                font-size: 1.45rem;
                 font-weight: 800;
+                color: #0f172a;
+                margin: 0 0 6px 0;
                 display: flex;
                 align-items: center;
                 gap: 10px;
             }
-            .thm-hero-title p {
-                margin: 0;
-                color: #4b5563;
-                font-size: 0.90rem;
-                line-height: 1.5;
+            .thm-header-title i {
+                color: #166534;
             }
+            .thm-header-subtitle {
+                margin: 0;
+                color: #64748b;
+                font-size: 0.88rem;
+                line-height: 1.45;
+            }
+            .thm-header-actions {
+                flex-shrink: 0;
+            }
+
+            /* Buttons */
             .thm-btn-primary {
                 display: inline-flex;
                 align-items: center;
+                justify-content: center;
                 gap: 8px;
-                padding: 11px 20px;
+                padding: 10px 22px;
                 border: none;
                 border-radius: 10px;
                 background: #166534;
@@ -64,39 +117,63 @@
                 font-size: 0.88rem;
                 font-weight: 700;
                 cursor: pointer;
-                transition: all 0.2s ease;
-                box-shadow: 0 4px 12px rgba(22, 101, 52, 0.25);
+                box-shadow: 0 4px 12px rgba(22, 101, 52, 0.22);
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
                 white-space: nowrap;
+                width: auto;
             }
             .thm-btn-primary:hover {
                 background: #14532d;
                 transform: translateY(-1px);
-                box-shadow: 0 6px 16px rgba(22, 101, 52, 0.35);
+                box-shadow: 0 6px 16px rgba(22, 101, 52, 0.3);
             }
+            .thm-btn-cancel {
+                padding: 10px 18px;
+                border: 1px solid #cbd5e1;
+                background: #ffffff;
+                border-radius: 9px;
+                font-size: 0.84rem;
+                font-weight: 600;
+                color: #475569;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            .thm-btn-cancel:hover {
+                background: #f1f5f9;
+                color: #1e293b;
+            }
+
+            /* Metric KPI Cards */
             .thm-stats-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-                gap: 14px;
-                margin-bottom: 20px;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 16px;
+                margin-bottom: 22px;
             }
             .thm-stat-card {
                 background: #ffffff;
                 border: 1px solid #e2e8f0;
                 border-radius: 14px;
-                padding: 16px 20px;
+                padding: 18px 20px;
                 display: flex;
                 align-items: center;
                 gap: 16px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+                transition: all 0.2s ease;
+            }
+            .thm-stat-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+                border-color: #cbd5e1;
             }
             .thm-stat-icon {
-                width: 44px;
-                height: 44px;
+                width: 46px;
+                height: 46px;
                 border-radius: 12px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 1.2rem;
+                font-size: 1.25rem;
                 flex-shrink: 0;
             }
             .thm-stat-icon.green { background: #dcfce7; color: #166534; }
@@ -104,83 +181,89 @@
             .thm-stat-icon.blue { background: #e0f2fe; color: #0369a1; }
             .thm-stat-icon.purple { background: #f3e8ff; color: #7e22ce; }
             .thm-stat-meta .thm-stat-val {
-                font-size: 1.45rem;
+                font-size: 1.55rem;
                 font-weight: 800;
                 color: #0f172a;
                 line-height: 1.1;
             }
             .thm-stat-meta .thm-stat-lbl {
                 font-size: 0.74rem;
-                font-weight: 600;
+                font-weight: 700;
                 color: #64748b;
                 text-transform: uppercase;
                 letter-spacing: 0.04em;
-                margin-top: 2px;
+                margin-top: 3px;
             }
+
+            /* Unified Toolbar */
             .thm-toolbar {
                 background: #ffffff;
                 border: 1px solid #e2e8f0;
                 border-radius: 14px;
-                padding: 14px 18px;
-                margin-bottom: 20px;
+                padding: 12px 18px;
+                margin-bottom: 22px;
                 display: flex;
-                flex-wrap: wrap;
                 align-items: center;
                 justify-content: space-between;
-                gap: 12px;
+                gap: 16px;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-            }
-            .thm-filter-group {
-                display: flex;
                 flex-wrap: wrap;
+            }
+            .thm-filters-left {
+                display: flex;
                 align-items: center;
                 gap: 10px;
-                flex: 1;
+                flex-wrap: wrap;
             }
-            .thm-select, .thm-input {
+            .thm-select-wrap {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+            }
+            .thm-select-wrap i {
+                position: absolute;
+                left: 12px;
+                color: #64748b;
+                font-size: 0.82rem;
+                pointer-events: none;
+            }
+            .thm-select-wrap .thm-select {
+                padding-left: 32px;
+                padding-right: 28px;
                 height: 38px;
-                padding: 0 12px;
                 border: 1px solid #cbd5e1;
-                border-radius: 8px;
+                border-radius: 9px;
                 background: #ffffff;
                 color: #1e293b;
                 font-size: 0.84rem;
+                font-weight: 500;
                 outline: none;
-                transition: border-color 0.2s ease;
+                cursor: pointer;
+                transition: all 0.2s ease;
             }
-            .thm-select:focus, .thm-input:focus {
+            .thm-select-wrap .thm-select:focus {
                 border-color: #166534;
                 box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.12);
             }
-            .thm-search-wrap {
-                position: relative;
-                min-width: 220px;
-            }
-            .thm-search-wrap i {
-                position: absolute;
-                left: 12px;
-                top: 50%;
-                transform: translateY(-50%);
-                color: #94a3b8;
-                font-size: 0.82rem;
-            }
-            .thm-search-wrap input {
-                padding-left: 34px;
-                width: 100%;
+            .thm-filters-right {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                flex-wrap: wrap;
             }
             .thm-status-tabs {
                 display: inline-flex;
                 background: #f1f5f9;
-                border-radius: 8px;
+                border-radius: 9px;
                 padding: 3px;
-                gap: 4px;
+                gap: 2px;
             }
             .thm-tab-btn {
-                padding: 6px 12px;
+                padding: 6px 14px;
                 border: none;
                 background: transparent;
-                border-radius: 6px;
-                font-size: 0.78rem;
+                border-radius: 7px;
+                font-size: 0.80rem;
                 font-weight: 600;
                 color: #64748b;
                 cursor: pointer;
@@ -189,44 +272,78 @@
             .thm-tab-btn.active {
                 background: #ffffff;
                 color: #166534;
-                box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+                font-weight: 700;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.08);
             }
+            .thm-search-wrap {
+                position: relative;
+                width: 220px;
+            }
+            .thm-search-wrap i {
+                position: absolute;
+                left: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #94a3b8;
+                font-size: 0.84rem;
+                pointer-events: none;
+            }
+            .thm-search-wrap .thm-input {
+                width: 100%;
+                height: 38px;
+                padding: 0 12px 0 34px;
+                border: 1px solid #cbd5e1;
+                border-radius: 9px;
+                background: #ffffff;
+                color: #1e293b;
+                font-size: 0.84rem;
+                outline: none;
+                transition: all 0.2s ease;
+            }
+            .thm-search-wrap .thm-input:focus {
+                border-color: #166534;
+                box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.12);
+            }
+
+            /* Cards Grid */
             .thm-cards-grid {
                 display: grid;
                 grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-                gap: 16px;
+                gap: 18px;
             }
             .thm-card {
                 background: #ffffff;
                 border: 1px solid #e2e8f0;
                 border-radius: 16px;
-                padding: 18px 20px;
+                padding: 20px 22px;
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
-                box-shadow: 0 4px 14px rgba(0,0,0,0.04);
-                transition: all 0.2s ease;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+                transition: all 0.25s ease;
                 position: relative;
-                border-top: 4px solid #166534;
+                border-left: 4px solid #166534;
             }
             .thm-card:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 8px 22px rgba(0,0,0,0.08);
+                transform: translateY(-3px);
+                box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+                border-color: #cbd5e1;
+                border-left-color: #166534;
             }
             .thm-card-head {
                 display: flex;
-                align-items: flex-start;
+                align-items: center;
                 justify-content: space-between;
                 gap: 10px;
-                margin-bottom: 12px;
+                margin-bottom: 14px;
             }
             .thm-badge-class {
                 display: inline-flex;
                 align-items: center;
                 gap: 5px;
-                padding: 3px 9px;
-                border-radius: 6px;
-                font-size: 0.74rem;
+                padding: 4px 10px;
+                border-radius: 7px;
+                font-size: 0.76rem;
                 font-weight: 700;
                 background: #f1f5f9;
                 color: #334155;
@@ -235,9 +352,9 @@
                 display: inline-flex;
                 align-items: center;
                 gap: 5px;
-                padding: 3px 9px;
-                border-radius: 6px;
-                font-size: 0.74rem;
+                padding: 4px 10px;
+                border-radius: 7px;
+                font-size: 0.76rem;
                 font-weight: 700;
                 background: #e0f2fe;
                 color: #0369a1;
@@ -246,9 +363,9 @@
                 display: inline-flex;
                 align-items: center;
                 gap: 4px;
-                font-size: 0.70rem;
+                font-size: 0.72rem;
                 font-weight: 700;
-                padding: 3px 8px;
+                padding: 3px 9px;
                 border-radius: 999px;
                 text-transform: uppercase;
                 letter-spacing: 0.04em;
@@ -257,17 +374,21 @@
             .thm-badge-status.today { background: #fef3c7; color: #b45309; }
             .thm-badge-status.past { background: #fee2e2; color: #b91c1c; }
             .thm-card-title {
-                font-size: 1.05rem;
+                font-size: 1.08rem;
                 font-weight: 800;
                 color: #0f172a;
-                margin: 0 0 8px 0;
-                line-height: 1.35;
+                margin: 0 0 10px 0;
+                line-height: 1.4;
             }
             .thm-card-desc {
-                font-size: 0.84rem;
+                font-size: 0.85rem;
                 color: #475569;
-                line-height: 1.5;
-                margin: 0 0 14px 0;
+                line-height: 1.55;
+                margin: 0 0 16px 0;
+                background: #f8fafc;
+                border: 1px solid #f1f5f9;
+                border-radius: 9px;
+                padding: 10px 12px;
                 display: -webkit-box;
                 -webkit-line-clamp: 3;
                 -webkit-box-orient: vertical;
@@ -282,14 +403,14 @@
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                font-size: 0.78rem;
+                font-size: 0.80rem;
                 margin-bottom: 14px;
             }
             .thm-due-label {
                 color: #64748b;
                 display: flex;
                 align-items: center;
-                gap: 5px;
+                gap: 6px;
             }
             .thm-due-val {
                 font-weight: 700;
@@ -300,7 +421,7 @@
                 align-items: center;
                 gap: 8px;
                 border-top: 1px dashed #e2e8f0;
-                padding-top: 12px;
+                padding-top: 14px;
             }
             .thm-action-btn {
                 flex: 1;
@@ -308,8 +429,8 @@
                 align-items: center;
                 justify-content: center;
                 gap: 6px;
-                padding: 7px 12px;
-                font-size: 0.78rem;
+                padding: 8px 14px;
+                font-size: 0.80rem;
                 font-weight: 600;
                 border-radius: 8px;
                 cursor: pointer;
@@ -325,6 +446,9 @@
             }
             .thm-action-btn.delete {
                 flex: 0 0 auto;
+                width: 38px;
+                height: 38px;
+                padding: 0;
                 color: #dc2626;
                 border-color: #fecaca;
             }
@@ -332,37 +456,51 @@
                 background: #fee2e2;
                 border-color: #ef4444;
             }
+
+            /* Empty State */
             .thm-empty {
                 grid-column: 1 / -1;
                 background: #ffffff;
                 border: 2px dashed #cbd5e1;
-                border-radius: 16px;
-                padding: 48px 20px;
+                border-radius: 18px;
+                padding: 54px 24px;
                 text-align: center;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
             }
             .thm-empty-icon {
-                width: 64px;
-                height: 64px;
+                width: 68px;
+                height: 68px;
                 border-radius: 50%;
                 background: #dcfce7;
                 color: #166534;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 1.8rem;
-                margin-bottom: 14px;
+                font-size: 1.85rem;
+                margin-bottom: 16px;
             }
             .thm-empty h3 {
-                margin: 0 0 6px 0;
+                margin: 0 0 8px 0;
                 color: #0f172a;
-                font-size: 1.15rem;
+                font-size: 1.25rem;
                 font-weight: 800;
             }
             .thm-empty p {
-                margin: 0 0 16px 0;
+                margin: 0 0 20px 0;
                 color: #64748b;
-                font-size: 0.88rem;
+                font-size: 0.90rem;
+                max-width: 440px;
+                line-height: 1.5;
             }
+            .thm-empty .thm-btn-primary {
+                width: auto;
+                min-width: 200px;
+                padding: 11px 24px;
+            }
+
             /* Modal Styles */
             .thm-modal-overlay {
                 position: fixed;
@@ -399,7 +537,7 @@
             .thm-modal-header h3 {
                 margin: 0;
                 color: #14532d;
-                font-size: 1.12rem;
+                font-size: 1.15rem;
                 font-weight: 800;
                 display: flex;
                 align-items: center;
@@ -416,6 +554,7 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                transition: all 0.2s ease;
             }
             .thm-modal-close:hover {
                 background: #fee2e2;
@@ -446,7 +585,7 @@
                 gap: 12px;
             }
             .thm-textarea {
-                min-height: 100px;
+                min-height: 110px;
                 padding: 10px 12px;
                 border: 1px solid #cbd5e1;
                 border-radius: 8px;
@@ -469,38 +608,49 @@
                 background: #f8fafc;
                 border-radius: 0 0 18px 18px;
             }
-            .thm-btn-cancel {
-                padding: 9px 16px;
-                border: 1px solid #cbd5e1;
-                background: #ffffff;
-                border-radius: 8px;
-                font-size: 0.84rem;
-                font-weight: 600;
-                color: #475569;
-                cursor: pointer;
+
+            /* Responsive */
+            @media (max-width: 1024px) {
+                .thm-stats-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
             }
-            .thm-btn-cancel:hover {
-                background: #f1f5f9;
-            }
-            @media (max-width: 640px) {
-                .thm-hero {
+            @media (max-width: 768px) {
+                .thm-header-wrap {
                     flex-direction: column;
                     align-items: flex-start;
-                    padding: 18px;
+                    padding: 18px 20px;
                 }
-                .thm-btn-primary {
+                .thm-header-actions, .thm-header-actions .thm-btn-primary {
                     width: 100%;
-                    justify-content: center;
                 }
                 .thm-toolbar {
                     flex-direction: column;
                     align-items: stretch;
                 }
-                .thm-filter-group {
-                    flex-direction: column;
-                }
-                .thm-search-wrap, .thm-select {
+                .thm-filters-left, .thm-filters-right {
                     width: 100%;
+                }
+                .thm-select-wrap, .thm-select-wrap .thm-select {
+                    width: 100%;
+                }
+                .thm-search-wrap {
+                    width: 100%;
+                }
+                .thm-status-tabs {
+                    width: 100%;
+                    display: flex;
+                }
+                .thm-tab-btn {
+                    flex: 1;
+                    text-align: center;
+                }
+                .thm-stats-grid {
+                    grid-template-columns: 1fr 1fr;
+                    gap: 10px;
+                }
+                .thm-cards-grid {
+                    grid-template-columns: 1fr;
                 }
                 .thm-form-row {
                     grid-template-columns: 1fr;
@@ -509,27 +659,6 @@
         `;
         document.head.appendChild(style);
 
-        // Add menu item in sidebar if missing
-        let nav = sidebar.querySelector('[data-section="homework"]');
-        if (!nav) {
-            nav = document.createElement('div');
-            nav.className = 'menu-item';
-            nav.dataset.section = 'homework';
-            nav.innerHTML = '<i class="fas fa-book-bookmark"></i><span>Homework</span>';
-            
-            // Insert right after classes or timetable
-            const anchor = sidebar.querySelector('[data-section="timetable"]') ||
-                           sidebar.querySelector('[data-section="classes"]') ||
-                           sidebar.querySelector('[data-section="settings"]');
-            if (anchor && anchor.nextSibling) {
-                sidebar.insertBefore(nav, anchor.nextSibling);
-            } else if (anchor) {
-                sidebar.insertBefore(nav, anchor);
-            } else {
-                sidebar.appendChild(nav);
-            }
-        }
-
         // Add Section Panel Container
         const panel = document.createElement('section');
         panel.id = 'homeworkSection';
@@ -537,14 +666,17 @@
         panel.setAttribute('aria-label', 'Homework Management');
         panel.innerHTML = `
             <div class="thm-shell">
-                <div class="thm-hero">
-                    <div class="thm-hero-title">
-                        <h2><i class="fas fa-book-bookmark"></i> Class Homework & Assignments</h2>
-                        <p>Assign homework to your classes and track student tasks in real-time.</p>
+                <div class="thm-header-wrap">
+                    <div class="thm-header-info">
+                        <div class="thm-header-kicker"><i class="fas fa-graduation-cap"></i> Academic Management</div>
+                        <h1 class="thm-header-title"><i class="fas fa-book"></i> Class Homework &amp; Assignments</h1>
+                        <p class="thm-header-subtitle">Assign homework to your classes, specify submission instructions, and track student tasks in real time.</p>
                     </div>
-                    <button type="button" class="thm-btn-primary" id="thmCreateBtn">
-                        <i class="fas fa-plus"></i> Assign New Homework
-                    </button>
+                    <div class="thm-header-actions">
+                        <button type="button" class="thm-btn-primary" id="thmCreateBtn">
+                            <i class="fas fa-plus"></i> Assign New Homework
+                        </button>
+                    </div>
                 </div>
 
                 <div class="thm-stats-grid">
@@ -579,22 +711,30 @@
                 </div>
 
                 <div class="thm-toolbar">
-                    <div class="thm-filter-group">
-                        <select class="thm-select" id="thmFilterClass">
-                            <option value="">All My Classes</option>
-                        </select>
-                        <select class="thm-select" id="thmFilterSubject">
-                            <option value="">All Subjects</option>
-                        </select>
+                    <div class="thm-filters-left">
+                        <div class="thm-select-wrap">
+                            <i class="fas fa-users-rectangle"></i>
+                            <select class="thm-select" id="thmFilterClass">
+                                <option value="">All My Classes</option>
+                            </select>
+                        </div>
+                        <div class="thm-select-wrap">
+                            <i class="fas fa-book"></i>
+                            <select class="thm-select" id="thmFilterSubject">
+                                <option value="">All Subjects</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="thm-filters-right">
                         <div class="thm-status-tabs">
                             <button type="button" class="thm-tab-btn active" data-status="all">All</button>
                             <button type="button" class="thm-tab-btn" data-status="active">Active</button>
                             <button type="button" class="thm-tab-btn" data-status="past">Past Due</button>
                         </div>
-                    </div>
-                    <div class="thm-search-wrap">
-                        <i class="fas fa-search"></i>
-                        <input type="text" class="thm-input" id="thmSearchInput" placeholder="Search homework...">
+                        <div class="thm-search-wrap">
+                            <i class="fas fa-search"></i>
+                            <input type="text" class="thm-input" id="thmSearchInput" placeholder="Search homework...">
+                        </div>
                     </div>
                 </div>
 
@@ -981,8 +1121,8 @@
                 grid.innerHTML = `
                     <div class="thm-empty">
                         <div class="thm-empty-icon"><i class="fas fa-clipboard-check"></i></div>
-                        <h3>No homework found</h3>
-                        <p>${homeworkList.length === 0 ? "You haven't assigned any homework yet." : "No assignments match your search or filter."}</p>
+                        <h3>No homework assigned yet</h3>
+                        <p>${homeworkList.length === 0 ? "You haven't assigned any homework yet. Click below to create your first class assignment." : "No assignments match your selected filters or search query."}</p>
                         <button type="button" class="thm-btn-primary" id="thmEmptyAddBtn">
                             <i class="fas fa-plus"></i> Assign New Homework
                         </button>
