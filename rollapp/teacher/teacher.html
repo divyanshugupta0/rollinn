@@ -3215,14 +3215,183 @@
 
         /* Faculty workspace visual system */
         body.teacher-authenticated { background: #f3f6f3 !important; color: #1c2a22; }
-        body.teacher-authenticated .sidebar { width: 260px; background: linear-gradient(180deg,#124e39,#0c3d2d); box-shadow: 8px 0 32px rgba(16,45,31,.10); }
+        body.teacher-authenticated .sidebar {
+            width: 260px;
+            background: linear-gradient(180deg,#124e39,#0c3d2d);
+            box-shadow: 8px 0 32px rgba(16,45,31,.10);
+            transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
         body.teacher-authenticated .sidebar-header { min-height: 82px; padding: 22px 20px; }
         body.teacher-authenticated .sidebar-logo { gap: 12px; font-size: 18px; }
         body.teacher-authenticated .sidebar-menu { padding: 18px 12px; }
         body.teacher-authenticated .menu-item { min-height: 46px; margin: 4px 0; padding: 12px 14px; border-radius: 11px; font-size: 13px; }
         body.teacher-authenticated .menu-item.active { background: rgba(199,227,107,.16); color: #fff; }
-        body.teacher-authenticated .main-content { margin-left: 260px; width: calc(100% - 260px); background: #f3f6f3; }
-        body.teacher-authenticated .main-content-expanded { margin-left: 82px; width: calc(100% - 82px); }
+        body.teacher-authenticated .main-content {
+            margin-left: 260px;
+            width: calc(100% - 260px);
+            background: #f3f6f3;
+            transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1), width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        body.teacher-authenticated .main-content-expanded {
+            margin-left: 78px !important;
+            width: calc(100% - 78px) !important;
+        }
+
+        /* Collapsed Sidebar Rules (Decreases width to 78px) */
+        body.teacher-authenticated .sidebar.sidebar-collapsed,
+        .sidebar.sidebar-collapsed {
+            width: 78px !important;
+        }
+
+        body.teacher-authenticated .sidebar.sidebar-collapsed .sidebar-logo span,
+        body.teacher-authenticated .sidebar.sidebar-collapsed .menu-item span,
+        body.teacher-authenticated .sidebar.sidebar-collapsed .user-info,
+        .sidebar.sidebar-collapsed .sidebar-logo span,
+        .sidebar.sidebar-collapsed .menu-item span,
+        .sidebar.sidebar-collapsed .user-info {
+            display: none !important;
+        }
+
+        body.teacher-authenticated .sidebar.sidebar-collapsed .sidebar-header,
+        .sidebar.sidebar-collapsed .sidebar-header {
+            padding: 22px 10px !important;
+            justify-content: center !important;
+        }
+
+        body.teacher-authenticated .sidebar.sidebar-collapsed .sidebar-logo,
+        .sidebar.sidebar-collapsed .sidebar-logo {
+            justify-content: center !important;
+        }
+
+        body.teacher-authenticated .sidebar.sidebar-collapsed .menu-item,
+        .sidebar.sidebar-collapsed .menu-item {
+            justify-content: center !important;
+            padding: 13px 0 !important;
+            margin: 4px 6px !important;
+        }
+
+        body.teacher-authenticated .sidebar.sidebar-collapsed .menu-item i,
+        .sidebar.sidebar-collapsed .menu-item i {
+            margin: 0 !important;
+            min-width: 0 !important;
+            font-size: 18px !important;
+        }
+
+        body.teacher-authenticated .sidebar.sidebar-collapsed .sidebar-footer,
+        .sidebar.sidebar-collapsed .sidebar-footer {
+            padding: 14px 6px !important;
+            justify-content: center !important;
+        }
+
+        body.teacher-authenticated .sidebar.sidebar-collapsed .sidebar-user,
+        .sidebar.sidebar-collapsed .sidebar-user {
+            flex-direction: column !important;
+            justify-content: center !important;
+            align-items: center !important;
+            gap: 10px !important;
+            width: 100% !important;
+        }
+
+        body.teacher-authenticated .sidebar.sidebar-collapsed .sidebar-logout-btn,
+        .sidebar.sidebar-collapsed .sidebar-logout-btn {
+            width: 36px !important;
+            height: 36px !important;
+            padding: 0 !important;
+        }
+
+        /* Sidebar Footer & User Profile */
+        body.teacher-authenticated .sidebar-footer {
+            border-top: 1px solid rgba(255,255,255,.12);
+            padding: 14px 16px;
+            background: rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+        }
+
+        body.teacher-authenticated .sidebar-user {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+        }
+
+        body.teacher-authenticated .user-avatar {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            border-radius: 50%;
+            background: rgba(199,227,107,.16);
+            color: var(--rc-lime, #c7e36b);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 2px solid rgba(199,227,107,0.45);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        body.teacher-authenticated .user-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            display: block;
+        }
+
+        body.teacher-authenticated .user-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        body.teacher-authenticated .user-name {
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+
+        body.teacher-authenticated .user-role {
+            color: rgba(255,255,255,.55);
+            font-size: 11px;
+            font-weight: 500;
+            line-height: 1.1;
+        }
+
+        body.teacher-authenticated .sidebar-logout-btn {
+            width: 34px;
+            height: 34px;
+            min-width: 34px;
+            border-radius: 9px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+
+        body.teacher-authenticated .sidebar-logout-btn:hover {
+            background: #dc2626;
+            color: #ffffff;
+            border-color: #ef4444;
+            transform: scale(1.06);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+        }
+
         body.teacher-authenticated .container { width: 100%; max-width: 1560px; padding: 34px clamp(20px,3vw,48px) 52px; }
         body.teacher-authenticated .section-container { animation: rc-enter .2s ease both; }
         body.teacher-authenticated .section-container > .header { display:flex; align-items:center; min-height:64px; margin:0 0 22px; padding:0 0 17px; border-bottom:1px solid #e0e8e1; }
@@ -3661,19 +3830,17 @@
         </div>
         <div class="sidebar-footer">
             <div class="sidebar-user">
-                <div class="user-avatar" id="sidebarUserAvatar">
-                    <i class="fas fa-user"></i>
-                    <div class="user-dropdown" id="sidebarUserDropdown">
-                        <div class="dropdown-item" id="sidebarLogoutBtn">
-                            <i class="fas fa-sign-out-alt"></i>
-                            <span>Admin</span>
-                        </div>
-                    </div>
+                <div class="user-avatar" id="sidebarUserAvatar" title="Teacher Profile">
+                    <img id="sidebarUserAvatarImg" src="" alt="Teacher Profile" style="display:none; width:100%; height:100%; border-radius:50%; object-fit:cover;">
+                    <i class="fas fa-user" id="sidebarUserAvatarIcon"></i>
                 </div>
                 <div class="user-info">
                     <div class="user-name" id="sidebarUserName">Teacher</div>
                     <div class="user-role">Faculty</div>
                 </div>
+                <button type="button" class="sidebar-logout-btn" id="sidebarQuickLogoutBtn" title="Log Out">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
             </div>
         </div>
     </div>
@@ -4384,17 +4551,53 @@
             const sidebar = document.querySelector('.sidebar');
             const mainContent = document.querySelector('.main-content');
             
-            sidebarToggle.addEventListener('click', function() {
-                sidebar.classList.toggle('sidebar-collapsed');
-                mainContent.classList.toggle('main-content-expanded');
-            });
+            if (sidebarToggle && sidebar && mainContent) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('sidebar-collapsed');
+                    mainContent.classList.toggle('main-content-expanded');
+                });
+            }
             
             // Add event listeners for all header logout buttons
             const headerLogoutBtns = document.querySelectorAll('.header-logout-btn');
             headerLogoutBtns.forEach(btn => {
                 btn.addEventListener('click', performLogout);
             });
+
+            // Quick sidebar logout button
+            const sidebarLogoutBtn = document.getElementById('sidebarQuickLogoutBtn');
+            if (sidebarLogoutBtn) {
+                sidebarLogoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (confirm('Are you sure you want to log out?')) {
+                        performLogout();
+                    }
+                });
+            }
         });
+
+        function updateSidebarTeacherProfile(name, photoUrl) {
+            const nameEl = document.getElementById('sidebarUserName');
+            if (nameEl && name) nameEl.textContent = name;
+
+            const avatarImg = document.getElementById('sidebarUserAvatarImg');
+            const avatarIcon = document.getElementById('sidebarUserAvatarIcon');
+
+            if (avatarImg && photoUrl) {
+                avatarImg.src = photoUrl;
+                avatarImg.style.display = 'block';
+                if (avatarIcon) avatarIcon.style.display = 'none';
+                avatarImg.onerror = () => {
+                    avatarImg.style.display = 'none';
+                    if (avatarIcon) avatarIcon.style.display = 'inline-block';
+                };
+            } else {
+                if (avatarImg) avatarImg.style.display = 'none';
+                if (avatarIcon) avatarIcon.style.display = 'inline-block';
+            }
+        }
+        window.updateSidebarTeacherProfile = updateSidebarTeacherProfile;
         
         // Firebase configuration
         const firebaseConfig = window.ROLLCALL_FIREBASE_CONFIG;
@@ -4680,8 +4883,18 @@
                         document.getElementById('reportsTeacherInfo').innerHTML = `<i class="fas fa-user-tie"></i> Teacher: ${teacherName}`;
                         document.getElementById('settingsTeacherInfo').innerHTML = `<i class="fas fa-user-tie"></i> Teacher: ${teacherName}`;
                             
-                        // Update sidebar user name
+                        // Update sidebar user name & profile photo
                         document.getElementById('sidebarUserName').textContent = teacherName;
+                        const teacherPhoto = currentTeacher.profilePhoto || currentTeacher.photoURL || currentTeacher.profilePic || currentTeacher.avatar || user.photoURL || '';
+                        updateSidebarTeacherProfile(teacherName, teacherPhoto);
+
+                        // Realtime listener for teacher profile picture updates
+                        firebase.database().ref(`users/${user.uid}`).on('value', snap => {
+                            const val = snap.val() || {};
+                            const updatedName = val.name || val.displayName || currentTeacher.name || user.email;
+                            const updatedPhoto = val.profilePhoto || val.photoURL || val.profilePic || val.avatar || user.photoURL || '';
+                            updateSidebarTeacherProfile(updatedName, updatedPhoto);
+                        });
                             
                         console.log('Teacher data loaded:', teacherName);
                             

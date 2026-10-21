@@ -46,7 +46,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const subjects = profile.subjectsTaught ?? profile.subjects ?? '';
         document.getElementById('settingsSubjects').value = Array.isArray(subjects) ? subjects.join(', ') : String(subjects || '');
         if (email) email.value = profile.email || user?.email || '';
-        showPhoto(profile.profilePhoto || profile.photoURL || profile.profilePic || '');
+        const currentPhoto = profile.profilePhoto || profile.photoURL || profile.profilePic || profile.avatar || user?.photoURL || '';
+        showPhoto(currentPhoto);
+        if (typeof window.updateSidebarTeacherProfile === 'function') {
+            window.updateSidebarTeacherProfile(profile.name || user?.displayName || '', currentPhoto);
+        }
     };
     const mode = enabled => {
         editing = enabled;
@@ -186,6 +190,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const sidebarName = document.getElementById('sidebarUserName');
             if (sidebarName) sidebarName.textContent = name;
+            if (typeof window.updateSidebarTeacherProfile === 'function') {
+                window.updateSidebarTeacherProfile(name, profilePhoto);
+            }
             mode(false);
             message('Your profile details have been saved.');
         } catch (error) {
