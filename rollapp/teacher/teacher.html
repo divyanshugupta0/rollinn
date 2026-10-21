@@ -3055,9 +3055,10 @@
             body { display: flex; }
             body:not(.teacher-authenticated) { padding: 0; }
             body:not(.teacher-authenticated) .main-content > .container { min-height: 100svh; padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)); }
-            /* On mobile the sidebar is hidden; main content is full-width */
-            .sidebar { display: none !important; }
-            .main-content, .main-content-expanded { margin-left: 0; width: 100%; }
+            /* Login page: sidebar hidden. Teacher-auth sidebar controlled separately below */
+            body:not(.teacher-authenticated) .sidebar { display: none; }
+            /* On mobile, authenticated main content is always full-width (sidebar is an overlay) */
+            .main-content, .main-content-expanded { margin-left: 0 !important; width: 100% !important; }
             .container { padding: 20px 14px 26px; }
             .header { align-items: flex-start; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; }
             .header h1 { font-size: 22px; }
@@ -3469,11 +3470,12 @@
             /* Mobile: sidebar is a full slide-in drawer, hidden by default */
             body.teacher-authenticated { display:block; padding:0; }
 
-            /* Sidebar: hidden off-screen to the left */
+            /* Sidebar: force flex display, but hidden off-screen to the left */
             body.teacher-authenticated .sidebar {
+                display:flex !important;
                 position:fixed; z-index:1100;
                 inset:0 auto 0 0;
-                display:flex; flex-direction:column;
+                flex-direction:column;
                 width:260px; height:100%;
                 border-radius:0;
                 box-shadow:none;
@@ -3525,7 +3527,7 @@
             /* Main content: full width (sidebar is overlay, not in flow) */
             body.teacher-authenticated .main-content,
             body.teacher-authenticated .main-content-expanded { width:100%; margin-left:0; }
-            body.teacher-authenticated .container { padding:18px 14px 24px 60px; }
+            body.teacher-authenticated .container { padding:18px 14px 24px; }
 
             /* Floating hamburger button */
             #mobileSidebarToggle {
