@@ -22,6 +22,65 @@
         * {
             box-sizing: border-box;
             font-family: 'Poppins', 'Arial', sans-serif;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+
+        /* Modern Custom Scrollbar (Global) */
+        ::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 999px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+            transition: background 0.2s ease;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+
+        /* Sleek Translucent Scrollbar for Dark Green Sidebar */
+        .sidebar, .sidebar-menu {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+        }
+
+        .sidebar::-webkit-scrollbar,
+        .sidebar-menu::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        .sidebar::-webkit-scrollbar-track,
+        .sidebar-menu::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb,
+        .sidebar-menu::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.22);
+            border-radius: 999px;
+            transition: background 0.2s ease;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover,
+        .sidebar-menu::-webkit-scrollbar-thumb:hover {
+            background: rgba(199, 227, 107, 0.6);
         }
         
         body {
