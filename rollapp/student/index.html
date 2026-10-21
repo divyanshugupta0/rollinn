@@ -4195,10 +4195,10 @@
                             <div class="profile-avatar-wrapper">
                                 <img src="https://cdn.pixabay.com/photo/2016/11/14/17/39/person-1824144_960_720.png"
                                      alt="Student Avatar" id="prof-hero-avatar" class="profile-hero-avatar">
-                                <label for="prof-avatar-file-input" class="profile-avatar-edit-badge" title="Change Profile Photo">
+                                <label for="prof-avatar-file-input" class="profile-avatar-edit-badge" id="prof-avatar-edit-badge" title="Change Profile Photo" style="display:none;">
                                     <i class="fas fa-camera"></i>
                                 </label>
-                                <input type="file" id="prof-avatar-file-input" accept="image/*" style="display:none;">
+                                <input type="file" id="prof-avatar-file-input" accept="image/*" style="display:none;" disabled>
                             </div>
                             <div class="profile-hero-info">
                                 <div class="profile-hero-name-row">
@@ -4388,7 +4388,12 @@
                                     </div>
                                     <div class="profile-info-row" id="prof-row-class-teacher">
                                         <div class="info-label"><i class="fas fa-chalkboard-user"></i> Class Teacher</div>
-                                        <div class="info-value highlight" id="prof-val-class-teacher">Loading...</div>
+                                        <div class="info-value prof-teacher-val-wrap" id="prof-teacher-val-wrap" style="display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;">
+                                            <span class="highlight" id="prof-val-class-teacher">Loading...</span>
+                                            <button type="button" class="prof-view-ct-btn" id="prof-view-ct-btn" style="display:none;" title="View Class Teacher Full Profile">
+                                                <i class="fas fa-id-card-clip"></i> Full Profile
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="profile-info-row" id="prof-row-batch">
                                         <div class="info-label"><i class="fas fa-calendar-check"></i> Academic Batch</div>
@@ -11148,6 +11153,94 @@
             <div class="modal-footer">
                 <button id="confirm-update-request" class="btn-primary">Send Request</button>
                 <button id="cancel-update-request" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= CLASS TEACHER FULL PROFILE REVIEW MODAL ================= -->
+    <div id="teacher-profile-review-modal" class="modal-overlay teacher-review-modal-overlay" style="display:none;">
+        <div class="modal-content teacher-review-modal-content">
+            <div class="teacher-review-modal-header">
+                <div class="tr-modal-title">
+                    <i class="fas fa-chalkboard-user"></i>
+                    <span>Class Teacher Profile</span>
+                </div>
+                <button type="button" class="modal-close" id="tr-modal-close-btn" aria-label="Close modal">&times;</button>
+            </div>
+            <div class="teacher-review-modal-body" id="tr-modal-body">
+                <div class="tr-hero">
+                    <div class="tr-avatar-wrap">
+                        <img src="" alt="Teacher Profile" id="tr-hero-avatar" class="tr-hero-avatar">
+                        <span class="tr-verified-badge" title="Official Faculty Member">
+                            <i class="fas fa-check"></i>
+                        </span>
+                    </div>
+                    <h3 id="tr-hero-name" class="tr-hero-name">Educator</h3>
+                    <p id="tr-hero-role" class="tr-hero-role">Designated Class Mentor</p>
+                    <div class="tr-badges-row">
+                        <span class="tr-pill tr-pill-primary" id="tr-pill-class"><i class="fas fa-users-rectangle"></i> Class & Section</span>
+                        <span class="tr-pill tr-pill-success"><i class="fas fa-shield-check"></i> Verified Faculty</span>
+                    </div>
+                </div>
+
+                <div class="tr-details-card">
+                    <h4 class="tr-section-title"><i class="fas fa-address-card"></i> Academic & Contact Credentials</h4>
+                    <div class="tr-details-grid">
+                        <div class="tr-grid-item">
+                            <div class="tr-item-icon room"><i class="fas fa-school"></i></div>
+                            <div class="tr-item-text">
+                                <span class="tr-item-label">Faculty Room / Cabin</span>
+                                <span class="tr-item-val" id="tr-detail-cabin">Staff Room</span>
+                            </div>
+                        </div>
+
+                        <div class="tr-grid-item">
+                            <div class="tr-item-icon subject"><i class="fas fa-book-open"></i></div>
+                            <div class="tr-item-text">
+                                <span class="tr-item-label">Subject / Dept</span>
+                                <span class="tr-item-val" id="tr-detail-subject">-</span>
+                            </div>
+                        </div>
+
+                        <div class="tr-grid-item">
+                            <div class="tr-item-icon email"><i class="fas fa-envelope"></i></div>
+                            <div class="tr-item-text">
+                                <span class="tr-item-label">Official Email</span>
+                                <a href="#" class="tr-item-link" id="tr-detail-email">-</a>
+                            </div>
+                        </div>
+
+                        <div class="tr-grid-item">
+                            <div class="tr-item-icon phone"><i class="fas fa-phone"></i></div>
+                            <div class="tr-item-text">
+                                <span class="tr-item-label">Contact Number</span>
+                                <a href="#" class="tr-item-link" id="tr-detail-phone">-</a>
+                            </div>
+                        </div>
+
+                        <div class="tr-grid-item">
+                            <div class="tr-item-icon school"><i class="fas fa-building-columns"></i></div>
+                            <div class="tr-item-text">
+                                <span class="tr-item-label">Institution</span>
+                                <span class="tr-item-val" id="tr-detail-school">-</span>
+                            </div>
+                        </div>
+
+                        <div class="tr-grid-item">
+                            <div class="tr-item-icon id"><i class="fas fa-id-badge"></i></div>
+                            <div class="tr-item-text">
+                                <span class="tr-item-label">Faculty ID</span>
+                                <span class="tr-item-val" id="tr-detail-id">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="teacher-review-modal-footer">
+                <button type="button" class="btn-primary tr-modal-leave-btn" id="tr-modal-leave-btn">
+                    <i class="fas fa-paper-plane"></i> Apply for Leave
+                </button>
+                <button type="button" class="btn-secondary" id="tr-modal-dismiss-btn">Close</button>
             </div>
         </div>
     </div>

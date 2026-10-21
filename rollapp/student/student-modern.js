@@ -1442,9 +1442,18 @@
             console.error('Error fetching class teacher info:', err);
         }
 
+        currentClassTeacherData = teacherData;
+        currentTeacherSection = section;
+        currentTeacherClassName = className;
+
         renderClassTeacherCard(container, profField, teacherData, section, className);
+        setupTeacherReviewModalListeners();
     }
     window.loadClassTeacherInfo = loadClassTeacherInfo;
+
+    let currentClassTeacherData = null;
+    let currentTeacherSection = '';
+    let currentTeacherClassName = '';
 
     function cleanCabinLocation(val) {
         if (!val) return 'Staff Room';
@@ -1500,12 +1509,154 @@
         return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${encodeURIComponent(c1)}"/><stop offset="100%" stop-color="${encodeURIComponent(c2)}"/></linearGradient></defs><rect width="100%" height="100%" rx="24" fill="url(%23g)"/><text x="50%" y="54%" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-weight="700" font-size="44" fill="%23ffffff" dominant-baseline="middle" text-anchor="middle">${initial}</text></svg>`;
     }
 
+    function navigateToLeaveTab() {
+        const leaveTabBtn = document.querySelector('[data-tab="tab-leave"]');
+        if (leaveTabBtn) {
+            leaveTabBtn.click();
+        } else {
+            const leaveTab = document.getElementById('tab-leave');
+            if (leaveTab) {
+                document.querySelectorAll('.student-tab-panel').forEach(p => p.classList.remove('active'));
+                leaveTab.classList.add('active');
+            }
+        }
+    }
+
+    function openTeacherProfileReview() {
+        const modal = document.getElementById('teacher-profile-review-modal');
+        if (!modal) return;
+
+        const teacher = currentClassTeacherData;
+        const section = currentTeacherSection;
+        const className = currentTeacherClassName;
+
+        if (!teacher || !teacher.name) {
+            showModernToast('No class teacher assigned yet for this section.', 'info');
+            return;
+        }
+
+        const name = teacher.name || 'Assigned Educator';
+        const email = teacher.email || '';
+        const phone = teacher.phone || '';
+        const subject = teacher.subject || 'Faculty Mentor';
+        const cabin = cleanCabinLocation(teacher.cabin);
+        const fallbackSvg = getTeacherAvatarSvg(name);
+        const avatar = (teacher.avatar && typeof teacher.avatar === 'string' && (teacher.avatar.startsWith('http') || teacher.avatar.startsWith('data:')))
+            ? teacher.avatar
+            : fallbackSvg;
+        const schoolName = teacher.schoolName || state.currentUser?.schoolName || (state.currentUser?.schoolId ? `School ID: ${state.currentUser.schoolId}` : 'Main Campus');
+        const teacherId = teacher.teacherId || '-';
+
+        const avatarEl = document.getElementById('tr-hero-avatar');
+        if (avatarEl) {
+            avatarEl.src = avatar;
+            avatarEl.onerror = () => { avatarEl.onerror = null; avatarEl.src = fallbackSvg; };
+        }
+        const nameEl = document.getElementById('tr-hero-name');
+        if (nameEl) nameEl.textContent = name;
+
+        const roleEl = document.getElementById('tr-hero-role');
+        if (roleEl) roleEl.textContent = `Class Teacher • ${className || 'Class'} (${section ? `Sec ${section}` : 'General'})`;
+
+        const classPill = document.getElementById('tr-pill-class');
+        if (classPill) classPill.innerHTML = `<i class="fas fa-users-rectangle"></i> ${escapeHtml(className || 'Class')} - Sec ${escapeHtml(section || 'A')}`;
+
+        const cabinEl = document.getElementById('tr-detail-cabin');
+        if (cabinEl) cabinEl.textContent = cabin;
+
+        const subjectEl = document.getElementById('tr-detail-subject');
+        if (subjectEl) subjectEl.textContent = subject;
+
+        const emailEl = document.getElementById('tr-detail-email');
+        if (emailEl) {
+            if (email) {
+                emailEl.textContent = email;
+                emailEl.href = `mailto:${email}`;
+                emailEl.style.display = 'inline';
+            } else {
+                emailEl.textContent = 'Not specified';
+                emailEl.removeAttribute('href');
+            }
+        }
+
+        const phoneEl = document.getElementById('tr-detail-phone');
+        if (phoneEl) {
+            if (phone) {
+                phoneEl.textContent = formatPhoneNumber(phone);
+                phoneEl.href = `tel:${phone}`;
+                phoneEl.style.display = 'inline';
+            } else {
+                phoneEl.textContent = 'Not specified';
+                phoneEl.removeAttribute('href');
+            }
+        }
+
+        const schoolEl = document.getElementById('tr-detail-school');
+        if (schoolEl) schoolEl.textContent = schoolName;
+
+        const idEl = document.getElementById('tr-detail-id');
+        if (idEl) idEl.textContent = teacherId;
+
+        modal.style.display = 'flex';
+        // Force reflow for CSS transition
+        void modal.offsetWidth;
+        modal.classList.add('visible');
+    }
+    window.openTeacherProfileReview = openTeacherProfileReview;
+
+    function closeTeacherProfileReview() {
+        const modal = document.getElementById('teacher-profile-review-modal');
+        if (modal) {
+            modal.classList.remove('visible');
+            setTimeout(() => {
+                if (!modal.classList.contains('visible')) {
+                    modal.style.display = 'none';
+                }
+            }, 250);
+        }
+    }
+    window.closeTeacherProfileReview = closeTeacherProfileReview;
+
+    function setupTeacherReviewModalListeners() {
+        const modal = document.getElementById('teacher-profile-review-modal');
+        if (!modal || modal.dataset.reviewListenersAttached === 'true') return;
+        modal.dataset.reviewListenersAttached = 'true';
+
+        const closeBtn = document.getElementById('tr-modal-close-btn');
+        const dismissBtn = document.getElementById('tr-modal-dismiss-btn');
+        if (closeBtn) closeBtn.addEventListener('click', closeTeacherProfileReview);
+        if (dismissBtn) dismissBtn.addEventListener('click', closeTeacherProfileReview);
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeTeacherProfileReview();
+        });
+
+        const leaveBtn = document.getElementById('tr-modal-leave-btn');
+        if (leaveBtn) {
+            leaveBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                closeTeacherProfileReview();
+                navigateToLeaveTab();
+            });
+        }
+    }
+
     function renderClassTeacherCard(container, profField, teacher, section, className) {
+        // Connect to Profile & Security tab
+        const profViewBtn = document.getElementById('prof-view-ct-btn');
         if (profField) {
             if (teacher && teacher.name) {
                 profField.innerHTML = `<strong>${escapeHtml(teacher.name)}</strong>${teacher.subject ? ` <span style="font-size:0.75rem; color:var(--sp-text-muted);">(${escapeHtml(teacher.subject)})</span>` : ''}`;
+                if (profViewBtn) {
+                    profViewBtn.style.display = 'inline-flex';
+                    profViewBtn.onclick = (e) => {
+                        e.preventDefault();
+                        openTeacherProfileReview();
+                    };
+                }
             } else {
                 profField.textContent = 'Not Assigned Yet';
+                if (profViewBtn) profViewBtn.style.display = 'none';
             }
         }
 
@@ -1513,10 +1664,10 @@
 
         if (!teacher || !teacher.name) {
             container.innerHTML = `
-                <div class="empty-state" style="text-align: center; padding: 14px 10px; color: var(--sp-text-muted);">
-                    <i class="fas fa-user-clock" style="font-size: 1.4rem; margin-bottom: 6px; display: block; color: var(--sp-warning);"></i>
-                    <div style="font-size: 0.82rem; font-weight: 600;">No Class Teacher Assigned</div>
-                    <div style="font-size: 0.72rem; margin-top: 2px;">Your section ${escapeHtml(section || '')} does not have a designated class mentor yet.</div>
+                <div class="empty-state" style="text-align: center; padding: 16px 12px; color: var(--sp-text-muted);">
+                    <i class="fas fa-user-clock" style="font-size: 1.5rem; margin-bottom: 8px; display: block; color: var(--sp-warning);"></i>
+                    <div style="font-size: 0.85rem; font-weight: 600; color: var(--sp-text-main);">No Class Teacher Assigned</div>
+                    <div style="font-size: 0.74rem; margin-top: 4px; line-height: 1.4;">Your section ${escapeHtml(section || '')} does not have a designated class mentor yet.</div>
                 </div>
             `;
             return;
@@ -1534,44 +1685,94 @@
         const secLabel = escapeHtml(section ? `Sec ${section}` : 'General');
         const clsLabel = escapeHtml(className || 'Class');
 
+        // Redesigned structured V2 layout: no cramped floating chips
         container.innerHTML = `
-            <div class="class-teacher-card-content">
-                <div class="ct-header-row">
-                    <div class="ct-avatar-wrap">
-                        <img src="${avatar}" alt="${name}" class="ct-avatar-img" onerror="this.onerror=null; this.src='${fallbackSvg}';">
-                        <span class="ct-badge-dot" title="Assigned Class Mentor"></span>
+            <div class="class-teacher-card-v2">
+                <div class="ct-v2-header">
+                    <div class="ct-v2-avatar-wrap">
+                        <img src="${avatar}" alt="${name}" class="ct-v2-avatar-img" onerror="this.onerror=null; this.src='${fallbackSvg}';">
+                        <span class="ct-v2-avatar-badge" title="Designated Class Mentor"><i class="fas fa-check"></i></span>
                     </div>
-                    <div class="ct-info">
-                        <h4 class="ct-name">${name}</h4>
-                        <div class="ct-role">Class Teacher • ${clsLabel} (${secLabel})</div>
+                    <div class="ct-v2-meta">
+                        <div class="ct-v2-name-row">
+                            <h4 class="ct-v2-name">${name}</h4>
+                        </div>
+                        <div class="ct-v2-designation">
+                            <span class="ct-v2-role-pill">Class Teacher</span>
+                            <span class="ct-v2-class-pill">${clsLabel} • ${secLabel}</span>
+                        </div>
                     </div>
                 </div>
-                <div class="ct-details-chips">
-                    ${cabin ? `<span class="ct-chip ct-chip-location"><i class="fas fa-school"></i> ${cabin}</span>` : ''}
-                    ${subject ? `<span class="ct-chip ct-chip-subject"><i class="fas fa-book-open"></i> ${subject}</span>` : ''}
-                    ${email ? `<a href="mailto:${email}" class="ct-chip ct-chip-email ct-chip-interactive" title="Send email to ${email}"><i class="fas fa-envelope"></i> ${email}</a>` : ''}
-                    ${phone ? `<a href="tel:${phone}" class="ct-chip ct-chip-phone ct-chip-interactive" title="Call ${phone}"><i class="fas fa-phone"></i> ${escapeHtml(formatPhoneNumber(phone))}</a>` : ''}
+
+                <div class="ct-v2-info-list">
+                    <div class="ct-v2-info-row">
+                        <div class="ct-v2-info-icon faculty-room">
+                            <i class="fas fa-school"></i>
+                        </div>
+                        <div class="ct-v2-info-content">
+                            <span class="ct-v2-info-label">Faculty Room</span>
+                            <span class="ct-v2-info-val">${cabin}</span>
+                        </div>
+                    </div>
+
+                    ${subject ? `
+                    <div class="ct-v2-info-row">
+                        <div class="ct-v2-info-icon subject">
+                            <i class="fas fa-book-open"></i>
+                        </div>
+                        <div class="ct-v2-info-content">
+                            <span class="ct-v2-info-label">Subject</span>
+                            <span class="ct-v2-info-val">${subject}</span>
+                        </div>
+                    </div>` : ''}
+
+                    ${email ? `
+                    <div class="ct-v2-info-row">
+                        <div class="ct-v2-info-icon email">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div class="ct-v2-info-content">
+                            <span class="ct-v2-info-label">Email</span>
+                            <a href="mailto:${email}" class="ct-v2-info-val ct-v2-link" title="${email}">${email}</a>
+                        </div>
+                    </div>` : ''}
+
+                    ${phone ? `
+                    <div class="ct-v2-info-row">
+                        <div class="ct-v2-info-icon phone">
+                            <i class="fas fa-phone"></i>
+                        </div>
+                        <div class="ct-v2-info-content">
+                            <span class="ct-v2-info-label">Contact</span>
+                            <a href="tel:${phone}" class="ct-v2-info-val ct-v2-link">${escapeHtml(formatPhoneNumber(phone))}</a>
+                        </div>
+                    </div>` : ''}
                 </div>
-                <div class="ct-actions-row">
-                    <button type="button" class="ct-action-btn primary" id="ct-request-leave-btn"><i class="fas fa-paper-plane"></i> Apply Leave</button>
+
+                <div class="ct-v2-actions">
+                    <button type="button" class="ct-v2-btn secondary" id="ct-view-profile-btn">
+                        <i class="fas fa-id-card-clip"></i> Full Profile
+                    </button>
+                    <button type="button" class="ct-v2-btn primary" id="ct-request-leave-btn">
+                        <i class="fas fa-paper-plane"></i> Apply Leave
+                    </button>
                 </div>
             </div>
         `;
+
+        const viewProfBtn = container.querySelector('#ct-view-profile-btn');
+        if (viewProfBtn) {
+            viewProfBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                openTeacherProfileReview();
+            });
+        }
 
         const leaveBtn = container.querySelector('#ct-request-leave-btn');
         if (leaveBtn) {
             leaveBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                const leaveTabBtn = document.querySelector('[data-tab="tab-leave"]');
-                if (leaveTabBtn) {
-                    leaveTabBtn.click();
-                } else {
-                    const leaveTab = document.getElementById('tab-leave');
-                    if (leaveTab) {
-                        document.querySelectorAll('.student-tab-panel').forEach(p => p.classList.remove('active'));
-                        leaveTab.classList.add('active');
-                    }
-                }
+                navigateToLeaveTab();
             });
         }
     }
@@ -2142,8 +2343,36 @@
             return {requestId, section};
         }
 
+        let isEditMode = false;
+        const avatarBadge = document.getElementById('prof-avatar-edit-badge');
+        const avatarInput = document.getElementById('prof-avatar-file-input');
+
+        function setEditMode(active) {
+            isEditMode = !!active;
+            if (isEditMode) {
+                if (editPanel) editPanel.style.display = 'block';
+                if (avatarBadge) avatarBadge.style.display = 'flex';
+                if (avatarInput) avatarInput.disabled = false;
+                if (toggleEditBtn) {
+                    toggleEditBtn.innerHTML = '<i class="fas fa-eye"></i> View Full Preview';
+                    toggleEditBtn.classList.add('prof-mode-previewing');
+                }
+            } else {
+                if (editPanel) editPanel.style.display = 'none';
+                if (avatarBadge) avatarBadge.style.display = 'none';
+                if (avatarInput) avatarInput.disabled = true;
+                if (toggleEditBtn) {
+                    toggleEditBtn.innerHTML = '<i class="fas fa-user-pen"></i> Edit Profile';
+                    toggleEditBtn.classList.remove('prof-mode-previewing');
+                }
+            }
+        }
+        // Initialize in full preview mode
+        setEditMode(false);
+
         async function openEditPanel() {
             if (!editPanel) return;
+            setEditMode(true);
             const user = state.currentUser || {};
             const isSchoolMode = user.registrationType === 'school' || state.schoolType === 'school';
             applyProfileInstitutionMode(isSchoolMode);
@@ -2185,15 +2414,23 @@
             if (bloodIn) bloodIn.value = user.bloodGroup || user.blood || '';
             if (batchIn) batchIn.value = user.batch || user.academicBatch || '';
 
-            editPanel.style.display = 'block';
             editPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function closeEditPanel() {
-            if (editPanel) editPanel.style.display = 'none';
+            setEditMode(false);
         }
 
-        if (toggleEditBtn) toggleEditBtn.addEventListener('click', openEditPanel);
+        if (toggleEditBtn) {
+            toggleEditBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (isEditMode) {
+                    closeEditPanel();
+                } else {
+                    openEditPanel();
+                }
+            });
+        }
         if (closeEditBtn) closeEditBtn.addEventListener('click', closeEditPanel);
         if (cancelEditBtn) cancelEditBtn.addEventListener('click', closeEditPanel);
 
@@ -2298,10 +2535,14 @@
             });
         }
 
-        // 3. Avatar photo upload trigger - sends the edit request to the student's class teacher
-        const avatarInput = document.getElementById('prof-avatar-file-input');
+        // 3. Avatar photo upload trigger - only permitted when Edit Profile mode is active
         if (avatarInput) {
             avatarInput.addEventListener('change', async (e) => {
+                if (!isEditMode || avatarInput.disabled) {
+                    showModernToast('Please click "Edit Profile" before updating your photo.', 'warning');
+                    avatarInput.value = '';
+                    return;
+                }
                 const file = e.target.files?.[0];
                 if (!file) return;
 
