@@ -1135,536 +1135,1218 @@
             font-weight: 600;
         }
 
-        /* MODERN RECORDS SECTION STYLES */
-        .records-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-
-        .records-title {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .icon-box {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.2rem;
-            box-shadow: 0 8px 16px rgba(30, 58, 138, 0.2);
-        }
-
-        .records-title h3 {
-            margin: 0;
-            font-size: 1.5rem;
-            color: var(--gray-800);
-            font-weight: 700;
-        }
-
-        .records-title p {
-            margin: 2px 0 0;
-            color: var(--gray-500);
-            font-size: 0.9rem;
-        }
-
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.05);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 30px;
-        }
-
-        .search-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            align-items: end;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--gray-600);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .custom-input-wrapper {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
-        .custom-input-wrapper i {
-            position: absolute;
-            left: 14px;
-            color: var(--primary-light);
-            pointer-events: none;
-            z-index: 2;
-        }
-
-        .custom-input-wrapper i.dropdown-arrow {
-            left: auto;
-            right: 14px;
-            color: var(--gray-400);
-            font-size: 0.8rem;
-        }
-
-        .custom-input-wrapper input,
-        .custom-input-wrapper select {
-            width: 100%;
-            padding: 12px 16px 12px 42px;
-            border: 1px solid var(--gray-200);
-            border-radius: 10px;
-            background: var(--gray-50);
-            font-size: 0.95rem;
-            color: var(--gray-800);
-            transition: all 0.3s ease;
-            appearance: none;
-            cursor: pointer;
-        }
-
-        .custom-input-wrapper input:hover,
-        .custom-input-wrapper select:hover {
-            border-color: var(--primary-light);
-            background: white;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-        }
-
-        .custom-input-wrapper input:focus,
-        .custom-input-wrapper select:focus {
-            border-color: var(--primary-color);
-            background: white;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-            outline: none;
-        }
-
-        .modern-btn {
-            border: none;
-            padding: 12px 24px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .modern-btn.small {
-            padding: 6px 12px;
-            font-size: 0.8rem;
-        }
-
-        .modern-btn.primary {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            color: white;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-        }
-
-        .modern-btn.secondary {
-            background: white;
-            border: 1px solid var(--gray-200);
-            color: var(--gray-700);
-        }
-
-        .modern-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-        }
-
-        .modern-btn.secondary:hover {
-            border-color: var(--primary-color);
-            color: var(--primary-color);
-        }
-
-        /* Location Cards Grid */
-        .location-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 24px;
-            margin-top: 20px;
-        }
-
-        .location-card-modern {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s ease;
-            border: 1px solid var(--gray-100);
-            position: relative;
-            cursor: pointer;
-            /* Removed overflow: hidden to allow dropdowns to show */
-        }
-
-        .location-card-modern:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            border-color: var(--primary-light);
-        }
-
-        .card-top-accent {
-            height: 6px;
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-            width: 100%;
-            border-radius: 16px 16px 0 0;
-            /* Match parent border radius */
-        }
-
-        .card-content {
-            padding: 24px;
-        }
-
-        .location-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 20px;
-        }
-
-        .location-menu {
-            position: relative;
-            /* Anchor for the dropdown */
-        }
-
-        .action-dropdown {
-            display: none;
-            /* Ensure hidden by default */
-            position: absolute;
-            right: 0;
-            top: 100%;
-            z-index: 100;
-            background: white;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-            border: 1px solid var(--gray-100);
-            width: 180px;
-            overflow: hidden;
-        }
-
-        .action-dropdown.show {
-            display: block;
-            animation: fadeIn 0.15s ease-out;
-        }
-
-        .action-dropdown a {
-            display: block;
-            padding: 10px 16px;
-            color: var(--gray-700);
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: background 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .action-dropdown a:hover {
-            background: var(--gray-50);
-            color: var(--primary-color);
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-5px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .location-icon-circle {
-            width: 50px;
-            height: 50px;
-            border-radius: 12px;
-            background: var(--gray-50);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            color: var(--primary-color);
-            transition: all 0.3s ease;
-        }
-
-        .location-card-modern:hover .location-icon-circle {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        .location-actions-btn {
-            background: transparent;
-            border: none;
-            color: var(--gray-400);
-            cursor: pointer;
-            padding: 5px;
-            border-radius: 50%;
-            transition: all 0.2s;
-        }
-
-        .location-actions-btn:hover {
-            color: var(--gray-700);
-            background: var(--gray-100);
-        }
-
-        .location-info h4 {
-            margin: 0 0 5px;
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--gray-800);
-        }
-
-        .location-meta {
-            display: flex;
-            gap: 15px;
-            font-size: 0.85rem;
-            color: var(--gray-500);
-            margin-bottom: 20px;
-        }
-
-        .meta-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .location-stats-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-top: 15px;
-            border-top: 1px solid var(--gray-100);
-        }
-
-        .stat-group {
-            text-align: left;
-        }
-
-        .location-card-modern .stat-group {
-            opacity: 1;
-        }
-
-        #attendance-tab .location-stats-row {
-            color: var(--gray-800);
-        }
-
-        #attendance-tab .location-stats-row .stat-value {
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: var(--primary-color) !important;
-            line-height: 1;
-            opacity: 1 !important;
-        }
-
-        #attendance-tab .location-stats-row .stat-label {
-            font-size: 0.75rem;
-            color: var(--gray-700) !important;
-            text-transform: uppercase;
-            font-weight: 600;
-            letter-spacing: 0.4px;
-            opacity: 1 !important;
-        }
-
-        .view-btn-sm {
-            padding: 8px 16px;
-            background: var(--gray-50);
-            color: var(--gray-700);
-            border-radius: 8px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.2s;
-        }
-
-        .location-card-modern:hover .view-btn-sm {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        .admin-school-mode .admin-location-control {
-            display: none !important;
-        }
-
-        .section-choice-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 14px;
-            margin-top: 18px;
-        }
-
-        .section-choice-btn {
-            border: 1px solid var(--gray-200);
-            background: white;
-            padding: 14px 16px;
-            border-radius: 12px;
-            font-weight: 600;
-            color: var(--gray-800);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }
-
-        .section-choice-btn:hover {
-            border-color: var(--primary-color);
-            color: var(--primary-color);
-            box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
-            transform: translateY(-1px);
-        }
-
-        .section-choice-btn .section-label {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            text-align: left;
-        }
-
-        .section-choice-btn .section-sub {
-            font-size: 0.8rem;
-            color: var(--gray-500);
-            font-weight: 500;
-        }
-
-        .absentees-modal {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.6);
-            display: none;
-            align-items: stretch;
-            justify-content: center;
-            z-index: 9999;
-        }
-
-        .absentees-modal.show {
-            display: flex;
-        }
-
-        .absentees-modal .modal-content {
-            background: white;
-            width: 96vw;
-            max-width: 1600px;
-            height: 90vh;
-            display: flex;
-            flex-direction: column;
-            margin: auto;
-            border-radius: 18px;
-            border: 2px solid var(--primary-color);
-            box-shadow: 0 30px 60px rgba(15, 23, 42, 0.2);
-        }
-
-        .absentees-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--gray-100);
-        }
-
-        .absentees-header h3 {
-            margin: 0;
-            font-size: 1.2rem;
-            color: var(--gray-800);
-        }
-
-        .absentees-header p {
-            margin: 4px 0 0;
-            color: var(--gray-500);
-            font-size: 0.9rem;
-        }
-
-        .absentees-body {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding: 18px 20px 26px;
-        }
-
-        .absentees-empty {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--gray-500);
-        }
-
-        .absentees-modal .modern-table-container {
-            max-width: 100%;
-            overflow: visible;
-        }
-
-        .absentees-modal .modern-table {
-            width: 100%;
-            table-layout: auto;
-        }
-
-        .absentees-modal .modern-table th,
-        .absentees-modal .modern-table td {
-            white-space: normal;
-            word-break: break-word;
-        }
-
-        .absentees-modal .modern-table th:nth-child(1),
-        .absentees-modal .modern-table td:nth-child(1) {
-            width: 34%;
-            white-space: normal;
-            word-break: break-word;
-        }
-
-        .absentees-modal .modern-table th:nth-child(2),
-        .absentees-modal .modern-table td:nth-child(2) {
-            width: 16%;
-        }
-
-        .absentees-modal .modern-table th:nth-child(3),
-        .absentees-modal .modern-table td:nth-child(3) {
-            width: 10%;
-        }
-
-        .absentees-modal .modern-table th:nth-child(4),
-        .absentees-modal .modern-table td:nth-child(4) {
-            width: 12%;
-        }
-
-        .absentees-modal .modern-table th:nth-child(5),
-        .absentees-modal .modern-table td:nth-child(5) {
-            width: 12%;
-            min-width: 120px;
-            text-align: center;
-        }
-
-        .absentees-modal .modern-table th:nth-child(6),
-        .absentees-modal .modern-table td:nth-child(6) {
-            width: 18%;
-            min-width: 160px;
-            text-align: right;
-        }
-
-        .absentees-modal .mark-present-btn {
-            white-space: nowrap;
-            padding: 8px 12px;
-            font-size: 0.85rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
+        /* ========================================================
+   RECORDS SECTION & POPUPS REDESIGNED STYLES
+   ======================================================== */
+
+/* Live Stats & Pulse Animation */
+.mini-stat-card.live-sync-card {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+    border: 1px solid rgba(34, 197, 94, 0.35);
+    box-shadow: 0 4px 14px rgba(34, 197, 94, 0.1);
+}
+
+.mini-stat-icon.live {
+    background: rgba(34, 197, 94, 0.15) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.live-pulse-dot {
+    width: 12px;
+    height: 12px;
+    background-color: #22c55e;
+    border-radius: 50%;
+    position: relative;
+    box-shadow: 0 0 10px #22c55e;
+    animation: livePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.live-pulse-dot::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid rgba(34, 197, 94, 0.6);
+    animation: liveRing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes livePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.15); }
+}
+
+@keyframes liveRing {
+    0% { transform: scale(0.8); opacity: 1; }
+    100% { transform: scale(1.8); opacity: 0; }
+}
+
+.live-text {
+    color: #16a34a !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stat-number-bump {
+    animation: statBump 0.4s ease-out;
+}
+
+@keyframes statBump {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); color: var(--primary-color); }
+    100% { transform: scale(1); }
+}
+
+/* Records Header */
+.records-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.records-title {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.records-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.icon-box {
+    width: 52px;
+    height: 52px;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.35rem;
+    box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.35);
+    transition: transform 0.3s ease;
+}
+
+.records-title h3 {
+    margin: 0;
+    font-size: 1.55rem;
+    color: #0f172a;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.records-title p {
+    margin: 3px 0 0;
+    color: #64748b;
+    font-size: 0.92rem;
+    font-weight: 500;
+}
+
+.records-mode-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(59, 130, 246, 0.08);
+    color: #2563eb;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+/* Glass Search Panel */
+.glass-panel.search-panel {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.06);
+    border-radius: 20px;
+    padding: 22px 24px;
+    margin-bottom: 28px;
+    transition: all 0.3s ease;
+}
+
+.date-quick-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+    flex-wrap: wrap;
+}
+
+.quick-strip-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.date-chip {
+    padding: 6px 14px;
+    border-radius: 9999px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.date-chip:hover {
+    border-color: #cbd5e1;
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.date-chip.active {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border-color: #2563eb;
+    color: white;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+
+.search-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 18px;
+    align-items: flex-end;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.custom-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.custom-input-wrapper i {
+    position: absolute;
+    left: 14px;
+    color: #3b82f6;
+    pointer-events: none;
+    z-index: 2;
+    font-size: 0.95rem;
+}
+
+.custom-input-wrapper i.dropdown-arrow {
+    left: auto;
+    right: 14px;
+    color: #94a3b8;
+    font-size: 0.75rem;
+}
+
+.custom-input-wrapper input,
+.custom-input-wrapper select {
+    width: 100%;
+    padding: 12px 16px 12px 42px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+    font-size: 0.95rem;
+    color: #0f172a;
+    font-weight: 600;
+    transition: all 0.25s ease;
+    appearance: none;
+    cursor: pointer;
+}
+
+.custom-input-wrapper input:hover,
+.custom-input-wrapper select:hover {
+    border-color: #cbd5e1;
+    background: #ffffff;
+}
+
+.custom-input-wrapper input:focus,
+.custom-input-wrapper select:focus {
+    border-color: #2563eb;
+    background: #ffffff;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    outline: none;
+}
+
+/* Modern Button Upgrades */
+.modern-btn {
+    border: none;
+    padding: 11px 20px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.modern-btn.primary {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: white;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+}
+
+.modern-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+}
+
+.modern-btn.secondary {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    color: #334155;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.modern-btn.secondary:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+    background: #f8fafc;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+}
+
+.modern-btn.danger {
+    background: #fee2e2;
+    border: 1.5px solid #fca5a5;
+    color: #dc2626;
+}
+
+.modern-btn.danger:hover {
+    background: #dc2626;
+    color: white;
+    border-color: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.25);
+}
+
+/* Location Cards Grid Redesign */
+.location-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-top: 10px;
+}
+
+.location-card-modern {
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.02);
+    border: 1.5px solid #e2e8f0;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+.location-card-modern:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 30px -10px rgba(15, 23, 42, 0.12), 0 4px 8px -2px rgba(15, 23, 42, 0.05);
+    border-color: #bfdbfe;
+}
+
+.card-top-accent {
+    height: 5px;
+    width: 100%;
+    border-radius: 18px 18px 0 0;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.card-top-accent.health-high {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.card-top-accent.health-mid {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.card-top-accent.health-low {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.card-content {
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.location-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.location-icon-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: #eff6ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    color: #2563eb;
+    transition: all 0.3s ease;
+    border: 1px solid #dbeafe;
+}
+
+.location-card-modern:hover .location-icon-circle {
+    background: #2563eb;
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.3);
+}
+
+.location-icon-circle.school-icon {
+    background: #f0fdf4;
+    color: #16a34a;
+    border-color: #dcfce7;
+}
+
+.location-card-modern:hover .location-icon-circle.school-icon {
+    background: #16a34a;
+    color: white;
+    box-shadow: 0 6px 14px rgba(22, 163, 74, 0.3);
+}
+
+.location-info h4 {
+    margin: 0 0 8px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.35;
+}
+
+.location-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    background: #f1f5f9;
+    color: #475569;
+    border-radius: 8px;
+}
+
+.meta-item i {
+    color: #2563eb;
+}
+
+/* Card Attendance Progress Bar */
+.card-progress-wrapper {
+    margin-bottom: 18px;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #f1f5f9;
+}
+
+.card-progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.82rem;
+}
+
+.card-progress-info .progress-label {
+    font-weight: 600;
+    color: #64748b;
+}
+
+.card-progress-info .progress-val {
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.card-progress-bar {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.card-progress-fill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.6s ease;
+    background: #3b82f6;
+}
+
+.card-progress-fill.health-high { background: #10b981; }
+.card-progress-fill.health-mid { background: #f59e0b; }
+.card-progress-fill.health-low { background: #ef4444; }
+
+.location-stats-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
+    border-top: 1.5px solid #f1f5f9;
+    margin-top: auto;
+}
+
+.location-stats-row .stat-value {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #0f172a !important;
+    line-height: 1;
+}
+
+.location-stats-row .stat-label {
+    font-size: 0.75rem;
+    color: #64748b !important;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+}
+
+.view-btn-sm {
+    padding: 9px 18px;
+    background: #eff6ff;
+    color: #2563eb;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.25s ease;
+}
+
+.view-btn-sm i {
+    transition: transform 0.2s ease;
+}
+
+.location-card-modern:hover .view-btn-sm {
+    background: #2563eb;
+    color: white;
+}
+
+.location-card-modern:hover .view-btn-sm i {
+    transform: translateX(4px);
+}
+
+/* Action Dropdown Menu */
+.location-menu {
+    position: relative;
+}
+
+.location-actions-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.2s;
+    font-size: 1rem;
+}
+
+.location-actions-btn:hover {
+    color: #0f172a;
+    background: #f1f5f9;
+}
+
+.action-dropdown {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    z-index: 100;
+    background: white;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.15);
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    width: 200px;
+    overflow: hidden;
+    animation: fadeInMenu 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.action-dropdown.show {
+    display: block;
+}
+
+@keyframes fadeInMenu {
+    from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.action-dropdown a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    color: #334155;
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 600;
+    transition: background 0.15s ease;
+}
+
+.action-dropdown a:hover {
+    background: #f8fafc;
+    color: #2563eb;
+}
+
+.action-dropdown a.text-danger:hover {
+    background: #fef2f2;
+    color: #dc2626 !important;
+}
+
+/* SESSION DETAIL VIEW & ROSTER TOOLBAR */
+.session-summary-banner {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-radius: 18px;
+    border: 1.5px solid #e2e8f0;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+}
+
+.session-summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.session-title-wrap h3 {
+    margin: 0;
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.session-title-wrap p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.session-metrics-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.metric-chip {
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.metric-chip.present {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.metric-chip.absent {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.metric-chip.rate {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.absentees-count-pill {
+    padding: 2px 7px;
+    background: #dc2626;
+    color: white;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    margin-left: 4px;
+}
+
+/* Roster Search & Filter Toolbar */
+.roster-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.roster-search-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 260px;
+    max-width: 440px;
+}
+
+.roster-search-wrapper i {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+.roster-search-wrapper input {
+    width: 100%;
+    padding: 10px 14px 10px 38px;
+    border-radius: 10px;
+    border: 1.5px solid #e2e8f0;
+    background: white;
+    font-size: 0.9rem;
+    color: #0f172a;
+    transition: all 0.2s ease;
+}
+
+.roster-search-wrapper input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    outline: none;
+}
+
+.roster-filter-pills {
+    display: flex;
+    gap: 8px;
+}
+
+.roster-pill {
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
+    background: white;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.roster-pill:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+}
+
+.roster-pill.active {
+    background: #0f172a;
+    border-color: #0f172a;
+    color: white;
+}
+
+.roster-pill.present.active {
+    background: #16a34a;
+    border-color: #16a34a;
+    color: white;
+}
+
+.roster-pill.late.active {
+    background: #d97706;
+    border-color: #d97706;
+    color: white;
+}
+
+/* Soft Badges */
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.3px;
+}
+
+.status-badge.badge-success {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.status-badge.badge-warning {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.status-badge.badge-danger {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* ========================================================
+   MODALS REDESIGN: ABSENTEES, EXPORT, CONFIRMATION
+   ======================================================== */
+
+/* General Modern Modal Card & Backdrop */
+.modern-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10050;
+    padding: 20px;
+    animation: fadeInModal 0.2s ease-out;
+}
+
+.modern-modal-overlay.show,
+.modern-modal-overlay.visible {
+    display: flex;
+}
+
+@keyframes fadeInModal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modern-modal-card {
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: scaleInModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    max-height: 88vh;
+    width: min(1000px, 95vw);
+}
+
+@keyframes scaleInModal {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Modal Headers */
+.modal-gradient-header {
+    padding: 20px 26px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    color: white;
+}
+
+.modal-gradient-header.danger-theme {
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+}
+
+.modal-gradient-header.primary-theme {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.header-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.header-text-wrap {
+    flex: 1;
+}
+
+.header-text-wrap h3 {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: white;
+}
+
+.header-text-wrap p {
+    margin: 4px 0 0;
+    font-size: 0.88rem;
+    opacity: 0.9;
+    color: white;
+}
+
+.badge-count {
+    background: rgba(255, 255, 255, 0.25);
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-weight: 700;
+}
+
+.modal-close-icon-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+}
+
+.modal-close-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.35);
+    transform: rotate(90deg);
+}
+
+/* Modal Toolbar & Search */
+.modal-toolbar {
+    padding: 16px 24px;
+    background: #f8fafc;
+    border-bottom: 1.5px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.modal-search-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 240px;
+}
+
+.modal-search-wrapper i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+
+.modal-search-wrapper input {
+    width: 100%;
+    padding: 9px 14px 9px 34px;
+    border-radius: 10px;
+    border: 1.5px solid #e2e8f0;
+    font-size: 0.88rem;
+    outline: none;
+    background: white;
+}
+
+.modal-search-wrapper input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.modal-body-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+}
+
+/* Absentees Modal Override */
+.absentees-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10050;
+    padding: 20px;
+}
+
+.absentees-modal.show {
+    display: flex;
+}
+
+.absentees-modal .modal-content {
+    background: white;
+    width: min(1000px, 96vw);
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    border-radius: 20px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.35);
+    overflow: hidden;
+    margin: auto;
+}
+
+.absentees-header {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    padding: 20px 26px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.absentees-header h3 {
+    margin: 0;
+    color: white;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.absentees-header p {
+    margin: 4px 0 0;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.88rem;
+}
+
+.absentees-close {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+    border: none !important;
+}
+
+.absentees-close:hover {
+    background: rgba(255, 255, 255, 0.35) !important;
+}
+
+.absentees-empty {
+    text-align: center;
+    padding: 48px 24px;
+    color: #64748b;
+}
+
+.absentees-empty i {
+    font-size: 3rem;
+    color: #10b981;
+    margin-bottom: 16px;
+}
+
+.absentees-empty h4 {
+    margin: 0 0 6px;
+    font-size: 1.2rem;
+    color: #0f172a;
+}
+
+/* Export Section Modal Redesign */
+.export-section-modal .modal-content {
+    max-width: 560px;
+    width: 95%;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1.5px solid #e2e8f0;
+    box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.3);
+}
+
+.export-section-modal .modal-header {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: white;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.export-section-modal .modal-header h3 {
+    margin: 0;
+    color: white;
+    font-size: 1.3rem;
+    font-weight: 800;
+}
+
+.export-section-modal .modal-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 1.4rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.export-section-modal .modal-close:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.export-section-modal .modal-body {
+    padding: 24px;
+}
+
+.section-selection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 16px 0 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #475569;
+}
+
+.btn-text-action {
+    background: none;
+    border: none;
+    color: #2563eb;
+    font-weight: 700;
+    font-size: 0.82rem;
+    cursor: pointer;
+    padding: 0;
+}
+
+.btn-text-action:hover {
+    text-decoration: underline;
+}
+
+.export-section-modal .section-checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 2px;
+}
+
+.export-section-modal .section-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #1e293b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.export-section-modal .section-checkbox:hover {
+    border-color: #2563eb;
+    background: #eff6ff;
+}
+
+.export-section-modal .section-checkbox input {
+    accent-color: #2563eb;
+    width: 16px;
+    height: 16px;
+}
+
+.export-section-modal .modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid #f1f5f9;
+}
+
+/* Custom Confirmation Modal */
+.confirm-dialog-card {
+    background: white;
+    border-radius: 20px;
+    max-width: 460px;
+    width: 92%;
+    padding: 28px;
+    text-align: center;
+    box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.4);
+    border: 1px solid #e2e8f0;
+    animation: scaleInModal 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.confirm-icon-wrap {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    margin-bottom: 18px;
+}
+
+.confirm-icon-wrap.danger {
+    background: #fee2e2;
+    color: #dc2626;
+    box-shadow: 0 8px 20px rgba(220, 38, 38, 0.2);
+}
+
+.confirm-icon-wrap.warning {
+    background: #fef3c7;
+    color: #d97706;
+    box-shadow: 0 8px 20px rgba(217, 119, 6, 0.2);
+}
+
+.confirm-dialog-card h3 {
+    margin: 0 0 8px;
+    font-size: 1.35rem;
+    color: #0f172a;
+    font-weight: 800;
+}
+
+.confirm-dialog-card p {
+    margin: 0 0 22px;
+    font-size: 0.92rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.confirm-dialog-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
 
         .attendance-history-modal {
             position: fixed;
@@ -3984,6 +4666,15 @@
                         <div class="card-body">
                             <!-- Compact Dashboard Stats Strip -->
                             <div class="dashboard-stats-mini">
+                                <div class="mini-stat-card live-sync-card" id="dashboard-live-indicator" title="Connected to realtime attendance stream">
+                                    <div class="mini-stat-icon live">
+                                        <span class="live-pulse-dot"></span>
+                                    </div>
+                                    <div class="mini-stat-content">
+                                        <span class="mini-stat-value live-text">LIVE</span>
+                                        <span class="mini-stat-label">Realtime Sync</span>
+                                    </div>
+                                </div>
                                 <div class="mini-stat-card">
                                     <div class="mini-stat-icon students">
                                         <i class="fas fa-users"></i>
@@ -4192,15 +4883,29 @@
                                     <div class="records-title">
                                         <div class="icon-box"><i class="fas fa-clipboard-list"></i></div>
                                         <div>
-                                            <h3>Attendance Records</h3>
-                                            <p>Manage and view daily attendance</p>
+                                            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                                <h3>Attendance Records</h3>
+                                                <span class="records-mode-badge" id="records-mode-badge"><i class="fas fa-graduation-cap"></i> Registers</span>
+                                            </div>
+                                            <p id="records-subtitle">Live daily session attendance and class registers</p>
                                         </div>
                                     </div>
-                                    <button id="export-excel-btn" type="button" class="modern-btn secondary"><i
-                                            class="fas fa-file-export"></i> Export Data</button>
+                                    <div class="records-header-actions">
+                                        <button id="records-refresh-btn" type="button" class="modern-btn secondary" title="Refresh records">
+                                            <i class="fas fa-sync-alt"></i> Refresh
+                                        </button>
+                                        <button id="export-excel-btn" type="button" class="modern-btn primary">
+                                            <i class="fas fa-file-export"></i> Export Records
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div class="glass-panel search-panel">
+                                    <div class="date-quick-strip">
+                                        <span class="quick-strip-label"><i class="fas fa-bolt"></i> Quick Date:</span>
+                                        <button type="button" class="date-chip active" id="quick-date-today" data-range="today">Today</button>
+                                        <button type="button" class="date-chip" id="quick-date-yesterday" data-range="yesterday">Yesterday</button>
+                                    </div>
                                     <div class="search-grid">
                                         <div class="input-group">
                                             <label>Select Date</label>
@@ -4225,9 +4930,9 @@
                                                 <i class="fas fa-filter"></i>
                                                 <select id="status-filter">
                                                     <option value="all">All Status</option>
-                                                    <option value="present">Present</option>
-                                                    <option value="absent">Absent</option>
-                                                    <option value="late">Late</option>
+                                                    <option value="present">Present Only</option>
+                                                    <option value="absent">Absent Only</option>
+                                                    <option value="late">Late Only</option>
                                                 </select>
                                                 <i class="fas fa-chevron-down dropdown-arrow"></i>
                                             </div>
@@ -7106,6 +7811,9 @@
 
             // Load data
             loadDashboardStats();
+            if (typeof startRealtimeDashboardStats === 'function') {
+                startRealtimeDashboardStats();
+            }
             loadAttendanceData(selectedAttendanceDate);
             populateLocationDropdowns();
             loadPasswordResetRequests();
@@ -7286,134 +7994,208 @@
             }
         });
 
-        // Load dashboard statistics
-        function loadDashboardStats() {
+        // Smooth Animated Stat Counter
+        function animateStatNumber(element, target, suffix = '') {
+            if (!element) return;
+            const cleanTarget = parseInt(target, 10);
+            if (isNaN(cleanTarget)) {
+                element.textContent = target + suffix;
+                return;
+            }
+            const current = parseInt(element.textContent, 10) || 0;
+            if (current === cleanTarget) {
+                element.textContent = cleanTarget + suffix;
+                return;
+            }
+
+            element.classList.add('stat-number-bump');
+            setTimeout(() => element.classList.remove('stat-number-bump'), 450);
+
+            const duration = 400;
+            const startTime = performance.now();
+
+            function step(now) {
+                const progress = Math.min((now - startTime) / duration, 1);
+                const currentVal = Math.round(current + (cleanTarget - current) * progress);
+                element.textContent = currentVal + suffix;
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                } else {
+                    element.textContent = cleanTarget + suffix;
+                }
+            }
+            requestAnimationFrame(step);
+        }
+
+        // Realtime Dashboard Statistics Engine
+        let realtimeStatsUnsubscribe = null;
+        let cachedUsersForStats = null;
+
+        function startRealtimeDashboardStats() {
             const isSchoolMode = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
             const currentSchoolId = currentUser?.schoolId || window.rollCallAdminMode?.schoolId;
 
-            // Get total students
-            get(ref(database, 'users'))
-                .then((snapshot) => {
-                    if (snapshot.exists()) {
-                        const users = snapshot.val();
-                        let studentCount = 0;
+            // Highlight live indicator
+            const liveIndicator = document.getElementById('dashboard-live-indicator');
+            if (liveIndicator) {
+                liveIndicator.style.display = 'flex';
+            }
 
-                        Object.values(users).forEach(user => {
-                            if (user.role === 'student') {
-                                if (isSchoolMode && currentSchoolId) {
-                                    if (!user.schoolId || user.schoolId === currentSchoolId) {
-                                        studentCount++;
-                                    }
-                                } else {
-                                    studentCount++;
-                                }
-                            }
-                        });
+            // Fetch users once for counting and cache
+            get(ref(database, 'users')).then(snap => {
+                if (snap.exists()) {
+                    cachedUsersForStats = snap.val();
+                }
+                loadDashboardStats();
+            }).catch(() => loadDashboardStats());
 
-                        totalStudents.textContent = studentCount;
+            // Realtime listener on attendance_by_location
+            try {
+                if (realtimeStatsUnsubscribe && typeof realtimeStatsUnsubscribe === 'function') {
+                    realtimeStatsUnsubscribe();
+                }
+            } catch (e) {}
 
-                        // Get today's attendance from attendance_by_location
-                        const today = new Date().toISOString().split('T')[0];
+            realtimeStatsUnsubscribe = onValue(ref(database, 'attendance_by_location'), (snapshot) => {
+                const attendanceData = snapshot.exists() ? snapshot.val() : {};
+                computeAndRenderStats(attendanceData);
+            });
+        }
+        window.startRealtimeDashboardStats = startRealtimeDashboardStats;
 
-                        // Need locations first to filter
-                        get(ref(database, 'locations')).then(locSnapshot => {
-                            const locations = locSnapshot.exists() ? locSnapshot.val() : {};
+        function computeAndRenderStats(attendanceByLocationData) {
+            const isSchoolMode = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
+            const currentSchoolId = currentUser?.schoolId || window.rollCallAdminMode?.schoolId;
+            const today = new Date().toISOString().split('T')[0];
+            const users = cachedUsersForStats || {};
 
-                            get(ref(database, `attendance_by_location`))
-                                .then((attendanceSnapshot) => {
-                                    let presentCount = 0;
-
-                                    if (attendanceSnapshot.exists()) {
-                                        const attendanceByLocationData = attendanceSnapshot.val();
-                                        const uniqueStudents = new Set();
-
-                                        // Count unique students who attended any class today
-                                        for (const locationId in attendanceByLocationData) {
-                                            const locationAttendance = attendanceByLocationData[locationId][today] || {};
-                                            const meta = locationAttendance._meta || null;
-
-                                            if (isSchoolMode) {
-                                                if (currentSchoolId && meta && meta.schoolId && meta.schoolId !== currentSchoolId) {
-                                                    continue;
-                                                }
-                                            } else {
-                                                // Filter by location ownership
-                                                if (locations[locationId] && locations[locationId].createdBy && currentUser && locations[locationId].createdBy !== currentUser.uid) {
-                                                    continue;
-                                                }
-                                            }
-
-                                            for (const userId in locationAttendance) {
-                                                if (userId === '_meta' || userId.startsWith('_')) {
-                                                    continue;
-                                                }
-                                                const record = locationAttendance[userId];
-                                                if (!record) continue;
-                                                const rawStatus = (typeof record === 'object' && record !== null) ? record.status : record;
-                                                const status = (rawStatus || 'present').toString().toLowerCase();
-                                                if (status === 'absent') {
-                                                    continue;
-                                                }
-                                                uniqueStudents.add(userId);
-                                            }
-                                        }
-
-                                        presentCount = uniqueStudents.size;
-                                    }
-
-                                    presentToday.textContent = presentCount;
-
-                                    // Calculate attendance rate
-                                    const rate = studentCount > 0 ?
-                                        Math.round((presentCount / studentCount) * 100) : 0;
-
-                                    attendanceRate.textContent = `${rate}%`;
-                                })
-                                .catch((error) => {
-                                    console.error('Error loading attendance stats:', error);
-                                    presentToday.textContent = 0;
-                                    attendanceRate.textContent = '0%';
-                                });
-                        });
+            let studentCount = 0;
+            Object.values(users).forEach(user => {
+                if (user && user.role === 'student') {
+                    if (isSchoolMode && currentSchoolId) {
+                        if (!user.schoolId || user.schoolId === currentSchoolId) {
+                            studentCount++;
+                        }
                     } else {
-                        totalStudents.textContent = 0;
-                        presentToday.textContent = 0;
-                        attendanceRate.textContent = "0%";
+                        studentCount++;
                     }
-                });
+                }
+            });
 
-            // Get total locations / classes count
+            const totalStudentsEl = document.getElementById('total-students');
+            animateStatNumber(totalStudentsEl, studentCount);
+
+            // Calculate unique present students today
+            const uniqueStudents = new Set();
+            for (const locationId in attendanceByLocationData || {}) {
+                const locationAttendance = attendanceByLocationData[locationId]?.[today] || {};
+                const meta = locationAttendance._meta || null;
+
+                if (isSchoolMode) {
+                    if (currentSchoolId && meta && meta.schoolId && meta.schoolId !== currentSchoolId) {
+                        continue;
+                    }
+                } else {
+                    if (allLocations && allLocations[locationId]?.createdBy && currentUser && allLocations[locationId].createdBy !== currentUser.uid) {
+                        continue;
+                    }
+                }
+
+                for (const userId in locationAttendance) {
+                    if (!userId || userId === '_meta' || userId.startsWith('_') || userId === 'undefined' || userId === 'null' || userId === 'NaN') {
+                        continue;
+                    }
+                    const record = locationAttendance[userId];
+                    if (!record) continue;
+                    const rawStatus = (typeof record === 'object' && record !== null) ? record.status : record;
+                    const status = (rawStatus || 'present').toString().toLowerCase();
+                    if (status === 'absent') continue;
+
+                    uniqueStudents.add(userId);
+                }
+            }
+
+            const presentCount = uniqueStudents.size;
+            const rate = studentCount > 0 ? Math.round((presentCount / studentCount) * 100) : 0;
+
+            const presentTodayEl = document.getElementById('present-today');
+            const attendanceRateEl = document.getElementById('attendance-rate');
+
+            animateStatNumber(presentTodayEl, presentCount);
+            animateStatNumber(attendanceRateEl, rate, '%');
+
+            // Location / Class Count
+            const totalLocationsEl = document.getElementById('total-locations');
             if (isSchoolMode && currentSchoolId) {
-                get(ref(database, `schoolClasses/${currentSchoolId}`))
-                    .then((snapshot) => {
-                        if (snapshot.exists()) {
-                            const classes = snapshot.val();
-                            totalLocations.textContent = Object.keys(classes).length;
-                        } else {
-                            totalLocations.textContent = 0;
-                        }
-                    })
-                    .catch(() => {
-                        totalLocations.textContent = 0;
-                    });
+                get(ref(database, `schoolClasses/${currentSchoolId}`)).then(snapshot => {
+                    const count = snapshot.exists() ? Object.keys(snapshot.val()).length : 0;
+                    animateStatNumber(totalLocationsEl, count);
+                }).catch(() => animateStatNumber(totalLocationsEl, 0));
             } else {
-                get(ref(database, 'locations'))
-                    .then((snapshot) => {
-                        if (snapshot.exists()) {
-                            const locations = snapshot.val();
-                            let count = 0;
-                            for (const id in locations) {
-                                if (!locations[id].createdBy || (currentUser && locations[id].createdBy === currentUser.uid)) {
-                                    count++;
-                                }
-                            }
-                            totalLocations.textContent = count;
-                        } else {
-                            totalLocations.textContent = 0;
+                get(ref(database, 'locations')).then(snapshot => {
+                    if (snapshot.exists()) {
+                        const locations = snapshot.val();
+                        let count = 0;
+                        for (const id in locations) {
+                            if (!locations[id].createdBy || (currentUser && locations[id].createdBy === currentUser.uid)) count++;
                         }
-                    });
+                        animateStatNumber(totalLocationsEl, count);
+                    } else {
+                        animateStatNumber(totalLocationsEl, 0);
+                    }
+                }).catch(() => animateStatNumber(totalLocationsEl, 0));
             }
         }
+
+        // Load dashboard statistics
+        function loadDashboardStats() {
+            get(ref(database, 'attendance_by_location')).then(snapshot => {
+                const data = snapshot.exists() ? snapshot.val() : {};
+                computeAndRenderStats(data);
+            }).catch(() => computeAndRenderStats({}));
+        }
+
+        // Quick Date & Refresh Toolbar Bindings
+        document.addEventListener('DOMContentLoaded', () => {
+            const todayChip = document.getElementById('quick-date-today');
+            const yestChip = document.getElementById('quick-date-yesterday');
+            const refreshBtn = document.getElementById('records-refresh-btn');
+
+            if (todayChip) {
+                todayChip.addEventListener('click', () => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    if (attendanceDate) attendanceDate.value = todayStr;
+                    todayChip.classList.add('active');
+                    if (yestChip) yestChip.classList.remove('active');
+                    loadAttendanceData(todayStr);
+                });
+            }
+
+            if (yestChip) {
+                yestChip.addEventListener('click', () => {
+                    const y = new Date();
+                    y.setDate(y.getDate() - 1);
+                    const yStr = y.toISOString().split('T')[0];
+                    if (attendanceDate) attendanceDate.value = yStr;
+                    yestChip.classList.add('active');
+                    if (todayChip) todayChip.classList.remove('active');
+                    loadAttendanceData(yStr);
+                });
+            }
+
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => {
+                    const icon = refreshBtn.querySelector('i');
+                    if (icon) icon.classList.add('fa-spin');
+                    const d = attendanceDate?.value || new Date().toISOString().split('T')[0];
+                    loadAttendanceData(d);
+                    loadDashboardStats();
+                    setTimeout(() => {
+                        if (icon) icon.classList.remove('fa-spin');
+                    }, 500);
+                });
+            }
+        });
 
         // Populate location dropdowns
         function populateLocationDropdowns() {
@@ -7841,22 +8623,27 @@
 
                 const iconHtml = isSchool ? '<i class="fas fa-chalkboard"></i>' : '<i class="fas fa-map-marker-alt"></i>';
                 const statLabel = isSchool ? 'Present' : 'Students';
-                const viewBtnText = isSchool ? 'View Class' : 'View Details';
+                const viewBtnText = isSchool ? 'View Class Register' : 'View Attendance';
                 const viewActionText = isSchool ? 'View Class Attendance' : 'View Attendance';
                 const exportActionText = isSchool ? 'Export Class Data' : 'Export Data';
                 const deleteActionText = isSchool ? 'Delete Class Records' : 'Delete All Records';
 
+                // Calculate progress and attendance health
+                const totalStudentsEstimate = locationData.stats?.total || locationData.totalStudents || locationData.count || 0;
+                const pct = totalStudentsEstimate > 0 ? Math.min(100, Math.round((locationData.count / totalStudentsEstimate) * 100)) : 100;
+                const healthClass = pct >= 75 ? 'health-high' : (pct >= 50 ? 'health-mid' : 'health-low');
+
                 // Construct card HTML
                 html += `
                     <div class="location-card-modern" onclick="window.viewLocationAttendance('${date}', '${locationId}')">
-                        <div class="card-top-accent"></div>
+                        <div class="card-top-accent ${healthClass}"></div>
                         <div class="card-content">
                             <div class="location-header">
                                 <div class="location-icon-circle ${isSchool ? 'school-icon' : ''}">
                                      ${iconHtml}
                                 </div>
                                 <div class="location-menu" onclick="event.stopPropagation();">
-                                    <button class="location-actions-btn action-button">
+                                    <button class="location-actions-btn action-button" title="Actions">
                                         <i class="fas fa-ellipsis-v"></i>
                                     </button>
                                     <div class="action-dropdown">
@@ -7866,7 +8653,7 @@
                                         <a href="#" class="export-link" onclick="event.preventDefault(); window.exportLocationAttendance('${date}', '${locationId}', '${locationData.name}')">
                                             <i class="fas fa-file-export"></i> ${exportActionText}
                                         </a>
-                                        <a href="#" class="block-delete-action" onclick="event.preventDefault(); window.deleteLocationAttendance('${date}', '${locationId}', '${locationData.name}')">
+                                        <a href="#" class="block-delete-action text-danger" onclick="event.preventDefault(); window.deleteLocationAttendance('${date}', '${locationId}', '${locationData.name}')">
                                             <i class="fas fa-trash"></i> ${deleteActionText}
                                         </a>
                                     </div>
@@ -7880,12 +8667,22 @@
                                 </div>
                             </div>
 
+                            <div class="card-progress-wrapper">
+                                <div class="card-progress-info">
+                                    <span class="progress-label">${isSchool ? 'Attendance Rate' : 'Health Score'}</span>
+                                    <span class="progress-val">${pct}%</span>
+                                </div>
+                                <div class="card-progress-bar">
+                                    <div class="card-progress-fill ${healthClass}" style="width: ${pct}%;"></div>
+                                </div>
+                            </div>
+
                             <div class="location-stats-row">
                                 <div class="stat-group">
                                     <div class="stat-value">${locationData.count}</div>
                                     <div class="stat-label">${statLabel}</div>
                                 </div>
-                                <button class="view-btn-sm">${viewBtnText} <i class="fas fa-arrow-right"></i></button>
+                                <button class="view-btn-sm" type="button">${viewBtnText} <i class="fas fa-arrow-right"></i></button>
                             </div>
                         </div>
                     </div>
@@ -7896,10 +8693,12 @@
 
             if (Object.keys(attendanceByLocation).length === 0) {
                 html = `
-                    <div class="status-indicator info" style="text-align: center; padding: 40px;">
-                        <i class="${isSchool ? 'fas fa-chalkboard' : 'fas fa-clipboard-check'}" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
-                        <h3>${isSchool ? 'No class attendance records yet' : 'No attendance records yet'}</h3>
-                        <p>${isSchool ? 'Class attendance records submitted by teachers for this date will appear here.' : 'Attendance records for this date will appear here.'}</p>
+                    <div class="status-indicator info" style="text-align: center; padding: 50px 24px; background: white; border-radius: 18px; border: 1.5px dashed #cbd5e1; margin-top: 10px;">
+                        <div style="width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%; background: #eff6ff; display: flex; align-items: center; justify-content: center; color: #3b82f6; font-size: 2rem;">
+                            <i class="${isSchool ? 'fas fa-chalkboard' : 'fas fa-clipboard-check'}"></i>
+                        </div>
+                        <h3 style="font-size: 1.3rem; font-weight: 800; color: #0f172a; margin: 0 0 8px;">${isSchool ? 'No class attendance records for this date' : 'No attendance records found'}</h3>
+                        <p style="color: #64748b; font-size: 0.95rem; max-width: 460px; margin: 0 auto 18px;">${isSchool ? 'Attendance submitted by teachers for this date will appear here instantly via live sync.' : 'Student check-ins for this date will stream here in real time.'}</p>
                     </div>
                 `;
             }
@@ -7968,23 +8767,23 @@
         }
 
         // Function to display attendance for a specific location
-          function displayLocationAttendance(date, locationId, locationData, users, locations, sectionFilter) {
-              const isSchool = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool || locationData.isSchool;
-              const locationName = (locations[locationId]?.name) || locationData.name || (isSchool ? 'Class Session' : 'Unknown Location');
-              let filterLabel = sectionFilter
-                  ? formatSectionLabel(sectionFilter)
-                  : 'All Sections';
-              let filterKey = sectionFilter ? normalizeSectionKey(sectionFilter) : '';
-              const locationSections = normalizeSectionList(locations[locationId]?.section);
-              const locationSectionKeys = locationSections.map(normalizeSectionKey).filter(Boolean);
-              const hasOnlyGeneralSection = locationSectionKeys.length === 1 && locationSectionKeys[0] === 'GENERAL';
-              if (filterKey === 'GENERAL' && (locationSectionKeys.length === 0 || hasOnlyGeneralSection)) {
-                  filterKey = '';
-                  filterLabel = 'All Sections';
-              } else if (filterKey && locationSectionKeys.length && !locationSectionKeys.includes(filterKey)) {
-                  filterKey = '';
-                  filterLabel = 'All Sections';
-              }
+        function displayLocationAttendance(date, locationId, locationData, users, locations, sectionFilter) {
+            const isSchool = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool || locationData.isSchool;
+            const locationName = (locations[locationId]?.name) || locationData.name || (isSchool ? 'Class Session' : 'Unknown Location');
+            let filterLabel = sectionFilter
+                ? formatSectionLabel(sectionFilter)
+                : 'All Sections';
+            let filterKey = sectionFilter ? normalizeSectionKey(sectionFilter) : '';
+            const locationSections = normalizeSectionList(locations[locationId]?.section);
+            const locationSectionKeys = locationSections.map(normalizeSectionKey).filter(Boolean);
+            const hasOnlyGeneralSection = locationSectionKeys.length === 1 && locationSectionKeys[0] === 'GENERAL';
+            if (filterKey === 'GENERAL' && (locationSectionKeys.length === 0 || hasOnlyGeneralSection)) {
+                filterKey = '';
+                filterLabel = 'All Sections';
+            } else if (filterKey && locationSectionKeys.length && !locationSectionKeys.includes(filterKey)) {
+                filterKey = '';
+                filterLabel = 'All Sections';
+            }
 
             const filteredUserIds = [];
             for (const userId in locationData.records) {
@@ -8013,19 +8812,64 @@
                 filteredUserIds.push(userId);
             }
 
+            // Calculate absentees count for this session
+            const currentSchoolId = currentUser?.schoolId || window.rollCallAdminMode?.schoolId;
+            let absentCount = 0;
+            Object.entries(users).forEach(([uid, u]) => {
+                if (!u || u.role !== 'student') return;
+                if (isSchool && currentSchoolId && u.schoolId && u.schoolId !== currentSchoolId) return;
+                const uSectionInfo = collectSectionValues(u.section);
+                if (!sectionMatchesFilter(uSectionInfo.keys, filterKey)) return;
+                const rec = locationData.records ? locationData.records[uid] : null;
+                if (!rec) {
+                    absentCount++;
+                } else {
+                    const rawSt = (typeof rec === 'object' && rec !== null) ? rec.status : rec;
+                    if (rawSt === 'absent') absentCount++;
+                }
+            });
+
+            const totalStudentsInView = filteredUserIds.length + absentCount;
+            const attendanceRatePct = totalStudentsInView > 0 ? Math.round((filteredUserIds.length / totalStudentsInView) * 100) : 100;
+
             let html = `
-                <div class="records-header" style="margin-top: 10px;">
-                     <button class="modern-btn secondary" onclick="window.viewAllLocations('${date}')">
-                        <i class="fas fa-arrow-left"></i> ${isSchool ? 'Back to all classes' : 'Back to all'}
-                    </button>
-                    <button class="modern-btn secondary" onclick="window.showAbsenteesModal('${date}', '${locationId}', '${sectionFilter || ''}')">
-                        <i class="fas fa-user-times"></i> Absentees
-                    </button>
-                    <div style="flex:1; text-align:right;">
-                        <h4 style="margin:0; font-size: 1.1rem; color: var(--gray-700);">${locationName}</h4>
-                        <span style="font-size:0.85rem; color:var(--gray-500);">
-                            ${filteredUserIds.length} Students - ${filterLabel}
-                        </span>
+                <div class="session-summary-banner">
+                    <div class="session-summary-header">
+                        <button class="modern-btn secondary" onclick="window.viewAllLocations('${date}')">
+                            <i class="fas fa-arrow-left"></i> ${isSchool ? 'Back to All Classes' : 'Back to All'}
+                        </button>
+                        <div class="session-title-wrap" style="flex:1; text-align:center;">
+                            <h3>${locationName}</h3>
+                            <p>${isSchool && locationData.teacherName ? `<i class="fas fa-chalkboard-teacher"></i> ${locationData.teacherName} • ` : ''}${filterLabel} • ${date}</p>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button class="modern-btn secondary" onclick="window.showAbsenteesModal('${date}', '${locationId}', '${sectionFilter || ''}')">
+                                <i class="fas fa-user-times"></i> Absentees <span class="absentees-count-pill">${absentCount}</span>
+                            </button>
+                            <button class="modern-btn secondary" onclick="window.exportLocationAttendance('${date}', '${locationId}', '${locationName}')" title="Export this class">
+                                <i class="fas fa-file-export"></i> Export
+                            </button>
+                            <button class="modern-btn danger" onclick="window.deleteLocationAttendance('${date}', '${locationId}', '${locationName}')" title="Delete session records">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="session-metrics-strip">
+                        <div class="metric-chip"><i class="fas fa-users"></i> Total: <strong>${totalStudentsInView}</strong></div>
+                        <div class="metric-chip present"><i class="fas fa-check-circle"></i> Present: <strong>${filteredUserIds.length}</strong></div>
+                        <div class="metric-chip absent"><i class="fas fa-times-circle"></i> Absent: <strong>${absentCount}</strong></div>
+                        <div class="metric-chip rate"><i class="fas fa-chart-line"></i> Attendance Rate: <strong>${attendanceRatePct}%</strong></div>
+                    </div>
+                </div>
+
+                <div class="roster-toolbar">
+                    <div class="roster-search-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="roster-search-input" placeholder="Search student by name, roll no, or email..." oninput="window.filterRosterTable(this.value)">
+                    </div>
+                    <div class="roster-filter-pills">
+                        <button class="roster-pill active" data-roster-filter="all" onclick="window.setRosterStatusFilter('all', this)">All (${filteredUserIds.length})</button>
+                        <button class="roster-pill present" data-roster-filter="present" onclick="window.setRosterStatusFilter('present', this)">Present (${filteredUserIds.length})</button>
                     </div>
                 </div>
 
@@ -8049,10 +8893,8 @@
                 const record = locationData.records[userId];
                 const user = users[userId] || {};
 
-                // Default status if not present
-                const status = record.status || 'present';
+                const status = (typeof record === 'object' && record !== null ? record.status : record) || 'present';
 
-                // Get badge class based on status
                 let statusClass = 'badge-success';
                 let statusText = 'Present';
                 let statusIcon = '<i class="fas fa-check-circle"></i>';
@@ -8067,19 +8909,13 @@
                     statusIcon = '<i class="fas fa-times-circle"></i>';
                 }
 
-                // Device type badge
                 const deviceType = record.deviceType || 'desktop';
                 const deviceIcon = deviceType === 'mobile' ? 'fas fa-mobile-alt' : 'fas fa-desktop';
 
-                // --- FIX FOR NAME DISPLAY ---
-                // Prefer user.name from DB, fallback to record.userName, fallback to 'Unknown'
                 const displayName = user.name || record.userName || 'Unknown Student';
                 const displayEmail = user.email || record.userEmail || '';
-
-                // Initials for avatar fallback
                 const initials = displayName.substring(0, 2).toUpperCase();
 
-                // Avatar HTML - check for profile pic with multiple possible keys
                 const profilePicUrl = user.profilePhoto || user.profilePic || user.profile_pic || user.profileImage || user.photoURL || user.avatar || user.image || user.profile_picture;
 
                 let avatarHtml = `<div class="user-avatar-sm">${initials}</div>`;
@@ -8087,28 +8923,25 @@
                     avatarHtml = `<img src="${profilePicUrl}" class="user-avatar-sm" alt="${initials}" style="object-fit: cover; width: 36px; height: 36px; border-radius: 50%;">`;
                 }
 
-                // --- FIX FOR ROLL NUMBER DISPLAY ---
                 let rollHtml = '';
-                if (isSchool) {
-                    const rollVal = user.classRoll || user.rollNo || user.rollNumber || record.rollNo || 'N/A';
-                    rollHtml = `<div style="font-weight: 600; color: #374151; font-size: 0.9rem;">${rollVal}</div>`;
-                } else {
-                    const classRoll = user.classRoll ? `CR: ${user.classRoll}` : 'CR: N/A';
-                    const univRoll = user.univRoll ? `<div style="font-size: 0.8rem; color: #6b7280;">UR: ${user.univRoll}</div>` : '';
-                    rollHtml = `
-                        <div style="font-weight: 600; color: #374151; font-size: 0.9rem;">${classRoll}</div>
-                        ${univRoll}
-                    `;
-                }
+                const rollVal = isSchool 
+                    ? (user.rollNo || user.classRoll || record.rollNo || 'N/A')
+                    : (user.classRoll ? `CR: ${user.classRoll}` : 'CR: N/A');
+                const univRollVal = (!isSchool && user.univRoll) ? `<div style="font-size: 0.8rem; color: #6b7280;">UR: ${user.univRoll}</div>` : '';
+
+                rollHtml = `
+                    <div style="font-weight: 700; color: #1e293b; font-size: 0.92rem;">${rollVal}</div>
+                    ${univRollVal}
+                `;
 
                 filteredCount++;
-                html += `<tr>
+                html += `<tr class="roster-row" data-student-name="${displayName.replace(/"/g, '&quot;')}" data-student-roll="${String(rollVal).replace(/"/g, '&quot;')}" data-student-email="${displayEmail.replace(/"/g, '&quot;')}" data-student-status="${status}">
                     <td>
                         <div class="user-cell" style="display: flex; align-items: center; gap: 12px; height: 100%;">
                             ${avatarHtml}
                             <div class="student-info-container" style="display: flex; flex-direction: column; justify-content: center; align-items: flex-start; min-width: 150px;">
-                                <div style="font-weight: 700; color: #111827; font-size: 0.95rem; line-height: 1.4; display: block;">${displayName}</div>
-                                <div style="font-size: 0.8rem; color: #6b7280; line-height: 1.4; display: block;">${displayEmail}</div>
+                                <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem; line-height: 1.4; display: block;">${displayName}</div>
+                                <div style="font-size: 0.8rem; color: #64748b; line-height: 1.4; display: block;">${displayEmail}</div>
                             </div>
                         </div>
                     </td>
@@ -8117,10 +8950,12 @@
                             ${rollHtml}
                         </div>
                     </td>
-                    <td style="font-weight: 500; vertical-align: middle;">${record.time || '--'}</td>
+                    <td style="font-weight: 600; color: #334155; vertical-align: middle;">
+                        <i class="far fa-clock" style="color: #94a3b8; margin-right: 4px;"></i> ${record.time || '--'}
+                    </td>
                     <td style="vertical-align: middle;">
                         ${isSchool ? `
-                            <span class="device-pill" style="background: rgba(59, 130, 246, 0.1); color: #2563eb; font-weight: 600;">
+                            <span class="device-pill" style="background: rgba(59, 130, 246, 0.08); color: #2563eb; font-weight: 700;">
                                 <i class="fas fa-clipboard-check"></i> Register
                             </span>
                         ` : `
@@ -8136,27 +8971,27 @@
                     </td>
                     <td>
                         <div class="action-menu">
-                            <button class="action-button"><i class="fas fa-ellipsis-v"></i></button>
+                            <button class="action-button" title="Actions"><i class="fas fa-ellipsis-v"></i></button>
                             <div class="action-dropdown">
                                 ${status !== 'present' ? `
                                 <a href="#" onclick="event.preventDefault(); changeAttendanceStatus('${date}', '${userId}', 'present', '${locationId}', this)">
-                                    <i class="fas fa-check-circle"></i> Mark as Present
+                                    <i class="fas fa-check-circle" style="color: #16a34a;"></i> Mark Present
                                 </a>` : ''}
                                 
                                 ${status !== 'late' ? `
                                 <a href="#" onclick="event.preventDefault(); changeAttendanceStatus('${date}', '${userId}', 'late', '${locationId}', this)">
-                                    <i class="fas fa-clock"></i> Mark as Late
+                                    <i class="fas fa-clock" style="color: #d97706;"></i> Mark Late
                                 </a>` : ''}
 
                                 ${status !== 'absent' ? `
                                 <a href="#" onclick="event.preventDefault(); changeAttendanceStatus('${date}', '${userId}', 'absent', '${locationId}', this)">
-                                    <i class="fas fa-times-circle"></i> Mark as Absent
+                                    <i class="fas fa-times-circle" style="color: #dc2626;"></i> Mark Absent
                                 </a>` : ''}
                                 
-                                <div class="dropdown-divider" style="height:1px; background:#eee; margin:5px 0;"></div>
+                                <div class="dropdown-divider" style="height:1px; background:#e2e8f0; margin:4px 0;"></div>
                                 
                                 <a href="#" onclick="event.preventDefault(); deleteAttendance('${date}', '${userId}', '${locationId}')" class="text-danger" style="color: #ef4444;">
-                                    <i class="fas fa-trash"></i> Delete
+                                    <i class="fas fa-trash"></i> Delete Record
                                 </a>
                             </div>
                         </div>
@@ -8167,7 +9002,8 @@
             if (filteredCount === 0) {
                 html += `
                     <tr>
-                        <td colspan="6" style="text-align: center; padding: 24px; color: var(--gray-500);">
+                        <td colspan="6" style="text-align: center; padding: 36px; color: #64748b;">
+                            <i class="fas fa-user-friends" style="font-size: 2rem; opacity: 0.4; margin-bottom: 10px; display: block;"></i>
                             No attendance records for ${filterLabel}.
                         </td>
                     </tr>
@@ -8177,25 +9013,22 @@
             html += '</tbody></table></div>';
             attendanceList.innerHTML = html;
 
-            // Add click event listeners for action buttons (attendance list only)
+            // Add click event listeners for action buttons
             attendanceList.querySelectorAll('.action-button').forEach(button => {
                 button.addEventListener('click', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
 
-                    // Close all other open dropdowns
                     attendanceList.querySelectorAll('.action-dropdown.show').forEach(dropdown => {
                         if (dropdown !== this.nextElementSibling) {
                             dropdown.classList.remove('show');
                         }
                     });
 
-                    // Toggle this dropdown
                     this.nextElementSibling.classList.toggle('show');
                 });
             });
 
-            // Close dropdowns when clicking outside
             document.addEventListener('click', function (e) {
                 if (!e.target.closest('#attendance-list .action-menu') && !e.target.closest('#attendance-list .action-dropdown')) {
                     attendanceList.querySelectorAll('.action-dropdown.show').forEach(dropdown => {
@@ -8204,6 +9037,48 @@
                 }
             });
         }
+
+        // Live Roster Search
+        window.filterRosterTable = function (query) {
+            const q = (query || '').toLowerCase().trim();
+            const rows = document.querySelectorAll('#attendance-list tbody tr.roster-row');
+            let visible = 0;
+            rows.forEach(row => {
+                const name = (row.dataset.studentName || '').toLowerCase();
+                const roll = (row.dataset.studentRoll || '').toLowerCase();
+                const email = (row.dataset.studentEmail || '').toLowerCase();
+                const match = !q || name.includes(q) || roll.includes(q) || email.includes(q);
+                row.style.display = match ? '' : 'none';
+                if (match) visible++;
+            });
+
+            let noMatchRow = document.getElementById('roster-no-match-row');
+            if (visible === 0 && rows.length > 0) {
+                if (!noMatchRow) {
+                    const tbody = document.querySelector('#attendance-list tbody');
+                    noMatchRow = document.createElement('tr');
+                    noMatchRow.id = 'roster-no-match-row';
+                    noMatchRow.innerHTML = `<td colspan="6" style="text-align: center; padding: 28px; color: #64748b;"><i class="fas fa-search" style="margin-right: 8px;"></i> No students matching "<strong>${escapeHtml(query)}</strong>"</td>`;
+                    tbody.appendChild(noMatchRow);
+                } else {
+                    noMatchRow.style.display = '';
+                    noMatchRow.querySelector('td').innerHTML = `<i class="fas fa-search" style="margin-right: 8px;"></i> No students matching "<strong>${escapeHtml(query)}</strong>"`;
+                }
+            } else if (noMatchRow) {
+                noMatchRow.style.display = 'none';
+            }
+        };
+
+        window.setRosterStatusFilter = function(status, btn) {
+            document.querySelectorAll('.roster-filter-pills .roster-pill').forEach(p => p.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            const rows = document.querySelectorAll('#attendance-list tbody tr.roster-row');
+            rows.forEach(row => {
+                const rowStatus = row.dataset.studentStatus || 'present';
+                const match = (status === 'all' || rowStatus === status);
+                row.style.display = match ? '' : 'none';
+            });
+        };
 
         function showAbsenteesModal(date, locationId, sectionFilter) {
             const context = attendanceContext || { users: {}, locations: {}, attendanceByLocation: {} };
@@ -8268,8 +9143,9 @@
             if (!absentees.length) {
                 bodyHtml = `
                     <div class="absentees-empty">
-                        <i class="fas fa-user-check" style="font-size: 2rem; margin-bottom: 12px;"></i>
-                        <p>All students are present for ${filterLabel}.</p>
+                        <i class="fas fa-check-circle"></i>
+                        <h4>100% Attendance</h4>
+                        <p>All students in ${locationName} (${filterLabel}) are marked present!</p>
                     </div>
                 `;
             } else {
@@ -8279,11 +9155,9 @@
                             <thead>
                                 <tr>
                                     <th>Student Details</th>
-                                    <th>Roll Numbers</th>
-                                    <th>Time</th>
-                                    <th>${isSchool ? 'Method' : 'Device'}</th>
+                                    <th>${isSchool ? 'Roll No' : 'Roll Numbers'}</th>
                                     <th>Status</th>
-                                    <th>Actions</th>
+                                    <th style="text-align: right;">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -8295,48 +9169,35 @@
                                     const avatarHtml = profilePicUrl
                                         ? `<img src="${profilePicUrl}" class="user-avatar-sm" alt="${initials}" style="object-fit: cover; width: 36px; height: 36px; border-radius: 50%;">`
                                         : `<div class="user-avatar-sm">${initials}</div>`;
-                                    const classRoll = user.classRoll ? `CR: ${user.classRoll}` : 'CR: N/A';
-                                    const univRoll = user.univRoll ? `UR: ${user.univRoll}` : 'UR: N/A';
-                                    const timeValue = record?.time || '--';
-                                    const deviceType = record?.deviceType || 'n/a';
-                                    const deviceLabel = deviceType === 'mobile' ? 'Mobile' : deviceType === 'desktop' ? 'Desktop' : 'N/A';
-                                    const deviceIcon = deviceType === 'mobile' ? 'fas fa-mobile-alt' : deviceType === 'desktop' ? 'fas fa-desktop' : 'fas fa-minus-circle';
+                                    
+                                    const rollVal = isSchool 
+                                        ? (user.rollNo || user.classRoll || 'N/A')
+                                        : (user.classRoll ? `CR: ${user.classRoll}` : 'CR: N/A');
+                                    const univRoll = (!isSchool && user.univRoll) ? `<div style="font-size: 0.8rem; color: #6b7280;">UR: ${user.univRoll}</div>` : '';
 
                                     return `
-                                        <tr>
+                                        <tr class="absentee-row" data-student-name="${displayName.replace(/"/g, '&quot;')}" data-student-roll="${String(rollVal).replace(/"/g, '&quot;')}" data-student-email="${displayEmail.replace(/"/g, '&quot;')}">
                                             <td>
                                                 <div class="user-cell" style="display: flex; align-items: center; gap: 12px; height: 100%;">
                                                     ${avatarHtml}
                                                     <div class="student-info-container" style="display: flex; flex-direction: column; justify-content: center; align-items: flex-start; min-width: 150px;">
-                                                        <div style="font-weight: 700; color: #111827; font-size: 0.95rem; line-height: 1.4; display: block;">${displayName}</div>
-                                                        <div style="font-size: 0.8rem; color: #6b7280; line-height: 1.4; display: block;">${displayEmail}</div>
+                                                        <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem; line-height: 1.4; display: block;">${displayName}</div>
+                                                        <div style="font-size: 0.8rem; color: #64748b; line-height: 1.4; display: block;">${displayEmail}</div>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td>
                                                 <div style="display: flex; flex-direction: column; justify-content: center;">
-                                                    <div style="font-weight: 600; color: #374151; font-size: 0.9rem;">${classRoll}</div>
-                                                    <div style="font-size: 0.8rem; color: #6b7280;">${univRoll}</div>
+                                                    <div style="font-weight: 700; color: #1e293b; font-size: 0.92rem;">${rollVal}</div>
+                                                    ${univRoll}
                                                 </div>
-                                            </td>
-                                            <td style="font-weight: 500; vertical-align: middle;">${timeValue}</td>
-                                            <td style="vertical-align: middle;">
-                                                ${isSchool ? `
-                                                    <span class="device-pill" style="background: rgba(59, 130, 246, 0.1); color: #2563eb; font-weight: 600;">
-                                                        <i class="fas fa-clipboard-check"></i> Register
-                                                    </span>
-                                                ` : `
-                                                    <span class="device-pill ${deviceType}">
-                                                        <i class="${deviceIcon}"></i> ${deviceLabel}
-                                                    </span>
-                                                `}
                                             </td>
                                             <td>
                                                 <span class="status-badge badge-danger">
                                                     <i class="fas fa-times-circle"></i> Absent
                                                 </span>
                                             </td>
-                                            <td>
+                                            <td style="text-align: right;">
                                                 <button class="modern-btn primary mark-present-btn" data-user-id="${userId}">
                                                     <i class="fas fa-check-circle"></i> Mark Present
                                                 </button>
@@ -8353,14 +9214,27 @@
             modal.innerHTML = `
                 <div class="modal-content">
                     <div class="absentees-header">
-                        <div>
-                            <h3>Absentees - ${locationName}</h3>
-                            <p><span class="absentees-count">${absentees.length}</span> Students • ${filterLabel}</p>
+                        <div style="display: flex; align-items: center; gap: 14px;">
+                            <div class="header-icon-wrap"><i class="fas fa-user-clock"></i></div>
+                            <div>
+                                <h3>Absentees Roster</h3>
+                                <p>${locationName} • <span class="badge-count">${absentees.length} Absent</span> • ${filterLabel}</p>
+                            </div>
                         </div>
-                        <button class="modern-btn secondary absentees-close">
-                            <i class="fas fa-times"></i> Close
+                        <button class="modal-close-icon-btn absentees-close" title="Close">
+                            <i class="fas fa-times"></i>
                         </button>
                     </div>
+                    ${absentees.length > 0 ? `
+                    <div class="modal-toolbar">
+                        <div class="modal-search-wrapper">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="absent-student-search" placeholder="Search absentee by name or roll number..." oninput="window.filterAbsenteesList(this.value)">
+                        </div>
+                        <button class="modern-btn primary mark-all-present-btn" style="background: linear-gradient(135deg, #16a34a, #15803d);" onclick="window.markAllAbsenteesPresent('${date}', '${locationId}', '${sectionFilter || ''}')">
+                            <i class="fas fa-check-double"></i> Mark All Present
+                        </button>
+                    </div>` : ''}
                     <div class="absentees-body">
                         ${bodyHtml}
                     </div>
@@ -8391,99 +9265,117 @@
             });
         }
 
+        window.showAbsenteesModal = showAbsenteesModal;
+
+        window.filterAbsenteesList = function (query) {
+            const q = (query || '').toLowerCase().trim();
+            const rows = document.querySelectorAll('#absentees-modal tbody tr.absentee-row');
+            rows.forEach(row => {
+                const name = (row.dataset.studentName || '').toLowerCase();
+                const roll = (row.dataset.studentRoll || '').toLowerCase();
+                const email = (row.dataset.studentEmail || '').toLowerCase();
+                const match = !q || name.includes(q) || roll.includes(q) || email.includes(q);
+                row.style.display = match ? '' : 'none';
+            });
+        };
+
+        window.markAllAbsenteesPresent = function (date, locationId, sectionFilter) {
+            window.showRollCallConfirm({
+                title: 'Mark All Students Present',
+                message: 'Are you sure you want to mark all currently absent students in this class as Present?',
+                confirmText: 'Mark All Present',
+                confirmType: 'primary',
+                onConfirm: async () => {
+                    const buttons = document.querySelectorAll('#absentees-modal .mark-present-btn');
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const updates = {};
+                    buttons.forEach(btn => {
+                        const uid = btn.dataset.userId;
+                        if (uid) {
+                            updates[`attendance_by_location/${locationId}/${date}/${uid}`] = {
+                                status: 'present',
+                                time: timeStr,
+                                deviceType: 'desktop',
+                                markedBy: currentUser?.email || 'admin',
+                                timestamp: Date.now()
+                            };
+                            updates[`user_attendance/${uid}/${date}/${locationId}`] = {
+                                status: 'present',
+                                time: timeStr,
+                                deviceType: 'desktop',
+                                locationId,
+                                timestamp: Date.now()
+                            };
+                        }
+                    });
+
+                    await update(ref(database), updates);
+                    showAlert('All absentees marked present successfully!', 'success');
+                    const modal = document.getElementById('absentees-modal');
+                    if (modal) modal.classList.remove('show');
+                    loadAttendanceData(date);
+                    if (typeof loadDashboardStats === 'function') loadDashboardStats();
+                }
+            });
+        };
+
         function markAbsentAsPresent(date, locationId, userId, sectionFilter, button) {
             const context = attendanceContext || { users: {}, locations: {}, attendanceByLocation: {} };
             const user = context.users ? context.users[userId] || {} : {};
             const location = context.locations ? context.locations[locationId] || {} : {};
             const now = new Date();
-            const timeStr = now.toISOString().split('T')[1].slice(0, 8);
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             if (button) {
                 button.disabled = true;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Marking...';
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
             }
 
-            const attendanceData = {
-                userId: userId,
-                userName: user.name || 'Unknown User',
-                userEmail: user.email || 'No Email',
-                classRoll: user.classRoll ? String(user.classRoll) : "",
-                univRoll: user.univRoll ? String(user.univRoll) : "",
-                section: user.section || "",
-                locationId: locationId,
-                locationName: location.name || location.locationName || 'Unknown Location',
-                date: date,
-                time: timeStr,
-                timestamp: now.getTime(),
+            const attendancePayload = {
                 status: 'present',
-                attendanceType: 'manual',
-                deviceType: 'admin'
+                time: timeStr,
+                deviceType: 'desktop',
+                locationId: locationId,
+                locationName: location.name || 'Location',
+                userName: user.name || 'Student',
+                userEmail: user.email || '',
+                section: user.section || '',
+                markedBy: currentUser ? currentUser.email : 'admin',
+                timestamp: Date.now()
             };
 
-            Promise.all([
-                set(ref(database, `attendance_by_location/${locationId}/${date}/${userId}`), attendanceData),
-                set(ref(database, `user_attendance/${userId}/${date}/${locationId}`), attendanceData)
-            ])
+            const updates = {};
+            updates[`attendance_by_location/${locationId}/${date}/${userId}`] = attendancePayload;
+            updates[`user_attendance/${userId}/${date}/${locationId}`] = attendancePayload;
+
+            update(ref(database), updates)
                 .then(() => {
-                    showAlert('Marked present successfully.', 'success');
-
-                    if (context.attendanceByLocation) {
-                        const locationBucket = context.attendanceByLocation[locationId] || {
-                            records: {},
-                            count: 0,
-                            name: location.name || location.locationName || 'Unknown Location',
-                            deviceType: 'mixed'
-                        };
-
-                        if (!locationBucket.records[userId]) {
-                            locationBucket.count += 1;
-                        }
-
-                        locationBucket.records[userId] = attendanceData;
-                        context.attendanceByLocation[locationId] = locationBucket;
-                        attendanceContext = context;
-                    }
-
+                    showAlert(`Marked ${user.name || 'Student'} as present.`, 'success');
                     if (button) {
+                        button.innerHTML = '<i class="fas fa-check"></i> Marked';
+                        button.style.background = '#10b981';
                         const row = button.closest('tr');
                         if (row) {
-                            row.remove();
+                            row.style.transition = 'all 0.3s ease';
+                            row.style.opacity = '0.5';
                         }
                     }
-
-                    const modal = document.getElementById('absentees-modal');
-                    if (modal) {
-                        const countEl = modal.querySelector('.absentees-count');
-                        const remaining = modal.querySelectorAll('tbody tr').length;
-                        if (countEl) {
-                            countEl.textContent = remaining.toString();
-                        }
-                        if (remaining === 0) {
-                            const body = modal.querySelector('.absentees-body');
-                            if (body) {
-                                body.innerHTML = `
-                                    <div class="absentees-empty">
-                                        <i class="fas fa-user-check" style="font-size: 2rem; margin-bottom: 12px;"></i>
-                                        <p>All students are present for ${formatSectionLabel(sectionFilter || 'All Sections')}.</p>
-                                    </div>
-                                `;
-                            }
-                        }
-                    }
-
-                    loadAttendanceData(date);
+                    setTimeout(() => {
+                        showAbsenteesModal(date, locationId, sectionFilter);
+                        loadAttendanceData(date);
+                        if (typeof loadDashboardStats === 'function') loadDashboardStats();
+                    }, 400);
                 })
                 .catch((error) => {
-                    console.error("Error marking present:", error);
-                    showAlert(`Error marking present: ${error.message}`, "error");
+                    console.error('Error marking absent as present:', error);
+                    showAlert(`Error marking present: ${error.message}`, 'error');
                     if (button) {
                         button.disabled = false;
                         button.innerHTML = '<i class="fas fa-check-circle"></i> Mark Present';
                     }
                 });
         }
-
-        window.showAbsenteesModal = showAbsenteesModal;
 
         function openProfilePhotoModal(src, altText) {
             if (!src) return;
@@ -10215,6 +11107,7 @@
         }
 
         async function openExportSectionModal(date, locationId, status) {
+            const isSchool = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
             if (!date) {
                 date = new Date().toISOString().split('T')[0];
                 if (attendanceDate) {
@@ -10229,26 +11122,35 @@
             content.className = 'modal-content';
             content.innerHTML = `
                 <div class="modal-header">
-                    <h3>Export Attendance</h3>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <i class="fas fa-file-excel" style="font-size: 1.3rem;"></i>
+                        <div>
+                            <h3 style="margin: 0;">Export Attendance Records</h3>
+                            <p style="margin: 2px 0 0; font-size: 0.82rem; opacity: 0.85;">Generate Excel / CSV roster report</p>
+                        </div>
+                    </div>
                     <button class="modal-close" aria-label="Close">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="input-group" style="margin-bottom: 16px;">
-                        <label>Location</label>
+                        <label>${isSchool ? 'Class / Register' : 'Location'}</label>
                         <div class="custom-input-wrapper">
-                            <i class="fas fa-map-marker-alt"></i>
+                            <i class="${isSchool ? 'fas fa-chalkboard' : 'fas fa-map-marker-alt'}"></i>
                             <select id="export-location-select">
-                                <option value="">Select location</option>
+                                <option value="">${isSchool ? 'Select class to export...' : 'Select location to export...'}</option>
                             </select>
                             <i class="fas fa-chevron-down dropdown-arrow"></i>
                         </div>
                     </div>
-                    <p>Select sections to include for this location export.</p>
+                    <div class="section-selection-header">
+                        <span>Select sections to include:</span>
+                        <button type="button" class="btn-text-action" id="toggle-all-sections-btn">Select All</button>
+                    </div>
                     <div id="export-section-list" class="section-checkbox-grid"></div>
                 </div>
                 <div class="modal-actions">
                     <button class="modern-btn secondary" data-cancel>Cancel</button>
-                    <button class="modern-btn primary" data-export>Export</button>
+                    <button class="modern-btn primary" data-export><i class="fas fa-download"></i> Download Report</button>
                 </div>
             `;
 
@@ -10264,6 +11166,7 @@
             const exportBtn = modal.querySelector('[data-export]');
             const listEl = modal.querySelector('#export-section-list');
             const locationSelect = modal.querySelector('#export-location-select');
+            const toggleAllBtn = modal.querySelector('#toggle-all-sections-btn');
 
             if (closeBtn) closeBtn.addEventListener('click', closeModal);
             if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
@@ -10273,16 +11176,25 @@
                 }
             });
 
-            listEl.innerHTML = '<p style="color: var(--gray-600);">Select a location to load sections.</p>';
+            if (toggleAllBtn) {
+                toggleAllBtn.addEventListener('click', () => {
+                    const checkboxes = listEl.querySelectorAll('input[type="checkbox"]');
+                    const anyUnchecked = Array.from(checkboxes).some(cb => !cb.checked);
+                    checkboxes.forEach(cb => cb.checked = anyUnchecked);
+                    toggleAllBtn.textContent = anyUnchecked ? 'Deselect All' : 'Select All';
+                });
+            }
+
+            listEl.innerHTML = `<p style="color: var(--gray-600);">${isSchool ? 'Select a class to load sections.' : 'Select a location to load sections.'}</p>`;
 
             const locations = await getExportLocations();
             const locationEntries = Object.entries(locations || {});
 
             if (locationEntries.length) {
-                locationEntries.forEach(([id, location]) => {
+                locationEntries.forEach(([id, loc]) => {
                     const option = document.createElement('option');
                     option.value = id;
-                    option.textContent = location?.name || 'Unnamed Location';
+                    option.textContent = loc?.name || 'Class / Location';
                     locationSelect.appendChild(option);
                 });
             }
@@ -10299,11 +11211,11 @@
             const refreshSections = async () => {
                 const selectedLocation = locationSelect.value;
                 if (!selectedLocation) {
-                    listEl.innerHTML = '<p style="color: var(--gray-600);">Select a location to load sections.</p>';
+                    listEl.innerHTML = `<p style="color: var(--gray-600);">${isSchool ? 'Select a class to load sections.' : 'Select a location to load sections.'}</p>`;
                     return;
                 }
 
-                listEl.innerHTML = '<p style="color: var(--gray-600);">Loading sections...</p>';
+                listEl.innerHTML = '<p style="color: var(--gray-600);"><i class="fas fa-spinner fa-spin"></i> Loading sections...</p>';
                 try {
                     const sections = await loadLocationSections(selectedLocation, locations);
                     const sectionList = sections.length ? sections : ['General'];
@@ -10330,16 +11242,16 @@
 
             if (exportBtn) {
                 exportBtn.addEventListener('click', () => {
-                const selectedLocation = locationSelect.value;
-                if (!selectedLocation) {
-                    showAlert('Please choose a location to export.', 'warning');
-                    return;
-                }
-                const selected = Array.from(listEl.querySelectorAll('input[type="checkbox"]:checked'))
-                    .map(input => input.value);
-                closeModal();
-                exportAttendanceToCSV(date, selectedLocation, status, selected);
-            });
+                    const selectedLocation = locationSelect.value;
+                    if (!selectedLocation) {
+                        showAlert('Please choose a class/location to export.', 'warning');
+                        return;
+                    }
+                    const selected = Array.from(listEl.querySelectorAll('input[type="checkbox"]:checked'))
+                        .map(input => input.value);
+                    closeModal();
+                    exportAttendanceToCSV(date, selectedLocation, status, selected);
+                });
             }
         }
 
@@ -10362,6 +11274,29 @@
         }
 
         async function getExportLocations() {
+            const isSchool = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
+            const schoolId = currentUser?.schoolId || window.rollCallAdminMode?.schoolId;
+
+            if (isSchool && schoolId) {
+                try {
+                    const classesSnap = await get(ref(database, `schoolClasses/${schoolId}`));
+                    if (classesSnap.exists()) {
+                        const classes = classesSnap.val();
+                        const res = {};
+                        for (const cid in classes) {
+                            const c = classes[cid];
+                            res[cid] = {
+                                name: `${c.className || c.name || 'Class'}${c.section ? ' - Section ' + c.section : ''}`,
+                                section: c.section || 'General'
+                            };
+                        }
+                        if (Object.keys(res).length > 0) return res;
+                    }
+                } catch (e) {
+                    console.error('Error fetching school classes for export:', e);
+                }
+            }
+
             if (allLocations && Object.keys(allLocations).length) {
                 return allLocations;
             }
@@ -10511,90 +11446,121 @@
             showAlert(`Location coordinates: Latitude ${lat}, Longitude ${lng}`, "info");
         };
 
-        window.deleteAttendance = function (date, userId, locationId) {
-            if (confirm("Are you sure you want to delete this attendance record?")) {
-                // Delete from both attendance_by_location and user_attendance
-                Promise.all([
-                    remove(ref(database, `attendance_by_location/${locationId}/${date}/${userId}`)),
-                    remove(ref(database, `user_attendance/${userId}/${date}/${locationId}`))
-                ])
-                    .then(() => {
-                        loadAttendanceData(date);
-                        loadDashboardStats();
-                        showAlert("Attendance record deleted successfully!", "success");
-                    })
-                    .catch((error) => {
-                        showAlert(`Error deleting attendance record: ${error.message}`, "error");
-                    });
+        // Global Modern RollCall Confirmation Modal
+        window.showRollCallConfirm = function ({ title, message, details, confirmText, confirmType, onConfirm }) {
+            let modal = document.getElementById('rollcall-confirm-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'rollcall-confirm-modal';
+                modal.className = 'modern-modal-overlay';
+                document.body.appendChild(modal);
             }
+
+            const type = confirmType || 'danger';
+            const iconClass = type === 'danger' ? 'fas fa-trash-alt' : 'fas fa-exclamation-triangle';
+            const btnClass = type === 'danger' ? 'modern-btn danger' : 'modern-btn primary';
+
+            modal.innerHTML = `
+                <div class="confirm-dialog-card">
+                    <div class="confirm-icon-wrap ${type}">
+                        <i class="${iconClass}"></i>
+                    </div>
+                    <h3>${title || 'Confirm Action'}</h3>
+                    <p>${message || 'Are you sure you want to proceed?'}</p>
+                    ${details ? `<div style="background:#f8fafc; border-radius:10px; padding:10px 14px; margin-bottom:20px; font-weight:600; font-size:0.88rem; color:#334155; border:1px solid #e2e8f0;">${details}</div>` : ''}
+                    <div class="confirm-dialog-actions">
+                        <button class="modern-btn secondary cancel-btn" type="button">Cancel</button>
+                        <button class="${btnClass} action-confirm-btn" type="button">${confirmText || 'Confirm'}</button>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.add('show');
+
+            const closeModal = () => modal.classList.remove('show');
+            modal.querySelector('.cancel-btn').addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+
+            const confirmBtn = modal.querySelector('.action-confirm-btn');
+            confirmBtn.addEventListener('click', async () => {
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                try {
+                    await onConfirm();
+                } catch (err) {
+                    console.error('Confirm action error:', err);
+                } finally {
+                    closeModal();
+                }
+            });
+        };
+
+        window.deleteAttendance = function (date, userId, locationId) {
+            window.showRollCallConfirm({
+                title: 'Delete Attendance Record',
+                message: 'Are you sure you want to delete this student attendance record?',
+                confirmText: 'Delete Record',
+                confirmType: 'danger',
+                onConfirm: async () => {
+                    await Promise.all([
+                        remove(ref(database, `attendance_by_location/${locationId}/${date}/${userId}`)),
+                        remove(ref(database, `user_attendance/${userId}/${date}/${locationId}`))
+                    ]);
+                    loadAttendanceData(date);
+                    if (typeof loadDashboardStats === 'function') loadDashboardStats();
+                    showAlert("Attendance record deleted successfully!", "success");
+                }
+            });
         };
 
         window.deleteLocation = function (locationId) {
-            if (confirm("Are you sure you want to delete this location?")) {
-                remove(ref(database, `locations/${locationId}`))
-                    .then(() => {
-                        loadLocations();
-                        loadLocationsOnMap();
-                        loadDashboardStats();
-                        populateLocationDropdowns();
-                        showAlert("Location deleted successfully!", "success");
-                    })
-                    .catch((error) => {
-                        showAlert(`Error deleting location: ${error.message}`, "error");
-                    });
-            }
+            window.showRollCallConfirm({
+                title: 'Delete Location',
+                message: 'Are you sure you want to delete this location? All assigned geofences will be deleted.',
+                confirmText: 'Delete Location',
+                confirmType: 'danger',
+                onConfirm: async () => {
+                    await remove(ref(database, `locations/${locationId}`));
+                    loadLocations();
+                    loadLocationsOnMap();
+                    loadDashboardStats();
+                    populateLocationDropdowns();
+                    showAlert("Location deleted successfully!", "success");
+                }
+            });
         };
 
         window.changeAttendanceStatus = function (date, userId, newStatus, locationId, triggerEl) {
-            if (confirm(`Are you sure you want to mark this attendance as ${newStatus}?`)) {
-                // Update attendance_by_location
-                update(ref(database, `attendance_by_location/${locationId}/${date}/${userId}`), { status: newStatus })
-                    .then(() => {
-                        console.log('attendance_by_location updated');
+            window.showRollCallConfirm({
+                title: 'Update Status',
+                message: `Are you sure you want to change this student's status to "${newStatus.toUpperCase()}"?`,
+                confirmText: `Mark as ${newStatus}`,
+                confirmType: newStatus === 'absent' ? 'danger' : 'primary',
+                onConfirm: async () => {
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-                        // ALSO update user_attendance for student dashboard
-                        const userAttendanceRef = ref(database, `user_attendance/${userId}/${date}/${locationId}`);
-                        update(userAttendanceRef, { status: newStatus })
-                            .then(() => {
-                                console.log('user_attendance updated');
-                                if (newStatus === 'absent' && triggerEl) {
-                                    const row = triggerEl.closest('tr');
-                                    if (row) {
-                                        row.remove();
-                                    }
-                                    const tableBody = document.querySelector('#attendance-list tbody');
-                                    if (tableBody && tableBody.children.length === 0) {
-                                        tableBody.innerHTML = `
-                                            <tr>
-                                                <td colspan="6" style="text-align: center; padding: 24px; color: var(--gray-500);">
-                                                    No attendance records for this selection.
-                                                </td>
-                                            </tr>
-                                        `;
-                                    }
-                                }
-                                loadAttendanceData(date);
-                                showAlert(`Attendance status updated to ${newStatus}!`, "success");
-                            })
-                            .catch(err => {
-                                console.error('user_attendance update error:', err);
-                                if (newStatus === 'absent' && triggerEl) {
-                                    const row = triggerEl.closest('tr');
-                                    if (row) {
-                                        row.remove();
-                                    }
-                                }
-                                loadAttendanceData(date);
-                                showAlert(`Attendance status updated to ${newStatus}!`, "success");
-                            });
-                    })
-                    .catch((error) => {
-                        showAlert(`Error updating attendance status: ${error.message}`, "error");
-                    });
-            }
+                    const updates = {};
+                    updates[`attendance_by_location/${locationId}/${date}/${userId}/status`] = newStatus;
+                    updates[`user_attendance/${userId}/${date}/${locationId}/status`] = newStatus;
+
+                    try {
+                        await update(ref(database), updates);
+                    } catch (e) {
+                        const payload = { status: newStatus, time: timeStr, timestamp: Date.now() };
+                        await set(ref(database, `attendance_by_location/${locationId}/${date}/${userId}`), payload);
+                        await set(ref(database, `user_attendance/${userId}/${date}/${locationId}`), payload);
+                    }
+
+                    showAlert(`Attendance marked as ${newStatus}!`, "success");
+                    loadAttendanceData(date);
+                    if (typeof loadDashboardStats === 'function') loadDashboardStats();
+                }
+            });
         };
 
-        // Edit location
         window.editLocation = function (locationId) {
             console.log("Editing location:", locationId);
 
@@ -12888,52 +13854,36 @@
 
         // Function to delete all attendance records for a specific location
         window.deleteLocationAttendance = function (date, locationId, locationName) {
-            if (confirm(`Are you sure you want to delete ALL attendance records for "${locationName}" on ${date}? This action cannot be undone.`)) {
-                const attendanceRef = ref(database, `attendance_by_location/${locationId}/${date}`);
+            window.showRollCallConfirm({
+                title: 'Delete Attendance Records',
+                message: `Are you sure you want to permanently delete all attendance records for this session? This action cannot be undone.`,
+                details: `${locationName} • ${date}`,
+                confirmText: 'Delete Records',
+                confirmType: 'danger',
+                onConfirm: async () => {
+                    const attendanceRef = ref(database, `attendance_by_location/${locationId}/${date}`);
+                    const snapshot = await get(attendanceRef);
+                    if (snapshot.exists()) {
+                        const attendanceData = snapshot.val();
+                        const userIds = Object.keys(attendanceData).filter(key => !key.startsWith('_'));
+                        const recordsCount = userIds.length;
 
-                // Get all attendance records for this location and date
-                get(attendanceRef)
-                    .then((snapshot) => {
-                        if (snapshot.exists()) {
-                            const attendanceData = snapshot.val();
-                            const userIds = Object.keys(attendanceData).filter(key => !key.startsWith('_'));
-                            const recordsCount = userIds.length;
+                        const deletePromises = [remove(attendanceRef)];
+                        userIds.forEach(userId => {
+                            deletePromises.push(remove(ref(database, `user_attendance/${userId}/${date}/${locationId}`)));
+                        });
 
-                            // Create promises to delete from both locations
-                            const deletePromises = [
-                                remove(attendanceRef) // Delete from attendance_by_location
-                            ];
-
-                            // Add promises to delete from user_attendance for each user
-                            userIds.forEach(userId => {
-                                deletePromises.push(
-                                    remove(ref(database, `user_attendance/${userId}/${date}/${locationId}`))
-                                );
-                            });
-
-                            // Execute all deletions
-                            Promise.all(deletePromises)
-                                .then(() => {
-                                    showAlert(`Successfully deleted ${recordsCount} attendance records for ${locationName}`, "success");
-                                    // Reload attendance data to reflect changes
-                                    loadAttendanceData(date);
-                                })
-                                .catch((error) => {
-                                    console.error("Error deleting attendance records:", error);
-                                    showAlert(`Error deleting attendance records: ${error.message}`, "error");
-                                });
-                        } else {
-                            showAlert(`No attendance records found for ${locationName} on ${date}`, "info");
-                        }
-                    })
-                    .catch((error) => {
-                        console.error("Error retrieving attendance data:", error);
-                        showAlert(`Error retrieving attendance data: ${error.message}`, "error");
-                    });
-            }
+                        await Promise.all(deletePromises);
+                        showAlert(`Successfully deleted ${recordsCount} attendance records for ${locationName}`, "success");
+                        loadAttendanceData(date);
+                        if (typeof loadDashboardStats === 'function') loadDashboardStats();
+                    } else {
+                        showAlert(`No attendance records found for ${locationName} on ${date}`, "info");
+                    }
+                }
+            });
         };
 
-        // Function to export attendance data for a specific location
         window.exportLocationAttendance = function (date, locationId, locationName) {
             if (typeof openExportSectionModal === 'function') {
                 openExportSectionModal(date, locationId, 'all').catch((error) => {
