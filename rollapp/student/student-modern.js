@@ -1966,20 +1966,33 @@
                 ...user
             };
 
-            // STRICT DEFAULTER WORKFLOW:
-            // Students only see homework if:
-            // 1. Defaulters were marked by the subject teacher
-            // 2. The student is explicitly marked as a defaulter (incomplete)
+            // WORKFLOW:
+            // 1. While active (teacher has NOT submitted defaulters yet):
+            //    Show as normal detail reference card to students of this class & section (NO buttons).
+            // 2. Once teacher submits defaulters (defaultersReviewed === true):
+            //    - Non-defaulters: card is removed (they completed it, clean view).
+            //    - Defaulters: card is shown with RED BORDER and "You have not completed this homework" (NO buttons).
             state.studentHomework = Object.entries(data).map(([id, item]) => ({
                 id,
                 ...item
             })).filter(hw => {
-                const isDefaulter = (hw.defaulters && hw.defaulters[curStudent.uid] === true);
-                return isDefaulter && isHomeworkMatch(hw, curStudent);
+                if (!isHomeworkMatch(hw, curStudent)) return false;
+
+                if (hw.defaultersReviewed) {
+                    // Only show to defaulters
+                    return !!(hw.defaulters && hw.defaulters[curStudent.uid] === true);
+                }
+
+                // If not reviewed yet, show as active task reference card
+                return true;
             }).sort((a, b) => {
+                const aDef = !!(a.defaultersReviewed && a.defaulters && a.defaulters[curStudent.uid]);
+                const bDef = !!(b.defaultersReviewed && b.defaulters && b.defaulters[curStudent.uid]);
+                if (aDef !== bDef) return aDef ? -1 : 1; // Defaulters shown first
+
                 const dueA = new Date(`${a.dueDate}T${a.dueTime || '23:59'}`).getTime() || 0;
                 const dueB = new Date(`${b.dueDate}T${b.dueTime || '23:59'}`).getTime() || 0;
-                return dueA - dueB; // earliest due first
+                return dueA - dueB;
             });
 
             // Update UI
@@ -2088,31 +2101,35 @@
             container.innerHTML = `
                 <div style="text-align:center; padding:18px 12px; color:var(--sp-text-muted); font-size:0.82rem;">
                     <i class="fas fa-circle-check" style="color:var(--sp-success); font-size:1.6rem; display:block; margin-bottom:6px;"></i>
-                    All caught up! No incomplete assignments.
+                    All caught up! No active or incomplete assignments.
                 </div>
             `;
             return;
         }
 
+        const curUid = state.currentUser?.uid || window.currentUser?.uid;
         const topItems = state.studentHomework.slice(0, 3);
         container.innerHTML = topItems.map(hw => {
+            const isDef = !!(hw.defaultersReviewed && hw.defaulters && hw.defaulters[curUid]);
+            const dueMeta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
+
             return `
-                <div class="ov-hw-item" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:10px; cursor:pointer;" onclick="switchStudentTab('tab-homework')">
+                <div class="ov-hw-item" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; background:${isDef ? '#fef2f2' : 'var(--sp-bg-main)'}; border:1px solid ${isDef ? '#fecaca' : 'var(--sp-border)'}; border-radius:10px; cursor:pointer;" onclick="switchStudentTab('tab-homework')">
                     <div style="display:flex; align-items:center; gap:10px; min-width:0;">
-                        <div class="ov-hw-icon" style="width:34px; height:34px; border-radius:8px; background:#fee2e2; color:#dc2626; display:flex; align-items:center; justify-content:center; font-size:0.9rem; flex-shrink:0;">
-                            <i class="fas fa-triangle-exclamation"></i>
+                        <div class="ov-hw-icon" style="width:34px; height:34px; border-radius:8px; background:${isDef ? '#fee2e2' : 'var(--sp-primary-light)'}; color:${isDef ? '#dc2626' : 'var(--sp-primary)'}; display:flex; align-items:center; justify-content:center; font-size:0.9rem; flex-shrink:0;">
+                            <i class="${isDef ? 'fas fa-triangle-exclamation' : 'fas fa-book-open'}"></i>
                         </div>
                         <div style="min-width:0;">
-                            <div style="font-weight:700; font-size:0.83rem; color:#991b1b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            <div style="font-weight:700; font-size:0.83rem; color:${isDef ? '#991b1b' : 'var(--sp-text-main)'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                                 ${escapeHtml(hw.title)}
                             </div>
-                            <div style="font-size:0.72rem; color:#b91c1c;">
-                                <span style="font-weight:600;">${escapeHtml(hw.subject || 'Subject')}</span> • ${escapeHtml(hw.teacherName || 'Teacher')}
+                            <div style="font-size:0.72rem; color:${isDef ? '#b91c1c' : 'var(--sp-text-muted)'};">
+                                <span style="font-weight:600; color:${isDef ? '#b91c1c' : 'var(--sp-primary)'};">${escapeHtml(hw.subject || 'Subject')}</span> • ${escapeHtml(hw.teacherName || 'Teacher')}
                             </div>
                         </div>
                     </div>
-                    <span class="ov-hw-badge danger" style="font-size:0.68rem; font-weight:700; padding:3px 8px; border-radius:999px; white-space:nowrap; background:#dc2626; color:#ffffff;">
-                        Incomplete
+                    <span class="ov-hw-badge ${isDef ? 'danger' : dueMeta.cls}" style="font-size:0.68rem; font-weight:700; padding:3px 8px; border-radius:999px; white-space:nowrap; ${isDef ? 'background:#dc2626; color:#ffffff;' : (dueMeta.isUrgent ? 'background:#fee2e2; color:#b91c1c;' : 'background:var(--sp-bg-card); color:var(--sp-text-muted); border:1px solid var(--sp-border);')}">
+                        ${isDef ? 'Incomplete' : dueMeta.label}
                     </span>
                 </div>
             `;
@@ -2125,8 +2142,12 @@
 
         try {
             const user = state.currentUser || {};
+            const curUid = user.uid || window.currentUser?.uid;
             const className = user.courseName || user.className || 'My Class';
             const section = normSectionVal(user.section || user.classSection || 'A');
+
+            const defaulterCount = state.studentHomework.filter(h => h.defaultersReviewed && h.defaulters && h.defaulters[curUid]).length;
+            const activeCount = state.studentHomework.length - defaulterCount;
 
             // Update hero labels
             const classPill = document.getElementById('hw-hero-class-pill');
@@ -2135,16 +2156,26 @@
 
             if (classPill) classPill.innerHTML = `<i class="fas fa-chalkboard"></i> ${escapeHtml(className)} • Sec ${escapeHtml(section)}`;
             if (countPill) {
-                const count = state.studentHomework.length;
-                countPill.innerHTML = `<i class="fas fa-circle-exclamation"></i> ${count} Incomplete`;
-                countPill.style.background = count > 0 ? '#fee2e2' : '#dcfce7';
-                countPill.style.color = count > 0 ? '#b91c1c' : '#166534';
-                countPill.style.borderColor = count > 0 ? '#fca5a5' : '#86efac';
+                if (defaulterCount > 0) {
+                    countPill.innerHTML = `<i class="fas fa-circle-exclamation"></i> ${defaulterCount} Incomplete${activeCount > 0 ? ` • ${activeCount} Active` : ''}`;
+                    countPill.style.background = '#fee2e2';
+                    countPill.style.color = '#b91c1c';
+                    countPill.style.borderColor = '#fca5a5';
+                } else {
+                    countPill.innerHTML = `<i class="fas fa-layer-group"></i> ${state.studentHomework.length} Active Tasks`;
+                    countPill.style.background = 'var(--sp-primary-light)';
+                    countPill.style.color = 'var(--sp-primary)';
+                    countPill.style.borderColor = 'transparent';
+                }
             }
             if (subtitle) {
-                subtitle.textContent = state.studentHomework.length > 0
-                    ? `You have ${state.studentHomework.length} incomplete homework assignment(s) marked by your subject teachers.`
-                    : `All caught up! No incomplete or defaulted homework assignments for your class.`;
+                if (defaulterCount > 0) {
+                    subtitle.textContent = `You have ${defaulterCount} incomplete homework assignment(s) marked by your subject teachers.`;
+                } else if (state.studentHomework.length > 0) {
+                    subtitle.textContent = `Active assignment reference cards for ${className} • Section ${section}.`;
+                } else {
+                    subtitle.textContent = `All caught up! No active or incomplete homework assignments for your class.`;
+                }
             }
 
             // Dynamic Subject Chips
@@ -2178,23 +2209,66 @@
                     <div class="hw-empty-state">
                         <div class="hw-empty-icon" style="background:#dcfce7; color:#166534;"><i class="fas fa-circle-check"></i></div>
                         <h3>All Caught Up!</h3>
-                        <p>${state.studentHomework.length === 0 ? "You have no incomplete or defaulted homework assignments. Great job!" : "No incomplete homework matches your selected subject or search filter."}</p>
+                        <p>${state.studentHomework.length === 0 ? "You have no active or incomplete homework assignments for your class." : "No homework matches your selected subject or search filter."}</p>
                     </div>
                 `;
                 return;
             }
 
             grid.innerHTML = filtered.map(hw => {
+                const isDefaulter = !!(hw.defaultersReviewed && hw.defaulters && hw.defaulters[curUid]);
+                const dueMeta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
                 const displayDue = formatDisplayDate(hw.dueDate, hw.dueTime);
 
+                // DEFAULTER CARD: Red border, "You have not completed this homework" banner, NO buttons (detail only)
+                if (isDefaulter) {
+                    return `
+                        <div class="hw-card hw-card-defaulter" data-id="${hw.id}" style="border: 2px solid #ef4444; background: #fffcfc; border-radius: 14px; box-shadow: 0 4px 16px rgba(239, 68, 68, 0.12); padding: 18px 20px;">
+                            <div class="hw-card-top">
+                                <div class="hw-badge-subject">
+                                    <i class="fas fa-book"></i> ${escapeHtml(hw.subject || 'Subject')}
+                                </div>
+                                <span class="hw-tag-status danger" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-weight:800; font-size:0.75rem;">
+                                    <i class="fas fa-triangle-exclamation"></i> Incomplete / Defaulter
+                                </span>
+                            </div>
+
+                            <div style="background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:10px 14px; border-radius:8px; font-weight:700; font-size:0.85rem; display:flex; align-items:center; gap:8px; margin: 12px 0;">
+                                <i class="fas fa-circle-xmark" style="color:#dc2626; font-size:1.15rem; flex-shrink:0;"></i>
+                                <span>You have not completed this homework</span>
+                            </div>
+
+                            <h3 class="hw-card-title">${escapeHtml(hw.title)}</h3>
+                            
+                            <div class="hw-card-meta-row">
+                                <span class="hw-meta-item"><i class="fas fa-chalkboard-user"></i> ${escapeHtml(hw.teacherName || 'Subject Teacher')}</span>
+                                <span class="hw-meta-item"><i class="fas fa-calendar-xmark" style="color:#dc2626;"></i> Deadline was: ${displayDue}</span>
+                            </div>
+
+                            <div class="hw-card-desc">${escapeHtml(hw.description)}</div>
+
+                            ${hw.note ? `
+                                <div class="hw-card-note">
+                                    <i class="fas fa-circle-info"></i> <strong>Note:</strong> ${escapeHtml(hw.note)}
+                                </div>
+                            ` : ''}
+
+                            <div class="hw-card-footer" style="padding-top:12px; border-top:1px dashed #fecaca; font-size:0.76rem; color:#dc2626; font-weight:600; display:flex; align-items:center; gap:6px;">
+                                <i class="fas fa-circle-info"></i> Detail Reference Card • Please submit your pending homework to your teacher.
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // ACTIVE CARD: Normal detail reference card, NO buttons
                 return `
-                    <div class="hw-card incomplete-defaulter" data-id="${hw.id}" style="border-left: 4px solid #dc2626;">
+                    <div class="hw-card hw-card-active" data-id="${hw.id}">
                         <div class="hw-card-top">
                             <div class="hw-badge-subject">
                                 <i class="fas fa-book"></i> ${escapeHtml(hw.subject || 'Subject')}
                             </div>
-                            <span class="hw-tag-status danger" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-weight:700;">
-                                <i class="fas fa-triangle-exclamation"></i> Incomplete / Defaulter
+                            <span class="hw-tag-status ${dueMeta.cls}">
+                                ${dueMeta.label}
                             </span>
                         </div>
 
@@ -2213,10 +2287,8 @@
                             </div>
                         ` : ''}
 
-                        <div class="hw-card-footer" style="padding-top:12px; border-top:1px dashed var(--sp-border);">
-                            <span style="font-size:0.75rem; color:#dc2626; font-weight:600; display:flex; align-items:center; gap:6px;">
-                                <i class="fas fa-circle-exclamation"></i> Action Required: Complete and submit this assignment to your subject teacher.
-                            </span>
+                        <div class="hw-card-footer" style="padding-top:10px; border-top:1px solid var(--sp-border); color:var(--sp-text-muted); font-size:0.75rem; display:flex; align-items:center; gap:6px;">
+                            <i class="fas fa-circle-info" style="color:var(--sp-primary);"></i> Assigned task reference. Submit your work in class before the due date.
                         </div>
                     </div>
                 `;
