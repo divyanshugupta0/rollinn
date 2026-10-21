@@ -164,9 +164,11 @@
             renderStudentTimetable();
         } else if (tabId === 'tab-analytics') {
             renderSubjectAnalytics();
-        } else if (tabId === 'tab-idcard') {
-            renderDigitalId();
         } else if (tabId === 'tab-homework') {
+            const curUser = state.currentUser || window.currentUser;
+            if (curUser && (!state.studentHomework || state.studentHomework.length === 0)) {
+                initStudentHomeworkSync(curUser);
+            }
             renderStudentHomework();
         } else if (tabId === 'tab-profile') {
             renderProfileDetails();
@@ -1801,14 +1803,141 @@
     state.hwSearchQuery = '';
 
     function normSectionVal(val) {
-        return String(val || '').trim().replace(/^section\s+/i, '').toUpperCase();
+        if (!val) return '';
+        let s = String(val).trim().toUpperCase();
+        // Remove prefixes like "SECTION ", "SEC. ", "SEC ", "SEC-"
+        s = s.replace(/^(SECTION|SEC\.?)\s*[-:]?\s*/i, '').trim();
+        // Extract core alphanumeric identifier (e.g., "A" from "A - Science", "B" from "B1")
+        const m = s.match(/^[A-Z0-9]+/i);
+        return m ? m[0].toUpperCase() : s;
+    }
+
+    function extractGradeNumber(str) {
+        if (!str) return null;
+        const s = String(str).toLowerCase().trim();
+        if (/\b(xii|12th|12)\b/i.test(s)) return '12';
+        if (/\b(xi|11th|11)\b/i.test(s)) return '11';
+        if (/\b(x|10th|10)\b/i.test(s)) return '10';
+        if (/\b(ix|9th|9)\b/i.test(s)) return '9';
+        if (/\b(viii|8th|8)\b/i.test(s)) return '8';
+        if (/\b(vii|7th|7)\b/i.test(s)) return '7';
+        if (/\b(vi|6th|6)\b/i.test(s)) return '6';
+        if (/\b(v|5th|5)\b/i.test(s)) return '5';
+        if (/\b(iv|4th|4)\b/i.test(s)) return '4';
+        if (/\b(iii|3rd|3)\b/i.test(s)) return '3';
+        if (/\b(ii|2nd|2)\b/i.test(s)) return '2';
+        if (/\b(i|1st|1)\b/i.test(s)) return '1';
+        const m = s.match(/\d+/);
+        return m ? m[0] : null;
+    }
+
+    function isHomeworkMatch(hw, studentUser) {
+        if (!hw) return false;
+
+        // 1. Section matching
+        const hwSec = normSectionVal(hw.section || hw.normSection);
+        const stSec = normSectionVal(studentUser.section || studentUser.classSection || studentUser.assignedSection || state.currentUser?.section);
+
+        // If homework explicitly specifies a section and student has a section, they must match unless ALL
+        if (hwSec && stSec && hwSec !== 'ALL' && hwSec !== stSec) {
+            return false;
+        }
+
+        // 2. Direct Class / Course ID matching (authoritative)
+        const studentIds = [
+            studentUser.classId,
+            studentUser.enrolledClassId,
+            studentUser.courseId,
+            state.currentUser?.classId,
+            state.currentUser?.enrolledClassId,
+            state.currentUser?.courseId
+        ].filter(Boolean).map(x => String(x).toLowerCase().trim());
+
+        const hwIds = [
+            hw.classId,
+            hw.courseId
+        ].filter(Boolean).map(x => String(x).toLowerCase().trim());
+
+        if (hwIds.length > 0 && studentIds.length > 0) {
+            const idMatched = hwIds.some(hId => studentIds.includes(hId));
+            if (idMatched) return true;
+        }
+
+        // 3. Class Name matching
+        const studentNames = [
+            studentUser.className,
+            studentUser.courseName,
+            studentUser.course,
+            studentUser.class,
+            studentUser.assignedClass,
+            state.currentUser?.className,
+            state.currentUser?.courseName,
+            state.currentUser?.course,
+            state.currentUser?.class
+        ].filter(Boolean).map(x => String(x).toLowerCase().trim());
+
+        const hwName = String(hw.className || hw.courseName || '').toLowerCase().trim();
+
+        // If neither specifies a class constraint, allow by section
+        if (!hwName && hwIds.length === 0) return true;
+        if (studentNames.length === 0 && studentIds.length === 0) return true;
+
+        if (hwName && studentNames.length > 0) {
+            // Direct equality or substring containment
+            const directMatch = studentNames.some(stName => {
+                if (stName === hwName) return true;
+                if (stName.includes(hwName) || hwName.includes(stName)) return true;
+                return false;
+            });
+            if (directMatch) return true;
+
+            // Grade number / Roman numeral matching (e.g. "Class 10" vs "Grade 10" vs "10th" vs "10")
+            const hwGrade = extractGradeNumber(hwName);
+            if (hwGrade) {
+                const gradeMatch = studentNames.some(stName => {
+                    const stGrade = extractGradeNumber(stName);
+                    return stGrade && stGrade === hwGrade;
+                });
+                if (gradeMatch) return true;
+            }
+
+            // Word token match for college courses (e.g., "Computer Science" vs "B.Tech CSE")
+            const cleanTokens = str => str.replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(t => t.length > 2);
+            const hwTokens = cleanTokens(hwName);
+            const tokenMatch = studentNames.some(stName => {
+                const stTokens = cleanTokens(stName);
+                return hwTokens.some(ht => stTokens.includes(ht));
+            });
+            if (tokenMatch) return true;
+        }
+
+        // Fallback: If section matches and hw has generic/open class label
+        if (hwSec && stSec && hwSec === stSec) {
+            if (!hwName || hwName === 'class' || hwName === 'all' || hwName === 'general') return true;
+            if (studentNames.length === 0) return true;
+        }
+
+        return false;
     }
 
     function initStudentHomeworkSync(user) {
         if (!user || !window.firebase?.database) return;
         const db = firebase.database();
-        const schoolId = user.schoolId || state.currentUser?.schoolId;
-        if (!schoolId) return;
+        const schoolId = user.schoolId || state.currentUser?.schoolId || window.currentUser?.schoolId;
+        
+        // If schoolId is not yet available, fetch directly from users/${uid}
+        if (!schoolId) {
+            if (user.uid) {
+                db.ref(`users/${user.uid}/schoolId`).once('value', snap => {
+                    const sid = snap.val();
+                    if (sid) {
+                        if (state.currentUser) state.currentUser.schoolId = sid;
+                        initStudentHomeworkSync({ ...user, schoolId: sid });
+                    }
+                });
+            }
+            return;
+        }
 
         // 1. Sync student's personal completion status (RTDB + localStorage)
         const localCacheKey = `rollcall_hw_completed_${user.uid}`;
@@ -1831,38 +1960,17 @@
         // 2. Realtime listener on schoolHomework
         db.ref(`schoolHomework/${schoolId}`).on('value', snapshot => {
             const data = snapshot.val() || {};
-            const studentSec = normSectionVal(user.section || user.classSection || user.assignedSection || state.currentUser?.section);
-            const studentClassId = String(user.courseId || user.classId || state.currentUser?.courseId || '').toLowerCase();
-            const studentClassName = String(user.courseName || user.className || state.currentUser?.courseName || '').toLowerCase();
+            const curStudent = {
+                ...state.currentUser,
+                ...window.currentUser,
+                ...user
+            };
 
-            // Filter for student's class and section
+            // Filter for student's class and section using resilient matching
             state.studentHomework = Object.entries(data).map(([id, item]) => ({
                 id,
                 ...item
-            })).filter(hw => {
-                const hwSec = normSectionVal(hw.section || hw.normSection);
-                // Section match: if hw has section, must match student's section or be ALL
-                if (hwSec && studentSec && hwSec !== 'ALL' && hwSec !== studentSec) {
-                    return false;
-                }
-
-                // Class match: if hw has classId or className, verify against student
-                const hwClassId = String(hw.classId || '').toLowerCase();
-                const hwClassName = String(hw.className || '').toLowerCase();
-
-                if (hwClassId && studentClassId && hwClassId === studentClassId) {
-                    return true;
-                }
-                if (hwClassName && studentClassName && (hwClassName === studentClassName || studentClassName.includes(hwClassName) || hwClassName.includes(studentClassName))) {
-                    return true;
-                }
-                // If neither specified or both match
-                if (!hwClassId && !hwClassName) return true;
-                if (!studentClassId && !studentClassName) return true;
-
-                // If section matched and no rigid clash
-                return !studentClassId || !hwClassId;
-            }).sort((a, b) => {
+            })).filter(hw => isHomeworkMatch(hw, curStudent)).sort((a, b) => {
                 const dueA = new Date(`${a.dueDate}T${a.dueTime || '23:59'}`).getTime() || 0;
                 const dueB = new Date(`${b.dueDate}T${b.dueTime || '23:59'}`).getTime() || 0;
                 return dueA - dueB; // earliest due first
@@ -2143,7 +2251,7 @@
             const isActive = state.activeHwSubject.toLowerCase() === sub.toLowerCase();
             html += `
                 <button type="button" class="hw-subject-chip ${isActive ? 'active' : ''}" data-subject="${escapeHtml(sub)}">
-                    <i class="fas fa-book-bookmark"></i> ${escapeHtml(sub)}
+                    <i class="fas fa-book"></i> ${escapeHtml(sub)}
                 </button>
             `;
         });
