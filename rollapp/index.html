@@ -178,10 +178,6 @@
             background: linear-gradient(135deg, #059669 0%, #10b981 100%);
         }
 
-        .portal-card.owner::before {
-            background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
-        }
-
         .portal-card.student::before {
             background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
         }
@@ -210,11 +206,6 @@
         .portal-card.teacher .card-icon-wrap {
             background: rgba(16, 185, 129, 0.12);
             color: #059669;
-        }
-
-        .portal-card.owner .card-icon-wrap {
-            background: rgba(245, 158, 11, 0.12);
-            color: #d97706;
         }
 
         .portal-card.student .card-icon-wrap {
@@ -250,8 +241,137 @@
             transition: gap 0.2s ease;
         }
 
+        .card-content-wrap {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
         .portal-card:hover .card-action {
             gap: 12px;
+        }
+
+        /* Minimized UI for mobile devices */
+        @media (max-width: 680px) {
+            header {
+                padding: 12px 16px;
+            }
+
+            .brand {
+                gap: 10px;
+            }
+
+            .brand-logo {
+                width: 36px;
+                height: 36px;
+                border-radius: 10px;
+                font-size: 1.05rem;
+            }
+
+            .brand-title {
+                font-size: 1.1rem;
+            }
+
+            .brand-subtitle {
+                font-size: 0.7rem;
+            }
+
+            .status-badge {
+                font-size: 0.72rem !important;
+                padding: 3px 8px;
+                background: rgba(16, 185, 129, 0.1);
+                border-radius: 12px;
+            }
+
+            main {
+                padding: 20px 14px 32px;
+            }
+
+            .hero {
+                margin-bottom: 20px;
+            }
+
+            .hero-badge {
+                font-size: 0.72rem;
+                padding: 3px 10px;
+                margin-bottom: 8px;
+            }
+
+            .hero h1 {
+                font-size: 1.45rem;
+                letter-spacing: -0.02em;
+                margin-bottom: 6px;
+            }
+
+            .hero p {
+                font-size: 0.85rem;
+                line-height: 1.4;
+            }
+
+            .portal-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .portal-card {
+                padding: 12px 14px;
+                border-radius: 14px;
+                flex-direction: row;
+                align-items: center;
+                gap: 12px;
+                box-shadow: 0 2px 10px -2px rgba(15, 23, 42, 0.06);
+            }
+
+            .portal-card::before {
+                top: 0;
+                bottom: 0;
+                left: 0;
+                width: 4px;
+                height: 100%;
+                opacity: 1;
+            }
+
+            .card-icon-wrap {
+                width: 44px;
+                height: 44px;
+                min-width: 44px;
+                border-radius: 12px;
+                font-size: 1.2rem;
+                margin-bottom: 0;
+            }
+
+            .card-title {
+                font-size: 1rem;
+                margin-bottom: 2px;
+            }
+
+            .card-title .card-arrow {
+                font-size: 0.85rem;
+                color: var(--slate-500);
+            }
+
+            .card-desc {
+                font-size: 0.76rem;
+                line-height: 1.35;
+                margin-bottom: 0;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+
+            .card-action {
+                display: none;
+            }
+
+            .portal-card:active {
+                transform: scale(0.985);
+            }
+
+            footer {
+                padding: 16px;
+                font-size: 0.75rem;
+            }
         }
 
         footer {
@@ -276,14 +396,14 @@
                 <div class="brand-subtitle">Smart Attendance Ecosystem</div>
             </div>
         </div>
-        <div style="font-size: 0.85rem; font-weight: 600; color: #10b981;">
+        <div class="status-badge" style="font-size: 0.85rem; font-weight: 600; color: #10b981;">
             <i class="fas fa-circle" style="font-size: 0.6rem; margin-right: 6px;"></i>System Active
         </div>
     </header>
 
     <main>
         <div class="hero">
-            <div class="hero-badge"><i class="fas fa-th-large"></i> rollapp Suite</div>
+            <div class="hero-badge"><i class="fas fa-th-large"></i> RollCall Suite</div>
             <h1>Select Your Workspace Portal</h1>
             <p>Access attendance records, manage geo-fences, view analytics, and control class sessions securely.</p>
         </div>
@@ -293,12 +413,13 @@
                 <div class="card-icon-wrap">
                     <i class="fas fa-user-shield"></i>
                 </div>
-                <div class="card-title">
-                    <span>Admin Panel</span>
-                    <i class="fas fa-arrow-right"></i>
+                <div class="card-content-wrap">
+                    <div class="card-title">
+                        <span>Admin Panel</span>
+                        <i class="fas fa-arrow-right card-arrow"></i>
+                    </div>
+                    <div class="card-desc">Attendance logs, location mapping, device locks, and user permissions.</div>
                 </div>
-                <div class="card-desc">Redesigned Enterprise Dashboard with attendance logs, location mapping, device
-                    locks, and user permissions.</div>
                 <div class="card-action">Open Admin Dashboard <i class="fas fa-arrow-right"></i></div>
             </a>
 
@@ -306,38 +427,27 @@
                 <div class="card-icon-wrap">
                     <i class="fas fa-chalkboard-teacher"></i>
                 </div>
-                <div class="card-title">
-                    <span>Teacher Portal</span>
-                    <i class="fas fa-arrow-right"></i>
+                <div class="card-content-wrap">
+                    <div class="card-title">
+                        <span>Teacher Portal</span>
+                        <i class="fas fa-arrow-right card-arrow"></i>
+                    </div>
+                    <div class="card-desc">Live class sessions, attendance verification, statistics, and timetables.</div>
                 </div>
-                <div class="card-desc">Initiate live class sessions, verify attendance codes, monitor statistics, and
-                    manage student timetables.</div>
                 <div class="card-action">Open Teacher Portal <i class="fas fa-arrow-right"></i></div>
-            </a>
-
-            <a href="owner/owner.html" class="portal-card owner">
-                <div class="card-icon-wrap">
-                    <i class="fas fa-building-columns"></i>
-                </div>
-                <div class="card-title">
-                    <span>Owner Portal</span>
-                    <i class="fas fa-arrow-right"></i>
-                </div>
-                <div class="card-desc">Institution registration, school analytics, subscription billing, and
-                    multi-tenant administrator setup.</div>
-                <div class="card-action">Open Owner Portal <i class="fas fa-arrow-right"></i></div>
             </a>
 
             <a href="student/index.html" class="portal-card student">
                 <div class="card-icon-wrap">
                     <i class="fas fa-user-graduate"></i>
                 </div>
-                <div class="card-title">
-                    <span>Student Attendance</span>
-                    <i class="fas fa-arrow-right"></i>
+                <div class="card-content-wrap">
+                    <div class="card-title">
+                        <span>Student Attendance</span>
+                        <i class="fas fa-arrow-right card-arrow"></i>
+                    </div>
+                    <div class="card-desc">Real-time GPS geofenced check-in, QR scanning, and face attendance.</div>
                 </div>
-                <div class="card-desc">Real-time GPS geofenced check-in, QR scanning, and face recognition attendance
-                    registration.</div>
                 <div class="card-action">Open Student Portal <i class="fas fa-arrow-right"></i></div>
             </a>
         </div>
