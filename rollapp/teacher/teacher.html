@@ -5226,7 +5226,16 @@
             Promise.all((activeClasses || []).map(classData => firebase.database().ref(`attendance_by_location/${classData.id}/${today}`).once('value')))
                 .then((snapshots) => {
                     let presentCount = 0;
-                    snapshots.forEach(snapshot => { const record = snapshot.val(); if (!record || !record._meta || record._meta.schoolId !== currentTeacher.schoolId) return; Object.keys(record).forEach(key => { if (!key.startsWith('_') && record[key] === 'present') presentCount++; }); });
+                    snapshots.forEach(snapshot => { 
+                        const record = snapshot.val(); 
+                        if (!record || !record._meta || record._meta.schoolId !== currentTeacher.schoolId) return; 
+                        Object.keys(record).forEach(key => { 
+                            if (!key.startsWith('_')) {
+                                const st = (typeof record[key] === 'object' && record[key] !== null) ? record[key].status : record[key];
+                                if (st === 'present') presentCount++;
+                            }
+                        }); 
+                    });
                     
                     document.getElementById('todayPresentCount').textContent = presentCount;
                     

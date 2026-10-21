@@ -7602,7 +7602,23 @@
                                                 continue;
                                             }
 
-                                            const studentKeys = Object.keys(locationAttendance).filter(k => k !== '_meta' && !k.startsWith('_'));
+                                            // Clean up phantom undefined/null keys from Firebase
+                                            if (locationAttendance['undefined']) {
+                                                try { remove(ref(database, `attendance_by_location/${locationId}/${date}/undefined`)); } catch (e) {}
+                                            }
+                                            if (locationAttendance['null']) {
+                                                try { remove(ref(database, `attendance_by_location/${locationId}/${date}/null`)); } catch (e) {}
+                                            }
+
+                                            const studentKeys = Object.keys(locationAttendance).filter(k => 
+                                                k && 
+                                                k !== '_meta' && 
+                                                !k.startsWith('_') && 
+                                                k !== 'undefined' && 
+                                                k !== 'null' && 
+                                                k !== 'NaN' && 
+                                                k.trim() !== ''
+                                            );
                                             if (studentKeys.length > 0 || meta) {
                                                 const sessionName = resolveSessionName(locationId, meta);
 
@@ -7624,8 +7640,14 @@
                                                 }
 
                                                 for (const userId of studentKeys) {
+                                                    if (!userId || userId === 'undefined' || userId === 'null' || !userId.trim()) continue;
                                                     const rawRecord = locationAttendance[userId];
                                                     if (!rawRecord) continue;
+
+                                                    // Skip ghost entries without a student profile or recorded student name in School Mode
+                                                    if (isSchoolMode && !users[userId] && (typeof rawRecord !== 'object' || (!rawRecord?.userName && !rawRecord?.name && !rawRecord?.userEmail))) {
+                                                        continue;
+                                                    }
 
                                                     let record = {};
                                                     if (typeof rawRecord === 'string') {
@@ -7966,14 +7988,24 @@
 
             const filteredUserIds = [];
             for (const userId in locationData.records) {
+                if (!userId || userId === 'undefined' || userId === 'null' || userId === 'NaN' || !userId.trim() || userId.startsWith('_')) {
+                    continue;
+                }
                 const record = locationData.records[userId];
                 const user = users[userId] || {};
+
+                // Skip phantom records with no profile in DB and no student name
+                if (isSchool && !users[userId] && !record?.userName && !record?.name && !record?.userEmail) {
+                    continue;
+                }
+
                 const sectionInfo = collectSectionValues(user.section, record.section, record.userSection);
                 if (!sectionMatchesFilter(sectionInfo.keys, filterKey)) {
                     continue;
                 }
 
-                const recordStatus = (record?.status || 'present').toString().toLowerCase();
+                const rawStatus = (typeof record === 'object' && record !== null) ? record.status : record;
+                const recordStatus = (rawStatus || 'present').toString().toLowerCase();
                 if (recordStatus === 'absent') {
                     continue;
                 }
@@ -8002,7 +8034,7 @@
                         <thead>
                             <tr>
                                 <th>Student Details</th>
-                                <th>Roll Numbers</th>
+                                <th>${isSchool ? 'Roll No' : 'Roll Numbers'}</th>
                                 <th>Time</th>
                                 <th>${isSchool ? 'Method' : 'Device'}</th>
                                 <th>Status</th>
@@ -8056,9 +8088,18 @@
                 }
 
                 // --- FIX FOR ROLL NUMBER DISPLAY ---
-                // Explicitly check for classRoll and univRoll
-                const classRoll = user.classRoll ? `CR: ${user.classRoll}` : 'CR: N/A';
-                const univRoll = user.univRoll ? `UR: ${user.univRoll}` : 'UR: N/A';
+                let rollHtml = '';
+                if (isSchool) {
+                    const rollVal = user.classRoll || user.rollNo || user.rollNumber || record.rollNo || 'N/A';
+                    rollHtml = `<div style="font-weight: 600; color: #374151; font-size: 0.9rem;">${rollVal}</div>`;
+                } else {
+                    const classRoll = user.classRoll ? `CR: ${user.classRoll}` : 'CR: N/A';
+                    const univRoll = user.univRoll ? `<div style="font-size: 0.8rem; color: #6b7280;">UR: ${user.univRoll}</div>` : '';
+                    rollHtml = `
+                        <div style="font-weight: 600; color: #374151; font-size: 0.9rem;">${classRoll}</div>
+                        ${univRoll}
+                    `;
+                }
 
                 filteredCount++;
                 html += `<tr>
@@ -8073,8 +8114,7 @@
                     </td>
                     <td>
                         <div style="display: flex; flex-direction: column; justify-content: center;">
-                            <div style="font-weight: 600; color: #374151; font-size: 0.9rem;">${classRoll}</div>
-                            <div style="font-size: 0.8rem; color: #6b7280;">${univRoll}</div>
+                            ${rollHtml}
                         </div>
                     </td>
                     <td style="font-weight: 500; vertical-align: middle;">${record.time || '--'}</td>
