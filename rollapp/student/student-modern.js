@@ -1452,32 +1452,29 @@
             val = val.name || val.room || val.cabin || val.location || val.title || 'Staff Room';
         }
         let s = String(val).trim();
-        if (s.includes('{') || s.includes('}')) {
-            try {
-                const parsed = JSON.parse(s);
-                if (typeof parsed === 'object' && parsed !== null) {
-                    s = parsed.name || parsed.room || parsed.cabin || parsed.location || 'Staff Room';
-                }
-            } catch (e) {
-                s = s.replace(/[{}\[\]"']/g, '').trim();
-            }
+        // 1. Strip any HTML tags
+        s = s.replace(/<[^>]*>/g, ' ');
+        // 2. Decode or strip HTML entities and punctuation/symbols
+        s = s.replace(/&(quot|amp|lt|gt|#39|#x27);/gi, ' ').replace(/["'<>{}();\\]/g, ' ');
+        s = s.replace(/\s+/g, ' ').trim();
+
+        // 3. If it contains "staff" anywhere, it is Staff Room!
+        if (/staff/i.test(s)) {
+            return 'Staff Room';
         }
-        // Strip accidental punctuation, braces, quotes, prefixes like R{;}, Room:, Cabin:
-        s = s.replace(/^[\s\r\n\t"'{};:,]+/, '')
-             .replace(/[\s\r\n\t"'{};:,]+$/, '')
-             .trim();
-        s = s.replace(/^(room|cabin|office|location|loc|r)[\s:.-]+/i, '').trim();
-        s = s.replace(/^["']+|["']+$/g, '').trim();
+
+        // 4. Clean up any leading "Room", "Cabin", "Office", "R"
+        s = s.replace(/^(room|cabin|office|location|loc|r)[\s:.-]*/i, '').trim();
 
         if (!s || s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null') {
             return 'Staff Room';
         }
+
+        // 5. If it's a number/code like "101" or "B2", format as "Room 101"
         if (/^\d+[A-Z]?$/i.test(s)) {
             return `Room ${s}`;
         }
-        if (s.toLowerCase() === 'staff room' || s.toLowerCase() === 'staffroom') {
-            return 'Staff Room';
-        }
+
         return s;
     }
 
@@ -1550,8 +1547,8 @@
                     </div>
                 </div>
                 <div class="ct-details-chips">
-                    ${cabin ? `<span class="ct-chip ct-chip-location" title="Staff Room / Faculty Lounge: ${cabin}"><i class="fas fa-school"></i> ${cabin}</span>` : ''}
-                    ${subject ? `<span class="ct-chip ct-chip-subject" title="Subject: ${subject}"><i class="fas fa-book-open"></i> ${subject}</span>` : ''}
+                    ${cabin ? `<span class="ct-chip ct-chip-location"><i class="fas fa-school"></i> ${cabin}</span>` : ''}
+                    ${subject ? `<span class="ct-chip ct-chip-subject"><i class="fas fa-book-open"></i> ${subject}</span>` : ''}
                     ${email ? `<a href="mailto:${email}" class="ct-chip ct-chip-email ct-chip-interactive" title="Send email to ${email}"><i class="fas fa-envelope"></i> ${email}</a>` : ''}
                     ${phone ? `<a href="tel:${phone}" class="ct-chip ct-chip-phone ct-chip-interactive" title="Call ${phone}"><i class="fas fa-phone"></i> ${escapeHtml(formatPhoneNumber(phone))}</a>` : ''}
                 </div>
