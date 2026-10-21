@@ -6501,8 +6501,12 @@
             logout();
         });
 
+        let lastClassesRefresh = 0;
         if (refreshClassesBtn) {
             refreshClassesBtn.addEventListener('click', () => {
+                const now = Date.now();
+                if (now - lastClassesRefresh < 4000) return;
+                lastClassesRefresh = now;
                 refreshClasses();
             });
         }

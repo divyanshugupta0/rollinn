@@ -1033,45 +1033,94 @@
     }
     window.renderTodaySchedule = renderTodayScheduleFromDB;
 
+    /* ==========================================================================
+       Rate Limiter Utility for Refresh Actions
+       ========================================================================== */
+    const refreshCooldownMap = new Map();
+
+    function withRateLimit(btnElement, cooldownMs = 4000, actionLabel = 'Refresh', onAllowed) {
+        if (!btnElement) return;
+        const key = btnElement.id || actionLabel;
+        const now = Date.now();
+        const lastCall = refreshCooldownMap.get(key) || 0;
+        const elapsed = now - lastCall;
+
+        if (elapsed < cooldownMs) {
+            const secondsLeft = Math.ceil((cooldownMs - elapsed) / 1000);
+            showModernToast(`Please wait ${secondsLeft}s before refreshing ${actionLabel.toLowerCase()} again.`, 'warning', 1800);
+            return;
+        }
+
+        refreshCooldownMap.set(key, now);
+
+        const icon = btnElement.querySelector('i');
+        if (icon) icon.classList.add('fa-spin');
+        btnElement.classList.add('refresh-cooldown');
+        btnElement.setAttribute('aria-disabled', 'true');
+
+        const release = () => {
+            const passed = Date.now() - now;
+            const remaining = Math.max(0, cooldownMs - passed);
+            setTimeout(() => {
+                btnElement.classList.remove('refresh-cooldown');
+                btnElement.removeAttribute('aria-disabled');
+                if (icon) icon.classList.remove('fa-spin');
+            }, remaining);
+        };
+
+        try {
+            const res = onAllowed();
+            if (res && typeof res.then === 'function') {
+                res.finally(() => {
+                    release();
+                });
+            } else {
+                release();
+            }
+        } catch (err) {
+            release();
+            throw err;
+        }
+    }
+
     function initTodayScheduleControls() {
         const refreshBtn = document.getElementById('refresh-classes-btn');
         if (refreshBtn && !refreshBtn.dataset.listenerBound) {
             refreshBtn.dataset.listenerBound = 'true';
-            refreshBtn.addEventListener('click', async () => {
-                const icon = refreshBtn.querySelector('i');
-                if (icon) icon.classList.add('fa-spin');
-                try {
-                    if (window.firebase?.database && state.currentUser?.uid) {
-                        const db = firebase.database();
-                        const uid = state.currentUser.uid;
-                        const schoolId = state.currentUser.schoolId;
-                        const todayKey = getTodayDateString();
-                        const promises = [
-                            db.ref('locations').once('value'),
-                            db.ref('attendance_by_location').once('value'),
-                            db.ref(`user_attendance/${uid}/${todayKey}`).once('value')
-                        ];
-                        if (schoolId) {
-                            promises.push(db.ref(`schoolTimetableSettings/${schoolId}`).once('value'));
-                            promises.push(db.ref(`schoolTimetables/${schoolId}`).once('value'));
+            refreshBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                withRateLimit(refreshBtn, 4000, 'Schedule', async () => {
+                    try {
+                        if (window.firebase?.database && state.currentUser?.uid) {
+                            const db = firebase.database();
+                            const uid = state.currentUser.uid;
+                            const schoolId = state.currentUser.schoolId;
+                            const todayKey = getTodayDateString();
+                            const promises = [
+                                db.ref('locations').once('value'),
+                                db.ref('attendance_by_location').once('value'),
+                                db.ref(`user_attendance/${uid}/${todayKey}`).once('value')
+                            ];
+                            if (schoolId) {
+                                promises.push(db.ref(`schoolTimetableSettings/${schoolId}`).once('value'));
+                                promises.push(db.ref(`schoolTimetables/${schoolId}`).once('value'));
+                            }
+                            const results = await Promise.all(promises);
+                            state.locations = results[0].val() || {};
+                            state.attendanceByLocation = results[1].val() || {};
+                            state.userAttendanceToday = results[2].val() || {};
+                            if (results[3]) state.timetableSettings = results[3].val() || {};
+                            if (results[4]) state.schoolTimetables = results[4].val() || {};
                         }
-                        const results = await Promise.all(promises);
-                        state.locations = results[0].val() || {};
-                        state.attendanceByLocation = results[1].val() || {};
-                        state.userAttendanceToday = results[2].val() || {};
-                        if (results[3]) state.timetableSettings = results[3].val() || {};
-                        if (results[4]) state.schoolTimetables = results[4].val() || {};
+                        await renderTodayScheduleFromDB();
+                        loadStudentAttendanceRecords();
+                        showModernToast("Schedule refreshed successfully", "success", 1800);
+                    } catch (err) {
+                        console.error("Error refreshing schedule:", err);
+                        renderTodayScheduleFromDB();
+                        showModernToast("Schedule updated", "info", 1800);
                     }
-                    await renderTodayScheduleFromDB();
-                    loadStudentAttendanceRecords();
-                    showModernToast("Schedule refreshed successfully", "success", 1800);
-                } catch (err) {
-                    console.error("Error refreshing schedule:", err);
-                    renderTodayScheduleFromDB();
-                    showModernToast("Schedule updated", "info", 1800);
-                } finally {
-                    if (icon) icon.classList.remove('fa-spin');
-                }
+                });
             });
         }
 
@@ -1285,15 +1334,12 @@
         const refreshBtn = document.getElementById('refresh-announcements-btn');
         if (refreshBtn && !refreshBtn.dataset.listenerBound) {
             refreshBtn.dataset.listenerBound = 'true';
-            refreshBtn.addEventListener('click', async () => {
-                const icon = refreshBtn.querySelector('i');
-                if (icon) icon.classList.add('fa-spin');
-                try {
+            refreshBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                withRateLimit(refreshBtn, 4000, 'Announcements', async () => {
                     loadFirebaseAnnouncements(true);
                     showModernToast("Announcements updated", "info", 1800);
-                } finally {
-                    setTimeout(() => { if (icon) icon.classList.remove('fa-spin'); }, 500);
-                }
+                });
             });
         }
     }
@@ -2438,7 +2484,9 @@
         if (refreshBtn) {
             refreshBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                loadAttendanceHistory(true);
+                withRateLimit(refreshBtn, 4000, 'Attendance Records', async () => {
+                    await loadAttendanceHistory(true);
+                });
             });
         }
 
@@ -2948,7 +2996,9 @@
         if (refreshBtn) {
             refreshBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                renderStudentTimetable(true);
+                withRateLimit(refreshBtn, 4000, 'Timetable', async () => {
+                    await renderStudentTimetable(true);
+                });
             });
         }
 
