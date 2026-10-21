@@ -3808,34 +3808,33 @@
                 <!-- ================= TAB 3: ATTENDANCE RECORDS (PROFESSIONAL REDESIGN) ================= -->
                 <section id="tab-history" class="student-tab-panel">
                     <div class="ar-panel-card">
-                        <!-- Card Header -->
-                        <div class="ar-card-header">
+                        <!-- Compact Minimal Card Header -->
+                        <div class="ar-card-header compact">
                             <div class="ar-header-left">
-                                <div class="ar-header-icon-box">
+                                <div class="ar-header-icon-box mini">
                                     <i class="fas fa-file-invoice"></i>
                                 </div>
-                                <div>
-                                    <h3 class="ar-panel-title">Attendance Records &amp; Logs</h3>
-                                    <p class="ar-panel-subtitle">
-                                        Verified attendance records across all lectures, labs, and automated roll calls.
-                                    </p>
+                                <div class="ar-header-titles">
+                                    <h3 class="ar-panel-title">Attendance Records</h3>
+                                    <span class="ar-panel-subtitle desktop-only">Verified ledger across lectures &amp; roll calls</span>
                                 </div>
                             </div>
-                            <div class="ar-header-actions">
-                                <span class="ar-live-pill">
-                                    <span class="ar-dot-pulse"></span> Live Sync
+                            <div class="ar-header-actions compact">
+                                <span class="ar-live-pill mini" title="Realtime Live Sync">
+                                    <span class="ar-dot-pulse"></span>
+                                    <span class="desktop-only">Live Sync</span>
                                 </span>
-                                <button type="button" class="ar-btn-secondary" id="ar-btn-refresh" title="Refresh attendance records">
-                                    <i class="fas fa-sync-alt"></i> Refresh
+                                <button type="button" class="ar-btn-icon" id="ar-btn-refresh" title="Refresh attendance records">
+                                    <i class="fas fa-sync-alt"></i>
                                 </button>
-                                <button type="button" class="ar-btn-secondary" id="ar-btn-export" title="Export CSV statement">
-                                    <i class="fas fa-file-arrow-down"></i> Export CSV
+                                <button type="button" class="ar-btn-icon" id="ar-btn-export" title="Export CSV statement">
+                                    <i class="fas fa-file-arrow-down"></i>
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Minimal KPI Stat Bar -->
-                        <div class="ar-kpi-bar">
+                        <!-- Minimal KPI Micro-Bar (Single Horizontal Row, Scrollable, Zero Waste) -->
+                        <div class="ar-kpi-bar compact">
                             <div class="ar-kpi-pill ar-kpi-total">
                                 <i class="fas fa-layer-group ar-kpi-icon-mini"></i>
                                 <span class="ar-kpi-label-mini">Total:</span>
@@ -3862,53 +3861,46 @@
                             </div>
                         </div>
 
-                        <!-- Filter Toolbar -->
-                        <div class="ar-filter-toolbar">
-                            <div class="ar-filter-row">
-                                <div class="ar-select-group">
-                                    <label class="ar-label" for="history-month"><i class="fas fa-calendar-day"></i> Month</label>
-                                    <select id="history-month" class="ar-select">
-                                        <option value="all">All Months</option>
-                                        <option value="0">January</option>
-                                        <option value="1">February</option>
-                                        <option value="2">March</option>
-                                        <option value="3">April</option>
-                                        <option value="4">May</option>
-                                        <option value="5">June</option>
-                                        <option value="6">July</option>
-                                        <option value="7">August</option>
-                                        <option value="8">September</option>
-                                        <option value="9">October</option>
-                                        <option value="10">November</option>
-                                        <option value="11">December</option>
-                                    </select>
+                        <!-- Streamlined Minimal Filter Toolbar -->
+                        <div class="ar-filter-toolbar compact">
+                            <div class="ar-filter-row compact">
+                                <div class="ar-search-wrap-compact">
+                                    <i class="fas fa-search ar-search-icon"></i>
+                                    <input type="text" id="ar-search-input" class="ar-search-input compact" placeholder="Search subject, date, teacher...">
                                 </div>
 
-                                <div class="ar-select-group">
-                                    <label class="ar-label" for="history-year"><i class="fas fa-calendar"></i> Year</label>
-                                    <select id="history-year" class="ar-select">
+                                <div class="ar-date-filter-group">
+                                    <select id="history-month" class="ar-select compact" title="Filter Month">
+                                        <option value="all">All Months</option>
+                                        <option value="0">Jan</option>
+                                        <option value="1">Feb</option>
+                                        <option value="2">Mar</option>
+                                        <option value="3">Apr</option>
+                                        <option value="4">May</option>
+                                        <option value="5">Jun</option>
+                                        <option value="6">Jul</option>
+                                        <option value="7">Aug</option>
+                                        <option value="8">Sep</option>
+                                        <option value="9">Oct</option>
+                                        <option value="10">Nov</option>
+                                        <option value="11">Dec</option>
+                                    </select>
+
+                                    <select id="history-year" class="ar-select compact" title="Filter Year">
                                         <!-- Populated dynamically -->
                                     </select>
-                                </div>
 
-                                <button type="button" id="load-history-btn" class="ar-apply-btn">
-                                    <i class="fas fa-filter"></i> Apply Filter
-                                </button>
-
-                                <div class="ar-search-group">
-                                    <label class="ar-label" for="ar-search-input"><i class="fas fa-magnifying-glass"></i> Search</label>
-                                    <div class="ar-search-input-wrap">
-                                        <i class="fas fa-search ar-search-icon"></i>
-                                        <input type="text" id="ar-search-input" class="ar-search-input" placeholder="Search subject, date, class...">
-                                    </div>
+                                    <button type="button" id="load-history-btn" class="ar-apply-btn compact" title="Apply Date Filter">
+                                        <i class="fas fa-filter"></i>
+                                    </button>
                                 </div>
                             </div>
 
-                            <div class="ar-quick-chips" id="ar-filter-chips">
-                                <button type="button" class="ar-chip active" data-filter="all">All Sessions</button>
-                                <button type="button" class="ar-chip" data-filter="present"><i class="fas fa-check"></i> Present</button>
-                                <button type="button" class="ar-chip" data-filter="absent"><i class="fas fa-times"></i> Absent</button>
-                                <button type="button" class="ar-chip" data-filter="late"><i class="fas fa-clock"></i> Late</button>
+                            <div class="ar-quick-chips compact" id="ar-filter-chips">
+                                <button type="button" class="ar-chip mini active" data-filter="all">All</button>
+                                <button type="button" class="ar-chip mini" data-filter="present"><i class="fas fa-check"></i> Present</button>
+                                <button type="button" class="ar-chip mini" data-filter="absent"><i class="fas fa-times"></i> Absent</button>
+                                <button type="button" class="ar-chip mini" data-filter="late"><i class="fas fa-clock"></i> Late</button>
                             </div>
                         </div>
 
