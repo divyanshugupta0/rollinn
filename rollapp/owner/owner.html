@@ -3280,6 +3280,11 @@
             document.getElementById('loginContainer').style.display = 'none';
             document.getElementById('appContent').style.display = 'block';
 
+            // Navigate to the correct panel based on the URL hash now that
+            // appContent is visible. Runs after every auth state change so
+            // a refresh on e.g. #playwright-runner lands on the right panel.
+            navigateToHash();
+
             // Update user name in header
             document.getElementById('loggedInUserName').textContent = user.email;
 
@@ -4079,13 +4084,16 @@
             }
         }
         // Make sure this runs on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            // Explicitly make dashboard visible
-            const dashboardSection = document.getElementById('dashboard');
-            if (dashboardSection) {
-                dashboardSection.style.display = 'block';
-            }
+        // Navigate to the section that matches window.location.hash.
+        // Called from showApp() so it only runs after auth + appContent is visible.
+        function navigateToHash() {
+            const hash = window.location.hash ? window.location.hash.substring(1) : '';
+            const target = hash && document.getElementById(hash) ? hash : 'dashboard';
+            switchSection(target);
+            if (target === 'analytics') initializeAnalyticsCharts();
+        }
 
+        document.addEventListener('DOMContentLoaded', () => {
             // Set up navigation click handlers
             const navLinks = document.querySelectorAll('.nav-link');
             navLinks.forEach(link => {
@@ -4093,15 +4101,19 @@
                     e.preventDefault();
                     const targetId = link.getAttribute('href').substring(1);
                     switchSection(targetId);
+                    // Keep URL hash in sync
+                    history.replaceState(null, '', `#${targetId}`);
 
-                    // Initialize charts if analytics section is selected
                     if (targetId === 'analytics') {
                         initializeAnalyticsCharts();
                     }
                 });
             });
 
+            // hashchange handles browser back/forward after login
+            window.addEventListener('hashchange', navigateToHash);
         });
+
 
         // Initialize analytics charts
         function initializeAnalyticsCharts() {

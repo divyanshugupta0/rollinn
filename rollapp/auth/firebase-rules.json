@@ -514,6 +514,50 @@
         ".read": "auth != null",
         ".write": "auth != null"
       }
+    },
+
+    "playwrightScripts": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('owners').child(auth.uid).exists()",
+      ".indexOn": ["targetPortal", "targetSchool", "isActive", "updatedAt", "executionMode"],
+      "$scriptId": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('owners').child(auth.uid).exists()"
+      }
+    },
+
+    "playwrightExecutions": {
+      ".read": "auth != null && root.child('owners').child(auth.uid).exists()",
+      ".write": "auth != null",
+      ".indexOn": ["scriptId", "portal", "status", "executedAt"],
+      "$scriptId": {
+        ".read": "auth != null && root.child('owners').child(auth.uid).exists()",
+        ".write": "auth != null",
+        "$executionId": {
+          ".read": "auth != null && root.child('owners').child(auth.uid).exists()",
+          ".write": "auth != null"
+        }
+      }
+    },
+
+    "parentDetails": {
+      ".read": "auth != null && root.child('owners').child(auth.uid).exists()",
+      ".write": "auth != null",
+      ".indexOn": ["submittedAt", "portal", "schoolId", "uid"],
+      "$entryId": {
+        ".read": "auth != null && root.child('owners').child(auth.uid).exists()",
+        ".write": "auth != null"
+      }
+    },
+
+    "playwrightFormSubmissions": {
+      ".read": "auth != null && root.child('owners').child(auth.uid).exists()",
+      ".write": "auth != null",
+      ".indexOn": ["submittedAt", "portal", "schoolId"],
+      "$entryId": {
+        ".read": "auth != null && root.child('owners').child(auth.uid).exists()",
+        ".write": "auth != null"
+      }
     }
   }
 }
