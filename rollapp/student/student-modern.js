@@ -37,6 +37,7 @@
         loadFirebaseAnnouncements();
         initAttendanceRecordsModule();
         initStudentTimetableModule();
+        loadClassTeacherInfo();
     });
 
     /* ==========================================================================
@@ -234,6 +235,7 @@
                 updateHeaderProfile(state.currentUser);
                 renderDigitalId();
                 renderProfileDetails();
+                loadClassTeacherInfo();
             }
         });
 
@@ -1340,6 +1342,177 @@
                     loadFirebaseAnnouncements(true);
                     showModernToast("Announcements updated", "info", 1800);
                 });
+            });
+        }
+    }
+
+    /* ==========================================================================
+       Class Teacher Section Module
+       ========================================================================== */
+    async function loadClassTeacherInfo() {
+        const container = document.getElementById('overview-class-teacher-body');
+        const profField = document.getElementById('prof-val-class-teacher');
+        if (!container && !profField) return;
+
+        const user = (state.currentUser && state.currentUser.uid)
+            ? state.currentUser
+            : (window.currentUser || (window.firebase?.auth && firebase.auth().currentUser) || {});
+        if (!user || !user.uid || !window.firebase?.database) return;
+
+        const db = firebase.database();
+        const schoolId = user.schoolId || state.currentUser?.schoolId || '';
+        const section = String(user.section || state.currentUser?.section || '').trim();
+        const classId = user.enrolledClassId || user.classId || state.currentUser?.enrolledClassId || state.currentUser?.classId || '';
+        const rawClassName = user.className || state.currentUser?.className || user.courseName || user.course || 'Class';
+        const className = formatClassDisplay(rawClassName, 'Class');
+
+        const sectionKey = value => Array.from(new TextEncoder().encode(String(value || '').trim()), byte => byte.toString(16).padStart(2, '0')).join('');
+
+        let teacherData = null;
+
+        try {
+            // 1. Try classTeacherAssignments/${schoolId}/${sectionKey(section)}
+            if (schoolId && section) {
+                const sKey = sectionKey(section);
+                const assignSnap = await db.ref(`classTeacherAssignments/${schoolId}/${sKey}`).once('value');
+                const assignVal = assignSnap.val();
+                if (assignVal && assignVal.teacherId) {
+                    teacherData = { ...assignVal };
+                }
+            }
+
+            // 2. Try classTeacherAssignmentsByClass/${schoolId}/${classId}
+            if (!teacherData && schoolId && classId) {
+                const byClassSnap = await db.ref(`classTeacherAssignmentsByClass/${schoolId}/${classId}`).once('value');
+                const byClassVal = byClassSnap.val() || {};
+                const sLower = section.toLowerCase();
+                for (const [k, val] of Object.entries(byClassVal)) {
+                    if (val && val.teacherId && (String(val.section || '').trim().toLowerCase() === sLower || k.includes(sLower))) {
+                        teacherData = { ...val };
+                        break;
+                    }
+                }
+            }
+
+            // 3. Fallback: Search users in school for classTeacher role matching this section
+            if (!teacherData && schoolId && section) {
+                const usersSnap = await db.ref('users').orderByChild('schoolId').equalTo(schoolId).once('value');
+                const usersVal = usersSnap.val() || {};
+                const sLower = section.toLowerCase();
+                for (const [uId, u] of Object.entries(usersVal)) {
+                    if (!u || u.role !== 'teacher') continue;
+                    const isCT = u.teacherType === 'classTeacher' || u.teacherRole === 'classTeacher' || u.classTeacherEnabled === true;
+                    if (!isCT) continue;
+                    const assignedSecs = Array.isArray(u.assignedSections)
+                        ? u.assignedSections
+                        : (u.classTeacherSections ? Object.keys(u.classTeacherSections) : [u.classTeacherSection]);
+                    if (assignedSecs.some(sec => String(sec || '').trim().toLowerCase() === sLower)) {
+                        teacherData = {
+                            teacherId: uId,
+                            teacherName: u.name || u.fullName,
+                            teacherEmail: u.email,
+                            teacherPhone: u.phone || u.mobile,
+                            subject: u.subject || u.specialization || u.department,
+                            cabin: u.cabin || u.room || u.office,
+                            avatar: u.profileImage || u.photoURL || u.avatar,
+                            section: section,
+                            className: className
+                        };
+                        break;
+                    }
+                }
+            }
+
+            // If teacherId is present, enrich with latest profile from users/${teacherId}
+            if (teacherData && teacherData.teacherId) {
+                const tSnap = await db.ref(`users/${teacherData.teacherId}`).once('value');
+                const tUser = tSnap.val() || {};
+                teacherData.name = tUser.name || tUser.fullName || teacherData.teacherName || 'Assigned Educator';
+                teacherData.email = tUser.email || teacherData.teacherEmail || '';
+                teacherData.phone = tUser.phone || tUser.mobile || teacherData.teacherPhone || '';
+                teacherData.subject = tUser.subject || tUser.specialization || tUser.department || teacherData.subject || '';
+                teacherData.cabin = tUser.cabin || tUser.room || tUser.office || teacherData.cabin || 'Staff Room';
+                teacherData.avatar = tUser.profileImage || tUser.photoURL || tUser.avatar || teacherData.avatar || '';
+            }
+
+        } catch (err) {
+            console.error('Error fetching class teacher info:', err);
+        }
+
+        renderClassTeacherCard(container, profField, teacherData, section, className);
+    }
+    window.loadClassTeacherInfo = loadClassTeacherInfo;
+
+    function renderClassTeacherCard(container, profField, teacher, section, className) {
+        if (profField) {
+            if (teacher && teacher.name) {
+                profField.innerHTML = `<strong>${escapeHtml(teacher.name)}</strong>${teacher.subject ? ` <span style="font-size:0.75rem; color:var(--sp-text-muted);">(${escapeHtml(teacher.subject)})</span>` : ''}`;
+            } else {
+                profField.textContent = 'Not Assigned Yet';
+            }
+        }
+
+        if (!container) return;
+
+        if (!teacher || !teacher.name) {
+            container.innerHTML = `
+                <div class="empty-state" style="text-align: center; padding: 14px 10px; color: var(--sp-text-muted);">
+                    <i class="fas fa-user-clock" style="font-size: 1.4rem; margin-bottom: 6px; display: block; color: var(--sp-warning);"></i>
+                    <div style="font-size: 0.82rem; font-weight: 600;">No Class Teacher Assigned</div>
+                    <div style="font-size: 0.72rem; margin-top: 2px;">Your section ${escapeHtml(section || '')} does not have a designated class mentor yet.</div>
+                </div>
+            `;
+            return;
+        }
+
+        const name = escapeHtml(teacher.name);
+        const email = escapeHtml(teacher.email || '');
+        const phone = escapeHtml(teacher.phone || '');
+        const subject = escapeHtml(teacher.subject || '');
+        const cabin = escapeHtml(teacher.cabin || '');
+        const avatar = teacher.avatar || 'https://cdn.pixabay.com/photo/2016/11/14/17/39/person-1824144_960_720.png';
+        const secLabel = escapeHtml(section ? `Sec ${section}` : 'General');
+        const clsLabel = escapeHtml(className || 'Class');
+
+        container.innerHTML = `
+            <div class="class-teacher-card-content">
+                <div class="ct-header-row">
+                    <div class="ct-avatar-wrap">
+                        <img src="${avatar}" alt="${name}" class="ct-avatar-img" onerror="this.src='https://cdn.pixabay.com/photo/2016/11/14/17/39/person-1824144_960_720.png'">
+                        <span class="ct-badge-dot" title="Assigned Class Mentor"></span>
+                    </div>
+                    <div class="ct-info">
+                        <h4 class="ct-name">${name}</h4>
+                        <div class="ct-role">Class Teacher • ${clsLabel} (${secLabel})</div>
+                    </div>
+                </div>
+                <div class="ct-details-chips">
+                    ${subject ? `<span class="ct-chip"><i class="fas fa-book-open"></i> ${subject}</span>` : ''}
+                    ${cabin ? `<span class="ct-chip"><i class="fas fa-door-open"></i> ${cabin}</span>` : ''}
+                    ${email ? `<a href="mailto:${email}" class="ct-chip ct-chip-interactive" title="Send email"><i class="fas fa-envelope"></i> ${email}</a>` : ''}
+                    ${phone ? `<a href="tel:${phone}" class="ct-chip ct-chip-interactive" title="Call teacher"><i class="fas fa-phone"></i> ${phone}</a>` : ''}
+                </div>
+                <div class="ct-actions-row">
+                    ${email ? `<a href="mailto:${email}" class="ct-action-btn primary"><i class="fas fa-envelope"></i> Message</a>` : ''}
+                    <button type="button" class="ct-action-btn secondary" id="ct-request-leave-btn"><i class="fas fa-paper-plane"></i> Apply Leave</button>
+                </div>
+            </div>
+        `;
+
+        const leaveBtn = container.querySelector('#ct-request-leave-btn');
+        if (leaveBtn) {
+            leaveBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const leaveTabBtn = document.querySelector('[data-tab="tab-leave"]');
+                if (leaveTabBtn) {
+                    leaveTabBtn.click();
+                } else {
+                    const leaveTab = document.getElementById('tab-leave');
+                    if (leaveTab) {
+                        document.querySelectorAll('.student-tab-panel').forEach(p => p.classList.remove('active'));
+                        leaveTab.classList.add('active');
+                    }
+                }
             });
         }
     }

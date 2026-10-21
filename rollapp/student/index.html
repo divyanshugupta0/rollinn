@@ -3689,21 +3689,41 @@
                             </div>
                         </div>
 
-                        <!-- Quick Academic Notices -->
-                        <div class="modern-panel">
-                            <div class="panel-header">
-                                <h3 class="panel-title">
-                                    <i class="fas fa-bullhorn"></i> Campus Announcements
-                                </h3>
-                                <button class="panel-action-btn" id="refresh-announcements-btn" title="Refresh Announcements">
-                                    <i class="fas fa-rotate-right"></i> Refresh
-                                </button>
+                        <!-- Right Column: Class Teacher & Quick Academic Notices -->
+                        <div class="dashboard-right-col" style="display:flex; flex-direction:column; gap:12px;">
+                            <!-- Class Teacher Section -->
+                            <div class="modern-panel class-teacher-panel" id="overview-class-teacher-panel">
+                                <div class="panel-header">
+                                    <h3 class="panel-title">
+                                        <i class="fas fa-chalkboard-user"></i> Class Teacher
+                                    </h3>
+                                    <span class="class-teacher-status-pill" id="ct-status-pill">
+                                        <span class="ct-status-dot"></span> Mentor
+                                    </span>
+                                </div>
+                                <div class="panel-body" id="overview-class-teacher-body">
+                                    <div class="class-teacher-card-loading" style="text-align:center; padding:14px; color:var(--sp-text-muted); font-size:0.8rem;">
+                                        <i class="fas fa-spinner fa-spin" style="margin-right:6px; color:var(--sp-primary);"></i>Loading class teacher details...
+                                    </div>
+                                </div>
                             </div>
-                            <div class="panel-body">
-                                <div id="campus-announcements-list" style="display:flex; flex-direction:column; gap:8px;">
-                                    <div class="empty-state" style="text-align: center; padding: 24px; color: var(--sp-text-muted);">
-                                        <i class="fas fa-spinner fa-spin" style="margin-bottom: 8px; display: block; font-size: 1.5rem; color: var(--sp-primary);"></i>
-                                        Loading announcements...
+
+                            <!-- Quick Academic Notices -->
+                            <div class="modern-panel">
+                                <div class="panel-header">
+                                    <h3 class="panel-title">
+                                        <i class="fas fa-bullhorn"></i> Campus Announcements
+                                    </h3>
+                                    <button class="panel-action-btn" id="refresh-announcements-btn" title="Refresh Announcements">
+                                        <i class="fas fa-rotate-right"></i> Refresh
+                                    </button>
+                                </div>
+                                <div class="panel-body">
+                                    <div id="campus-announcements-list" style="display:flex; flex-direction:column; gap:8px;">
+                                        <div class="empty-state" style="text-align: center; padding: 24px; color: var(--sp-text-muted);">
+                                            <i class="fas fa-spinner fa-spin" style="margin-bottom: 8px; display: block; font-size: 1.5rem; color: var(--sp-primary);"></i>
+                                            Loading announcements...
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -4365,6 +4385,10 @@
                                     <div class="profile-info-row">
                                         <div class="info-label"><i class="fas fa-users-rectangle"></i> Class Section</div>
                                         <div class="info-value" id="prof-val-section">-</div>
+                                    </div>
+                                    <div class="profile-info-row" id="prof-row-class-teacher">
+                                        <div class="info-label"><i class="fas fa-chalkboard-user"></i> Class Teacher</div>
+                                        <div class="info-value highlight" id="prof-val-class-teacher">Loading...</div>
                                     </div>
                                     <div class="profile-info-row" id="prof-row-batch">
                                         <div class="info-label"><i class="fas fa-calendar-check"></i> Academic Batch</div>

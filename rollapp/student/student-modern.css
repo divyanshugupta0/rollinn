@@ -5699,3 +5699,181 @@ button.refresh-cooldown {
     box-shadow: none !important;
 }
 
+/* ==========================================================================
+   Class Teacher Card Component (Minimal & Sleek)
+   ========================================================================== */
+.class-teacher-panel {
+    background: var(--sp-bg-card);
+    border: 1px solid var(--sp-border);
+    border-radius: var(--sp-radius-md);
+    box-shadow: var(--sp-shadow-xs);
+    overflow: hidden;
+    transition: var(--sp-transition);
+}
+
+.class-teacher-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.70rem;
+    font-weight: 700;
+    color: var(--sp-primary);
+    background: var(--sp-primary-light);
+    padding: 2px 7px;
+    border-radius: var(--sp-radius-full);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.ct-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--sp-primary);
+    box-shadow: 0 0 6px var(--sp-primary);
+    animation: livePulse 2s infinite;
+}
+
+.class-teacher-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ct-header-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ct-avatar-wrap {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    flex-shrink: 0;
+}
+
+.ct-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--sp-radius-md);
+    object-fit: cover;
+    border: 1.5px solid var(--sp-border);
+    background: var(--sp-bg-main);
+}
+
+.ct-badge-dot {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--sp-success);
+    border: 1.5px solid var(--sp-bg-card);
+}
+
+.ct-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ct-name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--sp-text-main);
+    margin: 0 0 1px 0;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ct-role {
+    font-size: 0.72rem;
+    color: var(--sp-text-muted);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ct-details-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.ct-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.70rem;
+    font-weight: 600;
+    color: var(--sp-text-main);
+    background: var(--sp-bg-main);
+    border: 1px solid var(--sp-border);
+    padding: 2px 7px;
+    border-radius: var(--sp-radius-sm);
+    text-decoration: none;
+    transition: var(--sp-transition);
+}
+
+.ct-chip i {
+    color: var(--sp-primary);
+    font-size: 0.65rem;
+}
+
+.ct-chip-interactive:hover {
+    border-color: var(--sp-primary);
+    background: var(--sp-primary-light);
+    color: var(--sp-primary);
+}
+
+.ct-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.ct-action-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 5px 9px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    border-radius: var(--sp-radius-sm);
+    text-decoration: none;
+    cursor: pointer;
+    transition: var(--sp-transition);
+    border: 1px solid transparent;
+}
+
+.ct-action-btn.primary {
+    background: var(--sp-primary);
+    color: #ffffff;
+}
+
+.ct-action-btn.primary:hover {
+    background: var(--sp-primary-dark);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
+.ct-action-btn.secondary {
+    background: var(--sp-bg-main);
+    color: var(--sp-text-main);
+    border-color: var(--sp-border);
+}
+
+.ct-action-btn.secondary:hover {
+    border-color: var(--sp-primary);
+    color: var(--sp-primary);
+}
+
+
