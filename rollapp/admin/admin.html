@@ -1498,6 +1498,10 @@
             color: white;
         }
 
+        .admin-school-mode .admin-location-control {
+            display: none !important;
+        }
+
         .section-choice-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -4000,11 +4004,11 @@
                                 </div>
                                 <div class="mini-stat-card admin-location-stat">
                                     <div class="mini-stat-icon locations">
-                                        <i class="fas fa-map-marker-alt"></i>
+                                        <i id="dashboard-location-stat-icon" class="fas fa-map-marker-alt"></i>
                                     </div>
                                     <div class="mini-stat-content">
                                         <span class="mini-stat-value" id="total-locations">0</span>
-                                        <span class="mini-stat-label">Locations</span>
+                                        <span class="mini-stat-label" id="dashboard-location-stat-label">Locations</span>
                                     </div>
                                 </div>
                                 <div class="mini-stat-card">
@@ -4206,9 +4210,9 @@
                                             </div>
                                         </div>
                                         <div class="input-group">
-                                            <label>Location</label>
+                                            <label id="records-location-filter-label">Location</label>
                                             <div class="custom-input-wrapper">
-                                                <i class="fas fa-map-marker-alt"></i>
+                                                <i id="records-location-filter-icon" class="fas fa-map-marker-alt"></i>
                                                 <select id="location-filter">
                                                     <option value="all">All Locations</option>
                                                 </select>
@@ -6553,6 +6557,26 @@
             } else if (yearList) {
                 delete yearList.dataset.schoolClassSections;
             }
+
+            // Attendance and Dashboard Academic Labels
+            const filterLabelEl = document.getElementById('records-location-filter-label');
+            const filterIconEl = document.getElementById('records-location-filter-icon');
+            const locFilter = document.getElementById('location-filter');
+            const locStatLabel = document.getElementById('dashboard-location-stat-label');
+            const locStatIcon = document.getElementById('dashboard-location-stat-icon');
+            if (isSchool) {
+                if (filterLabelEl) filterLabelEl.textContent = 'Class / Section';
+                if (filterIconEl) filterIconEl.className = 'fas fa-chalkboard';
+                if (locFilter && locFilter.options[0]) locFilter.options[0].textContent = 'All Classes & Sections';
+                if (locStatLabel) locStatLabel.textContent = 'Classes';
+                if (locStatIcon) locStatIcon.className = 'fas fa-chalkboard';
+            } else {
+                if (filterLabelEl) filterLabelEl.textContent = 'Location';
+                if (filterIconEl) filterIconEl.className = 'fas fa-map-marker-alt';
+                if (locFilter && locFilter.options[0]) locFilter.options[0].textContent = 'All Locations';
+                if (locStatLabel) locStatLabel.textContent = 'Locations';
+                if (locStatIcon) locStatIcon.className = 'fas fa-map-marker-alt';
+            }
         }
 
         async function applyAdminInstitutionMode(userData) {
@@ -6564,7 +6588,8 @@
             document.documentElement.dataset.institutionType = institutionType || 'college';
             window.rollCallAdminMode = {
                 institutionType: institutionType || 'college',
-                isSchool: institutionType === 'school'
+                isSchool: institutionType === 'school',
+                schoolId: schoolId
             };
             applyAdminAcademicLabels(institutionType);
             return institutionType;
@@ -6715,6 +6740,9 @@
                         name: userData.name,
                         role: userData.role,
                         deviceId: deviceId,
+                        schoolId: userData.schoolId || null,
+                        institutionType: userData.institutionType || null,
+                        institutionId: userData.institutionId || userData.schoolId || null,
                         profilePhoto: userData.profilePhoto || null,
                         profilePhotoKey: userData.profilePhotoKey || null
                     };
@@ -7260,6 +7288,9 @@
 
         // Load dashboard statistics
         function loadDashboardStats() {
+            const isSchoolMode = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
+            const currentSchoolId = currentUser?.schoolId || window.rollCallAdminMode?.schoolId;
+
             // Get total students
             get(ref(database, 'users'))
                 .then((snapshot) => {
@@ -7269,7 +7300,13 @@
 
                         Object.values(users).forEach(user => {
                             if (user.role === 'student') {
-                                studentCount++;
+                                if (isSchoolMode && currentSchoolId) {
+                                    if (!user.schoolId || user.schoolId === currentSchoolId) {
+                                        studentCount++;
+                                    }
+                                } else {
+                                    studentCount++;
+                                }
                             }
                         });
 
@@ -7292,15 +7329,28 @@
 
                                         // Count unique students who attended any class today
                                         for (const locationId in attendanceByLocationData) {
-                                            // Filter by location ownership
-                                            if (locations[locationId] && locations[locationId].createdBy && currentUser && locations[locationId].createdBy !== currentUser.uid) {
-                                                continue;
+                                            const locationAttendance = attendanceByLocationData[locationId][today] || {};
+                                            const meta = locationAttendance._meta || null;
+
+                                            if (isSchoolMode) {
+                                                if (currentSchoolId && meta && meta.schoolId && meta.schoolId !== currentSchoolId) {
+                                                    continue;
+                                                }
+                                            } else {
+                                                // Filter by location ownership
+                                                if (locations[locationId] && locations[locationId].createdBy && currentUser && locations[locationId].createdBy !== currentUser.uid) {
+                                                    continue;
+                                                }
                                             }
 
-                                            const locationAttendance = attendanceByLocationData[locationId][today] || {};
                                             for (const userId in locationAttendance) {
-                                                const record = locationAttendance[userId] || {};
-                                                const status = (record.status || 'present').toString().toLowerCase();
+                                                if (userId === '_meta' || userId.startsWith('_')) {
+                                                    continue;
+                                                }
+                                                const record = locationAttendance[userId];
+                                                if (!record) continue;
+                                                const rawStatus = (typeof record === 'object' && record !== null) ? record.status : record;
+                                                const status = (rawStatus || 'present').toString().toLowerCase();
                                                 if (status === 'absent') {
                                                     continue;
                                                 }
@@ -7332,35 +7382,58 @@
                     }
                 });
 
-            // Get total locations
-            get(ref(database, 'locations'))
-                .then((snapshot) => {
-                    if (snapshot.exists()) {
-                        const locations = snapshot.val();
-                        let count = 0;
-                        for (const id in locations) {
-                            if (!locations[id].createdBy || (currentUser && locations[id].createdBy === currentUser.uid)) {
-                                count++;
-                            }
+            // Get total locations / classes count
+            if (isSchoolMode && currentSchoolId) {
+                get(ref(database, `schoolClasses/${currentSchoolId}`))
+                    .then((snapshot) => {
+                        if (snapshot.exists()) {
+                            const classes = snapshot.val();
+                            totalLocations.textContent = Object.keys(classes).length;
+                        } else {
+                            totalLocations.textContent = 0;
                         }
-                        totalLocations.textContent = count;
-                    } else {
+                    })
+                    .catch(() => {
                         totalLocations.textContent = 0;
-                    }
-                });
+                    });
+            } else {
+                get(ref(database, 'locations'))
+                    .then((snapshot) => {
+                        if (snapshot.exists()) {
+                            const locations = snapshot.val();
+                            let count = 0;
+                            for (const id in locations) {
+                                if (!locations[id].createdBy || (currentUser && locations[id].createdBy === currentUser.uid)) {
+                                    count++;
+                                }
+                            }
+                            totalLocations.textContent = count;
+                        } else {
+                            totalLocations.textContent = 0;
+                        }
+                    });
+            }
         }
 
         // Populate location dropdowns
         function populateLocationDropdowns() {
-            get(ref(database, 'locations'))
-                .then((snapshot) => {
-                    if (snapshot.exists()) {
-                        const locations = snapshot.val();
-                        // Filter locations for global usage
+            const isSchoolMode = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
+            const currentSchoolId = currentUser?.schoolId || window.rollCallAdminMode?.schoolId;
+
+            if (isSchoolMode && currentSchoolId) {
+                get(ref(database, `schoolClasses/${currentSchoolId}`))
+                    .then((snapshot) => {
                         const filteredLocations = {};
-                        for (const id in locations) {
-                            if (!locations[id].createdBy || (currentUser && locations[id].createdBy === currentUser.uid)) {
-                                filteredLocations[id] = locations[id];
+                        if (snapshot.exists()) {
+                            const classes = snapshot.val();
+                            for (const id in classes) {
+                                const cls = classes[id];
+                                const clsName = cls.name || cls.className || 'Class';
+                                const sec = cls.section ? ` - Sec ${cls.section}` : '';
+                                filteredLocations[id] = {
+                                    ...cls,
+                                    name: `${clsName}${sec}`
+                                };
                             }
                         }
                         allLocations = filteredLocations;
@@ -7373,25 +7446,78 @@
                             reportLocation.remove(1);
                         }
 
-                        // Add options
-                        for (const id in filteredLocations) {
-                            const option1 = document.createElement('option');
-                            option1.value = id;
-                            option1.textContent = filteredLocations[id].name;
-                            locationFilter.appendChild(option1);
-
-                            const option2 = document.createElement('option');
-                            option2.value = id;
-                            option2.textContent = filteredLocations[id].name;
-                            reportLocation.appendChild(option2);
+                        if (locationFilter.options[0]) {
+                            locationFilter.options[0].textContent = 'All Classes & Sections';
                         }
-                    }
-                });
+                        if (reportLocation.options[0]) {
+                            reportLocation.options[0].textContent = 'All Classes & Sections';
+                        }
+
+                        // Add options sorted by name
+                        Object.keys(filteredLocations)
+                            .sort((a, b) => (filteredLocations[a].name || '').localeCompare(filteredLocations[b].name || ''))
+                            .forEach(id => {
+                                const option1 = document.createElement('option');
+                                option1.value = id;
+                                option1.textContent = filteredLocations[id].name;
+                                locationFilter.appendChild(option1);
+
+                                const option2 = document.createElement('option');
+                                option2.value = id;
+                                option2.textContent = filteredLocations[id].name;
+                                reportLocation.appendChild(option2);
+                            });
+                    });
+            } else {
+                get(ref(database, 'locations'))
+                    .then((snapshot) => {
+                        if (snapshot.exists()) {
+                            const locations = snapshot.val();
+                            const filteredLocations = {};
+                            for (const id in locations) {
+                                if (!locations[id].createdBy || (currentUser && locations[id].createdBy === currentUser.uid)) {
+                                    filteredLocations[id] = locations[id];
+                                }
+                            }
+                            allLocations = filteredLocations;
+
+                            while (locationFilter.options.length > 1) {
+                                locationFilter.remove(1);
+                            }
+                            while (reportLocation.options.length > 1) {
+                                reportLocation.remove(1);
+                            }
+
+                            if (locationFilter.options[0]) {
+                                locationFilter.options[0].textContent = 'All Locations';
+                            }
+                            if (reportLocation.options[0]) {
+                                reportLocation.options[0].textContent = 'All Locations';
+                            }
+
+                            for (const id in filteredLocations) {
+                                const option1 = document.createElement('option');
+                                option1.value = id;
+                                option1.textContent = filteredLocations[id].name;
+                                locationFilter.appendChild(option1);
+
+                                const option2 = document.createElement('option');
+                                option2.value = id;
+                                option2.textContent = filteredLocations[id].name;
+                                reportLocation.appendChild(option2);
+                            }
+                        }
+                    });
+            }
         }
 
         // Admin function: Load attendance data from attendance_by_location
         function loadAttendanceData(date) {
             const attendanceByLocationRef = ref(database, `attendance_by_location`);
+            const isSchoolMode = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
+            const currentSchoolId = currentUser?.schoolId || window.rollCallAdminMode?.schoolId;
+            const selectedLocationFilter = locationFilter ? locationFilter.value : 'all';
+            const selectedStatusFilter = statusFilter ? statusFilter.value : 'all';
 
             // Clear previous content
             attendanceList.innerHTML = '<p>Loading attendance data...</p>';
@@ -7406,164 +7532,253 @@
                             .then((userSnapshot) => {
                                 const users = userSnapshot.exists() ? userSnapshot.val() : {};
 
-                                  // Then get locations and user attendance (legacy fallback)
-                                  Promise.all([
-                                      get(ref(database, 'locations')),
-                                      get(ref(database, 'user_attendance'))
-                                  ])
-                                      .then(([locSnapshot, userAttendanceSnapshot]) => {
-                                          const locations = locSnapshot.exists() ? locSnapshot.val() : {};
-                                          const userAttendanceData = userAttendanceSnapshot.exists() ? userAttendanceSnapshot.val() : {};
+                                // Fetch locations, user attendance, and school classes/locations if school mode
+                                const dbPromises = [
+                                    get(ref(database, 'locations')),
+                                    get(ref(database, 'user_attendance'))
+                                ];
+                                if (currentSchoolId) {
+                                    dbPromises.push(get(ref(database, `schoolClasses/${currentSchoolId}`)));
+                                    dbPromises.push(get(ref(database, `schoolLocations/${currentSchoolId}`)));
+                                } else {
+                                    dbPromises.push(Promise.resolve({ exists: () => false }));
+                                    dbPromises.push(Promise.resolve({ exists: () => false }));
+                                }
 
-                                          // Group attendance by location from attendance_by_location structure
-                                          const attendanceByLocation = {};
-                                          let totalAttendanceCount = 0;
+                                Promise.all(dbPromises)
+                                    .then(([locSnapshot, userAttendanceSnapshot, schoolClassesSnapshot, schoolLocSnapshot]) => {
+                                        const locations = locSnapshot.exists() ? locSnapshot.val() : {};
+                                        const userAttendanceData = userAttendanceSnapshot.exists() ? userAttendanceSnapshot.val() : {};
+                                        const schoolClasses = schoolClassesSnapshot.exists() ? schoolClassesSnapshot.val() : {};
+                                        const schoolLocations = schoolLocSnapshot.exists() ? schoolLocSnapshot.val() : {};
 
-                                          // Process attendance_by_location data for the selected date
-                                          for (const locationId in attendanceByLocationData) {
-                                            // Filter by location ownership
-                                            if (locations[locationId] && locations[locationId].createdBy && currentUser && locations[locationId].createdBy !== currentUser.uid) {
+                                        // Helper to resolve display name cleanly
+                                        const resolveSessionName = (id, meta) => {
+                                            if (meta && (meta.className || meta.name)) {
+                                                const clsName = meta.className || meta.name;
+                                                const sec = meta.section ? ` - Sec ${meta.section}` : '';
+                                                return `${clsName}${sec}`;
+                                            }
+                                            if (schoolClasses && schoolClasses[id]) {
+                                                const c = schoolClasses[id];
+                                                const sec = c.section ? ` - Sec ${c.section}` : '';
+                                                return `${c.name || c.className || 'Class'}${sec}`;
+                                            }
+                                            if (schoolLocations && schoolLocations[id]) {
+                                                return schoolLocations[id].name || schoolLocations[id].className || 'Class';
+                                            }
+                                            if (locations && locations[id]) {
+                                                return locations[id].name;
+                                            }
+                                            if (isSchoolMode) {
+                                                return `Class Session (${id.substring(0, 8)})`;
+                                            }
+                                            return 'Unknown Location';
+                                        };
+
+                                        // Group attendance by location from attendance_by_location structure
+                                        const attendanceByLocation = {};
+                                        let totalAttendanceCount = 0;
+
+                                        // Process attendance_by_location data for the selected date
+                                        for (const locationId in attendanceByLocationData) {
+                                            const locationAttendance = attendanceByLocationData[locationId][date] || {};
+                                            const meta = locationAttendance._meta || null;
+
+                                            // School mode filter: verify schoolId
+                                            if (isSchoolMode) {
+                                                if (currentSchoolId && meta && meta.schoolId && meta.schoolId !== currentSchoolId) {
+                                                    continue;
+                                                }
+                                            } else {
+                                                // College mode filter: location ownership
+                                                if (locations[locationId] && locations[locationId].createdBy && currentUser && locations[locationId].createdBy !== currentUser.uid) {
+                                                    continue;
+                                                }
+                                            }
+
+                                            // Apply location filter dropdown if a specific class/location is selected
+                                            if (selectedLocationFilter && selectedLocationFilter !== 'all' && locationId !== selectedLocationFilter) {
                                                 continue;
                                             }
 
-                                            const locationAttendance = attendanceByLocationData[locationId][date] || {};
+                                            const studentKeys = Object.keys(locationAttendance).filter(k => k !== '_meta' && !k.startsWith('_'));
+                                            if (studentKeys.length > 0 || meta) {
+                                                const sessionName = resolveSessionName(locationId, meta);
 
-                                            if (Object.keys(locationAttendance).length > 0) {
                                                 attendanceByLocation[locationId] = {
                                                     records: {},
                                                     count: 0,
-                                                    name: locations[locationId] ? locations[locationId].name : 'Unknown Location',
-                                                    deviceType: 'mixed'
+                                                    name: sessionName,
+                                                    deviceType: isSchoolMode ? 'school' : 'mixed',
+                                                    isSchool: isSchoolMode,
+                                                    teacherName: meta?.teacherName || null,
+                                                    section: meta?.section || null,
+                                                    className: meta?.className || null,
+                                                    timestamp: meta?.timestamp || null
                                                 };
 
-                                                for (const userId in locationAttendance) {
-                                                    const record = locationAttendance[userId];
-                                                    const status = (record?.status || 'present').toString().toLowerCase();
+                                                // Also record in locations map for down-stream table lookups
+                                                if (!locations[locationId]) {
+                                                    locations[locationId] = { name: sessionName, section: meta?.section || '' };
+                                                }
+
+                                                for (const userId of studentKeys) {
+                                                    const rawRecord = locationAttendance[userId];
+                                                    if (!rawRecord) continue;
+
+                                                    let record = {};
+                                                    if (typeof rawRecord === 'string') {
+                                                        record = {
+                                                            status: rawRecord,
+                                                            time: meta?.timestamp ? new Date(meta.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+                                                            deviceType: 'school'
+                                                        };
+                                                    } else if (typeof rawRecord === 'object' && rawRecord !== null) {
+                                                        record = { ...rawRecord };
+                                                    } else {
+                                                        record = { status: 'present', deviceType: isSchoolMode ? 'school' : 'desktop' };
+                                                    }
+
+                                                    const rawStatus = (typeof rawRecord === 'object' && rawRecord !== null) ? rawRecord.status : rawRecord;
+                                                    const status = (rawStatus || 'present').toString().toLowerCase();
+
+                                                    // Apply status filter if selected
+                                                    if (selectedStatusFilter && selectedStatusFilter !== 'all' && status !== selectedStatusFilter) {
+                                                        continue;
+                                                    }
+
                                                     if (status === 'absent') {
                                                         continue;
                                                     }
+
                                                     attendanceByLocation[locationId].records[userId] = record;
                                                     attendanceByLocation[locationId].count++;
-                                                      totalAttendanceCount++;
-                                                  }
-                                              }
-                                          }
+                                                    totalAttendanceCount++;
+                                                }
+                                            }
+                                        }
 
-                                          // Legacy fallback: attendance_by_location/{date}/{userId}
-                                          const legacyDateBucket = attendanceByLocationData[date];
-                                          if (legacyDateBucket && typeof legacyDateBucket === 'object') {
-                                              for (const userId in legacyDateBucket) {
-                                                  const record = legacyDateBucket[userId];
-                                                  if (!record || typeof record !== 'object') {
-                                                      continue;
-                                                  }
-                                                  const legacyLocationId = record.locationId;
-                                                  if (!legacyLocationId) {
-                                                      continue;
-                                                  }
-                                                  if (locations[legacyLocationId] && locations[legacyLocationId].createdBy && currentUser && locations[legacyLocationId].createdBy !== currentUser.uid) {
-                                                      continue;
-                                                  }
-                                                  const status = (record?.status || 'present').toString().toLowerCase();
-                                                  if (status === 'absent') {
-                                                      continue;
-                                                  }
-                                                  if (!attendanceByLocation[legacyLocationId]) {
-                                                      attendanceByLocation[legacyLocationId] = {
-                                                          records: {},
-                                                          count: 0,
-                                                          name: locations[legacyLocationId] ? locations[legacyLocationId].name : (record.locationName || 'Unknown Location'),
-                                                          deviceType: 'mixed'
-                                                      };
-                                                  }
-                                                  if (!attendanceByLocation[legacyLocationId].records[userId]) {
-                                                      attendanceByLocation[legacyLocationId].records[userId] = record;
-                                                      attendanceByLocation[legacyLocationId].count++;
-                                                      totalAttendanceCount++;
-                                                  }
-                                              }
-                                          }
+                                        // Fallbacks for legacy college/university mode
+                                        if (!isSchoolMode) {
+                                            // Legacy fallback: attendance_by_location/{date}/{userId}
+                                            const legacyDateBucket = attendanceByLocationData[date];
+                                            if (legacyDateBucket && typeof legacyDateBucket === 'object') {
+                                                for (const userId in legacyDateBucket) {
+                                                    if (userId === '_meta' || userId.startsWith('_')) continue;
+                                                    const record = legacyDateBucket[userId];
+                                                    if (!record || typeof record !== 'object') continue;
+                                                    const legacyLocationId = record.locationId;
+                                                    if (!legacyLocationId) continue;
+                                                    if (locations[legacyLocationId] && locations[legacyLocationId].createdBy && currentUser && locations[legacyLocationId].createdBy !== currentUser.uid) {
+                                                        continue;
+                                                    }
+                                                    if (selectedLocationFilter && selectedLocationFilter !== 'all' && legacyLocationId !== selectedLocationFilter) {
+                                                        continue;
+                                                    }
+                                                    const status = (record?.status || 'present').toString().toLowerCase();
+                                                    if (selectedStatusFilter && selectedStatusFilter !== 'all' && status !== selectedStatusFilter) {
+                                                        continue;
+                                                    }
+                                                    if (status === 'absent') continue;
 
-                                          // Fallback: user_attendance/{userId}/{date}/{locationId}
-                                          if (userAttendanceData && typeof userAttendanceData === 'object') {
-                                              Object.keys(userAttendanceData).forEach(userId => {
-                                                  const dateBucket = userAttendanceData[userId]?.[date];
-                                                  if (!dateBucket || typeof dateBucket !== 'object') {
-                                                      return;
-                                                  }
-                                                  Object.keys(dateBucket).forEach(locId => {
-                                                      const record = dateBucket[locId];
-                                                      if (!record || typeof record !== 'object') {
-                                                          return;
-                                                      }
-                                                      if (locations[locId] && locations[locId].createdBy && currentUser && locations[locId].createdBy !== currentUser.uid) {
-                                                          return;
-                                                      }
-                                                      const status = (record?.status || 'present').toString().toLowerCase();
-                                                      if (status === 'absent') {
-                                                          return;
-                                                      }
-                                                      if (!attendanceByLocation[locId]) {
-                                                          attendanceByLocation[locId] = {
-                                                              records: {},
-                                                              count: 0,
-                                                              name: locations[locId] ? locations[locId].name : (record.locationName || 'Unknown Location'),
-                                                              deviceType: 'mixed'
-                                                          };
-                                                      }
-                                                      if (!attendanceByLocation[locId].records[userId]) {
-                                                          attendanceByLocation[locId].records[userId] = record;
-                                                          attendanceByLocation[locId].count++;
-                                                          totalAttendanceCount++;
-                                                      }
-                                                  });
-                                              });
-                                          }
+                                                    if (!attendanceByLocation[legacyLocationId]) {
+                                                        attendanceByLocation[legacyLocationId] = {
+                                                            records: {},
+                                                            count: 0,
+                                                            name: locations[legacyLocationId] ? locations[legacyLocationId].name : (record.locationName || 'Unknown Location'),
+                                                            deviceType: 'mixed'
+                                                        };
+                                                    }
+                                                    if (!attendanceByLocation[legacyLocationId].records[userId]) {
+                                                        attendanceByLocation[legacyLocationId].records[userId] = record;
+                                                        attendanceByLocation[legacyLocationId].count++;
+                                                        totalAttendanceCount++;
+                                                    }
+                                                }
+                                            }
 
-                                          // Keep latest context for absentees modal
-                                          attendanceContext = {
-                                              date,
-                                              users,
+                                            // Fallback: user_attendance/{userId}/{date}/{locationId}
+                                            if (userAttendanceData && typeof userAttendanceData === 'object') {
+                                                Object.keys(userAttendanceData).forEach(userId => {
+                                                    const dateBucket = userAttendanceData[userId]?.[date];
+                                                    if (!dateBucket || typeof dateBucket !== 'object') return;
+                                                    Object.keys(dateBucket).forEach(locId => {
+                                                        const record = dateBucket[locId];
+                                                        if (!record || typeof record !== 'object') return;
+                                                        if (locations[locId] && locations[locId].createdBy && currentUser && locations[locId].createdBy !== currentUser.uid) {
+                                                            return;
+                                                        }
+                                                        if (selectedLocationFilter && selectedLocationFilter !== 'all' && locId !== selectedLocationFilter) {
+                                                            return;
+                                                        }
+                                                        const status = (record?.status || 'present').toString().toLowerCase();
+                                                        if (selectedStatusFilter && selectedStatusFilter !== 'all' && status !== selectedStatusFilter) {
+                                                            return;
+                                                        }
+                                                        if (status === 'absent') return;
+                                                        if (!attendanceByLocation[locId]) {
+                                                            attendanceByLocation[locId] = {
+                                                                records: {},
+                                                                count: 0,
+                                                                name: locations[locId] ? locations[locId].name : (record.locationName || 'Unknown Location'),
+                                                                deviceType: 'mixed'
+                                                            };
+                                                        }
+                                                        if (!attendanceByLocation[locId].records[userId]) {
+                                                            attendanceByLocation[locId].records[userId] = record;
+                                                            attendanceByLocation[locId].count++;
+                                                            totalAttendanceCount++;
+                                                        }
+                                                    });
+                                                });
+                                            }
+                                        }
+
+                                        // Keep latest context for absentees modal
+                                        attendanceContext = {
+                                            date,
+                                            users,
                                             locations,
                                             attendanceByLocation
                                         };
 
                                         // Check if a specific location block is being viewed
-                                          const urlParams = new URLSearchParams(window.location.search);
-                                          const viewingLocationId = urlParams.get('location');
+                                        const urlParams = new URLSearchParams(window.location.search);
+                                        const viewingLocationId = urlParams.get('location');
 
-                                          if (viewingLocationId && attendanceByLocation[viewingLocationId]) {
-                                              let sectionParam = urlParams.get('section');
-                                              let sectionParamKey = normalizeSectionKey(sectionParam);
-                                              const locationSections = normalizeSectionList(locations[viewingLocationId]?.section);
-                                              const locationSectionKeys = locationSections
-                                                  .map(normalizeSectionKey)
-                                                  .filter(Boolean);
-                                              const hasOnlyGeneralSection = locationSectionKeys.length === 1 && locationSectionKeys[0] === 'GENERAL';
-                                              const effectiveSections = hasOnlyGeneralSection ? [] : locationSections;
-                                              const effectiveSectionKeys = hasOnlyGeneralSection ? [] : locationSectionKeys;
+                                        if (viewingLocationId && attendanceByLocation[viewingLocationId]) {
+                                            let sectionParam = urlParams.get('section');
+                                            let sectionParamKey = normalizeSectionKey(sectionParam);
+                                            const locationSections = normalizeSectionList(locations[viewingLocationId]?.section);
+                                            const locationSectionKeys = locationSections
+                                                .map(normalizeSectionKey)
+                                                .filter(Boolean);
+                                            const hasOnlyGeneralSection = locationSectionKeys.length === 1 && locationSectionKeys[0] === 'GENERAL';
+                                            const effectiveSections = hasOnlyGeneralSection ? [] : locationSections;
+                                            const effectiveSectionKeys = hasOnlyGeneralSection ? [] : locationSectionKeys;
 
-                                              if (sectionParamKey && effectiveSectionKeys.length && !effectiveSectionKeys.includes(sectionParamKey)) {
-                                                  const cleanedUrl = new URL(window.location);
-                                                  cleanedUrl.searchParams.delete('section');
-                                                  window.history.replaceState({}, '', cleanedUrl);
-                                                  sectionParam = null;
-                                                  sectionParamKey = '';
-                                              }
+                                            if (sectionParamKey && effectiveSectionKeys.length && !effectiveSectionKeys.includes(sectionParamKey)) {
+                                                const cleanedUrl = new URL(window.location);
+                                                cleanedUrl.searchParams.delete('section');
+                                                window.history.replaceState({}, '', cleanedUrl);
+                                                sectionParam = null;
+                                                sectionParamKey = '';
+                                            }
 
-                                              if (effectiveSections.length > 1 && !sectionParamKey) {
-                                                  displayLocationSectionPicker(date, viewingLocationId, attendanceByLocation[viewingLocationId], effectiveSections);
-                                              } else {
-                                                  const resolvedSection = sectionParamKey && effectiveSectionKeys.includes(sectionParamKey)
-                                                      ? sectionParam
-                                                      : (effectiveSections.length === 1 ? effectiveSections[0] : null);
-                                                  displayLocationAttendance(date, viewingLocationId, attendanceByLocation[viewingLocationId], users, locations, resolvedSection);
-                                              }
-                                          } else {
-                                              // Show location blocks
-                                              displayLocationBlocks(date, attendanceByLocation, totalAttendanceCount);
+                                            if (effectiveSections.length > 1 && !sectionParamKey) {
+                                                displayLocationSectionPicker(date, viewingLocationId, attendanceByLocation[viewingLocationId], effectiveSections);
+                                            } else {
+                                                const resolvedSection = sectionParamKey && effectiveSectionKeys.includes(sectionParamKey)
+                                                    ? sectionParam
+                                                    : (effectiveSections.length === 1 ? effectiveSections[0] : null);
+                                                displayLocationAttendance(date, viewingLocationId, attendanceByLocation[viewingLocationId], users, locations, resolvedSection);
+                                            }
+                                        } else {
+                                            // Show location blocks
+                                            displayLocationBlocks(date, attendanceByLocation, totalAttendanceCount);
                                         }
-                                      });
+                                    });
                             });
                     } else {
                         attendanceList.innerHTML = '<p>No attendance records found for this date.</p>';
@@ -7577,6 +7792,8 @@
 
         // Function to display location cards grid
         function displayLocationBlocks(date, attendanceByLocation, totalCount) {
+            const isSchool = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
+
             let html = `
                 <div class="location-grid">
             `;
@@ -7587,14 +7804,34 @@
                     '<i class="fas fa-mobile-alt"></i> Mobile' :
                     '<i class="fas fa-desktop"></i> Desktop';
 
+                let metaBadgesHtml = '';
+                if (isSchool) {
+                    if (locationData.teacherName) {
+                        metaBadgesHtml += `<span class="meta-item"><i class="fas fa-chalkboard-teacher"></i> ${locationData.teacherName}</span>`;
+                    }
+                    if (locationData.section && !locationData.name.toLowerCase().includes('sec')) {
+                        metaBadgesHtml += `<span class="meta-item"><i class="fas fa-layer-group"></i> Section ${locationData.section}</span>`;
+                    }
+                    metaBadgesHtml += `<span class="meta-item"><i class="fas fa-clipboard-check"></i> Register</span>`;
+                } else {
+                    metaBadgesHtml = `<span class="meta-item">${deviceIcon}</span>`;
+                }
+
+                const iconHtml = isSchool ? '<i class="fas fa-chalkboard"></i>' : '<i class="fas fa-map-marker-alt"></i>';
+                const statLabel = isSchool ? 'Present' : 'Students';
+                const viewBtnText = isSchool ? 'View Class' : 'View Details';
+                const viewActionText = isSchool ? 'View Class Attendance' : 'View Attendance';
+                const exportActionText = isSchool ? 'Export Class Data' : 'Export Data';
+                const deleteActionText = isSchool ? 'Delete Class Records' : 'Delete All Records';
+
                 // Construct card HTML
                 html += `
                     <div class="location-card-modern" onclick="window.viewLocationAttendance('${date}', '${locationId}')">
                         <div class="card-top-accent"></div>
                         <div class="card-content">
                             <div class="location-header">
-                                <div class="location-icon-circle">
-                                     <i class="fas fa-map-marker-alt"></i>
+                                <div class="location-icon-circle ${isSchool ? 'school-icon' : ''}">
+                                     ${iconHtml}
                                 </div>
                                 <div class="location-menu" onclick="event.stopPropagation();">
                                     <button class="location-actions-btn action-button">
@@ -7602,13 +7839,13 @@
                                     </button>
                                     <div class="action-dropdown">
                                         <a href="#" onclick="event.preventDefault(); window.viewLocationAttendance('${date}', '${locationId}')">
-                                            <i class="fas fa-eye"></i> View Attendance
+                                            <i class="fas fa-eye"></i> ${viewActionText}
                                         </a>
                                         <a href="#" class="export-link" onclick="event.preventDefault(); window.exportLocationAttendance('${date}', '${locationId}', '${locationData.name}')">
-                                            <i class="fas fa-file-export"></i> Export Data
+                                            <i class="fas fa-file-export"></i> ${exportActionText}
                                         </a>
                                         <a href="#" class="block-delete-action" onclick="event.preventDefault(); window.deleteLocationAttendance('${date}', '${locationId}', '${locationData.name}')">
-                                            <i class="fas fa-trash"></i> Delete All Records
+                                            <i class="fas fa-trash"></i> ${deleteActionText}
                                         </a>
                                     </div>
                                 </div>
@@ -7617,16 +7854,16 @@
                             <div class="location-info">
                                 <h4>${locationData.name}</h4>
                                 <div class="location-meta">
-                                    <span class="meta-item">${deviceIcon}</span>
+                                    ${metaBadgesHtml}
                                 </div>
                             </div>
 
                             <div class="location-stats-row">
                                 <div class="stat-group">
                                     <div class="stat-value">${locationData.count}</div>
-                                    <div class="stat-label">Students</div>
+                                    <div class="stat-label">${statLabel}</div>
                                 </div>
-                                <button class="view-btn-sm">View Details <i class="fas fa-arrow-right"></i></button>
+                                <button class="view-btn-sm">${viewBtnText} <i class="fas fa-arrow-right"></i></button>
                             </div>
                         </div>
                     </div>
@@ -7638,9 +7875,9 @@
             if (Object.keys(attendanceByLocation).length === 0) {
                 html = `
                     <div class="status-indicator info" style="text-align: center; padding: 40px;">
-                        <i class="fas fa-clipboard-check" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
-                        <h3>No attendance records yet</h3>
-                        <p>Attendance records for this date will appear here.</p>
+                        <i class="${isSchool ? 'fas fa-chalkboard' : 'fas fa-clipboard-check'}" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
+                        <h3>${isSchool ? 'No class attendance records yet' : 'No attendance records yet'}</h3>
+                        <p>${isSchool ? 'Class attendance records submitted by teachers for this date will appear here.' : 'Attendance records for this date will appear here.'}</p>
                     </div>
                 `;
             }
@@ -7678,12 +7915,13 @@
 
 
         function displayLocationSectionPicker(date, locationId, locationData, sections) {
-            const locationName = locationData.name;
+            const isSchool = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool || locationData.isSchool;
+            const locationName = locationData.name || (isSchool ? 'Class Session' : 'Unknown Location');
             const sectionList = sections.length ? sections : ['General'];
             let html = `
                 <div class="records-header" style="margin-top: 10px;">
                      <button class="modern-btn secondary" onclick="window.viewAllLocations('${date}')">
-                        <i class="fas fa-arrow-left"></i> Back to all
+                        <i class="fas fa-arrow-left"></i> ${isSchool ? 'Back to all classes' : 'Back to all'}
                     </button>
                     <div style="flex:1; text-align:right;">
                         <h4 style="margin:0; font-size: 1.1rem; color: var(--gray-700);">${locationName}</h4>
@@ -7709,7 +7947,8 @@
 
         // Function to display attendance for a specific location
           function displayLocationAttendance(date, locationId, locationData, users, locations, sectionFilter) {
-              const locationName = locationData.name;
+              const isSchool = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool || locationData.isSchool;
+              const locationName = (locations[locationId]?.name) || locationData.name || (isSchool ? 'Class Session' : 'Unknown Location');
               let filterLabel = sectionFilter
                   ? formatSectionLabel(sectionFilter)
                   : 'All Sections';
@@ -7745,7 +7984,7 @@
             let html = `
                 <div class="records-header" style="margin-top: 10px;">
                      <button class="modern-btn secondary" onclick="window.viewAllLocations('${date}')">
-                        <i class="fas fa-arrow-left"></i> Back to all
+                        <i class="fas fa-arrow-left"></i> ${isSchool ? 'Back to all classes' : 'Back to all'}
                     </button>
                     <button class="modern-btn secondary" onclick="window.showAbsenteesModal('${date}', '${locationId}', '${sectionFilter || ''}')">
                         <i class="fas fa-user-times"></i> Absentees
@@ -7765,7 +8004,7 @@
                                 <th>Student Details</th>
                                 <th>Roll Numbers</th>
                                 <th>Time</th>
-                                <th>Device</th>
+                                <th>${isSchool ? 'Method' : 'Device'}</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -7838,11 +8077,17 @@
                             <div style="font-size: 0.8rem; color: #6b7280;">${univRoll}</div>
                         </div>
                     </td>
-                    <td style="font-weight: 500; vertical-align: middle;">${record.time}</td>
+                    <td style="font-weight: 500; vertical-align: middle;">${record.time || '--'}</td>
                     <td style="vertical-align: middle;">
-                        <span class="device-pill ${deviceType}">
-                            <i class="${deviceIcon}"></i> ${deviceType === 'mobile' ? 'Mobile' : 'Desktop'}
-                        </span>
+                        ${isSchool ? `
+                            <span class="device-pill" style="background: rgba(59, 130, 246, 0.1); color: #2563eb; font-weight: 600;">
+                                <i class="fas fa-clipboard-check"></i> Register
+                            </span>
+                        ` : `
+                            <span class="device-pill ${deviceType}">
+                                <i class="${deviceIcon}"></i> ${deviceType === 'mobile' ? 'Mobile' : 'Desktop'}
+                            </span>
+                        `}
                     </td>
                     <td>
                         <span class="status-badge ${statusClass}">
@@ -7925,13 +8170,15 @@
             const users = context.users || {};
             const locations = context.locations || {};
             const locationData = context.attendanceByLocation ? context.attendanceByLocation[locationId] : null;
+            const isSchool = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool || locationData?.isSchool;
+            const currentSchoolId = currentUser?.schoolId || window.rollCallAdminMode?.schoolId;
 
             if (!locationData) {
-                showAlert("No attendance data available for this class.", "warning");
+                showAlert(isSchool ? "No attendance data available for this class." : "No attendance data available for this location.", "warning");
                 return;
             }
 
-            const locationName = locations[locationId]?.name || locationData.name || 'Unknown Location';
+            const locationName = (locations[locationId]?.name) || locationData.name || (isSchool ? 'Class Session' : 'Unknown Location');
             let filterLabel = sectionFilter ? formatSectionLabel(sectionFilter) : 'All Sections';
             let filterKey = sectionFilter ? normalizeSectionKey(sectionFilter) : '';
             const locationSections = normalizeSectionList(locations[locationId]?.section);
@@ -7945,7 +8192,12 @@
                 filterLabel = 'All Sections';
             }
 
-            const studentEntries = Object.entries(users).filter(([, user]) => (user.role || 'student') === 'student');
+            const studentEntries = Object.entries(users).filter(([, user]) => {
+                const isStudent = (user.role || 'student') === 'student';
+                if (!isStudent) return false;
+                if (isSchool && currentSchoolId && user.schoolId && user.schoolId !== currentSchoolId) return false;
+                return true;
+            });
             const absentees = [];
 
             studentEntries.forEach(([userId, user]) => {
@@ -7954,7 +8206,8 @@
                 if (!sectionMatchesFilter(sectionInfo.keys, filterKey)) {
                     return;
                 }
-                const status = record ? (record.status || '').toLowerCase() : '';
+                const rawStatus = (typeof record === 'object' && record !== null) ? record.status : record;
+                const status = rawStatus ? rawStatus.toString().toLowerCase() : '';
 
                 if (record && status !== 'absent') {
                     return;
@@ -7988,7 +8241,7 @@
                                     <th>Student Details</th>
                                     <th>Roll Numbers</th>
                                     <th>Time</th>
-                                    <th>Device</th>
+                                    <th>${isSchool ? 'Method' : 'Device'}</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -8028,9 +8281,15 @@
                                             </td>
                                             <td style="font-weight: 500; vertical-align: middle;">${timeValue}</td>
                                             <td style="vertical-align: middle;">
-                                                <span class="device-pill ${deviceType}">
-                                                    <i class="${deviceIcon}"></i> ${deviceLabel}
-                                                </span>
+                                                ${isSchool ? `
+                                                    <span class="device-pill" style="background: rgba(59, 130, 246, 0.1); color: #2563eb; font-weight: 600;">
+                                                        <i class="fas fa-clipboard-check"></i> Register
+                                                    </span>
+                                                ` : `
+                                                    <span class="device-pill ${deviceType}">
+                                                        <i class="${deviceIcon}"></i> ${deviceLabel}
+                                                    </span>
+                                                `}
                                             </td>
                                             <td>
                                                 <span class="status-badge badge-danger">
@@ -12597,8 +12856,8 @@
                     .then((snapshot) => {
                         if (snapshot.exists()) {
                             const attendanceData = snapshot.val();
-                            const recordsCount = Object.keys(attendanceData).length;
-                            const userIds = Object.keys(attendanceData);
+                            const userIds = Object.keys(attendanceData).filter(key => !key.startsWith('_'));
+                            const recordsCount = userIds.length;
 
                             // Create promises to delete from both locations
                             const deletePromises = [
@@ -12645,6 +12904,7 @@
             }
 
             const attendanceRef = ref(database, `attendance_by_location/${locationId}/${date}`);
+            const isSchool = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
 
             // Get attendance data and user data
             Promise.all([
@@ -12660,19 +12920,23 @@
 
                         // Collect data for this location
                         for (const userId in attendanceData) {
+                            if (userId.startsWith('_')) continue;
                             const record = attendanceData[userId];
                             const user = users[userId] || {};
+                            const rawStatus = (typeof record === 'object' && record !== null) ? record.status : record;
+                            const status = (rawStatus || 'present').toString().toLowerCase();
+                            const recObj = typeof record === 'object' && record !== null ? record : {};
 
                             exportData.push({
                                 'Date': date,
-                                'Time': record.time,
-                                'Name': record.userName,
-                                'Email': record.userEmail,
+                                'Time': recObj.time || '--',
+                                'Name': user.name || recObj.userName || 'Unknown Student',
+                                'Email': user.email || recObj.userEmail || '',
                                 'Class Roll': user.classRoll || 'N/A',
                                 'University Roll': user.univRoll || 'N/A',
-                                'Location': locationName,
-                                'Status': record.status || 'present',
-                                'Device': record.deviceType || 'unknown'
+                                'Location / Class': locationName,
+                                'Status': status,
+                                'Device / Method': isSchool ? 'Register' : (recObj.deviceType || 'unknown')
                             });
                         }
 
