@@ -1966,17 +1966,30 @@
                 ...user
             };
 
-            // Filter for student's class and section using resilient matching
+            // STRICT DEFAULTER WORKFLOW:
+            // Students only see homework if:
+            // 1. Defaulters were marked by the subject teacher
+            // 2. The student is explicitly marked as a defaulter (incomplete)
             state.studentHomework = Object.entries(data).map(([id, item]) => ({
                 id,
                 ...item
-            })).filter(hw => isHomeworkMatch(hw, curStudent)).sort((a, b) => {
+            })).filter(hw => {
+                const isDefaulter = (hw.defaulters && hw.defaulters[curStudent.uid] === true);
+                return isDefaulter && isHomeworkMatch(hw, curStudent);
+            }).sort((a, b) => {
                 const dueA = new Date(`${a.dueDate}T${a.dueTime || '23:59'}`).getTime() || 0;
                 const dueB = new Date(`${b.dueDate}T${b.dueTime || '23:59'}`).getTime() || 0;
                 return dueA - dueB; // earliest due first
             });
 
             // Update UI
+            updateHomeworkNavBadges();
+            renderOverviewHomeworkWidget();
+            renderStudentHomework();
+        });
+
+        // 3. Direct listener on studentHomeworkDefaulters for instant real-time sync
+        db.ref(`studentHomeworkDefaulters/${user.uid}`).on('value', () => {
             updateHomeworkNavBadges();
             renderOverviewHomeworkWidget();
             renderStudentHomework();
@@ -1998,15 +2011,16 @@
     window.initStudentHomeworkSync = initStudentHomeworkSync;
 
     function updateHomeworkNavBadges() {
-        const totalPending = state.studentHomework.filter(hw => !state.completedHomeworkMap[hw.id]).length;
+        const totalIncomplete = state.studentHomework.length;
         const navBadge = document.getElementById('nav-hw-badge');
         const mobBadge = document.getElementById('mobile-hw-badge');
 
         [navBadge, mobBadge].forEach(badge => {
             if (!badge) return;
-            if (totalPending > 0) {
-                badge.textContent = totalPending > 99 ? '99+' : totalPending;
+            if (totalIncomplete > 0) {
+                badge.textContent = totalIncomplete > 99 ? '99+' : totalIncomplete;
                 badge.style.display = 'inline-flex';
+                badge.style.background = '#dc2626';
             } else {
                 badge.style.display = 'none';
             }
@@ -2070,38 +2084,35 @@
         const container = document.getElementById('overview-homework-list');
         if (!container) return;
 
-        const pendingList = state.studentHomework.filter(hw => !state.completedHomeworkMap[hw.id]);
-
-        if (pendingList.length === 0) {
+        if (state.studentHomework.length === 0) {
             container.innerHTML = `
                 <div style="text-align:center; padding:18px 12px; color:var(--sp-text-muted); font-size:0.82rem;">
                     <i class="fas fa-circle-check" style="color:var(--sp-success); font-size:1.6rem; display:block; margin-bottom:6px;"></i>
-                    All caught up! No pending homework.
+                    All caught up! No incomplete assignments.
                 </div>
             `;
             return;
         }
 
-        const topItems = pendingList.slice(0, 3);
+        const topItems = state.studentHomework.slice(0, 3);
         container.innerHTML = topItems.map(hw => {
-            const dueMeta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
             return `
-                <div class="ov-hw-item" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; background:var(--sp-bg-main); border:1px solid var(--sp-border); border-radius:10px; cursor:pointer;" onclick="switchStudentTab('tab-homework')">
+                <div class="ov-hw-item" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:10px; cursor:pointer;" onclick="switchStudentTab('tab-homework')">
                     <div style="display:flex; align-items:center; gap:10px; min-width:0;">
-                        <div class="ov-hw-icon" style="width:34px; height:34px; border-radius:8px; background:var(--sp-primary-light); color:var(--sp-primary); display:flex; align-items:center; justify-content:center; font-size:0.9rem; flex-shrink:0;">
-                            <i class="fas fa-book-open"></i>
+                        <div class="ov-hw-icon" style="width:34px; height:34px; border-radius:8px; background:#fee2e2; color:#dc2626; display:flex; align-items:center; justify-content:center; font-size:0.9rem; flex-shrink:0;">
+                            <i class="fas fa-triangle-exclamation"></i>
                         </div>
                         <div style="min-width:0;">
-                            <div style="font-weight:700; font-size:0.83rem; color:var(--sp-text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            <div style="font-weight:700; font-size:0.83rem; color:#991b1b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                                 ${escapeHtml(hw.title)}
                             </div>
-                            <div style="font-size:0.72rem; color:var(--sp-text-muted);">
-                                <span style="font-weight:600; color:var(--sp-primary);">${escapeHtml(hw.subject || 'Subject')}</span> • ${escapeHtml(hw.teacherName || 'Teacher')}
+                            <div style="font-size:0.72rem; color:#b91c1c;">
+                                <span style="font-weight:600;">${escapeHtml(hw.subject || 'Subject')}</span> • ${escapeHtml(hw.teacherName || 'Teacher')}
                             </div>
                         </div>
                     </div>
-                    <span class="ov-hw-badge ${dueMeta.cls}" style="font-size:0.68rem; font-weight:700; padding:3px 8px; border-radius:999px; white-space:nowrap; ${dueMeta.isUrgent ? 'background:#fee2e2; color:#b91c1c;' : 'background:var(--sp-bg-card); color:var(--sp-text-muted); border:1px solid var(--sp-border);'}">
-                        ${dueMeta.label}
+                    <span class="ov-hw-badge danger" style="font-size:0.68rem; font-weight:700; padding:3px 8px; border-radius:999px; white-space:nowrap; background:#dc2626; color:#ffffff;">
+                        Incomplete
                     </span>
                 </div>
             `;
@@ -2123,55 +2134,31 @@
             const subtitle = document.getElementById('hw-class-subtitle');
 
             if (classPill) classPill.innerHTML = `<i class="fas fa-chalkboard"></i> ${escapeHtml(className)} • Sec ${escapeHtml(section)}`;
-            if (countPill) countPill.innerHTML = `<i class="fas fa-layer-group"></i> ${state.studentHomework.length} Tasks`;
-            if (subtitle) subtitle.textContent = `All assignments posted for ${className} • Section ${section}.`;
+            if (countPill) {
+                const count = state.studentHomework.length;
+                countPill.innerHTML = `<i class="fas fa-circle-exclamation"></i> ${count} Incomplete`;
+                countPill.style.background = count > 0 ? '#fee2e2' : '#dcfce7';
+                countPill.style.color = count > 0 ? '#b91c1c' : '#166534';
+                countPill.style.borderColor = count > 0 ? '#fca5a5' : '#86efac';
+            }
+            if (subtitle) {
+                subtitle.textContent = state.studentHomework.length > 0
+                    ? `You have ${state.studentHomework.length} incomplete homework assignment(s) marked by your subject teachers.`
+                    : `All caught up! No incomplete or defaulted homework assignments for your class.`;
+            }
 
-            // Update KPI Counters
-            let pendingCount = 0;
-            let urgentCount = 0;
-            let completedCount = 0;
-
+            // Dynamic Subject Chips
             const subjectsSet = new Set();
-
             state.studentHomework.forEach(hw => {
                 if (hw.subject) subjectsSet.add(hw.subject);
-                const isCompleted = !!state.completedHomeworkMap[hw.id];
-                if (isCompleted) {
-                    completedCount++;
-                } else {
-                    pendingCount++;
-                    const meta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
-                    if (meta.isUrgent) urgentCount++;
-                }
             });
-
-            const elTotal = document.getElementById('hw-stat-total');
-            const elPending = document.getElementById('hw-stat-pending');
-            const elUrgent = document.getElementById('hw-stat-urgent');
-            const elCompleted = document.getElementById('hw-stat-completed');
-
-            if (elTotal) elTotal.textContent = state.studentHomework.length;
-            if (elPending) elPending.textContent = pendingCount;
-            if (elUrgent) elUrgent.textContent = urgentCount;
-            if (elCompleted) elCompleted.textContent = completedCount;
-
-            // Render dynamic Subject Chips bar
             renderSubjectChips(Array.from(subjectsSet));
 
-            // Filter list
+            // Filter by search & subject
             const query = (state.hwSearchQuery || '').trim().toLowerCase();
             const activeSub = state.activeHwSubject || 'all';
-            const activeFilter = state.activeHwFilter || 'all';
 
             const filtered = state.studentHomework.filter(hw => {
-                const isCompleted = !!state.completedHomeworkMap[hw.id];
-                const meta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
-
-                // Status filter
-                if (activeFilter === 'pending' && isCompleted) return false;
-                if (activeFilter === 'completed' && !isCompleted) return false;
-                if (activeFilter === 'urgent' && (!meta.isUrgent || isCompleted)) return false;
-
                 // Subject filter
                 if (activeSub !== 'all' && (hw.subject || '').toLowerCase() !== activeSub.toLowerCase()) {
                     return false;
@@ -2189,27 +2176,25 @@
             if (filtered.length === 0) {
                 grid.innerHTML = `
                     <div class="hw-empty-state">
-                        <div class="hw-empty-icon"><i class="fas fa-clipboard-check"></i></div>
-                        <h3>No assignments found</h3>
-                        <p>${state.studentHomework.length === 0 ? "Your subject teachers haven't posted any homework for your class yet." : "No homework matches your selected filters or search."}</p>
+                        <div class="hw-empty-icon" style="background:#dcfce7; color:#166534;"><i class="fas fa-circle-check"></i></div>
+                        <h3>All Caught Up!</h3>
+                        <p>${state.studentHomework.length === 0 ? "You have no incomplete or defaulted homework assignments. Great job!" : "No incomplete homework matches your selected subject or search filter."}</p>
                     </div>
                 `;
                 return;
             }
 
             grid.innerHTML = filtered.map(hw => {
-                const isCompleted = !!state.completedHomeworkMap[hw.id];
-                const meta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
                 const displayDue = formatDisplayDate(hw.dueDate, hw.dueTime);
 
                 return `
-                    <div class="hw-card ${isCompleted ? 'completed' : ''}" data-id="${hw.id}">
+                    <div class="hw-card incomplete-defaulter" data-id="${hw.id}" style="border-left: 4px solid #dc2626;">
                         <div class="hw-card-top">
                             <div class="hw-badge-subject">
                                 <i class="fas fa-book"></i> ${escapeHtml(hw.subject || 'Subject')}
                             </div>
-                            <span class="hw-tag-status ${isCompleted ? 'completed' : meta.cls}">
-                                ${isCompleted ? '<i class="fas fa-check"></i> Completed' : meta.label}
+                            <span class="hw-tag-status danger" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-weight:700;">
+                                <i class="fas fa-triangle-exclamation"></i> Incomplete / Defaulter
                             </span>
                         </div>
 
@@ -2228,24 +2213,14 @@
                             </div>
                         ` : ''}
 
-                        <div class="hw-card-footer">
-                            <button type="button" class="hw-toggle-done-btn ${isCompleted ? 'done' : ''}" data-id="${hw.id}">
-                                <i class="${isCompleted ? 'fas fa-circle-check' : 'far fa-circle'}"></i>
-                                <span>${isCompleted ? 'Completed (Tap to undo)' : 'Mark as Completed'}</span>
-                            </button>
+                        <div class="hw-card-footer" style="padding-top:12px; border-top:1px dashed var(--sp-border);">
+                            <span style="font-size:0.75rem; color:#dc2626; font-weight:600; display:flex; align-items:center; gap:6px;">
+                                <i class="fas fa-circle-exclamation"></i> Action Required: Complete and submit this assignment to your subject teacher.
+                            </span>
                         </div>
                     </div>
                 `;
             }).join('');
-
-            // Attach completion toggle listeners
-            grid.querySelectorAll('.hw-toggle-done-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const id = btn.getAttribute('data-id');
-                    toggleStudentHomework(id);
-                });
-            });
         } catch (err) {
             console.error('Error rendering student homework:', err);
         }

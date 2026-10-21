@@ -456,6 +456,27 @@
                 background: #fee2e2;
                 border-color: #ef4444;
             }
+            .thm-action-btn.defaulters {
+                background: #eff6ff;
+                border-color: #bfdbfe;
+                color: #1d4ed8;
+                font-weight: 700;
+            }
+            .thm-action-btn.defaulters:hover {
+                background: #dbeafe;
+                border-color: #3b82f6;
+                color: #1e40af;
+            }
+            .thm-action-btn.defaulters.reviewed {
+                background: #fef2f2;
+                border-color: #fecaca;
+                color: #b91c1c;
+            }
+            .thm-action-btn.defaulters.reviewed:hover {
+                background: #fee2e2;
+                border-color: #ef4444;
+                color: #991b1b;
+            }
 
             /* Empty State */
             .thm-empty {
@@ -804,6 +825,63 @@
                     </form>
                 </div>
             </div>
+
+            <!-- Mark Defaulters Modal -->
+            <div class="thm-modal-overlay" id="thmDefaultersModal">
+                <div class="thm-modal-card" style="max-width: 650px;">
+                    <div class="thm-modal-header" style="background: linear-gradient(135deg, #0f172a, #1e293b); color: #fff;">
+                        <div>
+                            <h3 id="thmDefModalTitle" style="color: #fff; margin: 0; font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-user-check"></i> Mark Homework Defaulters
+                            </h3>
+                            <p id="thmDefModalSubtitle" style="margin: 4px 0 0; font-size: 0.8rem; color: #94a3b8;"></p>
+                        </div>
+                        <button type="button" class="thm-modal-close" id="thmDefModalCloseBtn" style="color: #94a3b8; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2);">&times;</button>
+                    </div>
+                    <div class="thm-modal-body" style="max-height: 60vh; overflow-y: auto; padding: 18px 22px;">
+                        <!-- Quick actions bar -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;">
+                            <div style="position: relative; flex: 1; min-width: 200px;">
+                                <i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.85rem;"></i>
+                                <input type="text" id="thmDefSearchInput" class="thm-input" placeholder="Search by student name or roll..." style="padding-left: 32px; font-size: 0.82rem;">
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button type="button" class="thm-action-btn" id="thmDefSelectAllBtn" style="padding: 6px 12px; font-size: 0.78rem;">
+                                    <i class="fas fa-check-double"></i> Select All
+                                </button>
+                                <button type="button" class="thm-action-btn" id="thmDefClearAllBtn" style="padding: 6px 12px; font-size: 0.78rem;">
+                                    <i class="fas fa-check"></i> All Completed (0 Defaulters)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Info Alert -->
+                        <div style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-circle-info" style="font-size: 1.1rem; color: #3b82f6; flex-shrink: 0;"></i>
+                            <span>Checked students will see an <strong>Incomplete / Defaulter</strong> homework card. Unchecked students completed the task and will have <strong>zero clutter</strong> (no card).</span>
+                        </div>
+
+                        <!-- Students List -->
+                        <div id="thmDefStudentsList" style="display: flex; flex-direction: column; gap: 8px;">
+                            <div style="text-align: center; padding: 24px; color: #64748b;">
+                                <i class="fas fa-spinner fa-spin" style="font-size: 1.4rem;"></i>
+                                <p style="margin-top: 8px; font-size: 0.85rem;">Loading class students...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="thm-modal-footer" style="justify-content: space-between;">
+                        <div id="thmDefSummaryCount" style="font-size: 0.85rem; font-weight: 700; color: #334155;">
+                            0 Defaulters selected
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" class="thm-btn-cancel" id="thmDefCancelBtn">Cancel</button>
+                            <button type="button" class="thm-btn-primary" id="thmDefSubmitBtn" style="background: #dc2626; border-color: #b91c1c;">
+                                <i class="fas fa-save"></i> Save Defaulters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         `;
         container.appendChild(panel);
 
@@ -1136,6 +1214,9 @@
                 const dueInfo = getDueStatus(hw.dueDate, hw.dueTime);
                 const displayDue = formatDisplayDate(hw.dueDate, hw.dueTime);
 
+                const hasDefaulters = !!hw.defaultersReviewed;
+                const defaultersCount = hw.defaultersCount ?? (hw.defaulters ? Object.keys(hw.defaulters).length : 0);
+
                 return `
                     <div class="thm-card" data-id="${hw.id}">
                         <div>
@@ -1148,9 +1229,16 @@
                                         <i class="fas fa-book"></i> ${escapeHtml(hw.subject || 'General')}
                                     </span>
                                 </div>
-                                <span class="thm-badge-status ${dueInfo.cls}">
-                                    ${dueInfo.label}
-                                </span>
+                                <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                    ${hasDefaulters ? `
+                                        <span class="thm-badge-status" style="background:#fef2f2; color:#b91c1c; border-color:#fecaca; font-weight:700;">
+                                            <i class="fas fa-user-xmark"></i> ${defaultersCount} Defaulter${defaultersCount === 1 ? '' : 's'}
+                                        </span>
+                                    ` : ''}
+                                    <span class="thm-badge-status ${dueInfo.cls}">
+                                        ${dueInfo.label}
+                                    </span>
+                                </div>
                             </div>
 
                             <h3 class="thm-card-title">${escapeHtml(hw.title)}</h3>
@@ -1172,6 +1260,9 @@
                             ` : ''}
 
                             <div class="thm-card-actions">
+                                <button type="button" class="thm-action-btn defaulters ${hasDefaulters ? 'reviewed' : ''}" data-id="${hw.id}">
+                                    <i class="fas fa-user-check"></i> ${hasDefaulters ? 'Edit Defaulters' : 'Mark Defaulters'}
+                                </button>
                                 <button type="button" class="thm-action-btn edit-btn" data-id="${hw.id}">
                                     <i class="fas fa-pen-to-square"></i> Edit
                                 </button>
@@ -1185,6 +1276,14 @@
             }).join('');
 
             // Bind card buttons
+            grid.querySelectorAll('.defaulters').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    const item = homeworkList.find(x => x.id === id);
+                    if (item) openDefaultersModal(item);
+                });
+            });
+
             grid.querySelectorAll('.edit-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const id = btn.getAttribute('data-id');
@@ -1356,6 +1455,305 @@
                 renderCards();
             });
         });
+
+        // ==========================================
+        // DEFAULTERS MODAL LOGIC & BACKGROUND SYNC
+        // ==========================================
+        let activeDefaultersHw = null;
+        let activeClassStudents = [];
+        let selectedDefaultersMap = {};
+
+        const defModal = panel.querySelector('#thmDefaultersModal');
+        const defCloseBtn = panel.querySelector('#thmDefModalCloseBtn');
+        const defCancelBtn = panel.querySelector('#thmDefCancelBtn');
+        const defSubmitBtn = panel.querySelector('#thmDefSubmitBtn');
+        const defSearchInput = panel.querySelector('#thmDefSearchInput');
+        const defSelectAllBtn = panel.querySelector('#thmDefSelectAllBtn');
+        const defClearAllBtn = panel.querySelector('#thmDefClearAllBtn');
+
+        function closeDefaultersModal() {
+            if (defModal) defModal.classList.remove('active');
+            activeDefaultersHw = null;
+            activeClassStudents = [];
+            selectedDefaultersMap = {};
+        }
+
+        defCloseBtn?.addEventListener('click', closeDefaultersModal);
+        defCancelBtn?.addEventListener('click', closeDefaultersModal);
+        defModal?.addEventListener('click', (e) => {
+            if (e.target === defModal) closeDefaultersModal();
+        });
+
+        defSelectAllBtn?.addEventListener('click', () => {
+            activeClassStudents.forEach(st => {
+                selectedDefaultersMap[st.id] = true;
+            });
+            renderDefaultersList();
+        });
+
+        defClearAllBtn?.addEventListener('click', () => {
+            selectedDefaultersMap = {};
+            renderDefaultersList();
+        });
+
+        defSearchInput?.addEventListener('input', () => {
+            renderDefaultersList();
+        });
+
+        defSubmitBtn?.addEventListener('click', saveDefaulters);
+
+        function openDefaultersModal(item) {
+            activeDefaultersHw = item;
+            selectedDefaultersMap = { ...(item.defaulters || {}) };
+
+            if (!defModal) return;
+
+            defModal.querySelector('#thmDefModalTitle').innerHTML = `<i class="fas fa-user-check"></i> Mark Defaulters: ${escapeHtml(item.title)}`;
+            defModal.querySelector('#thmDefModalSubtitle').textContent = `Target: ${item.className || 'Class'} • Section ${item.section || 'All'} • Due: ${formatDisplayDate(item.dueDate, item.dueTime)}`;
+
+            if (defSearchInput) defSearchInput.value = '';
+
+            const listEl = defModal.querySelector('#thmDefStudentsList');
+            listEl.innerHTML = `
+                <div style="text-align: center; padding: 28px 16px; color: #64748b;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; color: #166534;"></i>
+                    <p style="margin-top: 10px; font-size: 0.85rem;">Loading students for ${escapeHtml(item.className || 'Class')} - Sec ${escapeHtml(item.section || 'All')}...</p>
+                </div>
+            `;
+
+            defModal.classList.add('active');
+
+            loadStudentsForHomework(item).then(students => {
+                activeClassStudents = students;
+                renderDefaultersList();
+            }).catch(err => {
+                console.error('Error loading students for defaulters:', err);
+                listEl.innerHTML = `<div style="text-align:center; padding:20px; color:#dc2626;"><i class="fas fa-exclamation-circle"></i> Error loading students: ${escapeHtml(err.message)}</div>`;
+            });
+        }
+
+        async function loadStudentsForHomework(hw) {
+            if (!schoolId) return [];
+            let students = [];
+
+            const snap = await db.ref(`schoolUsers/${schoolId}`).once('value');
+            if (snap.exists()) {
+                snap.forEach(child => {
+                    const st = child.val() || {};
+                    st.id = child.key;
+                    if (st.role && st.role !== 'student') return;
+                    if (isStudentInClassSection(st, hw)) {
+                        students.push(st);
+                    }
+                });
+            }
+
+            if (students.length === 0) {
+                const uSnap = await db.ref('users').orderByChild('schoolId').equalTo(schoolId).once('value');
+                if (uSnap.exists()) {
+                    uSnap.forEach(child => {
+                        const st = child.val() || {};
+                        st.id = child.key;
+                        if (st.role && st.role !== 'student') return;
+                        if (isStudentInClassSection(st, hw)) {
+                            students.push(st);
+                        }
+                    });
+                }
+            }
+
+            students.sort((a, b) => {
+                const rollA = parseInt(a.classRoll || a.univRoll, 10);
+                const rollB = parseInt(b.classRoll || b.univRoll, 10);
+                if (!isNaN(rollA) && !isNaN(rollB)) return rollA - rollB;
+                return String(a.name || '').localeCompare(String(b.name || ''));
+            });
+
+            return students;
+        }
+
+        function isStudentInClassSection(st, hw) {
+            if (!st || !hw) return false;
+            
+            const hwSec = normSec(hw.section || hw.normSection);
+            const stSec = normSec(st.section || st.classSection || st.assignedSection);
+            if (hwSec && stSec && hwSec !== 'ALL' && hwSec !== stSec) {
+                return false;
+            }
+
+            const stClassId = String(st.classId || st.enrolledClassId || st.courseId || '').toLowerCase().trim();
+            const hwClassId = String(hw.classId || hw.courseId || '').toLowerCase().trim();
+            if (stClassId && hwClassId && stClassId === hwClassId) return true;
+
+            const stNames = [st.className, st.courseName, st.course, st.class].filter(Boolean).map(x => String(x).toLowerCase().trim());
+            const hwName = String(hw.className || hw.courseName || '').toLowerCase().trim();
+
+            if (!hwName && !hwClassId) return true;
+            if (stNames.length === 0 && !stClassId) return true;
+
+            if (hwName && stNames.length > 0) {
+                const directMatch = stNames.some(name => name === hwName || name.includes(hwName) || hwName.includes(name));
+                if (directMatch) return true;
+
+                const hwNum = (hwName.match(/\d+/) || [])[0];
+                if (hwNum) {
+                    const numMatch = stNames.some(name => (name.match(/\d+/) || [])[0] === hwNum);
+                    if (numMatch) return true;
+                }
+            }
+
+            if (hwSec && stSec && hwSec === stSec) return true;
+            return false;
+        }
+
+        function renderDefaultersList() {
+            if (!defModal) return;
+            const listEl = defModal.querySelector('#thmDefStudentsList');
+            const searchVal = (defSearchInput?.value || '').trim().toLowerCase();
+
+            const filteredStudents = activeClassStudents.filter(st => {
+                if (!searchVal) return true;
+                const name = String(st.name || st.displayName || '').toLowerCase();
+                const roll = String(st.classRoll || st.univRoll || '').toLowerCase();
+                return name.includes(searchVal) || roll.includes(searchVal);
+            });
+
+            if (filteredStudents.length === 0) {
+                listEl.innerHTML = `
+                    <div style="text-align: center; padding: 24px; color: #64748b;">
+                        <i class="fas fa-users-slash" style="font-size: 1.6rem; color: #94a3b8; margin-bottom: 8px;"></i>
+                        <p style="margin: 0; font-size: 0.85rem;">${activeClassStudents.length === 0 ? "No students found enrolled in this class & section." : "No students match your search filter."}</p>
+                    </div>
+                `;
+                updateDefaultersCounter();
+                return;
+            }
+
+            listEl.innerHTML = filteredStudents.map(st => {
+                const isDef = !!selectedDefaultersMap[st.id];
+                const rollDisplay = st.classRoll ? `Roll: ${escapeHtml(st.classRoll)}` : (st.univRoll ? `Univ: ${escapeHtml(st.univRoll)}` : '');
+                const avatar = st.profilePhoto || st.photoURL || '';
+
+                return `
+                    <div class="thm-def-student-item ${isDef ? 'defaulter' : ''}" data-uid="${st.id}" style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:${isDef ? '#fef2f2' : '#ffffff'}; border:1px solid ${isDef ? '#fecaca' : '#e2e8f0'}; border-radius:10px; cursor:pointer; transition:all 0.15s ease;">
+                        <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+                            <div style="width:34px; height:34px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+                                ${avatar ? `<img src="${avatar}" style="width:100%; height:100%; object-fit:cover;">` : `<i class="fas fa-user" style="color:#64748b; font-size:0.85rem;"></i>`}
+                            </div>
+                            <div style="min-width:0;">
+                                <div style="font-weight:700; font-size:0.85rem; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                    ${escapeHtml(st.name || st.displayName || 'Student')}
+                                </div>
+                                <div style="font-size:0.75rem; color:#64748b;">
+                                    ${rollDisplay ? `<span>${rollDisplay}</span> • ` : ''}<span>Sec ${escapeHtml(st.section || 'A')}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span class="thm-def-status-pill" style="font-size:0.72rem; font-weight:700; padding:3px 10px; border-radius:999px; ${isDef ? 'background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5;' : 'background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0;'}">
+                                ${isDef ? '<i class="fas fa-xmark"></i> Defaulter' : '<i class="fas fa-check"></i> Completed'}
+                            </span>
+                            <input type="checkbox" class="thm-def-checkbox" data-uid="${st.id}" ${isDef ? 'checked' : ''} style="width:18px; height:18px; accent-color:#dc2626; cursor:pointer;">
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            listEl.querySelectorAll('.thm-def-student-item').forEach(itemEl => {
+                itemEl.addEventListener('click', (e) => {
+                    const uid = itemEl.getAttribute('data-uid');
+                    const chk = itemEl.querySelector('.thm-def-checkbox');
+                    if (e.target !== chk) {
+                        chk.checked = !chk.checked;
+                    }
+                    if (chk.checked) {
+                        selectedDefaultersMap[uid] = true;
+                    } else {
+                        delete selectedDefaultersMap[uid];
+                    }
+                    updateDefaultersRowStyle(itemEl, chk.checked);
+                    updateDefaultersCounter();
+                });
+            });
+
+            updateDefaultersCounter();
+        }
+
+        function updateDefaultersRowStyle(itemEl, isDef) {
+            itemEl.style.background = isDef ? '#fef2f2' : '#ffffff';
+            itemEl.style.borderColor = isDef ? '#fecaca' : '#e2e8f0';
+            const pill = itemEl.querySelector('.thm-def-status-pill');
+            if (pill) {
+                pill.style.background = isDef ? '#fee2e2' : '#f1f5f9';
+                pill.style.color = isDef ? '#b91c1c' : '#64748b';
+                pill.style.borderColor = isDef ? '#fca5a5' : '#e2e8f0';
+                pill.innerHTML = isDef ? '<i class="fas fa-xmark"></i> Defaulter' : '<i class="fas fa-check"></i> Completed';
+            }
+        }
+
+        function updateDefaultersCounter() {
+            if (!defModal) return;
+            const count = Object.keys(selectedDefaultersMap).length;
+            const total = activeClassStudents.length;
+            const counterEl = defModal.querySelector('#thmDefSummaryCount');
+            if (counterEl) {
+                counterEl.innerHTML = `<span style="color:#dc2626;">${count} Defaulter${count === 1 ? '' : 's'}</span> out of ${total} total students`;
+            }
+        }
+
+        async function saveDefaulters() {
+            if (!activeDefaultersHw || !schoolId) return;
+            defSubmitBtn.disabled = true;
+            defSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            try {
+                const hwId = activeDefaultersHw.id;
+                const defaultersMap = { ...selectedDefaultersMap };
+                const count = Object.keys(defaultersMap).length;
+
+                // 1. Update homework document in RTDB
+                await db.ref(`schoolHomework/${schoolId}/${hwId}`).update({
+                    defaulters: defaultersMap,
+                    defaultersReviewed: true,
+                    defaultersCount: count,
+                    defaultersUpdatedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+
+                // 2. Multi-path atomic background update for students:
+                // Only defaulters have a reference! Non-defaulters have the reference removed.
+                const updates = {};
+                activeClassStudents.forEach(st => {
+                    if (defaultersMap[st.id]) {
+                        updates[`studentHomeworkDefaulters/${st.id}/${hwId}`] = {
+                            homeworkId: hwId,
+                            title: activeDefaultersHw.title,
+                            subject: activeDefaultersHw.subject || 'General',
+                            dueDate: activeDefaultersHw.dueDate || '',
+                            dueTime: activeDefaultersHw.dueTime || '',
+                            teacherName: activeDefaultersHw.teacherName || 'Subject Teacher',
+                            markedAt: firebase.database.ServerValue.TIMESTAMP
+                        };
+                    } else {
+                        updates[`studentHomeworkDefaulters/${st.id}/${hwId}`] = null;
+                    }
+                });
+
+                await db.ref().update(updates);
+
+                closeDefaultersModal();
+                if (window.showToast) {
+                    window.showToast(`Defaulters submitted: ${count} student(s) marked incomplete.`, 'success');
+                } else {
+                    alert(`Defaulters updated successfully! ${count} student(s) marked as incomplete.`);
+                }
+            } catch (err) {
+                console.error('Error saving defaulters:', err);
+                alert('Failed to save defaulters: ' + err.message);
+            } finally {
+                defSubmitBtn.disabled = false;
+                defSubmitBtn.innerHTML = '<i class="fas fa-save"></i> Save Defaulters';
+            }
+        }
 
         // Auth state handler
         firebase.auth().onAuthStateChanged(async user => {
