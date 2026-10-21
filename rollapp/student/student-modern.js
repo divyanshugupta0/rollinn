@@ -2782,10 +2782,6 @@
                         </div>
                     </td>
                     <td>
-                        <div style="font-weight:600; font-size:0.84rem; color:var(--sp-text-main);">${escapeHtml(r.time || '—')}</div>
-                        <div style="font-size:0.72rem; color:var(--sp-text-muted);">${escapeHtml(r.sessionType || 'Lecture')}</div>
-                    </td>
-                    <td>
                         ${statusBadge}
                     </td>
                     <td>
@@ -2803,7 +2799,6 @@
                     <tr>
                         <th>Date &amp; Day</th>
                         <th>Class / Course</th>
-                        <th>Time &amp; Session</th>
                         <th>Status</th>
                         <th>Verification</th>
                     </tr>
@@ -2822,7 +2817,7 @@
             return;
         }
 
-        const headers = ['Date', 'Day', 'Class / Course', 'Subject', 'Teacher', 'Time', 'Status', 'Verification Method'];
+        const headers = ['Date', 'Day', 'Class / Course', 'Subject', 'Teacher', 'Status', 'Verification Method'];
         const csvRows = [headers.join(',')];
 
         records.forEach(r => {
@@ -2835,7 +2830,6 @@
                 `"${(r.className || '').replace(/"/g, '""')}"`,
                 `"${(r.subject || '').replace(/"/g, '""')}"`,
                 `"${(r.teacherName || '').replace(/"/g, '""')}"`,
-                `"${(r.time || '').replace(/"/g, '""')}"`,
                 `"${(r.status || '').toUpperCase()}"`,
                 `"${(r.attendanceType || '').replace(/"/g, '""')}"`
             ];
