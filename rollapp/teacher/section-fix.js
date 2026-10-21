@@ -21,7 +21,10 @@
         'class-teacher-requests': 'class-teacher-requests',
         'classteacherrequests': 'class-teacher-requests',
         'student-requests': 'class-teacher-requests',
-        'studentrequests': 'class-teacher-requests'
+        'studentrequests': 'class-teacher-requests',
+        'homework': 'homework',
+        'assignments': 'homework',
+        'homeworks': 'homework'
     };
 
     function normalizeSection(raw) {
@@ -47,6 +50,10 @@
             return document.getElementById('teacherLeaveRequestsSection') ||
                    document.getElementById('teacherLeaveRequests');
         }
+        if (sectionName === 'homework') {
+            return document.getElementById('homeworkSection') ||
+                   document.getElementById('homework');
+        }
         return document.getElementById(sectionName + 'Section') ||
                document.getElementById(sectionName);
     }
@@ -55,7 +62,10 @@
         let item = document.querySelector(`.sidebar-menu .menu-item[data-section="${sectionName}"]`);
         if (item) return item;
 
-        if (sectionName === 'class-teacher-requests') {
+        if (sectionName === 'homework') {
+            item = document.querySelector('.sidebar-menu .menu-item[data-section="homework"]');
+            if (item) return item;
+        } else if (sectionName === 'class-teacher-requests') {
             item = document.querySelector('.sidebar-menu .menu-item[data-section="class-teacher-requests"]') ||
                    document.querySelector('.sidebar-menu .menu-item[data-section="classTeacherRequests"]');
         } else if (sectionName === 'teacherLeaveRequests') {

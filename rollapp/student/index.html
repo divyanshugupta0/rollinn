@@ -3539,6 +3539,11 @@
                         <i class="fas fa-calendar-days"></i>
                         <span>Time Table</span>
                     </button>
+                    <button type="button" class="mobile-sidebar-tab" data-tab="tab-homework">
+                        <i class="fas fa-book-bookmark"></i>
+                        <span>Homework</span>
+                        <span class="nav-tab-badge" id="mobile-hw-badge" style="display:none;">0</span>
+                    </button>
                     <button type="button" class="mobile-sidebar-tab" data-tab="tab-analytics">
                         <i class="fas fa-calculator"></i>
                         <span>Analytics &amp; Bunk Calc</span>
@@ -3589,6 +3594,10 @@
                     <button class="nav-tab-btn" data-tab="tab-timetable">
                         <i class="fas fa-calendar-days"></i> Time Table
                         <span class="nav-tab-badge">Weekly</span>
+                    </button>
+                    <button class="nav-tab-btn" data-tab="tab-homework">
+                        <i class="fas fa-book-bookmark"></i> Homework
+                        <span class="nav-tab-badge" id="nav-hw-badge" style="display:none;">0</span>
                     </button>
                     <button class="nav-tab-btn" data-tab="tab-analytics">
                         <i class="fas fa-calculator"></i> Analytics & Bunk Calc
@@ -3723,6 +3732,25 @@
                                         <div class="empty-state" style="text-align: center; padding: 24px; color: var(--sp-text-muted);">
                                             <i class="fas fa-spinner fa-spin" style="margin-bottom: 8px; display: block; font-size: 1.5rem; color: var(--sp-primary);"></i>
                                             Loading announcements...
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pending Homework Widget -->
+                            <div class="modern-panel" id="overview-homework-panel">
+                                <div class="panel-header">
+                                    <h3 class="panel-title">
+                                        <i class="fas fa-book-bookmark"></i> Class Homework
+                                    </h3>
+                                    <button type="button" class="panel-action-btn" id="ov-view-all-hw-btn" style="color:var(--sp-primary); font-weight:600; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;">
+                                        View All <i class="fas fa-arrow-right"></i>
+                                    </button>
+                                </div>
+                                <div class="panel-body">
+                                    <div id="overview-homework-list" style="display:flex; flex-direction:column; gap:8px;">
+                                        <div style="text-align:center; padding:16px; color:var(--sp-text-muted); font-size:0.8rem;">
+                                            <i class="fas fa-spinner fa-spin" style="margin-right:6px; color:var(--sp-primary);"></i>Loading homework...
                                         </div>
                                     </div>
                                 </div>
@@ -3996,6 +4024,85 @@
                             </div>
                             <div class="tt-legend-note">
                                 <i class="fas fa-info-circle"></i> Timings follow your institution's official period bell schedule.
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= TAB: HOMEWORK & ASSIGNMENTS ================= -->
+                <section id="tab-homework" class="student-tab-panel">
+                    <div class="hw-panel-card">
+                        <!-- Hero Banner -->
+                        <div class="hw-hero-banner">
+                            <div class="hw-hero-text">
+                                <div class="hw-hero-kicker"><i class="fas fa-graduation-cap"></i> Academic Assignments</div>
+                                <h2><i class="fas fa-book-bookmark"></i> Class Homework &amp; Tasks</h2>
+                                <p id="hw-class-subtitle">All active assignments posted by your subject teachers.</p>
+                            </div>
+                            <div class="hw-hero-pills">
+                                <span class="hw-pill hw-pill-class" id="hw-hero-class-pill"><i class="fas fa-chalkboard"></i> My Class</span>
+                                <span class="hw-pill hw-pill-count" id="hw-hero-count-pill"><i class="fas fa-layer-group"></i> 0 Tasks</span>
+                            </div>
+                        </div>
+
+                        <!-- Quick Summary KPI Counters -->
+                        <div class="hw-stats-strip">
+                            <div class="hw-stat-chip total">
+                                <div class="hw-stat-icon"><i class="fas fa-clipboard-list"></i></div>
+                                <div class="hw-stat-data">
+                                    <span class="hw-stat-num" id="hw-stat-total">0</span>
+                                    <span class="hw-stat-name">All Tasks</span>
+                                </div>
+                            </div>
+                            <div class="hw-stat-chip pending">
+                                <div class="hw-stat-icon"><i class="fas fa-hourglass-half"></i></div>
+                                <div class="hw-stat-data">
+                                    <span class="hw-stat-num" id="hw-stat-pending">0</span>
+                                    <span class="hw-stat-name">Pending</span>
+                                </div>
+                            </div>
+                            <div class="hw-stat-chip urgent">
+                                <div class="hw-stat-icon"><i class="fas fa-fire"></i></div>
+                                <div class="hw-stat-data">
+                                    <span class="hw-stat-num" id="hw-stat-urgent">0</span>
+                                    <span class="hw-stat-name">Due Soon</span>
+                                </div>
+                            </div>
+                            <div class="hw-stat-chip completed">
+                                <div class="hw-stat-icon"><i class="fas fa-circle-check"></i></div>
+                                <div class="hw-stat-data">
+                                    <span class="hw-stat-num" id="hw-stat-completed">0</span>
+                                    <span class="hw-stat-name">Completed</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Toolbar: Search, Subject Filter Chips, Status Tabs -->
+                        <div class="hw-toolbar">
+                            <div class="hw-search-box">
+                                <i class="fas fa-magnifying-glass"></i>
+                                <input type="text" id="hw-search-input" placeholder="Search homework by title, topic, or subject...">
+                            </div>
+                            <div class="hw-status-toggle" role="tablist">
+                                <button type="button" class="hw-status-btn active" data-hw-filter="all">All</button>
+                                <button type="button" class="hw-status-btn" data-hw-filter="pending">Pending</button>
+                                <button type="button" class="hw-status-btn" data-hw-filter="urgent">Due Soon</button>
+                                <button type="button" class="hw-status-btn" data-hw-filter="completed">Completed</button>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Subject Chips -->
+                        <div class="hw-subject-chips-bar" id="hw-subject-chips-bar">
+                            <button type="button" class="hw-subject-chip active" data-subject="all">
+                                <i class="fas fa-shapes"></i> All Subjects
+                            </button>
+                        </div>
+
+                        <!-- Homework Cards Grid -->
+                        <div class="hw-cards-grid" id="hw-cards-grid">
+                            <div class="hw-loading-state">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading assignments for your class...</p>
                             </div>
                         </div>
                     </div>

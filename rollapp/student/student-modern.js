@@ -166,6 +166,8 @@
             renderSubjectAnalytics();
         } else if (tabId === 'tab-idcard') {
             renderDigitalId();
+        } else if (tabId === 'tab-homework') {
+            renderStudentHomework();
         } else if (tabId === 'tab-profile') {
             renderProfileDetails();
             if (typeof window.loadProfileData === 'function') {
@@ -236,8 +238,10 @@
                 renderDigitalId();
                 renderProfileDetails();
                 loadClassTeacherInfo();
+                initStudentHomeworkSync(state.currentUser);
             }
         });
+        initStudentHomeworkSync(user);
 
         // 2. Sync Real Class Locations & Today's Schedule from RTDB
         db.ref('locations').on('value', (snap) => {
@@ -1783,6 +1787,440 @@
                 e.preventDefault();
                 navigateToLeaveTab();
             });
+        }
+    }
+
+    /* ==========================================================================
+       Student Portal - Homework & Assignments Engine
+       Fetches all subject homework for this student's class & section
+       ========================================================================== */
+    state.studentHomework = [];
+    state.completedHomeworkMap = {};
+    state.activeHwSubject = 'all';
+    state.activeHwFilter = 'all';
+    state.hwSearchQuery = '';
+
+    function normSectionVal(val) {
+        return String(val || '').trim().replace(/^section\s+/i, '').toUpperCase();
+    }
+
+    function initStudentHomeworkSync(user) {
+        if (!user || !window.firebase?.database) return;
+        const db = firebase.database();
+        const schoolId = user.schoolId || state.currentUser?.schoolId;
+        if (!schoolId) return;
+
+        // 1. Sync student's personal completion status (RTDB + localStorage)
+        const localCacheKey = `rollcall_hw_completed_${user.uid}`;
+        try {
+            const cached = localStorage.getItem(localCacheKey);
+            if (cached) state.completedHomeworkMap = JSON.parse(cached);
+        } catch (e) {}
+
+        db.ref(`studentHomeworkStatus/${user.uid}`).on('value', snap => {
+            const val = snap.val() || {};
+            state.completedHomeworkMap = { ...state.completedHomeworkMap, ...val };
+            try {
+                localStorage.setItem(localCacheKey, JSON.stringify(state.completedHomeworkMap));
+            } catch (e) {}
+            renderStudentHomework();
+            renderOverviewHomeworkWidget();
+            updateHomeworkNavBadges();
+        });
+
+        // 2. Realtime listener on schoolHomework
+        db.ref(`schoolHomework/${schoolId}`).on('value', snapshot => {
+            const data = snapshot.val() || {};
+            const studentSec = normSectionVal(user.section || user.classSection || user.assignedSection || state.currentUser?.section);
+            const studentClassId = String(user.courseId || user.classId || state.currentUser?.courseId || '').toLowerCase();
+            const studentClassName = String(user.courseName || user.className || state.currentUser?.courseName || '').toLowerCase();
+
+            // Filter for student's class and section
+            state.studentHomework = Object.entries(data).map(([id, item]) => ({
+                id,
+                ...item
+            })).filter(hw => {
+                const hwSec = normSectionVal(hw.section || hw.normSection);
+                // Section match: if hw has section, must match student's section or be ALL
+                if (hwSec && studentSec && hwSec !== 'ALL' && hwSec !== studentSec) {
+                    return false;
+                }
+
+                // Class match: if hw has classId or className, verify against student
+                const hwClassId = String(hw.classId || '').toLowerCase();
+                const hwClassName = String(hw.className || '').toLowerCase();
+
+                if (hwClassId && studentClassId && hwClassId === studentClassId) {
+                    return true;
+                }
+                if (hwClassName && studentClassName && (hwClassName === studentClassName || studentClassName.includes(hwClassName) || hwClassName.includes(studentClassName))) {
+                    return true;
+                }
+                // If neither specified or both match
+                if (!hwClassId && !hwClassName) return true;
+                if (!studentClassId && !studentClassName) return true;
+
+                // If section matched and no rigid clash
+                return !studentClassId || !hwClassId;
+            }).sort((a, b) => {
+                const dueA = new Date(`${a.dueDate}T${a.dueTime || '23:59'}`).getTime() || 0;
+                const dueB = new Date(`${b.dueDate}T${b.dueTime || '23:59'}`).getTime() || 0;
+                return dueA - dueB; // earliest due first
+            });
+
+            // Update UI
+            updateHomeworkNavBadges();
+            renderOverviewHomeworkWidget();
+            renderStudentHomework();
+        });
+
+        // Setup overview "View All" button listener once
+        const viewAllBtn = document.getElementById('ov-view-all-hw-btn');
+        if (viewAllBtn && viewAllBtn.dataset.bound !== 'true') {
+            viewAllBtn.dataset.bound = 'true';
+            viewAllBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                switchTab('tab-homework');
+            });
+        }
+
+        // Setup filter and search listeners
+        setupStudentHomeworkControls();
+    }
+    window.initStudentHomeworkSync = initStudentHomeworkSync;
+
+    function updateHomeworkNavBadges() {
+        const totalPending = state.studentHomework.filter(hw => !state.completedHomeworkMap[hw.id]).length;
+        const navBadge = document.getElementById('nav-hw-badge');
+        const mobBadge = document.getElementById('mobile-hw-badge');
+
+        [navBadge, mobBadge].forEach(badge => {
+            if (!badge) return;
+            if (totalPending > 0) {
+                badge.textContent = totalPending > 99 ? '99+' : totalPending;
+                badge.style.display = 'inline-flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        });
+    }
+
+    function getStudentHwDueMeta(dateStr, timeStr) {
+        if (!dateStr) return { status: 'pending', label: 'No Deadline', cls: 'info' };
+        const due = new Date(`${dateStr}T${timeStr || '23:59'}`);
+        const now = new Date();
+        const diffMs = due - now;
+        const diffHours = diffMs / (1000 * 60 * 60);
+
+        if (diffHours < 0) {
+            const daysAgo = Math.abs(Math.floor(diffHours / 24));
+            return {
+                status: 'overdue',
+                label: daysAgo <= 1 ? 'Overdue Yesterday' : `Overdue (${daysAgo}d ago)`,
+                cls: 'danger',
+                isUrgent: true
+            };
+        }
+        if (due.toDateString() === now.toDateString()) {
+            return {
+                status: 'urgent',
+                label: `Due Today at ${timeStr || '23:59'}`,
+                cls: 'warning',
+                isUrgent: true
+            };
+        }
+        if (diffHours <= 48) {
+            return {
+                status: 'urgent',
+                label: 'Due Tomorrow',
+                cls: 'warning',
+                isUrgent: true
+            };
+        }
+        const daysLeft = Math.ceil(diffHours / 24);
+        return {
+            status: 'pending',
+            label: `Due in ${daysLeft} days`,
+            cls: 'normal',
+            isUrgent: false
+        };
+    }
+
+    function renderOverviewHomeworkWidget() {
+        const container = document.getElementById('overview-homework-list');
+        if (!container) return;
+
+        const pendingList = state.studentHomework.filter(hw => !state.completedHomeworkMap[hw.id]);
+
+        if (pendingList.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:18px 12px; color:var(--sp-text-muted); font-size:0.82rem;">
+                    <i class="fas fa-circle-check" style="color:var(--sp-success); font-size:1.6rem; display:block; margin-bottom:6px;"></i>
+                    All caught up! No pending homework.
+                </div>
+            `;
+            return;
+        }
+
+        const topItems = pendingList.slice(0, 3);
+        container.innerHTML = topItems.map(hw => {
+            const dueMeta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
+            return `
+                <div class="ov-hw-item" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; background:var(--sp-bg-main); border:1px solid var(--sp-border); border-radius:10px; cursor:pointer;" onclick="switchStudentTab('tab-homework')">
+                    <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                        <div class="ov-hw-icon" style="width:34px; height:34px; border-radius:8px; background:var(--sp-primary-light); color:var(--sp-primary); display:flex; align-items:center; justify-content:center; font-size:0.9rem; flex-shrink:0;">
+                            <i class="fas fa-book-open"></i>
+                        </div>
+                        <div style="min-width:0;">
+                            <div style="font-weight:700; font-size:0.83rem; color:var(--sp-text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                ${escapeHtml(hw.title)}
+                            </div>
+                            <div style="font-size:0.72rem; color:var(--sp-text-muted);">
+                                <span style="font-weight:600; color:var(--sp-primary);">${escapeHtml(hw.subject || 'Subject')}</span> • ${escapeHtml(hw.teacherName || 'Teacher')}
+                            </div>
+                        </div>
+                    </div>
+                    <span class="ov-hw-badge ${dueMeta.cls}" style="font-size:0.68rem; font-weight:700; padding:3px 8px; border-radius:999px; white-space:nowrap; ${dueMeta.isUrgent ? 'background:#fee2e2; color:#b91c1c;' : 'background:var(--sp-bg-card); color:var(--sp-text-muted); border:1px solid var(--sp-border);'}">
+                        ${dueMeta.label}
+                    </span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderStudentHomework() {
+        const grid = document.getElementById('hw-cards-grid');
+        if (!grid) return;
+
+        const user = state.currentUser || {};
+        const className = user.courseName || user.className || 'My Class';
+        const section = normSectionVal(user.section || user.classSection || 'A');
+
+        // Update hero labels
+        const classPill = document.getElementById('hw-hero-class-pill');
+        const countPill = document.getElementById('hw-hero-count-pill');
+        const subtitle = document.getElementById('hw-class-subtitle');
+
+        if (classPill) classPill.innerHTML = `<i class="fas fa-chalkboard"></i> ${escapeHtml(className)} • Sec ${escapeHtml(section)}`;
+        if (countPill) countPill.innerHTML = `<i class="fas fa-layer-group"></i> ${state.studentHomework.length} Tasks`;
+        if (subtitle) subtitle.textContent = `All assignments posted for ${className} • Section ${section}.`;
+
+        // Update KPI Counters
+        let pendingCount = 0;
+        let urgentCount = 0;
+        let completedCount = 0;
+
+        const subjectsSet = new Set();
+
+        state.studentHomework.forEach(hw => {
+            if (hw.subject) subjectsSet.add(hw.subject);
+            const isCompleted = !!state.completedHomeworkMap[hw.id];
+            if (isCompleted) {
+                completedCount++;
+            } else {
+                pendingCount++;
+                const meta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
+                if (meta.isUrgent) urgentCount++;
+            }
+        });
+
+        const elTotal = document.getElementById('hw-stat-total');
+        const elPending = document.getElementById('hw-stat-pending');
+        const elUrgent = document.getElementById('hw-stat-urgent');
+        const elCompleted = document.getElementById('hw-stat-completed');
+
+        if (elTotal) elTotal.textContent = state.studentHomework.length;
+        if (elPending) elPending.textContent = pendingCount;
+        if (elUrgent) elUrgent.textContent = urgentCount;
+        if (elCompleted) elCompleted.textContent = completedCount;
+
+        // Render dynamic Subject Chips bar
+        renderSubjectChips(Array.from(subjectsSet));
+
+        // Filter list
+        const query = (state.hwSearchQuery || '').trim().toLowerCase();
+        const activeSub = state.activeHwSubject || 'all';
+        const activeFilter = state.activeHwFilter || 'all';
+
+        const filtered = state.studentHomework.filter(hw => {
+            const isCompleted = !!state.completedHomeworkMap[hw.id];
+            const meta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
+
+            // Status filter
+            if (activeFilter === 'pending' && isCompleted) return false;
+            if (activeFilter === 'completed' && !isCompleted) return false;
+            if (activeFilter === 'urgent' && (!meta.isUrgent || isCompleted)) return false;
+
+            // Subject filter
+            if (activeSub !== 'all' && (hw.subject || '').toLowerCase() !== activeSub.toLowerCase()) {
+                return false;
+            }
+
+            // Search query
+            if (query) {
+                const combined = `${hw.title} ${hw.subject} ${hw.description} ${hw.teacherName} ${hw.note || ''}`.toLowerCase();
+                if (!combined.includes(query)) return false;
+            }
+
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            grid.innerHTML = `
+                <div class="hw-empty-state">
+                    <div class="hw-empty-icon"><i class="fas fa-clipboard-check"></i></div>
+                    <h3>No assignments found</h3>
+                    <p>${state.studentHomework.length === 0 ? "Your subject teachers haven't posted any homework for your class yet." : "No homework matches your selected filters or search."}</p>
+                </div>
+            `;
+            return;
+        }
+
+        grid.innerHTML = filtered.map(hw => {
+            const isCompleted = !!state.completedHomeworkMap[hw.id];
+            const meta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
+            const displayDue = formatDisplayDate(hw.dueDate, hw.dueTime);
+
+            return `
+                <div class="hw-card ${isCompleted ? 'completed' : ''}" data-id="${hw.id}">
+                    <div class="hw-card-top">
+                        <div class="hw-badge-subject">
+                            <i class="fas fa-book"></i> ${escapeHtml(hw.subject || 'Subject')}
+                        </div>
+                        <span class="hw-tag-status ${isCompleted ? 'completed' : meta.cls}">
+                            ${isCompleted ? '<i class="fas fa-check"></i> Completed' : meta.label}
+                        </span>
+                    </div>
+
+                    <h3 class="hw-card-title">${escapeHtml(hw.title)}</h3>
+                    
+                    <div class="hw-card-meta-row">
+                        <span class="hw-meta-item"><i class="fas fa-chalkboard-user"></i> ${escapeHtml(hw.teacherName || 'Subject Teacher')}</span>
+                        <span class="hw-meta-item"><i class="fas fa-calendar-check"></i> Due: ${displayDue}</span>
+                    </div>
+
+                    <div class="hw-card-desc">${escapeHtml(hw.description)}</div>
+
+                    ${hw.note ? `
+                        <div class="hw-card-note">
+                            <i class="fas fa-circle-info"></i> <strong>Note:</strong> ${escapeHtml(hw.note)}
+                        </div>
+                    ` : ''}
+
+                    <div class="hw-card-footer">
+                        <button type="button" class="hw-toggle-done-btn ${isCompleted ? 'done' : ''}" data-id="${hw.id}">
+                            <i class="${isCompleted ? 'fas fa-circle-check' : 'far fa-circle'}"></i>
+                            <span>${isCompleted ? 'Completed (Tap to undo)' : 'Mark as Completed'}</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Attach completion toggle listeners
+        grid.querySelectorAll('.hw-toggle-done-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                toggleStudentHomework(id);
+            });
+        });
+    }
+    window.renderStudentHomework = renderStudentHomework;
+
+    function renderSubjectChips(subjects) {
+        const container = document.getElementById('hw-subject-chips-bar');
+        if (!container) return;
+
+        // Preserve "All Subjects" chip
+        let html = `
+            <button type="button" class="hw-subject-chip ${state.activeHwSubject === 'all' ? 'active' : ''}" data-subject="all">
+                <i class="fas fa-shapes"></i> All Subjects
+            </button>
+        `;
+
+        subjects.forEach(sub => {
+            const isActive = state.activeHwSubject.toLowerCase() === sub.toLowerCase();
+            html += `
+                <button type="button" class="hw-subject-chip ${isActive ? 'active' : ''}" data-subject="${escapeHtml(sub)}">
+                    <i class="fas fa-book-bookmark"></i> ${escapeHtml(sub)}
+                </button>
+            `;
+        });
+
+        container.innerHTML = html;
+
+        container.querySelectorAll('.hw-subject-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                state.activeHwSubject = chip.getAttribute('data-subject');
+                renderStudentHomework();
+            });
+        });
+    }
+
+    function setupStudentHomeworkControls() {
+        const searchInput = document.getElementById('hw-search-input');
+        if (searchInput && searchInput.dataset.bound !== 'true') {
+            searchInput.dataset.bound = 'true';
+            searchInput.addEventListener('input', (e) => {
+                state.hwSearchQuery = e.target.value;
+                renderStudentHomework();
+            });
+        }
+
+        const filterBtns = document.querySelectorAll('.hw-status-btn');
+        filterBtns.forEach(btn => {
+            if (btn.dataset.bound === 'true') return;
+            btn.dataset.bound = 'true';
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.activeHwFilter = btn.getAttribute('data-hw-filter');
+                renderStudentHomework();
+            });
+        });
+    }
+
+    async function toggleStudentHomework(hwId) {
+        if (!state.currentUser?.uid || !hwId) return;
+        const uid = state.currentUser.uid;
+        const currentlyDone = !!state.completedHomeworkMap[hwId];
+        const newStatus = !currentlyDone;
+
+        // Optimistic UI update
+        if (newStatus) {
+            state.completedHomeworkMap[hwId] = {
+                completed: true,
+                completedAt: Date.now()
+            };
+        } else {
+            delete state.completedHomeworkMap[hwId];
+        }
+
+        try {
+            const localCacheKey = `rollcall_hw_completed_${uid}`;
+            localStorage.setItem(localCacheKey, JSON.stringify(state.completedHomeworkMap));
+        } catch (e) {}
+
+        renderStudentHomework();
+        renderOverviewHomeworkWidget();
+        updateHomeworkNavBadges();
+
+        if (window.showModernToast) {
+            window.showModernToast(newStatus ? 'Marked as completed!' : 'Marked as pending', 'success');
+        }
+
+        // Persist to RTDB
+        if (window.firebase?.database) {
+            const db = firebase.database();
+            if (newStatus) {
+                await db.ref(`studentHomeworkStatus/${uid}/${hwId}`).set({
+                    completed: true,
+                    completedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+            } else {
+                await db.ref(`studentHomeworkStatus/${uid}/${hwId}`).remove();
+            }
         }
     }
 
