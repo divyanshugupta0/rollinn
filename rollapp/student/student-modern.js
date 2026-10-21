@@ -1623,11 +1623,9 @@
 
         // 2. Program / Course / Branch
         const courseDisplay = isSchoolMode
-            ? (user.className || user.courseName || user.course || 'School Student')
+            ? formatClassDisplay(user.className || user.courseName || user.course, 'School Student')
             : (user.course || user.department || user.branch || 'Undergraduate Student');
-        if (roleEl) roleEl.innerText = isSchoolMode && courseDisplay !== 'School Student'
-            ? `Class ${courseDisplay}`
-            : courseDisplay;
+        if (roleEl) roleEl.innerText = courseDisplay;
 
         // 3. College / Institution Name
         const instName = user.institution || user.schoolName || user.collegeName || user.school || 'INSTITUTE OF TECHNOLOGY';
@@ -1645,7 +1643,8 @@
         if (rollEl) rollEl.innerText = user.classRoll || 'Not Set';
 
         // 5. Section
-        if (secEl) secEl.innerText = user.section ? `Sec ${user.section}` : 'N/A';
+        const cleanCardSec = String(user.section || '').replace(/^(sec|section)\s*/i, '').trim();
+        if (secEl) secEl.innerText = cleanCardSec ? `Sec ${cleanCardSec}` : (user.section ? `Sec ${user.section}` : 'N/A');
 
         // 6. Valid Thru / Academic Batch
         let validThru = user.academicBatch || user.batch;
@@ -2154,12 +2153,13 @@
         const defaultAvatar = 'https://cdn.pixabay.com/photo/2016/11/14/17/39/person-1824144_960_720.png';
         if (heroAvatar) heroAvatar.src = user.profilePhoto || defaultAvatar;
         if (heroName) heroName.innerText = user.name || authUser?.displayName || (user.email ? user.email.split('@')[0] : 'Student');
+        const cleanHeroSec = String(user.section || '').replace(/^(sec|section)\s*/i, '').trim();
         if (heroDept) heroDept.innerText = isSchoolMode
-            ? `Class ${user.className || user.courseName || user.course || 'Not assigned'}`
+            ? formatClassDisplay(user.className || user.courseName || user.course, 'Not assigned')
             : (user.course || user.department || user.branch || 'B.Tech Computer Science & Engineering');
         if (heroUniv) heroUniv.innerText = user.univRoll || 'Not Assigned';
         if (heroRoll) heroRoll.innerText = classRoll || 'Not Assigned';
-        if (heroSec) heroSec.innerText = user.section || 'A';
+        if (heroSec) heroSec.innerText = cleanHeroSec || user.section || 'A';
 
         const usedCredits = Number(user.profileUpdateUsed || 0);
         const creditsLeft = Math.max(3 - usedCredits, 0);
@@ -2199,10 +2199,11 @@
         if (valUnivRoll) valUnivRoll.innerText = user.univRoll || 'Not Set';
         if (valClassRoll) valClassRoll.innerText = classRoll || 'Not Set';
         if (valCourse) valCourse.innerText = isSchoolMode
-            ? (user.className || user.courseName || user.course || 'Not assigned')
+            ? formatClassDisplay(user.className || user.courseName || user.course, 'Not assigned')
             : (user.course || 'B.Tech Computer Science & Engineering');
         if (valDept) valDept.innerText = user.department || user.branch || 'Computer Science & Engineering';
-        if (valSection) valSection.innerText = user.section ? `Section ${user.section}` : 'Section A';
+        const cleanValSec = String(user.section || '').replace(/^(sec|section)\s*/i, '').trim();
+        if (valSection) valSection.innerText = cleanValSec ? `Section ${cleanValSec}` : (user.section ? `Section ${user.section}` : 'Section A');
         if (valBatch) valBatch.innerText = user.academicBatch || user.batch || '2023 - 2027';
 
         if (!isSchoolMode) renderProfileEligibility();
@@ -3263,6 +3264,37 @@
             '"': '&quot;',
             "'": '&#39;'
         }[ch]));
+    }
+
+    /**
+     * Formats class/grade cleanly without duplicate "Class Class" repetitions.
+     * E.g.: "Class 10" -> "Class 10", "10" -> "Class 10", "Class Class 10" -> "Class 10",
+     *       "Grade 10" -> "Grade 10", "School Student" -> "School Student"
+     */
+    function formatClassDisplay(rawVal, defaultVal = 'Not assigned') {
+        if (rawVal === undefined || rawVal === null) return defaultVal;
+        let val = String(rawVal).trim();
+        if (!val || val.toLowerCase() === 'not assigned' || val.toLowerCase() === 'not set') return defaultVal;
+
+        if (/^(school\s+student|undergraduate\s+student|student)$/i.test(val)) {
+            return val;
+        }
+
+        // Collapse any duplicated "Class " repetitions at the beginning
+        val = val.replace(/^(class\s*)+/i, '').trim();
+
+        // Collapse any duplicated "Grade " repetitions
+        val = val.replace(/^(grade\s*)+/i, 'Grade ').trim();
+
+        if (!val) return defaultVal;
+
+        // If it starts with Grade/Standard/Std, preserve as-is
+        if (/^(grade|standard|std)\b/i.test(val)) {
+            return val;
+        }
+
+        // Return with single clean "Class " prefix
+        return `Class ${val}`;
     }
 
     // Window Exports & Bridges
