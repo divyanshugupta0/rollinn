@@ -199,15 +199,15 @@ body.teacher-authenticated #settingsSection .teacher-setting-card .checkbox-grou
  body.teacher-authenticated #dashboardSection .action-buttons { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
 @media(max-width:680px) {
- body.teacher-authenticated #dashboardSection.teacher-dashboard-redesigned { padding:0 0 24px; }
- body.teacher-authenticated #dashboardSection > .teacher-welcome { padding:20px; }
+ body.teacher-authenticated #dashboardSection.teacher-dashboard-redesigned { padding:0 0 20px; }
+ body.teacher-authenticated #dashboardSection > .teacher-welcome { padding:16px 18px; }
  body.teacher-authenticated #dashboardSection .dashboard-stats { grid-template-columns:repeat(2,minmax(0,1fr));gap:9px; }
- body.teacher-authenticated #dashboardSection .dashboard-stats .summary-card { min-height:105px;padding:13px;gap:10px; }
- body.teacher-authenticated #dashboardSection .dashboard-stats .summary-card > i { width:34px;height:34px; }
- body.teacher-authenticated #dashboardSection .dashboard-stats .summary-card .count { font-size:23px; }
+ body.teacher-authenticated #dashboardSection .dashboard-stats .summary-card { min-height:100px;padding:12px;gap:9px; }
+ body.teacher-authenticated #dashboardSection .dashboard-stats .summary-card > i { width:33px;height:33px; }
+ body.teacher-authenticated #dashboardSection .dashboard-stats .summary-card .count { font-size:22px; }
  body.teacher-authenticated #dashboardSection .action-buttons { grid-template-columns:1fr 1fr; }
- body.teacher-authenticated #dashboardSection .action-btn { min-height:66px;padding:10px;gap:8px;font-size:12px; }
- body.teacher-authenticated #dashboardSection .action-btn i { flex:0 0 32px;width:32px;height:32px; }
+ body.teacher-authenticated #dashboardSection .action-btn { min-height:60px;padding:10px;gap:8px;font-size:11px; }
+ body.teacher-authenticated #dashboardSection .action-btn i { flex:0 0 30px;width:30px;height:30px; }
  body.teacher-authenticated #dashboardSection > .header { flex-wrap:wrap; }
  body.teacher-authenticated #dashboardSection > .header .teacher-info { margin-left:auto; }
  body.teacher-authenticated #dashboardSection .dashboard-refresh-btn span { display:none; }
@@ -215,9 +215,9 @@ body.teacher-authenticated #settingsSection .teacher-setting-card .checkbox-grou
  body.teacher-authenticated #dashboardSection .dashboard-session-icon { grid-column:1;grid-row:1; }
  body.teacher-authenticated #dashboardSection .dashboard-session-copy { grid-column:2;grid-row:1; }
  body.teacher-authenticated #dashboardSection .dashboard-session-summary button { grid-column:1/-1;width:100%;min-width:0; }
- body.teacher-authenticated #settingsSection .settings-form { padding:16px; }
- body.teacher-authenticated #settingsSection .teacher-settings-grid { grid-template-columns:1fr;gap:12px; }
- body.teacher-authenticated #settingsSection .teacher-setting-card { padding:16px; }
+ body.teacher-authenticated #settingsSection .settings-form { padding:14px; }
+ body.teacher-authenticated #settingsSection .teacher-settings-grid { grid-template-columns:1fr;gap:10px; }
+ body.teacher-authenticated #settingsSection .teacher-setting-card { padding:14px; }
  body.teacher-authenticated #settingsSection .teacher-setting-card form { grid-template-columns:1fr; }
  body.teacher-authenticated #settingsSection #profileSettingsForm .form-group:has(#settingsProfilePic),
  body.teacher-authenticated #settingsSection #profileSettingsForm .primary-btn,

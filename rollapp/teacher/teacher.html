@@ -3049,21 +3049,26 @@
         }
 
         @media (max-width: 680px) {
-            body { display: block; padding-bottom: 72px; }
+            body { display: flex; }
             body:not(.teacher-authenticated) { padding: 0; }
             body:not(.teacher-authenticated) .main-content > .container { min-height: 100svh; padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)); }
-            .sidebar { top: auto; bottom: 0; left: 0; width: 100%; height: 68px; display: flex; flex-direction: row; border-radius: 14px 14px 0 0; box-shadow: 0 -8px 28px rgba(16,45,31,.16); }
-            .sidebar-header, .sidebar-footer { display: none; }
-            .sidebar-menu { display: flex; align-items: stretch; justify-content: space-around; width: 100%; padding: 5px 7px max(5px, env(safe-area-inset-bottom)); overflow: visible; }
-            .menu-item { flex: 1; margin: 0 2px; padding: 7px 2px; flex-direction: column; justify-content: center; gap: 4px; border-radius: 9px; font-size: 9px; }
-            .menu-item span { display: block; font-size: 9px; }
-            .menu-item i { min-width: 0; font-size: 15px; }
-            .menu-item.active::before { left: 25%; right: 25%; top: 0; bottom: auto; width: auto; height: 2px; border-radius: 0 0 3px 3px; }
-            .sidebar-collapsed { width: 100%; }
-            .sidebar-collapsed .sidebar-logo span, .sidebar-collapsed .menu-item span, .sidebar-collapsed .user-info { display: initial; }
-            .sidebar-collapsed .menu-item { justify-content: center; padding: 7px 2px; }
-            .main-content, .main-content-expanded { margin-left: 0; width: 100%; }
-            .container { padding: 23px 15px 28px; }
+            /* Slim left sidebar on mobile */
+            .sidebar { top: 0; bottom: 0; left: 0; width: 64px; height: 100vh; flex-direction: column; border-radius: 0; box-shadow: 4px 0 20px rgba(16,45,31,.12); }
+            .sidebar-header { display: flex; padding: 16px 0; justify-content: center; }
+            .sidebar-logo span { display: none; }
+            .sidebar-toggle { display: none; }
+            .sidebar-footer { display: flex; padding: 12px 0; justify-content: center; }
+            .sidebar-menu { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; width: 100%; padding: 8px 6px; overflow-y: auto; overflow-x: hidden; }
+            .menu-item { flex: initial; min-width: 0; margin: 2px 0; padding: 11px 0; flex-direction: row; justify-content: center; gap: 0; border-radius: 9px; }
+            .menu-item span { display: none; }
+            .menu-item i { min-width: 0; font-size: 16px; }
+            .menu-item.active::before { left: -6px; top: 10px; bottom: 10px; right: auto; width: 3px; height: auto; border-radius: 0 3px 3px 0; }
+            .sidebar-collapsed { width: 64px; }
+            .sidebar-collapsed .sidebar-logo span, .sidebar-collapsed .menu-item span, .sidebar-collapsed .user-info { display: none; }
+            .sidebar-collapsed .menu-item { justify-content: center; padding: 11px 0; }
+            .user-info { display: none; }
+            .main-content, .main-content-expanded { margin-left: 64px; width: calc(100% - 64px); }
+            .container { padding: 20px 14px 26px; }
             .header { align-items: flex-start; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; }
             .header h1 { font-size: 22px; }
             .teacher-info { padding: 8px 10px; font-size: 0; white-space: nowrap; }
@@ -3471,16 +3476,51 @@
             body.teacher-authenticated .main-content { margin-left:78px; width:calc(100% - 78px); }
         }
         @media(max-width:680px) {
-            body.teacher-authenticated { display:block; padding:0 0 76px; }
-            body.teacher-authenticated .sidebar { position:fixed; z-index:1000; inset:auto 0 0; display:flex; flex-direction:row; width:100%; height:auto; min-height:66px; border-radius:15px 15px 0 0; box-shadow:0 -6px 26px rgba(16,45,31,.14); }
-            body.teacher-authenticated .sidebar-header,body.teacher-authenticated .sidebar-footer { display:none; }
-            body.teacher-authenticated .sidebar-menu { display:flex; align-items:stretch; justify-content:space-around; width:100%; padding:7px 8px max(7px,env(safe-area-inset-bottom)); overflow:visible; }
-            body.teacher-authenticated .menu-item { flex:1; min-width:0; min-height:52px; margin:0 2px; padding:7px 2px; flex-direction:column; justify-content:center; gap:5px; border-radius:9px; }
-            body.teacher-authenticated .menu-item span { display:block; font-size:9px; line-height:1; }
-            body.teacher-authenticated .menu-item i { min-width:0; font-size:15px; }
-            body.teacher-authenticated .menu-item.active::before { top:0;right:27%;bottom:auto;left:27%;width:auto;height:2px; }
-            body.teacher-authenticated .main-content,body.teacher-authenticated .main-content-expanded { width:100%; margin-left:0; }
-            body.teacher-authenticated .container { padding:22px 14px 28px; }
+            /* Slim left sidebar replaces bottom nav bar on mobile */
+            body.teacher-authenticated { display:flex; padding:0; }
+            body.teacher-authenticated .sidebar {
+                position:fixed; z-index:1000;
+                inset:0 auto 0 0;
+                display:flex; flex-direction:column;
+                width:64px; height:100%;
+                min-height:0; border-radius:0;
+                box-shadow:4px 0 24px rgba(16,45,31,.16);
+            }
+            body.teacher-authenticated .sidebar-header {
+                display:flex; min-height:auto;
+                padding:16px 0; justify-content:center;
+                border-bottom:1px solid rgba(255,255,255,.1);
+            }
+            body.teacher-authenticated .sidebar-logo span { display:none; }
+            body.teacher-authenticated .sidebar-toggle { display:none; }
+            body.teacher-authenticated .sidebar-footer {
+                display:flex; justify-content:center;
+                align-items:center; flex-direction:column;
+                padding:12px 0; gap:8px;
+                border-top:1px solid rgba(255,255,255,.1);
+            }
+            body.teacher-authenticated .sidebar-user {
+                flex-direction:column; align-items:center;
+                justify-content:center; gap:8px; width:100%;
+            }
+            body.teacher-authenticated .user-info { display:none; }
+            body.teacher-authenticated .sidebar-menu {
+                display:flex; flex-direction:column;
+                align-items:stretch; justify-content:flex-start;
+                width:100%; padding:10px 7px;
+                overflow-y:auto; overflow-x:hidden;
+            }
+            body.teacher-authenticated .menu-item {
+                flex:initial; min-width:0; min-height:44px;
+                margin:2px 0; padding:10px 0;
+                flex-direction:row; justify-content:center;
+                gap:0; border-radius:9px;
+            }
+            body.teacher-authenticated .menu-item span { display:none; }
+            body.teacher-authenticated .menu-item i { min-width:0; font-size:16px; }
+            body.teacher-authenticated .menu-item.active::before { top:10px; right:auto; bottom:10px; left:-7px; width:3px; height:auto; border-radius:0 4px 4px 0; }
+            body.teacher-authenticated .main-content,body.teacher-authenticated .main-content-expanded { width:calc(100% - 64px); margin-left:64px; }
+            body.teacher-authenticated .container { padding:18px 14px 24px; }
             body.teacher-authenticated .section-container > .header { min-height:48px; margin-bottom:15px; padding-bottom:12px; }
             body.teacher-authenticated .header h1 { font-size:21px; }
             body.teacher-authenticated .teacher-info { padding:7px 9px; font-size:0; }
@@ -3766,6 +3806,9 @@
             body.teacher-authenticated #attendanceSection .locations-container { grid-template-columns:minmax(0,1fr) !important; }
             body.teacher-authenticated #attendanceSection .location-actions .action-btn { min-height:44px !important; font-size:9px !important; }
             body.teacher-authenticated #attendanceSection .class-selection-container { padding:14px !important; }
+            /* Modals – slide up from bottom on small screens */
+            .popup-overlay,.modal-overlay { align-items:flex-end; padding:8px; }
+            #attendancePopup .popup-container { width:calc(100% - 16px) !important; height:min(94vh,900px) !important; max-height:94vh; border-radius:17px 17px 12px 12px; }
             #locationModal .modal-body { padding:15px !important; }
             #locationModal #locationForm { grid-template-columns:minmax(0,1fr); }
             #locationModal #locationForm > .form-group,
