@@ -138,13 +138,17 @@
         }
 
         // 4. Close mobile sidebar on navigation if open
-        if (window.innerWidth <= 992) {
+        if (window.innerWidth <= 992 && window.innerWidth > 680) {
             const sidebar = document.querySelector('.sidebar');
             const mainContent = document.querySelector('.main-content');
             if (sidebar && !sidebar.classList.contains('sidebar-collapsed')) {
                 sidebar.classList.add('sidebar-collapsed');
                 mainContent?.classList.add('main-content-expanded');
             }
+        } else if (window.innerWidth <= 680) {
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) sidebar.classList.remove('sidebar-collapsed');
+            document.querySelectorAll('.main-content-expanded').forEach(el => el.classList.remove('main-content-expanded'));
         }
 
         // 5. Section-specific hooks

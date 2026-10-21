@@ -23,17 +23,25 @@
         return document.body.classList.contains('teacher-authenticated');
     }
 
-    /** Strip any inline margin/width set by the desktop sidebar-toggle JS */
+    /** Strip any inline margin/width and clear desktop collapsed classes on mobile */
     function resetMainContentLayout() {
         document.querySelectorAll('.main-content, .main-content-expanded').forEach(el => {
             el.style.marginLeft = '';
             el.style.width = '';
         });
+        if (isMobile()) {
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) sidebar.classList.remove('sidebar-collapsed');
+            document.querySelectorAll('.main-content-expanded').forEach(el => {
+                el.classList.remove('main-content-expanded');
+            });
+        }
     }
 
     // ── Sidebar state ──────────────────────────────────────────────────────────
 
     function openSidebar() {
+        resetMainContentLayout();
         document.body.classList.add(OPEN_CLASS);
         document.body.style.overflow = 'hidden';
         if (backdrop) backdrop.style.display = 'block';
