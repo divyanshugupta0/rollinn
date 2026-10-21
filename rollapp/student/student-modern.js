@@ -2054,6 +2054,18 @@
         };
     }
 
+    function formatDisplayDate(dateStr, timeStr) {
+        if (!dateStr) return 'No due date';
+        const dt = new Date(`${dateStr}T${timeStr || '23:59'}`);
+        if (isNaN(dt.getTime())) return dateStr;
+        return dt.toLocaleDateString(undefined, {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        }) + (timeStr ? ` at ${dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : '');
+    }
+
     function renderOverviewHomeworkWidget() {
         const container = document.getElementById('overview-homework-list');
         if (!container) return;
@@ -2100,139 +2112,143 @@
         const grid = document.getElementById('hw-cards-grid');
         if (!grid) return;
 
-        const user = state.currentUser || {};
-        const className = user.courseName || user.className || 'My Class';
-        const section = normSectionVal(user.section || user.classSection || 'A');
+        try {
+            const user = state.currentUser || {};
+            const className = user.courseName || user.className || 'My Class';
+            const section = normSectionVal(user.section || user.classSection || 'A');
 
-        // Update hero labels
-        const classPill = document.getElementById('hw-hero-class-pill');
-        const countPill = document.getElementById('hw-hero-count-pill');
-        const subtitle = document.getElementById('hw-class-subtitle');
+            // Update hero labels
+            const classPill = document.getElementById('hw-hero-class-pill');
+            const countPill = document.getElementById('hw-hero-count-pill');
+            const subtitle = document.getElementById('hw-class-subtitle');
 
-        if (classPill) classPill.innerHTML = `<i class="fas fa-chalkboard"></i> ${escapeHtml(className)} • Sec ${escapeHtml(section)}`;
-        if (countPill) countPill.innerHTML = `<i class="fas fa-layer-group"></i> ${state.studentHomework.length} Tasks`;
-        if (subtitle) subtitle.textContent = `All assignments posted for ${className} • Section ${section}.`;
+            if (classPill) classPill.innerHTML = `<i class="fas fa-chalkboard"></i> ${escapeHtml(className)} • Sec ${escapeHtml(section)}`;
+            if (countPill) countPill.innerHTML = `<i class="fas fa-layer-group"></i> ${state.studentHomework.length} Tasks`;
+            if (subtitle) subtitle.textContent = `All assignments posted for ${className} • Section ${section}.`;
 
-        // Update KPI Counters
-        let pendingCount = 0;
-        let urgentCount = 0;
-        let completedCount = 0;
+            // Update KPI Counters
+            let pendingCount = 0;
+            let urgentCount = 0;
+            let completedCount = 0;
 
-        const subjectsSet = new Set();
+            const subjectsSet = new Set();
 
-        state.studentHomework.forEach(hw => {
-            if (hw.subject) subjectsSet.add(hw.subject);
-            const isCompleted = !!state.completedHomeworkMap[hw.id];
-            if (isCompleted) {
-                completedCount++;
-            } else {
-                pendingCount++;
-                const meta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
-                if (meta.isUrgent) urgentCount++;
-            }
-        });
-
-        const elTotal = document.getElementById('hw-stat-total');
-        const elPending = document.getElementById('hw-stat-pending');
-        const elUrgent = document.getElementById('hw-stat-urgent');
-        const elCompleted = document.getElementById('hw-stat-completed');
-
-        if (elTotal) elTotal.textContent = state.studentHomework.length;
-        if (elPending) elPending.textContent = pendingCount;
-        if (elUrgent) elUrgent.textContent = urgentCount;
-        if (elCompleted) elCompleted.textContent = completedCount;
-
-        // Render dynamic Subject Chips bar
-        renderSubjectChips(Array.from(subjectsSet));
-
-        // Filter list
-        const query = (state.hwSearchQuery || '').trim().toLowerCase();
-        const activeSub = state.activeHwSubject || 'all';
-        const activeFilter = state.activeHwFilter || 'all';
-
-        const filtered = state.studentHomework.filter(hw => {
-            const isCompleted = !!state.completedHomeworkMap[hw.id];
-            const meta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
-
-            // Status filter
-            if (activeFilter === 'pending' && isCompleted) return false;
-            if (activeFilter === 'completed' && !isCompleted) return false;
-            if (activeFilter === 'urgent' && (!meta.isUrgent || isCompleted)) return false;
-
-            // Subject filter
-            if (activeSub !== 'all' && (hw.subject || '').toLowerCase() !== activeSub.toLowerCase()) {
-                return false;
-            }
-
-            // Search query
-            if (query) {
-                const combined = `${hw.title} ${hw.subject} ${hw.description} ${hw.teacherName} ${hw.note || ''}`.toLowerCase();
-                if (!combined.includes(query)) return false;
-            }
-
-            return true;
-        });
-
-        if (filtered.length === 0) {
-            grid.innerHTML = `
-                <div class="hw-empty-state">
-                    <div class="hw-empty-icon"><i class="fas fa-clipboard-check"></i></div>
-                    <h3>No assignments found</h3>
-                    <p>${state.studentHomework.length === 0 ? "Your subject teachers haven't posted any homework for your class yet." : "No homework matches your selected filters or search."}</p>
-                </div>
-            `;
-            return;
-        }
-
-        grid.innerHTML = filtered.map(hw => {
-            const isCompleted = !!state.completedHomeworkMap[hw.id];
-            const meta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
-            const displayDue = formatDisplayDate(hw.dueDate, hw.dueTime);
-
-            return `
-                <div class="hw-card ${isCompleted ? 'completed' : ''}" data-id="${hw.id}">
-                    <div class="hw-card-top">
-                        <div class="hw-badge-subject">
-                            <i class="fas fa-book"></i> ${escapeHtml(hw.subject || 'Subject')}
-                        </div>
-                        <span class="hw-tag-status ${isCompleted ? 'completed' : meta.cls}">
-                            ${isCompleted ? '<i class="fas fa-check"></i> Completed' : meta.label}
-                        </span>
-                    </div>
-
-                    <h3 class="hw-card-title">${escapeHtml(hw.title)}</h3>
-                    
-                    <div class="hw-card-meta-row">
-                        <span class="hw-meta-item"><i class="fas fa-chalkboard-user"></i> ${escapeHtml(hw.teacherName || 'Subject Teacher')}</span>
-                        <span class="hw-meta-item"><i class="fas fa-calendar-check"></i> Due: ${displayDue}</span>
-                    </div>
-
-                    <div class="hw-card-desc">${escapeHtml(hw.description)}</div>
-
-                    ${hw.note ? `
-                        <div class="hw-card-note">
-                            <i class="fas fa-circle-info"></i> <strong>Note:</strong> ${escapeHtml(hw.note)}
-                        </div>
-                    ` : ''}
-
-                    <div class="hw-card-footer">
-                        <button type="button" class="hw-toggle-done-btn ${isCompleted ? 'done' : ''}" data-id="${hw.id}">
-                            <i class="${isCompleted ? 'fas fa-circle-check' : 'far fa-circle'}"></i>
-                            <span>${isCompleted ? 'Completed (Tap to undo)' : 'Mark as Completed'}</span>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        // Attach completion toggle listeners
-        grid.querySelectorAll('.hw-toggle-done-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const id = btn.getAttribute('data-id');
-                toggleStudentHomework(id);
+            state.studentHomework.forEach(hw => {
+                if (hw.subject) subjectsSet.add(hw.subject);
+                const isCompleted = !!state.completedHomeworkMap[hw.id];
+                if (isCompleted) {
+                    completedCount++;
+                } else {
+                    pendingCount++;
+                    const meta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
+                    if (meta.isUrgent) urgentCount++;
+                }
             });
-        });
+
+            const elTotal = document.getElementById('hw-stat-total');
+            const elPending = document.getElementById('hw-stat-pending');
+            const elUrgent = document.getElementById('hw-stat-urgent');
+            const elCompleted = document.getElementById('hw-stat-completed');
+
+            if (elTotal) elTotal.textContent = state.studentHomework.length;
+            if (elPending) elPending.textContent = pendingCount;
+            if (elUrgent) elUrgent.textContent = urgentCount;
+            if (elCompleted) elCompleted.textContent = completedCount;
+
+            // Render dynamic Subject Chips bar
+            renderSubjectChips(Array.from(subjectsSet));
+
+            // Filter list
+            const query = (state.hwSearchQuery || '').trim().toLowerCase();
+            const activeSub = state.activeHwSubject || 'all';
+            const activeFilter = state.activeHwFilter || 'all';
+
+            const filtered = state.studentHomework.filter(hw => {
+                const isCompleted = !!state.completedHomeworkMap[hw.id];
+                const meta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
+
+                // Status filter
+                if (activeFilter === 'pending' && isCompleted) return false;
+                if (activeFilter === 'completed' && !isCompleted) return false;
+                if (activeFilter === 'urgent' && (!meta.isUrgent || isCompleted)) return false;
+
+                // Subject filter
+                if (activeSub !== 'all' && (hw.subject || '').toLowerCase() !== activeSub.toLowerCase()) {
+                    return false;
+                }
+
+                // Search query
+                if (query) {
+                    const combined = `${hw.title} ${hw.subject} ${hw.description} ${hw.teacherName} ${hw.note || ''}`.toLowerCase();
+                    if (!combined.includes(query)) return false;
+                }
+
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="hw-empty-state">
+                        <div class="hw-empty-icon"><i class="fas fa-clipboard-check"></i></div>
+                        <h3>No assignments found</h3>
+                        <p>${state.studentHomework.length === 0 ? "Your subject teachers haven't posted any homework for your class yet." : "No homework matches your selected filters or search."}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(hw => {
+                const isCompleted = !!state.completedHomeworkMap[hw.id];
+                const meta = getStudentHwDueMeta(hw.dueDate, hw.dueTime);
+                const displayDue = formatDisplayDate(hw.dueDate, hw.dueTime);
+
+                return `
+                    <div class="hw-card ${isCompleted ? 'completed' : ''}" data-id="${hw.id}">
+                        <div class="hw-card-top">
+                            <div class="hw-badge-subject">
+                                <i class="fas fa-book"></i> ${escapeHtml(hw.subject || 'Subject')}
+                            </div>
+                            <span class="hw-tag-status ${isCompleted ? 'completed' : meta.cls}">
+                                ${isCompleted ? '<i class="fas fa-check"></i> Completed' : meta.label}
+                            </span>
+                        </div>
+
+                        <h3 class="hw-card-title">${escapeHtml(hw.title)}</h3>
+                        
+                        <div class="hw-card-meta-row">
+                            <span class="hw-meta-item"><i class="fas fa-chalkboard-user"></i> ${escapeHtml(hw.teacherName || 'Subject Teacher')}</span>
+                            <span class="hw-meta-item"><i class="fas fa-calendar-check"></i> Due: ${displayDue}</span>
+                        </div>
+
+                        <div class="hw-card-desc">${escapeHtml(hw.description)}</div>
+
+                        ${hw.note ? `
+                            <div class="hw-card-note">
+                                <i class="fas fa-circle-info"></i> <strong>Note:</strong> ${escapeHtml(hw.note)}
+                            </div>
+                        ` : ''}
+
+                        <div class="hw-card-footer">
+                            <button type="button" class="hw-toggle-done-btn ${isCompleted ? 'done' : ''}" data-id="${hw.id}">
+                                <i class="${isCompleted ? 'fas fa-circle-check' : 'far fa-circle'}"></i>
+                                <span>${isCompleted ? 'Completed (Tap to undo)' : 'Mark as Completed'}</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Attach completion toggle listeners
+            grid.querySelectorAll('.hw-toggle-done-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = btn.getAttribute('data-id');
+                    toggleStudentHomework(id);
+                });
+            });
+        } catch (err) {
+            console.error('Error rendering student homework:', err);
+        }
     }
     window.renderStudentHomework = renderStudentHomework;
 
