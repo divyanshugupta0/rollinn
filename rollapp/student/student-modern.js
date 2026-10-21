@@ -2753,7 +2753,8 @@
         records.forEach(r => {
             const d = r.dateObj || new Date(r.date);
             const dateStr = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-            const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+            const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+            const timeStr = r.time || (r.timestamp && !isNaN(Number(r.timestamp)) ? new Date(Number(r.timestamp)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : 'Scheduled');
 
             let statusBadge = '';
             if (r.status === 'present') {
@@ -2766,42 +2767,82 @@
                 statusBadge = '<span class="ar-status-badge absent"><i class="fas fa-circle-xmark"></i> Absent</span>';
             }
 
+            // Session type styling & icon
+            const sType = String(r.sessionType || 'Lecture');
+            const sTypeLower = sType.toLowerCase();
+            let sessionClass = 'lecture';
+            let sessionIcon = 'fas fa-chalkboard';
+            if (sTypeLower.includes('lab') || sTypeLower.includes('practical')) {
+                sessionClass = 'lab';
+                sessionIcon = 'fas fa-flask';
+            } else if (sTypeLower.includes('exam') || sTypeLower.includes('test')) {
+                sessionClass = 'exam';
+                sessionIcon = 'fas fa-file-pen';
+            } else if (sTypeLower.includes('tutorial')) {
+                sessionClass = 'tutorial';
+                sessionIcon = 'fas fa-book-reader';
+            }
+
+            const cleanClass = formatClassDisplay(r.className || 'Class');
+
+            // Exact timestamp if recorded
+            const exactTime = r.timestamp && !isNaN(Number(r.timestamp))
+                ? new Date(Number(r.timestamp)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+                : '';
+
             rowsHtml += `
                 <tr>
                     <td>
                         <div class="ar-date-cell">
                             <span class="ar-date-main">${dateStr}</span>
-                            <span class="ar-date-sub">${weekday}</span>
+                            <span class="ar-time-sub"><i class="far fa-clock"></i> ${escapeHtml(timeStr)} · ${weekday}</span>
                         </div>
                     </td>
                     <td>
-                        <div class="ar-class-title">
-                            <i class="fas fa-graduation-cap"></i> ${escapeHtml(r.className)}
+                        <div class="ar-subject-main">
+                            ${escapeHtml(r.subject || r.className || 'Class Session')}
                         </div>
-                        <div style="font-size:0.75rem; color:var(--sp-text-muted); margin-top:2px;">
-                            ${escapeHtml(r.subject || '')} ${r.teacherName ? '• ' + escapeHtml(r.teacherName) : ''}
+                        <div class="ar-teacher-sub">
+                            <i class="fas fa-chalkboard-user"></i>
+                            <span>${escapeHtml(r.teacherName || 'Faculty In-Charge')}</span>
                         </div>
+                    </td>
+                    <td>
+                        <span class="ar-class-pill">
+                            <i class="fas fa-graduation-cap"></i> ${escapeHtml(cleanClass)}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="ar-session-badge ${sessionClass}">
+                            <i class="${sessionIcon}"></i> ${escapeHtml(sType)}
+                        </span>
                     </td>
                     <td>
                         ${statusBadge}
                     </td>
                     <td>
-                        <span class="ar-method-tag">
-                            <i class="fas fa-shield-halved"></i> ${escapeHtml(r.attendanceType || 'Verified')}
-                        </span>
+                        <div class="ar-method-cell">
+                            <span class="ar-method-tag">
+                                <i class="fas fa-shield-halved"></i> ${escapeHtml(r.attendanceType || 'Verified')}
+                            </span>
+                            ${exactTime ? `<span class="ar-timestamp-sub" title="Audit Timestamp"><i class="fas fa-fingerprint"></i> ${exactTime}</span>` : ''}
+                        </div>
                     </td>
                 </tr>
             `;
         });
 
         listEl.innerHTML = `
+            <div class="ar-mobile-scroll-hint"><i class="fas fa-arrows-left-right"></i> Scroll table horizontally to view complete record details</div>
             <table class="ar-records-table">
                 <thead>
                     <tr>
-                        <th>Date &amp; Day</th>
+                        <th>Date &amp; Time</th>
+                        <th>Subject &amp; Faculty</th>
                         <th>Class / Course</th>
+                        <th>Session Type</th>
                         <th>Status</th>
-                        <th>Verification</th>
+                        <th>Verification &amp; Audit</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2818,21 +2859,27 @@
             return;
         }
 
-        const headers = ['Date', 'Day', 'Class / Course', 'Subject', 'Teacher', 'Status', 'Verification Method'];
+        const headers = ['Date', 'Day', 'Time', 'Class / Course', 'Subject', 'Session Type', 'Teacher', 'Status', 'Verification Method', 'Audit Timestamp'];
         const csvRows = [headers.join(',')];
 
         records.forEach(r => {
             const d = r.dateObj || new Date(r.date);
             const dateStr = d.toISOString().split('T')[0];
             const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+            const exactTimestamp = r.timestamp && !isNaN(Number(r.timestamp))
+                ? new Date(Number(r.timestamp)).toISOString()
+                : '';
             const row = [
                 `"${dateStr}"`,
                 `"${weekday}"`,
-                `"${(r.className || '').replace(/"/g, '""')}"`,
+                `"${(r.time || '').replace(/"/g, '""')}"`,
+                `"${(formatClassDisplay(r.className) || '').replace(/"/g, '""')}"`,
                 `"${(r.subject || '').replace(/"/g, '""')}"`,
+                `"${(r.sessionType || 'Lecture').replace(/"/g, '""')}"`,
                 `"${(r.teacherName || '').replace(/"/g, '""')}"`,
                 `"${(r.status || '').toUpperCase()}"`,
-                `"${(r.attendanceType || '').replace(/"/g, '""')}"`
+                `"${(r.attendanceType || '').replace(/"/g, '""')}"`,
+                `"${exactTimestamp}"`
             ];
             csvRows.push(row.join(','));
         });

@@ -4081,84 +4081,68 @@ body:has(#login-section:not(.hidden)) {
     color: var(--sp-primary);
 }
 
-/* KPI Summary Grid */
-.ar-kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    padding: 24px 28px;
-    border-bottom: 1px solid var(--sp-border-subtle);
-}
-
-.ar-kpi-box {
+/* Minimal KPI Stat Bar */
+.ar-kpi-bar {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 16px 20px;
-    border-radius: var(--sp-radius-lg);
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 24px;
+    background: var(--sp-bg-main);
+    border-bottom: 1px solid var(--sp-border);
+}
+
+.ar-kpi-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 14px;
+    border-radius: var(--sp-radius-full);
     background: var(--sp-bg-card);
     border: 1px solid var(--sp-border);
+    font-size: 0.8rem;
+    color: var(--sp-text-muted);
     transition: var(--sp-transition);
 }
 
-.ar-kpi-box:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--sp-shadow-md);
+.ar-kpi-pill:hover {
+    border-color: var(--sp-primary-light);
+    transform: translateY(-1px);
 }
 
-.ar-kpi-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--sp-radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    flex-shrink: 0;
+.ar-kpi-icon-mini {
+    font-size: 0.85rem;
 }
 
-.ar-kpi-total .ar-kpi-icon { background: rgba(99, 102, 241, 0.12); color: var(--sp-primary); }
-.ar-kpi-present .ar-kpi-icon { background: rgba(16, 185, 129, 0.12); color: var(--sp-success); }
-.ar-kpi-absent .ar-kpi-icon { background: rgba(239, 68, 68, 0.12); color: var(--sp-danger); }
-.ar-kpi-rate .ar-kpi-icon { background: rgba(245, 158, 11, 0.12); color: var(--sp-warning); }
+.ar-kpi-total .ar-kpi-icon-mini { color: var(--sp-primary); }
+.ar-kpi-present .ar-kpi-icon-mini { color: var(--sp-success); }
+.ar-kpi-absent .ar-kpi-icon-mini { color: var(--sp-danger); }
+.ar-kpi-rate .ar-kpi-icon-mini { color: var(--sp-warning); }
 
-.ar-kpi-content {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.ar-kpi-num {
-    font-size: 1.5rem;
-    font-weight: 800;
-    line-height: 1.2;
-    color: var(--sp-text-main);
-}
-
-.ar-kpi-total .ar-kpi-num { color: var(--sp-primary); }
-.ar-kpi-present .ar-kpi-num { color: var(--sp-success); }
-.ar-kpi-absent .ar-kpi-num { color: var(--sp-danger); }
-
-.ar-kpi-label {
-    font-size: 0.78rem;
+.ar-kpi-label-mini {
+    font-weight: 600;
     color: var(--sp-text-muted);
-    font-weight: 500;
-    margin-top: 2px;
 }
 
-.ar-rate-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+.ar-kpi-num-mini {
+    font-weight: 800;
+    color: var(--sp-text-main);
+    font-size: 0.88rem;
 }
+
+.ar-kpi-total .ar-kpi-num-mini { color: var(--sp-primary); }
+.ar-kpi-present .ar-kpi-num-mini { color: var(--sp-success); }
+.ar-kpi-absent .ar-kpi-num-mini { color: var(--sp-danger); }
+.ar-kpi-rate .ar-kpi-num-mini { color: var(--sp-text-main); }
 
 .ar-badge-status {
-    font-size: 0.7rem;
-    font-weight: 700;
+    font-size: 0.68rem;
+    font-weight: 800;
     padding: 2px 7px;
     border-radius: var(--sp-radius-full);
     text-transform: uppercase;
     letter-spacing: 0.03em;
+    margin-left: 2px;
 }
 
 .ar-badge-status.safe { background: rgba(16, 185, 129, 0.15); color: var(--sp-success); }
@@ -4308,23 +4292,25 @@ body:has(#login-section:not(.hidden)) {
     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
 
-/* Records Table */
+/* Records Table (Complete Detail Ledger) */
 .ar-table-responsive {
     width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .ar-records-table {
     width: 100%;
     border-collapse: collapse;
     text-align: left;
+    min-width: 900px;
 }
 
 .ar-records-table th {
-    padding: 14px 24px;
-    background: rgba(99, 102, 241, 0.03);
+    padding: 14px 18px;
+    background: rgba(99, 102, 241, 0.04);
     border-bottom: 1px solid var(--sp-border);
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -4333,55 +4319,126 @@ body:has(#login-section:not(.hidden)) {
 }
 
 .ar-records-table td {
-    padding: 16px 24px;
+    padding: 14px 18px;
     border-bottom: 1px solid var(--sp-border-subtle);
-    font-size: 0.88rem;
+    font-size: 0.86rem;
     color: var(--sp-text-main);
     vertical-align: middle;
     transition: var(--sp-transition);
 }
 
-.ar-records-table tr:hover td {
+.ar-records-table tbody tr:hover td {
     background: var(--sp-bg-card-hover);
 }
 
+/* 1. Date & Time Cell */
 .ar-date-cell {
     display: flex;
     flex-direction: column;
+    gap: 3px;
+    min-width: 125px;
 }
 
 .ar-date-main {
     font-weight: 700;
     color: var(--sp-text-main);
+    font-size: 0.88rem;
 }
 
-.ar-date-sub {
-    font-size: 0.74rem;
+.ar-time-sub {
+    font-size: 0.73rem;
     color: var(--sp-text-muted);
-}
-
-.ar-class-title {
-    font-weight: 600;
-    color: var(--sp-text-main);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 5px;
 }
 
-.ar-class-title i {
+.ar-time-sub i {
     color: var(--sp-primary);
-    font-size: 0.9rem;
+    font-size: 0.72rem;
 }
 
-.ar-status-badge {
+/* 2. Subject & Faculty Cell */
+.ar-subject-main {
+    font-weight: 700;
+    color: var(--sp-text-main);
+    font-size: 0.92rem;
+    line-height: 1.35;
+}
+
+.ar-teacher-sub {
+    font-size: 0.75rem;
+    color: var(--sp-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+}
+
+.ar-teacher-sub i {
+    color: var(--sp-primary);
+    font-size: 0.75rem;
+}
+
+/* 3. Class / Course Pill */
+.ar-class-pill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 12px;
+    padding: 3px 9px;
     border-radius: var(--sp-radius-full);
-    font-size: 0.78rem;
+    background: var(--sp-primary-light);
+    color: var(--sp-primary);
+    font-size: 0.76rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* 4. Session Type Badge */
+.ar-session-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: var(--sp-radius-md);
+    background: var(--sp-bg-main);
+    border: 1px solid var(--sp-border);
+    color: var(--sp-text-main);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ar-session-badge.lab {
+    background: rgba(14, 165, 233, 0.1);
+    color: #0284c7;
+    border-color: rgba(14, 165, 233, 0.28);
+}
+
+.ar-session-badge.exam {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--sp-danger);
+    border-color: rgba(239, 68, 68, 0.28);
+}
+
+.ar-session-badge.tutorial {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--sp-warning);
+    border-color: rgba(245, 158, 11, 0.28);
+}
+
+/* 5. Status Badge */
+.ar-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 11px;
+    border-radius: var(--sp-radius-full);
+    font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .ar-status-badge.present {
@@ -4408,17 +4465,34 @@ body:has(#login-section:not(.hidden)) {
     border: 1px solid rgba(14, 165, 233, 0.3);
 }
 
+/* 6. Verification Method & Timestamp Cell */
+.ar-method-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
 .ar-method-tag {
     display: inline-flex;
     align-items: center;
     gap: 5px;
     padding: 3px 8px;
     border-radius: 6px;
-    background: var(--sp-bg-main);
-    color: var(--sp-text-muted);
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--sp-primary);
     font-size: 0.74rem;
-    font-weight: 500;
-    border: 1px solid var(--sp-border);
+    font-weight: 600;
+    border: 1px solid rgba(99, 102, 241, 0.22);
+    white-space: nowrap;
+    align-self: flex-start;
+}
+
+.ar-timestamp-sub {
+    font-size: 0.7rem;
+    color: var(--sp-text-subtle);
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .ar-empty-state-card {
