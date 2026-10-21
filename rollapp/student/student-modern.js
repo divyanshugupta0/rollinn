@@ -2867,13 +2867,16 @@
         schedules: {},
         courses: {},
         subjectAssignments: {},
-        isLoading: false
+        isLoading: false,
+        mobileView: 'day', // 'day' | 'grid'
+        selectedDayKey: null
     };
 
     function initStudentTimetableModule() {
         const sectionSelect = document.getElementById('tt-section-select');
         const refreshBtn = document.getElementById('tt-btn-refresh');
         const printBtn = document.getElementById('tt-btn-print');
+        const gridEl = document.getElementById('tt-grid-container');
 
         if (sectionSelect) {
             sectionSelect.addEventListener('change', () => {
@@ -2893,6 +2896,33 @@
             printBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 window.print();
+            });
+        }
+
+        // Delegate click events for mobile view switcher and day chips
+        if (gridEl) {
+            gridEl.addEventListener('click', (e) => {
+                const switchBtn = e.target.closest('.tt-view-switch-btn');
+                if (switchBtn) {
+                    e.preventDefault();
+                    const view = switchBtn.dataset.view;
+                    if (view && (view === 'day' || view === 'grid')) {
+                        timetableState.mobileView = view;
+                        renderTimetableGrid();
+                    }
+                    return;
+                }
+
+                const dayChip = e.target.closest('.tt-day-chip');
+                if (dayChip) {
+                    e.preventDefault();
+                    const day = dayChip.dataset.day;
+                    if (day) {
+                        timetableState.selectedDayKey = day;
+                        renderTimetableGrid();
+                    }
+                    return;
+                }
             });
         }
     }
@@ -2967,7 +2997,7 @@
                 if (!sections || typeof sections !== 'object') return;
                 Object.entries(sections).forEach(([secKey, sched]) => {
                     if (!sched || typeof sched !== 'object') return;
-                    const className = sched.className || courses[classId]?.courseName || 'Class';
+                    const className = formatClassDisplay(sched.className || courses[classId]?.courseName, 'Class');
                     const secName = sched.section || '';
                     const year = sched.year || '';
                     const value = `${classId}|${secKey}`;
@@ -2997,7 +3027,7 @@
                         scopeMap.set(value, {
                             classId,
                             sectionKey: secKey,
-                            className: courseName,
+                            className: formatClassDisplay(courseName, 'Class'),
                             section: secName,
                             year: secYear,
                             value,
@@ -3246,13 +3276,126 @@
             `;
         });
 
+        // 5. Build Mobile Cards for Active Selected Day
+        if (!timetableState.selectedDayKey || !days.includes(timetableState.selectedDayKey)) {
+            timetableState.selectedDayKey = days.includes(currentDayKey) ? currentDayKey : (days[0] || 'mon');
+        }
+        if (!timetableState.mobileView) {
+            timetableState.mobileView = 'day';
+        }
+
+        const activeMobileDay = timetableState.selectedDayKey;
+        const isMobileDayToday = activeMobileDay === currentDayKey;
+
+        let mobileCardsHtml = '';
+        columns.forEach((col, idx) => {
+            if (col.type === 'lunch') {
+                mobileCardsHtml += `
+                    <div class="tt-mobile-lunch-card">
+                        <div class="tt-mobile-lunch-icon"><i class="fas fa-utensils"></i></div>
+                        <div>
+                            <div class="tt-mobile-lunch-title">${escapeHtml(lunchBreak.label || 'Recess / Lunch Interval')}</div>
+                            <div class="tt-mobile-lunch-time">${lunchBreak.start && lunchBreak.end ? `${lunchBreak.start} – ${lunchBreak.end}` : ''}${lunchBreak.duration ? ' · ' + lunchBreak.duration + ' mins' : ''}</div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const period = col.period;
+            const slot = timetable.slots?.[activeMobileDay]?.[period.id];
+            const isLiveNow = isMobileDayToday && period.start && period.end && period.start <= currentTimeStr && currentTimeStr < period.end;
+            const timeRange = period.start && period.end ? `${period.start} – ${period.end}` : 'Time not set';
+
+            if (!slot || !slot.subject) {
+                mobileCardsHtml += `
+                    <div class="tt-mobile-period-card empty-card">
+                        <div class="tt-mobile-period-top">
+                            <span class="tt-mobile-period-name"><i class="fas fa-layer-group"></i> ${escapeHtml(period.name || `Period ${idx + 1}`)}</span>
+                            <span class="tt-mobile-time-pill"><i class="far fa-clock"></i> ${timeRange}</span>
+                        </div>
+                        <div class="tt-mobile-empty-text"><i class="far fa-calendar-minus"></i> Free Period / No Class Scheduled</div>
+                    </div>
+                `;
+                return;
+            }
+
+            const subjectName = slot.subject;
+            const teacherName = slot.teacherName || 'Faculty Assigned';
+            const roomName = slot.room || 'Classroom';
+
+            mobileCardsHtml += `
+                <div class="tt-mobile-period-card ${isLiveNow ? 'live-card' : ''}">
+                    ${isLiveNow ? '<div class="tt-mobile-live-badge"><i class="fas fa-satellite-dish"></i> Live Ongoing Class</div>' : ''}
+                    <div class="tt-mobile-period-top">
+                        <span class="tt-mobile-period-name"><i class="fas fa-layer-group"></i> ${escapeHtml(period.name || `Period ${idx + 1}`)}</span>
+                        <span class="tt-mobile-time-pill"><i class="far fa-clock"></i> ${timeRange}</span>
+                    </div>
+                    <div class="tt-mobile-subject-title">${escapeHtml(subjectName)}</div>
+                    <div class="tt-mobile-meta-row">
+                        <div class="tt-mobile-meta-pill">
+                            <i class="fas fa-chalkboard-user"></i>
+                            <span>${escapeHtml(teacherName)}</span>
+                        </div>
+                        <div class="tt-mobile-meta-pill">
+                            <i class="fas fa-door-open"></i>
+                            <span>${escapeHtml(roomName)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
         gridEl.innerHTML = `
-            <table class="tt-grid-table">
-                ${headerHtml}
-                <tbody>
-                    ${rowsHtml}
-                </tbody>
-            </table>
+            <!-- Mobile View Switcher (Visible on Mobile) -->
+            <div class="tt-view-switch-bar">
+                <button type="button" class="tt-view-switch-btn ${timetableState.mobileView === 'day' ? 'active' : ''}" data-view="day">
+                    <i class="fas fa-calendar-day"></i> Day View
+                </button>
+                <button type="button" class="tt-view-switch-btn ${timetableState.mobileView === 'grid' ? 'active' : ''}" data-view="grid">
+                    <i class="fas fa-table-cells"></i> Weekly Matrix
+                </button>
+            </div>
+
+            <!-- Mobile Day Strip (Visible on Mobile) -->
+            <div class="tt-mobile-day-strip ${timetableState.mobileView === 'grid' ? 'mobile-hidden' : ''}" role="tablist">
+                ${days.map(dayKey => {
+                    const meta = daysMeta.get(dayKey) || { name: dayKey.toUpperCase(), short: dayKey.toUpperCase() };
+                    const isDayToday = dayKey === currentDayKey;
+                    const isSelected = dayKey === timetableState.selectedDayKey;
+                    return `
+                        <button type="button" class="tt-day-chip ${isSelected ? 'active' : ''} ${isDayToday ? 'is-today' : ''}" data-day="${dayKey}">
+                            <span class="tt-day-chip-name">${escapeHtml(meta.short)}</span>
+                            ${isDayToday ? '<span class="tt-day-chip-badge">Today</span>' : ''}
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+
+            <!-- Mobile Day Cards (Visible on Mobile in Day View) -->
+            <div class="tt-mobile-day-container ${timetableState.mobileView === 'grid' ? 'mobile-hidden' : ''}">
+                <div class="tt-mobile-day-header">
+                    <div class="tt-mobile-day-title">
+                        <i class="fas fa-calendar-check"></i>
+                        <span>${escapeHtml(daysMeta.get(timetableState.selectedDayKey)?.name || 'Schedule')}</span>
+                    </div>
+                    ${timetableState.selectedDayKey === currentDayKey ? '<span class="tt-mobile-today-pill"><i class="fas fa-bolt"></i> Today</span>' : ''}
+                </div>
+                <div class="tt-mobile-cards-list">
+                    ${mobileCardsHtml}
+                </div>
+            </div>
+
+            <!-- Full Weekly Matrix Table (Always on Desktop, toggleable on Mobile) -->
+            <div class="tt-grid-matrix-container ${timetableState.mobileView === 'day' ? 'mobile-hidden' : ''}">
+                <div class="tt-mobile-scroll-hint"><i class="fas fa-arrows-left-right"></i> Swipe horizontally to view all periods</div>
+                <table class="tt-grid-table">
+                    ${headerHtml}
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
         `;
     }
 
