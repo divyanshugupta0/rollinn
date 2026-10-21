@@ -601,14 +601,273 @@
         return false;
     }
 
-    function renderTodayScheduleFromDB() {
+    function parseTimeToMinutes(timeVal) {
+        if (!timeVal) return null;
+        if (typeof timeVal === 'number') {
+            const d = new Date(timeVal);
+            return d.getHours() * 60 + d.getMinutes();
+        }
+        const s = String(timeVal).trim().toLowerCase();
+        const isPM = s.includes('pm');
+        const isAM = s.includes('am');
+        const clean = s.replace(/[^\d:]/g, '');
+        const parts = clean.split(':');
+        if (parts.length < 2) return null;
+        let h = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) || 0;
+        if (isNaN(h)) return null;
+        if (isPM && h < 12) h += 12;
+        if (isAM && h === 12) h = 0;
+        return h * 60 + m;
+    }
+
+    function formatTimeDisplay(timeStr) {
+        if (!timeStr) return '';
+        const s = String(timeStr).trim();
+        if (/am|pm/i.test(s)) return s;
+        const parts = s.split(':');
+        if (parts.length >= 2) {
+            let h = parseInt(parts[0], 10);
+            const m = parts[1].padStart(2, '0');
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            return `${h}:${m} ${ampm}`;
+        }
+        return s;
+    }
+
+    async function renderTodayScheduleFromDB() {
         const container = document.getElementById('today-schedule-list');
         if (!container) return;
 
         const isSchoolMode = window.rollCallStudentMode?.isSchoolMode?.() === true || state.schoolType === 'school';
+        const user = state.currentUser || (window.firebase?.auth && firebase.auth().currentUser);
+        const schoolId = user?.schoolId || '';
+
+        // In School Mode: Load from School Timetable for today's day of week
+        if (isSchoolMode && schoolId && window.firebase?.database) {
+            await renderSchoolTodaySchedule(container, user, schoolId);
+            return;
+        }
+
+        // --- College / Location-Based Mode ---
+        renderCollegeTodaySchedule(container, user);
+    }
+
+    async function renderSchoolTodaySchedule(container, user, schoolId) {
+        const db = firebase.database();
+        const now = new Date();
+        const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        const todayDayKey = dayKeys[now.getDay()];
+
+        if (todayDayKey === 'sun') {
+            container.innerHTML = `
+                <div class="empty-state" style="text-align: center; padding: 28px; color: var(--sp-text-muted);">
+                    <i class="fas fa-mug-hot" style="font-size: 2rem; margin-bottom: 8px; display: block; color: var(--sp-warning);"></i>
+                    No classes scheduled for Sunday (Weekend).
+                </div>`;
+            return;
+        }
+
+        let settings = state.timetableSettings;
+        let timetables = state.schoolTimetables;
+
+        if (!settings || !timetables) {
+            try {
+                const [settingsSnap, ttSnap] = await Promise.all([
+                    db.ref(`schoolTimetableSettings/${schoolId}`).once('value'),
+                    db.ref(`schoolTimetables/${schoolId}`).once('value')
+                ]);
+                settings = settingsSnap.val() || {};
+                timetables = ttSnap.val() || {};
+                state.timetableSettings = settings;
+                state.schoolTimetables = timetables;
+            } catch (err) {
+                console.error('Error fetching timetable for today schedule:', err);
+            }
+        }
+
+        settings = settings || {};
+        timetables = timetables || {};
+        const periods = Array.isArray(settings.periods) ? settings.periods : [];
+
+        // Match student's assigned class/section
+        const userSection = (user?.section || '').trim().toLowerCase();
+        const userClassId = user?.enrolledClassId || user?.classId || '';
+        const userClassName = (user?.className || '').trim().toLowerCase();
+
+        let matchedTimetable = null;
+
+        // 1. Try classId + section match
+        if (userClassId && timetables[userClassId]) {
+            const classSecs = timetables[userClassId];
+            Object.values(classSecs).forEach(sched => {
+                if (!matchedTimetable && sched && (String(sched.section || '').trim().toLowerCase() === userSection || !userSection)) {
+                    matchedTimetable = sched;
+                }
+            });
+            if (!matchedTimetable) {
+                matchedTimetable = Object.values(classSecs)[0] || null;
+            }
+        }
+
+        // 2. Search all classes for section match
+        if (!matchedTimetable && userSection) {
+            Object.values(timetables).forEach(secMap => {
+                if (!matchedTimetable && secMap && typeof secMap === 'object') {
+                    Object.values(secMap).forEach(sched => {
+                        if (!matchedTimetable && sched && String(sched.section || '').trim().toLowerCase() === userSection) {
+                            matchedTimetable = sched;
+                        }
+                    });
+                }
+            });
+        }
+
+        // 3. Search by className match
+        if (!matchedTimetable && userClassName) {
+            Object.values(timetables).forEach(secMap => {
+                if (!matchedTimetable && secMap && typeof secMap === 'object') {
+                    Object.values(secMap).forEach(sched => {
+                        if (!matchedTimetable && sched && String(sched.className || '').trim().toLowerCase() === userClassName) {
+                            matchedTimetable = sched;
+                        }
+                    });
+                }
+            });
+        }
+
+        // 4. Fallback to first available timetable
+        if (!matchedTimetable) {
+            for (const secMap of Object.values(timetables)) {
+                if (secMap && typeof secMap === 'object') {
+                    const first = Object.values(secMap)[0];
+                    if (first) {
+                        matchedTimetable = first;
+                        break;
+                    }
+                }
+            }
+        }
+
+        const todaySlots = matchedTimetable?.slots?.[todayDayKey] || {};
+        const todayClasses = [];
+
+        periods.forEach(p => {
+            const slot = todaySlots[p.id];
+            if (slot && slot.subject) {
+                todayClasses.push({
+                    periodId: p.id,
+                    periodName: p.name || 'Period',
+                    start: p.start || '09:00',
+                    end: p.end || '10:00',
+                    subject: slot.subject,
+                    teacherName: slot.teacherName || 'Faculty Assigned',
+                    room: slot.room || 'Classroom',
+                    section: matchedTimetable.section || user?.section || 'Class'
+                });
+            }
+        });
+
+        if (todayClasses.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state" style="text-align: center; padding: 28px; color: var(--sp-text-muted);">
+                    <i class="fas fa-calendar-check" style="font-size: 2rem; margin-bottom: 8px; display: block; color: var(--sp-primary);"></i>
+                    No classes scheduled for today in timetable.
+                </div>`;
+            return;
+        }
+
+        const curMinutes = now.getHours() * 60 + now.getMinutes();
+        let futureCount = 0;
+
+        container.innerHTML = todayClasses.map(cls => {
+            const startM = parseTimeToMinutes(cls.start) ?? 0;
+            const endM = parseTimeToMinutes(cls.end) ?? (startM + 60);
+
+            const isRunning = startM <= curMinutes && curMinutes < endM;
+            const isPrevious = curMinutes >= endM;
+            const isFuture = curMinutes < startM;
+
+            let cardClass = 'schedule-card-item';
+            let statusBadgeHtml = '';
+            let cardTitle = `${cls.subject} (${cls.start} – ${cls.end})`;
+
+            if (isRunning) {
+                // Currently running class: flickering filled background in school mode
+                cardClass += ' school-running-flicker';
+                statusBadgeHtml = `
+                    <div class="schedule-status-badge school-live-flicker-badge">
+                        <span class="school-flicker-dot"></span>
+                        <span>Ongoing Class</span>
+                    </div>`;
+                cardTitle = `Currently Running: ${cls.subject} (Ends in ${endM - curMinutes}m)`;
+            } else if (isPrevious) {
+                // Previous interval class: turned-down tile, subdued & completed
+                cardClass += ' school-previous-tile';
+                statusBadgeHtml = `
+                    <div class="schedule-status-badge school-past-badge">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Completed</span>
+                    </div>`;
+                cardTitle = `Previous Class: ${cls.subject} (Ended at ${formatTimeDisplay(cls.end)})`;
+            } else if (isFuture) {
+                // Future class of today: vibrant colourful tile
+                const colorIdx = futureCount % 6;
+                futureCount++;
+                cardClass += ` school-future-tile school-future-color-${colorIdx}`;
+                statusBadgeHtml = `
+                    <div class="schedule-status-badge school-future-badge">
+                        <i class="fas fa-clock"></i>
+                        <span>Upcoming</span>
+                    </div>`;
+                cardTitle = `Upcoming: ${cls.subject} (Starts in ${startM - curMinutes}m)`;
+            }
+
+            return `
+                <div class="${cardClass}" 
+                     data-class-name="${encodeURIComponent(cls.subject)}"
+                     data-period-id="${cls.periodId}"
+                     title="${cardTitle}">
+                    <div class="schedule-time-box">
+                        <span class="time-start">${formatTimeDisplay(cls.start)}</span>
+                        <span class="time-end">${formatTimeDisplay(cls.end)}</span>
+                    </div>
+                    <div class="schedule-details">
+                        <div class="subject-name">${escapeHtml(cls.subject)}</div>
+                        <div class="teacher-room">
+                            <span><i class="fas fa-chalkboard-teacher"></i> ${escapeHtml(cls.teacherName)}</span>
+                            <span><i class="fas fa-door-open"></i> ${escapeHtml(cls.room)}</span>
+                            <span><i class="fas fa-layer-group"></i> ${escapeHtml(cls.periodName)}</span>
+                        </div>
+                    </div>
+                    <div class="schedule-action-col">
+                        ${isRunning ? '<span class="status-tag tag-now"><span class="school-flicker-dot"></span> Active Now</span>' : ''}
+                        ${statusBadgeHtml}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Attach click toasts for school cards
+        container.querySelectorAll('.schedule-card-item').forEach(card => {
+            card.addEventListener('click', () => {
+                const subject = decodeURIComponent(card.getAttribute('data-class-name') || 'Class');
+                if (card.classList.contains('school-running-flicker')) {
+                    showModernToast(`${subject} is currently in session right now.`, 'info', 2500);
+                } else if (card.classList.contains('school-previous-tile')) {
+                    showModernToast(`${subject} class interval has already concluded.`, 'info', 2200);
+                } else if (card.classList.contains('school-future-tile')) {
+                    showModernToast(`${subject} is scheduled for later today.`, 'info', 2200);
+                }
+            });
+        });
+    }
+
+    function renderCollegeTodaySchedule(container, user) {
         const locations = state.locations || {};
-        const studentSection = (state.currentUser?.section || '').trim().toLowerCase();
-        const uid = state.currentUser?.uid;
+        const studentSection = (user?.section || '').trim().toLowerCase();
+        const uid = user?.uid;
         const todayStr = getTodayDateString();
 
         const todaySchedule = [];
@@ -617,7 +876,6 @@
             const loc = locations[id];
             const locSec = String(loc.section || '').trim().toLowerCase();
             
-            // Check if user attended today
             const attendedToday = !!(uid && (state.attendanceByLocation?.[id]?.[todayStr]?.[uid] || state.userAttendanceToday?.[id]));
             const matchesSection = attendedToday || !locSec || locSec === 'general' || locSec === 'all' || !studentSection || locSec.includes(studentSection) || studentSection.includes(locSec);
 
@@ -647,7 +905,6 @@
             const end = cls.scheduledEnd || cls.endTime || '11:30 AM';
             const safeClassName = cls.name || 'Lecture Session';
 
-            // Check if current user marked attendance for this class today
             const locAttToday = (state.attendanceByLocation?.[cls.id]?.[todayStr]) || {};
             const isMarkedInLoc = !!(uid && locAttToday[uid]);
             const isMarkedInUser = !!(uid && state.userAttendanceToday?.[cls.id]);
@@ -663,28 +920,8 @@
             let cardTitle = safeClassName;
             let canClickToMark = false;
 
-            if (isSchoolMode) {
-                cardStatus = isMarked ? 'present' : 'school-pending';
-                statusTagHtml = '';
-                actionHtml = isMarked
-                    ? `
-                        <div class="schedule-status-badge present">
-                            <i class="fas fa-check-circle"></i>
-                            <span>Present</span>
-                        </div>`
-                    : `
-                        <div class="schedule-status-badge upcoming">
-                            <i class="fas fa-clipboard-check"></i>
-                            <span>Daily attendance taken by school</span>
-                        </div>`;
-                cardClass += isMarked ? ' attended-card' : ' school-schedule-card';
-                cardTitle = isMarked
-                    ? `Attendance recorded for ${safeClassName}`
-                    : `${safeClassName}: attendance is recorded by your school once per day`;
-            } else if (isMarked) {
-                // 1. Marked -> Present (single prominent Present badge, no Mark Attendance button)
+            if (isMarked) {
                 cardStatus = 'present';
-                statusTagHtml = '';
                 actionHtml = `
                     <div class="schedule-status-badge present">
                         <i class="fas fa-check-circle"></i>
@@ -693,7 +930,6 @@
                 cardClass += ' attended-card';
                 cardTitle = `Attendance Marked: Present for ${safeClassName}`;
             } else if (active) {
-                // 2. Active Now & Not Marked -> Active Now tag + Mark Attendance button
                 cardStatus = 'active';
                 statusTagHtml = '<span class="status-tag tag-now"><i class="fas fa-satellite-dish"></i> Active Now</span>';
                 actionHtml = `
@@ -705,9 +941,7 @@
                 cardTitle = `Click to Mark Attendance for ${safeClassName}`;
                 canClickToMark = true;
             } else if (upcoming) {
-                // 3. Upcoming today -> Scheduled badge (no Mark Attendance button)
                 cardStatus = 'upcoming';
-                statusTagHtml = '';
                 actionHtml = `
                     <div class="schedule-status-badge upcoming">
                         <i class="fas fa-clock"></i>
@@ -716,9 +950,7 @@
                 cardClass += ' upcoming-card';
                 cardTitle = `${safeClassName} scheduled to start at ${start}`;
             } else {
-                // 4. Otherwise not marked & not active -> Absent (single prominent Absent badge, no Mark Attendance button)
                 cardStatus = 'absent';
-                statusTagHtml = '';
                 actionHtml = `
                     <div class="schedule-status-badge absent">
                         <i class="fas fa-times-circle"></i>
@@ -764,7 +996,6 @@
                 if (canMark) {
                     switchTab('tab-attendance');
 
-                    // Pre-select location/class if dropdown exists
                     const locSelect = document.getElementById('location-select') || document.getElementById('class-select');
                     if (locSelect && classId) {
                         locSelect.value = classId;
@@ -783,8 +1014,6 @@
                     showModernToast(`Session ended. Attendance not marked: Absent`, 'error', 2200);
                 } else if (status === 'upcoming') {
                     showModernToast(`${className} is scheduled for later today.`, 'info', 2200);
-                } else if (status === 'school-pending') {
-                    showModernToast('Your school records attendance once per class each day.', 'info', 2200);
                 }
             });
         });
@@ -802,17 +1031,25 @@
                     if (window.firebase?.database && state.currentUser?.uid) {
                         const db = firebase.database();
                         const uid = state.currentUser.uid;
+                        const schoolId = state.currentUser.schoolId;
                         const todayKey = getTodayDateString();
-                        const [locSnap, attSnap, userAttSnap] = await Promise.all([
+                        const promises = [
                             db.ref('locations').once('value'),
                             db.ref('attendance_by_location').once('value'),
                             db.ref(`user_attendance/${uid}/${todayKey}`).once('value')
-                        ]);
-                        state.locations = locSnap.val() || {};
-                        state.attendanceByLocation = attSnap.val() || {};
-                        state.userAttendanceToday = userAttSnap.val() || {};
+                        ];
+                        if (schoolId) {
+                            promises.push(db.ref(`schoolTimetableSettings/${schoolId}`).once('value'));
+                            promises.push(db.ref(`schoolTimetables/${schoolId}`).once('value'));
+                        }
+                        const results = await Promise.all(promises);
+                        state.locations = results[0].val() || {};
+                        state.attendanceByLocation = results[1].val() || {};
+                        state.userAttendanceToday = results[2].val() || {};
+                        if (results[3]) state.timetableSettings = results[3].val() || {};
+                        if (results[4]) state.schoolTimetables = results[4].val() || {};
                     }
-                    renderTodayScheduleFromDB();
+                    await renderTodayScheduleFromDB();
                     loadStudentAttendanceRecords();
                     showModernToast("Schedule refreshed successfully", "success", 1800);
                 } catch (err) {
@@ -823,6 +1060,15 @@
                     if (icon) icon.classList.remove('fa-spin');
                 }
             });
+        }
+
+        // Live Periodic Ticker: Update active period status automatically every 30 seconds
+        if (!window._schoolTodayScheduleTicker) {
+            window._schoolTodayScheduleTicker = setInterval(() => {
+                if (state.activeTab === 'tab-overview' || state.activeTab === 'tab-home') {
+                    renderTodayScheduleFromDB();
+                }
+            }, 30000);
         }
     }
 

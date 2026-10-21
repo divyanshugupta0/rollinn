@@ -867,6 +867,262 @@ body:has(#login-section:not(.hidden)) {
 }
 
 /* ==========================================================================
+   School Mode: Today Schedule Dynamic Time Tiles (Previous, Live, Future)
+   ========================================================================== */
+
+/* 1. Currently Running Class - Flickering Filled Background (School Mode Only) */
+@keyframes schoolRunningFlickerBg {
+    0%, 100% {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(99, 102, 241, 0.22) 50%, rgba(14, 165, 233, 0.25) 100%);
+        border-color: rgba(16, 185, 129, 0.9);
+        box-shadow: 0 0 24px rgba(16, 185, 129, 0.45), inset 0 0 16px rgba(16, 185, 129, 0.18);
+    }
+    20% {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.38) 0%, rgba(99, 102, 241, 0.35) 50%, rgba(14, 165, 233, 0.38) 100%);
+        border-color: #10b981;
+        box-shadow: 0 0 34px rgba(16, 185, 129, 0.65), inset 0 0 22px rgba(16, 185, 129, 0.3);
+    }
+    40% {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(16, 185, 129, 0.24) 50%, rgba(99, 102, 241, 0.32) 100%);
+        border-color: rgba(99, 102, 241, 0.85);
+        box-shadow: 0 0 20px rgba(99, 102, 241, 0.4), inset 0 0 12px rgba(99, 102, 241, 0.16);
+    }
+    60% {
+        background: linear-gradient(135deg, rgba(14, 165, 233, 0.4) 0%, rgba(16, 185, 129, 0.42) 50%, rgba(99, 102, 241, 0.4) 100%);
+        border-color: #0ea5e9;
+        box-shadow: 0 0 38px rgba(14, 165, 233, 0.7), inset 0 0 24px rgba(16, 185, 129, 0.32);
+    }
+    80% {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.32) 0%, rgba(14, 165, 233, 0.3) 50%, rgba(99, 102, 241, 0.3) 100%);
+        border-color: rgba(16, 185, 129, 0.95);
+        box-shadow: 0 0 28px rgba(16, 185, 129, 0.55), inset 0 0 18px rgba(16, 185, 129, 0.22);
+    }
+}
+
+@keyframes schoolFlickerPulseDot {
+    0%, 100% {
+        transform: scale(0.9);
+        opacity: 0.7;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.8);
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+    }
+}
+
+@keyframes schoolShimmerSweep {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+}
+
+.schedule-card-item.school-running-flicker {
+    animation: schoolRunningFlickerBg 2.2s ease-in-out infinite !important;
+    position: relative;
+    overflow: hidden;
+    border-width: 2px !important;
+    transform: scale(1.01);
+}
+
+.schedule-card-item.school-running-flicker::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.16) 50%,
+        transparent 100%
+    );
+    animation: schoolShimmerSweep 2.8s infinite ease-in-out;
+    pointer-events: none;
+}
+
+.schedule-card-item.school-running-flicker .time-start {
+    color: #10b981 !important;
+    font-size: 1.05rem !important;
+    font-weight: 800 !important;
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.schedule-card-item.school-running-flicker .subject-name {
+    color: var(--sp-text-main) !important;
+    font-weight: 800 !important;
+    font-size: 1.05rem !important;
+}
+
+.schedule-status-badge.school-live-flicker-badge {
+    background: #10b981 !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.65) !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.05em !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.school-flicker-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ffffff;
+    display: inline-block;
+    animation: schoolFlickerPulseDot 1.2s infinite;
+}
+
+/* 2. Previous Interval Class (Turned down tile, subdued / completed) */
+.schedule-card-item.school-previous-tile {
+    opacity: 0.65;
+    background: var(--sp-bg-card, rgba(241, 245, 249, 0.6)) !important;
+    border: 1px solid var(--sp-border-subtle, rgba(203, 213, 225, 0.6)) !important;
+    filter: saturate(0.6);
+    transition: var(--sp-transition);
+}
+
+[data-theme="dark"] .schedule-card-item.school-previous-tile,
+[data-theme="ocean"] .schedule-card-item.school-previous-tile,
+[data-theme="sunset"] .schedule-card-item.school-previous-tile {
+    background: rgba(15, 23, 42, 0.45) !important;
+    border-color: rgba(51, 65, 85, 0.5) !important;
+}
+
+.schedule-card-item.school-previous-tile:hover {
+    opacity: 0.9;
+    filter: saturate(0.9);
+    transform: none;
+    border-color: var(--sp-border) !important;
+}
+
+.schedule-card-item.school-previous-tile .time-start,
+.schedule-card-item.school-previous-tile .subject-name {
+    color: var(--sp-text-muted) !important;
+    text-decoration: none;
+}
+
+.schedule-status-badge.school-past-badge {
+    background: rgba(100, 116, 139, 0.12) !important;
+    color: var(--sp-text-muted, #64748b) !important;
+    border: 1px solid rgba(100, 116, 139, 0.25) !important;
+    font-size: 0.74rem !important;
+    font-weight: 600 !important;
+}
+
+/* 3. Colorful Tiles for Future Classes of the Day (School Mode) */
+.schedule-card-item.school-future-tile {
+    border-width: 1px;
+    border-style: solid;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+}
+
+.schedule-card-item.school-future-tile:hover {
+    transform: translateY(-2px) translateX(2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* Color 0: Cyan / Sky Theme */
+.schedule-card-item.school-future-color-0 {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(14, 165, 233, 0.04) 100%) !important;
+    border-color: rgba(6, 182, 212, 0.38) !important;
+}
+.schedule-card-item.school-future-color-0 .time-start { color: #0891b2 !important; }
+[data-theme="dark"] .schedule-card-item.school-future-color-0 .time-start { color: #22d3ee !important; }
+.schedule-card-item.school-future-color-0 .schedule-status-badge {
+    background: rgba(6, 182, 212, 0.15) !important;
+    color: #0891b2 !important;
+    border-color: rgba(6, 182, 212, 0.35) !important;
+}
+[data-theme="dark"] .schedule-card-item.school-future-color-0 .schedule-status-badge {
+    color: #22d3ee !important;
+}
+
+/* Color 1: Emerald / Mint Theme */
+.schedule-card-item.school-future-color-1 {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.04) 100%) !important;
+    border-color: rgba(16, 185, 129, 0.38) !important;
+}
+.schedule-card-item.school-future-color-1 .time-start { color: #059669 !important; }
+[data-theme="dark"] .schedule-card-item.school-future-color-1 .time-start { color: #34d399 !important; }
+.schedule-card-item.school-future-color-1 .schedule-status-badge {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #059669 !important;
+    border-color: rgba(16, 185, 129, 0.35) !important;
+}
+[data-theme="dark"] .schedule-card-item.school-future-color-1 .schedule-status-badge {
+    color: #34d399 !important;
+}
+
+/* Color 2: Indigo / Violet Theme */
+.schedule-card-item.school-future-color-2 {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.04) 100%) !important;
+    border-color: rgba(99, 102, 241, 0.38) !important;
+}
+.schedule-card-item.school-future-color-2 .time-start { color: #4f46e5 !important; }
+[data-theme="dark"] .schedule-card-item.school-future-color-2 .time-start { color: #818cf8 !important; }
+.schedule-card-item.school-future-color-2 .schedule-status-badge {
+    background: rgba(99, 102, 241, 0.15) !important;
+    color: #4f46e5 !important;
+    border-color: rgba(99, 102, 241, 0.35) !important;
+}
+[data-theme="dark"] .schedule-card-item.school-future-color-2 .schedule-status-badge {
+    color: #818cf8 !important;
+}
+
+/* Color 3: Amber / Orange Theme */
+.schedule-card-item.school-future-color-3 {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(234, 88, 12, 0.04) 100%) !important;
+    border-color: rgba(245, 158, 11, 0.38) !important;
+}
+.schedule-card-item.school-future-color-3 .time-start { color: #d97706 !important; }
+[data-theme="dark"] .schedule-card-item.school-future-color-3 .time-start { color: #fbbf24 !important; }
+.schedule-card-item.school-future-color-3 .schedule-status-badge {
+    background: rgba(245, 158, 11, 0.15) !important;
+    color: #d97706 !important;
+    border-color: rgba(245, 158, 11, 0.35) !important;
+}
+[data-theme="dark"] .schedule-card-item.school-future-color-3 .schedule-status-badge {
+    color: #fbbf24 !important;
+}
+
+/* Color 4: Rose / Pink Theme */
+.schedule-card-item.school-future-color-4 {
+    background: linear-gradient(135deg, rgba(244, 63, 94, 0.1) 0%, rgba(225, 29, 72, 0.04) 100%) !important;
+    border-color: rgba(244, 63, 94, 0.38) !important;
+}
+.schedule-card-item.school-future-color-4 .time-start { color: #e11d48 !important; }
+[data-theme="dark"] .schedule-card-item.school-future-color-4 .time-start { color: #fb7185 !important; }
+.schedule-card-item.school-future-color-4 .schedule-status-badge {
+    background: rgba(244, 63, 94, 0.15) !important;
+    color: #e11d48 !important;
+    border-color: rgba(244, 63, 94, 0.35) !important;
+}
+[data-theme="dark"] .schedule-card-item.school-future-color-4 .schedule-status-badge {
+    color: #fb7185 !important;
+}
+
+/* Color 5: Purple / Fuchsia Theme */
+.schedule-card-item.school-future-color-5 {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(192, 38, 211, 0.04) 100%) !important;
+    border-color: rgba(168, 85, 247, 0.38) !important;
+}
+.schedule-card-item.school-future-color-5 .time-start { color: #9333ea !important; }
+[data-theme="dark"] .schedule-card-item.school-future-color-5 .time-start { color: #c084fc !important; }
+.schedule-card-item.school-future-color-5 .schedule-status-badge {
+    background: rgba(168, 85, 247, 0.15) !important;
+    color: #9333ea !important;
+    border-color: rgba(168, 85, 247, 0.35) !important;
+}
+[data-theme="dark"] .schedule-card-item.school-future-color-5 .schedule-status-badge {
+    color: #c084fc !important;
+}
+
+/* ==========================================================================
    Smart Mark Attendance Tab (Action Center - No Popups!)
    ========================================================================== */
 .attendance-action-center {
