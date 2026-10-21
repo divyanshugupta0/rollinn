@@ -241,9 +241,15 @@
                 renderProfileDetails();
                 loadClassTeacherInfo();
                 initStudentHomeworkSync(state.currentUser);
+                if (userData.schoolId || userData.instituteId) {
+                    initStudentTimetableVersionSync(userData.schoolId || userData.instituteId);
+                }
             }
         });
         initStudentHomeworkSync(user);
+        if (user.schoolId || user.instituteId) {
+            initStudentTimetableVersionSync(user.schoolId || user.instituteId);
+        }
 
         // 2. Sync Real Class Locations & Today's Schedule from RTDB
         db.ref('locations').on('value', (snap) => {
@@ -280,6 +286,24 @@
         db.ref('notifications').on('value', () => loadFirebaseNotifications());
         if (uid) {
             db.ref(`notifications/${uid}`).on('value', () => loadFirebaseNotifications());
+        }
+
+        // Shared Admin & Teacher Timetable Version Sync
+        function initStudentTimetableVersionSync(targetSchoolId) {
+            const sid = String(targetSchoolId || '').trim();
+            if (!sid || !window.RollCallTimetableCache) return;
+            window.RollCallTimetableCache.subscribeVersion(sid, (updatedTimetables, version) => {
+                console.log(`[Timetable Cache] Shared admin version ${version} received for school:`, sid);
+                state.schoolTimetables = updatedTimetables || {};
+                state.timetableVersion = version;
+                if (typeof timetableState !== 'undefined') {
+                    timetableState.schedules = updatedTimetables || {};
+                }
+                renderTodayScheduleFromDB();
+                if (typeof renderTimetableGrid === 'function' && document.getElementById('tt-grid-container')) {
+                    renderTimetableGrid();
+                }
+            });
         }
 
         let schoolModeLoadPromise = null;
@@ -691,14 +715,22 @@
 
         if (!settings || !timetables) {
             try {
-                const [settingsSnap, ttSnap] = await Promise.all([
-                    db.ref(`schoolTimetableSettings/${schoolId}`).once('value'),
-                    db.ref(`schoolTimetables/${schoolId}`).once('value')
+                const settingsPromise = db.ref(`schoolTimetableSettings/${schoolId}`).once('value');
+                const timetablesPromise = window.RollCallTimetableCache
+                    ? window.RollCallTimetableCache.syncTimetables(schoolId)
+                    : db.ref(`schoolTimetables/${schoolId}`).once('value').then(s => ({ timetables: s.val() || {} }));
+
+                const [settingsSnap, cacheResult] = await Promise.all([
+                    settingsPromise,
+                    timetablesPromise
                 ]);
                 settings = settingsSnap.val() || {};
-                timetables = ttSnap.val() || {};
+                timetables = cacheResult.timetables || {};
                 state.timetableSettings = settings;
                 state.schoolTimetables = timetables;
+                if (cacheResult.version) {
+                    state.timetableVersion = cacheResult.version;
+                }
             } catch (err) {
                 console.error('Error fetching timetable for today schedule:', err);
             }
@@ -1111,14 +1143,20 @@
                             ];
                             if (schoolId) {
                                 promises.push(db.ref(`schoolTimetableSettings/${schoolId}`).once('value'));
-                                promises.push(db.ref(`schoolTimetables/${schoolId}`).once('value'));
+                                promises.push(window.RollCallTimetableCache
+                                    ? window.RollCallTimetableCache.syncTimetables(schoolId, true)
+                                    : db.ref(`schoolTimetables/${schoolId}`).once('value').then(s => ({ timetables: s.val() || {} }))
+                                );
                             }
                             const results = await Promise.all(promises);
                             state.locations = results[0].val() || {};
                             state.attendanceByLocation = results[1].val() || {};
                             state.userAttendanceToday = results[2].val() || {};
                             if (results[3]) state.timetableSettings = results[3].val() || {};
-                            if (results[4]) state.schoolTimetables = results[4].val() || {};
+                            if (results[4]) {
+                                state.schoolTimetables = results[4].timetables || results[4].val?.() || {};
+                                if (results[4].version) state.timetableVersion = results[4].version;
+                            }
                         }
                         await renderTodayScheduleFromDB();
                         loadStudentAttendanceRecords();
@@ -4166,17 +4204,30 @@
             timetableState.isLoading = true;
             const db = firebase.database();
 
-            const [settingsSnap, timetablesSnap, coursesSnap, subjectAssignmentsSnap] = await Promise.all([
-                db.ref(`schoolTimetableSettings/${schoolId}`).once('value'),
-                db.ref(`schoolTimetables/${schoolId}`).once('value'),
-                db.ref(`schoolCourses/${schoolId}`).once('value'),
-                db.ref(`subjectTeacherAssignments/${schoolId}`).once('value')
+            const settingsPromise = db.ref(`schoolTimetableSettings/${schoolId}`).once('value');
+            const timetablesPromise = window.RollCallTimetableCache
+                ? window.RollCallTimetableCache.syncTimetables(schoolId, forceRefresh)
+                : db.ref(`schoolTimetables/${schoolId}`).once('value').then(s => ({ timetables: s.val() || {} }));
+            const coursesPromise = db.ref(`schoolCourses/${schoolId}`).once('value');
+            const subjectAssignmentsPromise = db.ref(`subjectTeacherAssignments/${schoolId}`).once('value');
+
+            const [settingsSnap, cacheResult, coursesSnap, subjectAssignmentsSnap] = await Promise.all([
+                settingsPromise,
+                timetablesPromise,
+                coursesPromise,
+                subjectAssignmentsPromise
             ]);
 
             const config = settingsSnap.val() || {};
-            const timetables = timetablesSnap.val() || {};
+            const timetables = cacheResult.timetables || {};
             const courses = coursesSnap.val() || {};
             const subjectAssignments = subjectAssignmentsSnap.val() || {};
+
+            state.timetableSettings = config;
+            state.schoolTimetables = timetables;
+            if (cacheResult.version) {
+                state.timetableVersion = cacheResult.version;
+            }
 
             timetableState.settings = {
                 days: Array.isArray(config.days) && config.days.length ? config.days : ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
