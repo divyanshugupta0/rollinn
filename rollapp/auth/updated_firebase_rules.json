@@ -2,36 +2,45 @@
   "rules": {
     ".read": "auth != null",
     ".write": "auth != null",
-
     "schools": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["code", "ownerId", "status", "type", "institutionType"],
+      ".indexOn": [
+        "code",
+        "ownerId",
+        "status",
+        "type",
+        "institutionType"
+      ],
       "$schoolId": {
         ".read": "auth != null",
         ".write": "auth != null"
       }
     },
-
     "publicSchools": {
       ".read": true,
       ".write": "auth != null",
-      ".indexOn": ["code", "status", "subscriptionEndDate"]
+      ".indexOn": [
+        "code",
+        "status",
+        "subscriptionEndDate"
+      ]
     },
-
     "publicCourseCatalog": {
       ".read": true,
       "$schoolId": {
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)"
       }
     },
-
     "schoolAdmins": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["email", "username", "schoolId"]
+      ".indexOn": [
+        "email",
+        "username",
+        "schoolId"
+      ]
     },
-
     "schoolCodeReservations": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -39,14 +48,12 @@
         ".validate": "newData.val() == null || (newData.hasChildren(['createdAt', 'ownerId']) && newData.child('createdAt').isString() && newData.child('ownerId').isString())"
       }
     },
-
     "owners": {
       "$ownerUid": {
         ".read": "auth != null && auth.uid === $ownerUid",
         ".write": "auth != null && auth.uid === $ownerUid"
       }
     },
-
     "users": {
       ".read": true,
       ".write": "auth != null",
@@ -59,7 +66,9 @@
         "schoolId",
         "dob",
         "dateOfBirth",
-        "classId"
+        "classId",
+        "appDownloadUsed",
+        "status"
       ],
       "$uid": {
         ".read": true,
@@ -69,7 +78,6 @@
         }
       }
     },
-
     "schoolUsers": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -90,32 +98,37 @@
         ]
       }
     },
-
     "schoolClasses": {
       ".read": "auth != null",
       ".write": "auth != null",
       "$schoolId": {
         ".read": "auth != null",
         ".write": "auth != null",
-        ".indexOn": ["teacherId", "teacherEmail", "status"]
+        ".indexOn": [
+          "teacherId",
+          "teacherEmail",
+          "status"
+        ]
       }
     },
-
     "classes": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "schoolLocations": {
       ".read": "auth != null",
       ".write": "auth != null",
       "$schoolId": {
         ".read": "auth != null",
         ".write": "auth != null",
-        ".indexOn": ["teacherId", "teacherEmail", "status", "section"]
+        ".indexOn": [
+          "teacherId",
+          "teacherEmail",
+          "status",
+          "section"
+        ]
       }
     },
-
     "schoolCourses": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -124,7 +137,6 @@
         ".write": "auth != null"
       }
     },
-
     "courses": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -133,37 +145,46 @@
         ".write": "auth != null"
       }
     },
-
     "schoolTimetables": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     },
-
     "schoolTimetablesVersion": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     },
-
     "schoolTimetableSettings": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     },
-
     "timetables": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "classTeacherAssignments": {
       ".read": "auth != null",
       ".write": "auth != null",
       "$schoolId": {
         ".read": "auth != null",
         ".write": "auth != null",
-        ".indexOn": ["teacherId", "section"]
+        ".indexOn": [
+          "teacherId",
+          "section"
+        ]
       }
     },
-
     "classTeacherAssignmentsByClass": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -172,7 +193,6 @@
         ".write": "auth != null"
       }
     },
-
     "subjectTeacherAssignments": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -181,7 +201,6 @@
         ".write": "auth != null"
       }
     },
-
     "schoolHomework": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -199,7 +218,6 @@
         ]
       }
     },
-
     "schoolClassHomework": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -208,17 +226,19 @@
         ".write": "auth != null"
       }
     },
-
     "studentHomeworkDefaulters": {
       ".read": "auth != null",
       ".write": "auth != null",
       "$studentId": {
         ".read": "auth != null",
         ".write": "auth != null",
-        ".indexOn": ["markedAt", "homeworkId", "dueDate"]
+        ".indexOn": [
+          "markedAt",
+          "homeworkId",
+          "dueDate"
+        ]
       }
     },
-
     "studentHomeworkStatus": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -227,38 +247,64 @@
         ".write": "auth != null"
       }
     },
-
     "classTeacherProfileRequests": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "$teacherId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": [
+          "status",
+          "timestamp",
+          "createdAt",
+          "studentId",
+          "section",
+          "schoolId"
+        ]
+      }
     },
-
     "classTeacherLeaveRequests": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "$teacherId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": [
+          "status",
+          "timestamp",
+          "createdAt",
+          "studentId",
+          "section",
+          "schoolId"
+        ]
+      }
     },
-
     "teacher_leave_requests": {
       ".read": "auth != null",
       ".write": "auth != null",
       "$schoolId": {
-        ".indexOn": ["teacherId", "status", "createdAt"]
+        ".indexOn": [
+          "teacherId",
+          "status",
+          "createdAt"
+        ]
       }
     },
-
     "leave_requests": {
       ".read": "auth != null",
       ".write": "auth != null",
       "$studentId": {
-        ".indexOn": ["status", "timestamp", "createdAt"]
+        ".indexOn": [
+          "status",
+          "timestamp",
+          "createdAt"
+        ]
       }
     },
-
     "attendance": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "user_attendance": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -267,12 +313,10 @@
         ".write": "auth != null"
       }
     },
-
     "student_attendance": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "attendance_by_location": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -285,26 +329,27 @@
         }
       }
     },
-
     "attendance_locations": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "attendance_drafts": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "attendance_audit": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "locations": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["section", "expiresAt", "active", "schoolId"],
+      ".indexOn": [
+        "section",
+        "expiresAt",
+        "active",
+        "schoolId"
+      ],
       "$locationId": {
         "coordinates": {
           ".read": "auth != null",
@@ -312,93 +357,106 @@
         }
       }
     },
-
     "announcements": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["timestamp", "schoolId"]
+      ".indexOn": [
+        "timestamp",
+        "schoolId"
+      ]
     },
-
     "locationRequests": {
       ".read": true,
       ".write": true
     },
-
     "displayed_classes": {
       ".read": true,
       ".write": "auth != null"
     },
-
     "deviceLogins": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "deviceLocks": {
       ".read": true,
       ".write": "auth != null"
     },
-
     "deviceFingerprintLocks": {
       ".read": true,
       ".write": "auth != null"
     },
-
     "userLocks": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "userSessions": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "device_unlock_requests": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null",
+      ".indexOn": [
+        "timestamp",
+        "status",
+        "userId",
+        "schoolId"
+      ]
     },
-
     "blockedUsers": {
       ".read": true,
       ".write": "auth != null"
     },
-
     "faceRegistrationTokens": {
       ".read": true,
       ".write": true
     },
-
     "notifications": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["timestamp", "recipients", "schoolId"]
+      ".indexOn": [
+        "timestamp",
+        "recipients",
+        "schoolId"
+      ]
     },
-
     "passwordResetRequests": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["email", "status", "timestamp"]
+      ".indexOn": [
+        "email",
+        "status",
+        "timestamp"
+      ]
     },
-
     "profileRequests": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["timestamp", "status", "userId"]
+      ".indexOn": [
+        "timestamp",
+        "status",
+        "userId"
+      ]
     },
-
     "profile_update_requests": {
       ".read": "auth != null",
       ".write": "auth != null",
-      ".indexOn": ["ownerId", "schoolId", "status", "timestamp"]
+      ".indexOn": [
+        "ownerId",
+        "schoolId",
+        "status",
+        "timestamp"
+      ]
     },
-
     "modificationRequests": {
       ".read": true,
       ".write": "auth != null",
-      ".indexOn": ["timestamp", "status", "teacherId"]
+      ".indexOn": [
+        "timestamp",
+        "status",
+        "teacherId"
+      ]
     },
-
     "subscriptionExpiryOverlayCounts": {
       "$schoolId": {
         "$uid": {
@@ -407,7 +465,6 @@
         }
       }
     },
-
     "subscriptionResubscribeRequests": {
       "$schoolId": {
         "$requesterUid": {
@@ -416,29 +473,47 @@
         }
       }
     },
-
     "schoolSettings": {
       "$schoolId": {
         ".read": "auth != null && (root.child('users').child(auth.uid).child('schoolId').val() === $schoolId || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)",
         ".write": "auth != null && (root.child('users').child(auth.uid).child('schoolId').val() === $schoolId || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)",
         ".validate": "newData.hasChildren(['schoolId']) && newData.child('schoolId').val() === $schoolId",
-        ".indexOn": ["securityPinSetAt"]
+        ".indexOn": [
+          "securityPinSetAt"
+        ]
       }
     },
-
     "accessibility_settings": {
       ".read": true,
       ".write": "auth != null"
     },
-
     "cloudflare_r2": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
-
     "cloudflare_endpoint": {
       ".read": "auth != null",
       ".write": "auth != null"
+    },
+    "mobileCoordinates": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "teachers": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$teacherId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "admins": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$adminId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     }
   }
 }
