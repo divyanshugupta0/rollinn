@@ -502,6 +502,7 @@
                 const meridian = match[3] ? match[3].toUpperCase() : null;
                 if (meridian === 'PM' && hours < 12) hours += 12;
                 if (meridian === 'AM' && hours === 12) hours = 0;
+                if (!meridian && hours >= 1 && hours <= 6) hours += 12;
                 const d = new Date();
                 d.setHours(hours, minutes, 0, 0);
                 return d;
@@ -567,8 +568,12 @@
         }
 
         // Check start and end time if specified
-        const startTime = parseTimeToday(cls.scheduledStart || cls.startTime);
-        const endTime = parseTimeToday(cls.scheduledEnd || cls.endTime);
+        let startTime = parseTimeToday(cls.scheduledStart || cls.startTime);
+        let endTime = parseTimeToday(cls.scheduledEnd || cls.endTime);
+
+        if (startTime && endTime && endTime.getTime() <= startTime.getTime()) {
+            endTime = new Date(endTime.getTime() + 12 * 60 * 60 * 1000);
+        }
 
         if (startTime && now < startTime.getTime()) {
             return false; // Upcoming, not started yet
@@ -618,6 +623,10 @@
         if (isNaN(h)) return null;
         if (isPM && h < 12) h += 12;
         if (isAM && h === 12) h = 0;
+        // In school schedules, hours 1 to 6 without explicit AM/PM are afternoon (1 PM to 6 PM)
+        if (!isPM && !isAM && h >= 1 && h <= 6) {
+            h += 12;
+        }
         return h * 60 + m;
     }
 
@@ -640,9 +649,9 @@
         const container = document.getElementById('today-schedule-list');
         if (!container) return;
 
-        const isSchoolMode = window.rollCallStudentMode?.isSchoolMode?.() === true || state.schoolType === 'school';
         const user = state.currentUser || (window.firebase?.auth && firebase.auth().currentUser);
         const schoolId = user?.schoolId || '';
+        const isSchoolMode = window.rollCallStudentMode?.isSchoolMode?.() === true || state.schoolType === 'school' || user?.registrationType === 'school' || user?.institutionType === 'school';
 
         // In School Mode: Load from School Timetable for today's day of week
         if (isSchoolMode && schoolId && window.firebase?.database) {
@@ -782,8 +791,12 @@
         let futureCount = 0;
 
         container.innerHTML = todayClasses.map(cls => {
-            const startM = parseTimeToMinutes(cls.start) ?? 0;
-            const endM = parseTimeToMinutes(cls.end) ?? (startM + 60);
+            let startM = parseTimeToMinutes(cls.start);
+            let endM = parseTimeToMinutes(cls.end);
+
+            if (startM === null) startM = 0;
+            if (endM === null) endM = startM + 60;
+            if (endM <= startM) endM += 12 * 60; // Rolled over noon, e.g. 12:00 to 1:00
 
             const isRunning = startM <= curMinutes && curMinutes < endM;
             const isPrevious = curMinutes >= endM;
@@ -931,13 +944,13 @@
                 cardTitle = `Attendance Marked: Present for ${safeClassName}`;
             } else if (active) {
                 cardStatus = 'active';
-                statusTagHtml = '<span class="status-tag tag-now"><i class="fas fa-satellite-dish"></i> Active Now</span>';
+                statusTagHtml = '<span class="status-tag tag-now"><span class="school-flicker-dot"></span> Active Now</span>';
                 actionHtml = `
                     <div class="schedule-mark-attendance-btn">
                         <span>Mark Attendance</span>
                         <i class="fas fa-arrow-right"></i>
                     </div>`;
-                cardClass += ' active-now clickable-class-schedule-card';
+                cardClass += ' active-now clickable-class-schedule-card school-running-flicker';
                 cardTitle = `Click to Mark Attendance for ${safeClassName}`;
                 canClickToMark = true;
             } else if (upcoming) {
