@@ -49,6 +49,10 @@
             toggleBtn.setAttribute('aria-expanded', 'true');
             toggleBtn.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
         }
+        const activeItem = document.querySelector('.sidebar-menu .menu-item.active');
+        if (activeItem) {
+            try { activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+        }
     }
 
     function closeSidebar() {
@@ -112,16 +116,29 @@
         return btn;
     }
 
+    // Expose close & open functions globally for section switcher & other handlers
+    window.closeMobileSidebar = closeSidebar;
+    window.openMobileSidebar = openSidebar;
+    window.toggleMobileSidebar = toggleSidebar;
+
     // ── Wire up menu items ─────────────────────────────────────────────────────
 
     function bindMenuItems() {
+        // Direct listener on existing menu items
         document.querySelectorAll('.sidebar-menu .menu-item').forEach(item => {
-            // Use capturing to run before other handlers
             item.addEventListener('click', () => {
                 if (isMobile() && document.body.classList.contains(OPEN_CLASS)) {
                     closeSidebar();
                 }
-            }, { capture: true });
+            });
+        });
+
+        // Delegated listener for all items including dynamically injected ones
+        document.addEventListener('click', e => {
+            const item = e.target.closest('.sidebar-menu .menu-item');
+            if (item && isMobile() && document.body.classList.contains(OPEN_CLASS)) {
+                closeSidebar();
+            }
         });
     }
 

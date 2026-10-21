@@ -149,6 +149,20 @@
             const sidebar = document.querySelector('.sidebar');
             if (sidebar) sidebar.classList.remove('sidebar-collapsed');
             document.querySelectorAll('.main-content-expanded').forEach(el => el.classList.remove('main-content-expanded'));
+            // Auto close mobile sidebar drawer on navigation (mobile devices only)
+            if (typeof window.closeMobileSidebar === 'function') {
+                window.closeMobileSidebar();
+            } else {
+                document.body.classList.remove('mobile-sidebar-open');
+                document.body.style.overflow = '';
+                const backdrop = document.getElementById('mobileSidebarBackdrop');
+                if (backdrop) backdrop.style.display = 'none';
+                const toggleBtn = document.getElementById('mobileSidebarToggle');
+                if (toggleBtn) {
+                    toggleBtn.setAttribute('aria-expanded', 'false');
+                    toggleBtn.innerHTML = '<i class="fas fa-bars" aria-hidden="true"></i>';
+                }
+            }
         }
 
         // 5. Section-specific hooks
@@ -194,6 +208,23 @@
         event.preventDefault();
         event.stopImmediatePropagation();
         switchTeacherSection(section, { updateUrl: true, sourceItem: item });
+
+        // Auto-close mobile sidebar drawer on navigation (mobile devices only)
+        if (window.innerWidth <= 680) {
+            if (typeof window.closeMobileSidebar === 'function') {
+                window.closeMobileSidebar();
+            } else {
+                document.body.classList.remove('mobile-sidebar-open');
+                document.body.style.overflow = '';
+                const backdrop = document.getElementById('mobileSidebarBackdrop');
+                if (backdrop) backdrop.style.display = 'none';
+                const toggleBtn = document.getElementById('mobileSidebarToggle');
+                if (toggleBtn) {
+                    toggleBtn.setAttribute('aria-expanded', 'false');
+                    toggleBtn.innerHTML = '<i class="fas fa-bars" aria-hidden="true"></i>';
+                }
+            }
+        }
     }, true);
 
     // Initial check on DOMContentLoaded
