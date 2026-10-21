@@ -35,6 +35,8 @@
         interceptLegacyButtons();
         observeUserSession();
         loadFirebaseAnnouncements();
+        initAttendanceRecordsModule();
+        initStudentTimetableModule();
     });
 
     /* ==========================================================================
@@ -156,9 +158,9 @@
         if (tabId === 'tab-overview' || tabId === 'tab-home') {
             loadFirebaseAnnouncements();
         } else if (tabId === 'tab-history') {
-            if (typeof window.loadAttendanceHistory === 'function') {
-                window.loadAttendanceHistory();
-            }
+            loadAttendanceHistory();
+        } else if (tabId === 'tab-timetable') {
+            renderStudentTimetable();
         } else if (tabId === 'tab-analytics') {
             renderSubjectAnalytics();
         } else if (tabId === 'tab-idcard') {
@@ -2116,7 +2118,920 @@
             setTimeout(() => toast.remove(), 300);
         }, duration);
     }
+    /* ==========================================================================
+       Attendance Records & History Ledger (Enterprise Redesign)
+       ========================================================================== */
+    let historyState = {
+        allRecords: [],
+        filteredRecords: [],
+        selectedMonth: 'all',
+        selectedYear: new Date().getFullYear(),
+        statusFilter: 'all',
+        searchQuery: '',
+        isLoading: false
+    };
+
+    function initAttendanceRecordsModule() {
+        const monthSelect = document.getElementById('history-month');
+        const yearSelect = document.getElementById('history-year');
+        const refreshBtn = document.getElementById('ar-btn-refresh');
+        const exportBtn = document.getElementById('ar-btn-export');
+        const applyBtn = document.getElementById('load-history-btn');
+        const searchInput = document.getElementById('ar-search-input');
+        const chipContainer = document.getElementById('ar-filter-chips');
+
+        const currentYear = new Date().getFullYear();
+        historyState.selectedYear = currentYear;
+
+        // Populate Years (Current - 2 to Current + 1)
+        if (yearSelect) {
+            yearSelect.innerHTML = '';
+            for (let y = currentYear - 2; y <= currentYear + 1; y++) {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.innerText = y;
+                if (y === currentYear) opt.selected = true;
+                yearSelect.appendChild(opt);
+            }
+            yearSelect.addEventListener('change', () => {
+                historyState.selectedYear = parseInt(yearSelect.value) || currentYear;
+                loadAttendanceHistory();
+            });
+        }
+
+        if (monthSelect) {
+            monthSelect.addEventListener('change', () => {
+                historyState.selectedMonth = monthSelect.value;
+                loadAttendanceHistory();
+            });
+        }
+
+        if (applyBtn) {
+            applyBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (monthSelect) historyState.selectedMonth = monthSelect.value;
+                if (yearSelect) historyState.selectedYear = parseInt(yearSelect.value) || currentYear;
+                loadAttendanceHistory();
+            });
+        }
+
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                loadAttendanceHistory(true);
+            });
+        }
+
+        if (exportBtn) {
+            exportBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                exportAttendanceToCSV();
+            });
+        }
+
+        if (chipContainer) {
+            chipContainer.querySelectorAll('.ar-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    chipContainer.querySelectorAll('.ar-chip').forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+                    historyState.statusFilter = chip.getAttribute('data-filter') || 'all';
+                    applyClientAttendanceFilter();
+                });
+            });
+        }
+
+        if (searchInput) {
+            let debounceTimer = null;
+            searchInput.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    historyState.searchQuery = (searchInput.value || '').trim().toLowerCase();
+                    applyClientAttendanceFilter();
+                }, 200);
+            });
+        }
+    }
+
+    function normalizeSectionKeys(sectionValue) {
+        if (!sectionValue) return [];
+        let list = [];
+        if (Array.isArray(sectionValue)) {
+            list = sectionValue;
+        } else if (typeof sectionValue === 'object') {
+            const values = Object.values(sectionValue);
+            const keys = Object.keys(sectionValue);
+            if (values.length && values.every(v => typeof v === 'boolean')) {
+                list = keys.filter(k => sectionValue[k]);
+            } else {
+                list = values;
+            }
+        } else if (typeof sectionValue === 'string') {
+            const trimmed = sectionValue.trim();
+            if (trimmed) {
+                list = trimmed.includes(',') ? trimmed.split(',') : [trimmed];
+            }
+        }
+        return list.map(v => {
+            let s = String(v).trim().toLowerCase();
+            if (s.startsWith('section ')) s = s.slice(8).trim();
+            return s;
+        }).filter(Boolean);
+    }
+
+    async function loadAttendanceHistory(forceRefresh = false) {
+        const user = state.currentUser || (window.firebase?.auth && firebase.auth().currentUser);
+        if (!user || !window.firebase?.database) return;
+        const uid = user.uid;
+        const db = firebase.database();
+        const listEl = document.getElementById('history-list');
+
+        if (listEl) {
+            listEl.innerHTML = `
+                <div class="ar-empty-state-card">
+                    <i class="fas fa-spinner fa-spin ar-empty-state-icon"></i>
+                    <h4 class="ar-empty-title">Loading Attendance Ledger...</h4>
+                    <p class="ar-empty-desc">Fetching latest session records from database.</p>
+                </div>
+            `;
+        }
+
+        try {
+            historyState.isLoading = true;
+            const monthVal = historyState.selectedMonth;
+            const yearVal = historyState.selectedYear;
+
+            // Fetch global attendance, locations, and user direct attendance records
+            const schoolId = user.schoolId || '';
+            const fetchPromises = [
+                db.ref('attendance_by_location').once('value'),
+                db.ref('locations').once('value'),
+                db.ref(`user_attendance/${uid}`).once('value')
+            ];
+
+            if (schoolId) {
+                fetchPromises.push(db.ref(`schoolCourses/${schoolId}`).once('value'));
+                fetchPromises.push(db.ref(`schoolClasses/${schoolId}`).once('value'));
+            }
+
+            const results = await Promise.all(fetchPromises);
+            const globalAtt = results[0].val() || {};
+            const locations = results[1].val() || {};
+            const userDirectAtt = results[2].val() || {};
+            const courses = (results[3] ? results[3].val() : {}) || {};
+            const classes = (results[4] ? results[4].val() : {}) || {};
+
+            const userSectionKeys = normalizeSectionKeys(user.section || '');
+            const recordsMap = new Map();
+
+            // 1. Ingest direct user logs (from face biometrics / mobile attendance)
+            Object.entries(userDirectAtt).forEach(([dateStr, sessionObj]) => {
+                if (!sessionObj || typeof sessionObj !== 'object') return;
+                const d = new Date(dateStr);
+                if (isNaN(d.getTime())) return;
+                if (d.getFullYear() !== yearVal) return;
+                if (monthVal !== 'all' && d.getMonth() !== parseInt(monthVal)) return;
+
+                Object.entries(sessionObj).forEach(([locOrSessionId, record]) => {
+                    if (!record || typeof record !== 'object') return;
+                    const key = `${dateStr}_${locOrSessionId}`;
+                    const locMeta = locations[locOrSessionId] || courses[locOrSessionId] || {};
+                    const className = record.locationName || record.className || locMeta.name || locMeta.courseName || 'Class Session';
+                    const subject = record.subject || locMeta.subject || className;
+                    const teacher = record.teacherName || locMeta.teacherName || 'Faculty In-Charge';
+                    const time = record.time || '09:00 AM';
+                    const timestamp = record.timestamp || d.getTime();
+                    const status = String(record.status || 'present').toLowerCase();
+                    const attendanceType = record.attendanceType || 'Face AI / Verified';
+
+                    recordsMap.set(key, {
+                        id: key,
+                        date: dateStr,
+                        dateObj: d,
+                        className,
+                        subject,
+                        teacherName: teacher,
+                        time,
+                        timestamp,
+                        status,
+                        attendanceType,
+                        sessionType: record.sessionType || 'Lecture'
+                    });
+                });
+            });
+
+            // 2. Ingest global attendance by location / class
+            Object.entries(globalAtt).forEach(([locId, dateSessions]) => {
+                if (!dateSessions || typeof dateSessions !== 'object') return;
+                const locMeta = locations[locId] || courses[locId] || classes[locId] || {};
+                const locName = locMeta.name || locMeta.courseName || locMeta.className || 'Class Session';
+                const locSectionKeys = normalizeSectionKeys(locMeta.section);
+
+                Object.entries(dateSessions).forEach(([dateStr, attendees]) => {
+                    if (!attendees || typeof attendees !== 'object') return;
+                    const d = new Date(dateStr);
+                    if (isNaN(d.getTime())) return;
+                    if (d.getFullYear() !== yearVal) return;
+                    if (monthVal !== 'all' && d.getMonth() !== parseInt(monthVal)) return;
+
+                    const key = `${dateStr}_${locId}`;
+                    const meta = attendees._meta || {};
+                    const className = meta.className || meta.subjectName || locName;
+                    const subject = meta.subjectName || locMeta.subject || className;
+                    const teacher = meta.teacherName || locMeta.teacherName || 'Faculty In-Charge';
+                    const time = meta.time || locMeta.time || 'Scheduled Slot';
+                    const sessionType = meta.sessionType || 'Lecture';
+
+                    const attendeesList = Object.entries(attendees).filter(([k]) => k !== '_meta');
+                    const hasUserAttendee = attendees[uid] !== undefined;
+
+                    // Section relevance check
+                    const hasPeerInUserSection = userSectionKeys.length > 0 && attendeesList.some(([, attVal]) => {
+                        const peerSec = attVal?.section || (typeof attVal === 'object' ? attVal.section : null);
+                        if (!peerSec) return false;
+                        const peerKeys = normalizeSectionKeys(peerSec);
+                        return userSectionKeys.some(k => peerKeys.includes(k));
+                    });
+                    const isGeneral = locSectionKeys.includes('general') || locName.toLowerCase().includes('general');
+
+                    if (hasUserAttendee || hasPeerInUserSection || isGeneral) {
+                        if (recordsMap.has(key)) {
+                            return;
+                        }
+
+                        let status = 'absent';
+                        let attendanceType = 'Missed';
+                        let timestamp = d.getTime();
+
+                        if (hasUserAttendee) {
+                            const userAtt = attendees[uid];
+                            if (typeof userAtt === 'string') {
+                                status = userAtt.toLowerCase();
+                                attendanceType = 'Class Roll Call';
+                            } else if (typeof userAtt === 'object' && userAtt !== null) {
+                                status = String(userAtt.status || 'present').toLowerCase();
+                                attendanceType = userAtt.attendanceType || 'Class Roll Call';
+                                if (userAtt.time) time = userAtt.time;
+                                if (userAtt.timestamp) timestamp = userAtt.timestamp;
+                            }
+                        }
+
+                        recordsMap.set(key, {
+                            id: key,
+                            date: dateStr,
+                            dateObj: d,
+                            className,
+                            subject,
+                            teacherName: teacher,
+                            time,
+                            timestamp,
+                            status,
+                            attendanceType,
+                            sessionType
+                        });
+                    }
+                });
+            });
+
+            // Convert to array and sort descending (newest first)
+            const allRecords = Array.from(recordsMap.values()).sort((a, b) => b.timestamp - a.timestamp);
+            historyState.allRecords = allRecords;
+
+            // Update KPI counters based on current records
+            updateHistoryKPIs(allRecords);
+
+            // Apply client-side chips/search filters
+            applyClientAttendanceFilter();
+
+            if (forceRefresh) {
+                showModernToast('Attendance ledger refreshed.', 'success', 2500);
+            }
+        } catch (err) {
+            console.error('Error fetching attendance history:', err);
+            if (listEl) {
+                listEl.innerHTML = `
+                    <div class="ar-empty-state-card">
+                        <i class="fas fa-triangle-exclamation ar-empty-state-icon" style="color:var(--sp-danger)"></i>
+                        <h4 class="ar-empty-title">Failed to Load Records</h4>
+                        <p class="ar-empty-desc">${err.message || 'Please check your connection and try again.'}</p>
+                        <button type="button" class="ar-apply-btn" onclick="window.loadAttendanceHistory(true)">Try Again</button>
+                    </div>
+                `;
+            }
+        } finally {
+            historyState.isLoading = false;
+        }
+    }
+
+    function updateHistoryKPIs(records) {
+        const statTotal = document.getElementById('stat-total');
+        const statPresent = document.getElementById('stat-present');
+        const statAbsent = document.getElementById('stat-absent');
+        const statPercentage = document.getElementById('stat-percentage');
+        const statBadge = document.getElementById('stat-status-badge');
+
+        const total = records.length;
+        const present = records.filter(r => r.status === 'present').length;
+        const late = records.filter(r => r.status === 'late').length;
+        const absent = records.filter(r => r.status === 'absent').length;
+        const effective = present + late;
+        const percentage = total > 0 ? Math.round((effective / total) * 100) : 0;
+
+        if (statTotal) statTotal.innerText = total;
+        if (statPresent) statPresent.innerText = late > 0 ? `${present} (+${late} Late)` : present;
+        if (statAbsent) statAbsent.innerText = absent;
+        if (statPercentage) statPercentage.innerText = `${percentage}%`;
+
+        if (statBadge) {
+            if (total === 0) {
+                statBadge.className = 'ar-badge-status';
+                statBadge.innerText = 'No Data';
+                statBadge.style.background = 'rgba(148, 163, 184, 0.15)';
+                statBadge.style.color = 'var(--sp-text-muted)';
+            } else if (percentage >= 75) {
+                statBadge.className = 'ar-badge-status safe';
+                statBadge.innerText = 'Safe (≥75%)';
+                statBadge.style.background = '';
+                statBadge.style.color = '';
+            } else if (percentage >= 60) {
+                statBadge.className = 'ar-badge-status warning';
+                statBadge.innerText = 'At Risk (<75%)';
+                statBadge.style.background = '';
+                statBadge.style.color = '';
+            } else {
+                statBadge.className = 'ar-badge-status danger';
+                statBadge.innerText = 'Critical (<60%)';
+                statBadge.style.background = '';
+                statBadge.style.color = '';
+            }
+        }
+    }
+
+    function applyClientAttendanceFilter() {
+        const { allRecords, statusFilter, searchQuery } = historyState;
+        let filtered = allRecords.slice();
+
+        // 1. Status Filter
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter(r => r.status === statusFilter);
+        }
+
+        // 2. Search Query
+        if (searchQuery) {
+            filtered = filtered.filter(r => {
+                const text = `${r.className} ${r.subject} ${r.teacherName} ${r.date} ${r.time} ${r.status} ${r.attendanceType}`.toLowerCase();
+                return text.includes(searchQuery);
+            });
+        }
+
+        historyState.filteredRecords = filtered;
+        renderAttendanceRecordsTable(filtered);
+    }
+
+    function renderAttendanceRecordsTable(records) {
+        const listEl = document.getElementById('history-list');
+        if (!listEl) return;
+
+        if (records.length === 0) {
+            listEl.innerHTML = `
+                <div class="ar-empty-state-card">
+                    <i class="fas fa-clipboard-question ar-empty-state-icon"></i>
+                    <h4 class="ar-empty-title">No Records Found</h4>
+                    <p class="ar-empty-desc">No attendance logs match your current filter and search criteria.</p>
+                </div>
+            `;
+            return;
+        }
+
+        let rowsHtml = '';
+        records.forEach(r => {
+            const d = r.dateObj || new Date(r.date);
+            const dateStr = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+            const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+
+            let statusBadge = '';
+            if (r.status === 'present') {
+                statusBadge = '<span class="ar-status-badge present"><i class="fas fa-circle-check"></i> Present</span>';
+            } else if (r.status === 'late') {
+                statusBadge = '<span class="ar-status-badge late"><i class="fas fa-clock"></i> Late</span>';
+            } else if (r.status === 'excused') {
+                statusBadge = '<span class="ar-status-badge excused"><i class="fas fa-file-medical"></i> Excused</span>';
+            } else {
+                statusBadge = '<span class="ar-status-badge absent"><i class="fas fa-circle-xmark"></i> Absent</span>';
+            }
+
+            rowsHtml += `
+                <tr>
+                    <td>
+                        <div class="ar-date-cell">
+                            <span class="ar-date-main">${dateStr}</span>
+                            <span class="ar-date-sub">${weekday}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="ar-class-title">
+                            <i class="fas fa-graduation-cap"></i> ${escapeHtml(r.className)}
+                        </div>
+                        <div style="font-size:0.75rem; color:var(--sp-text-muted); margin-top:2px;">
+                            ${escapeHtml(r.subject || '')} ${r.teacherName ? '• ' + escapeHtml(r.teacherName) : ''}
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-weight:600; font-size:0.84rem; color:var(--sp-text-main);">${escapeHtml(r.time || '—')}</div>
+                        <div style="font-size:0.72rem; color:var(--sp-text-muted);">${escapeHtml(r.sessionType || 'Lecture')}</div>
+                    </td>
+                    <td>
+                        ${statusBadge}
+                    </td>
+                    <td>
+                        <span class="ar-method-tag">
+                            <i class="fas fa-shield-halved"></i> ${escapeHtml(r.attendanceType || 'Verified')}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        });
+
+        listEl.innerHTML = `
+            <table class="ar-records-table">
+                <thead>
+                    <tr>
+                        <th>Date &amp; Day</th>
+                        <th>Class / Course</th>
+                        <th>Time &amp; Session</th>
+                        <th>Status</th>
+                        <th>Verification</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        `;
+    }
+
+    function exportAttendanceToCSV() {
+        const records = historyState.filteredRecords || historyState.allRecords || [];
+        if (records.length === 0) {
+            showModernToast('No attendance records to export.', 'warning');
+            return;
+        }
+
+        const headers = ['Date', 'Day', 'Class / Course', 'Subject', 'Teacher', 'Time', 'Status', 'Verification Method'];
+        const csvRows = [headers.join(',')];
+
+        records.forEach(r => {
+            const d = r.dateObj || new Date(r.date);
+            const dateStr = d.toISOString().split('T')[0];
+            const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+            const row = [
+                `"${dateStr}"`,
+                `"${weekday}"`,
+                `"${(r.className || '').replace(/"/g, '""')}"`,
+                `"${(r.subject || '').replace(/"/g, '""')}"`,
+                `"${(r.teacherName || '').replace(/"/g, '""')}"`,
+                `"${(r.time || '').replace(/"/g, '""')}"`,
+                `"${(r.status || '').toUpperCase()}"`,
+                `"${(r.attendanceType || '').replace(/"/g, '""')}"`
+            ];
+            csvRows.push(row.join(','));
+        });
+
+        const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvRows.join('\n'));
+        const link = document.createElement('a');
+        link.setAttribute('href', csvContent);
+        const fileName = `Attendance_Report_${historyState.selectedYear}_${historyState.selectedMonth}.csv`;
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showModernToast('Attendance statement downloaded.', 'success');
+    }
+
+    /* ==========================================================================
+       Weekly Class Timetable Module (Interactive Responsive Grid)
+       ========================================================================== */
+    const DAYS_CONFIG = [
+        ['mon', 'Monday', 'Mon'],
+        ['tue', 'Tuesday', 'Tue'],
+        ['wed', 'Wednesday', 'Wed'],
+        ['thu', 'Thursday', 'Thu'],
+        ['fri', 'Friday', 'Fri'],
+        ['sat', 'Saturday', 'Sat']
+    ];
+
+    let timetableState = {
+        scopeList: [],
+        selectedKey: '',
+        settings: { days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'], periods: [], lunchBreak: { enabled: false } },
+        schedules: {},
+        courses: {},
+        subjectAssignments: {},
+        isLoading: false
+    };
+
+    function initStudentTimetableModule() {
+        const sectionSelect = document.getElementById('tt-section-select');
+        const refreshBtn = document.getElementById('tt-btn-refresh');
+        const printBtn = document.getElementById('tt-btn-print');
+
+        if (sectionSelect) {
+            sectionSelect.addEventListener('change', () => {
+                timetableState.selectedKey = sectionSelect.value;
+                renderTimetableGrid();
+            });
+        }
+
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                renderStudentTimetable(true);
+            });
+        }
+
+        if (printBtn) {
+            printBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.print();
+            });
+        }
+    }
+
+    async function renderStudentTimetable(forceRefresh = false) {
+        const user = state.currentUser || (window.firebase?.auth && firebase.auth().currentUser);
+        if (!user || !window.firebase?.database) return;
+        const schoolId = user.schoolId || user.instituteId;
+        const gridEl = document.getElementById('tt-grid-container');
+        const sectionSelect = document.getElementById('tt-section-select');
+
+        if (!schoolId) {
+            if (gridEl) {
+                gridEl.innerHTML = `
+                    <div class="ar-empty-state-card">
+                        <i class="fas fa-calendar-xmark ar-empty-state-icon" style="color:var(--sp-warning)"></i>
+                        <h4 class="ar-empty-title">Class Schedule Unavailable</h4>
+                        <p class="ar-empty-desc">Your student profile is not linked to an organization timetable.</p>
+                    </div>
+                `;
+            }
+            if (sectionSelect) {
+                sectionSelect.innerHTML = '<option value="">No school assigned</option>';
+                sectionSelect.disabled = true;
+            }
+            return;
+        }
+
+        if (gridEl) {
+            gridEl.innerHTML = `
+                <div class="ar-empty-state-card">
+                    <i class="fas fa-spinner fa-spin ar-empty-state-icon"></i>
+                    <h4 class="ar-empty-title">Loading Class Timetable...</h4>
+                    <p class="ar-empty-desc">Syncing bell schedules and room assignments.</p>
+                </div>
+            `;
+        }
+
+        try {
+            timetableState.isLoading = true;
+            const db = firebase.database();
+
+            const [settingsSnap, timetablesSnap, coursesSnap, subjectAssignmentsSnap] = await Promise.all([
+                db.ref(`schoolTimetableSettings/${schoolId}`).once('value'),
+                db.ref(`schoolTimetables/${schoolId}`).once('value'),
+                db.ref(`schoolCourses/${schoolId}`).once('value'),
+                db.ref(`subjectTeacherAssignments/${schoolId}`).once('value')
+            ]);
+
+            const config = settingsSnap.val() || {};
+            const timetables = timetablesSnap.val() || {};
+            const courses = coursesSnap.val() || {};
+            const subjectAssignments = subjectAssignmentsSnap.val() || {};
+
+            timetableState.settings = {
+                days: Array.isArray(config.days) && config.days.length ? config.days : ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
+                periods: Array.isArray(config.periods) ? config.periods : [],
+                lunchBreak: config.lunchBreak || { enabled: false }
+            };
+            timetableState.schedules = timetables;
+            timetableState.courses = courses;
+            timetableState.subjectAssignments = subjectAssignments;
+
+            // Build list of all class sections in the school
+            const userSection = (user.section || '').trim().toLowerCase();
+            const userClassId = user.enrolledClassId || user.classId || '';
+
+            const scopeMap = new Map();
+
+            // From timetables:
+            Object.entries(timetables).forEach(([classId, sections]) => {
+                if (!sections || typeof sections !== 'object') return;
+                Object.entries(sections).forEach(([secKey, sched]) => {
+                    if (!sched || typeof sched !== 'object') return;
+                    const className = sched.className || courses[classId]?.courseName || 'Class';
+                    const secName = sched.section || '';
+                    const year = sched.year || '';
+                    const value = `${classId}|${secKey}`;
+                    scopeMap.set(value, {
+                        classId,
+                        sectionKey: secKey,
+                        className,
+                        section: secName,
+                        year,
+                        value,
+                        isUserSection: (secName.toLowerCase() === userSection) || (classId === userClassId)
+                    });
+                });
+            });
+
+            // From courses:
+            Object.entries(courses).forEach(([classId, course]) => {
+                const courseName = course.courseName || course.name || 'Class';
+                const courseSections = Array.isArray(course.sections) ? course.sections : [];
+                courseSections.forEach(sec => {
+                    const secName = typeof sec === 'string' ? sec : (sec.name || '');
+                    const secYear = typeof sec === 'object' ? (sec.year || '') : '';
+                    if (!secName) return;
+                    const secKey = secName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                    const value = `${classId}|${secKey}`;
+                    if (!scopeMap.has(value)) {
+                        scopeMap.set(value, {
+                            classId,
+                            sectionKey: secKey,
+                            className: courseName,
+                            section: secName,
+                            year: secYear,
+                            value,
+                            isUserSection: secName.toLowerCase() === userSection
+                        });
+                    }
+                });
+            });
+
+            const scopeList = Array.from(scopeMap.values()).sort((a, b) =>
+                a.className.localeCompare(b.className) || a.section.localeCompare(b.section)
+            );
+            timetableState.scopeList = scopeList;
+
+            // Populate Section Dropdown
+            if (sectionSelect) {
+                if (scopeList.length === 0) {
+                    sectionSelect.innerHTML = '<option value="">No schedules configured</option>';
+                    sectionSelect.disabled = true;
+                } else {
+                    sectionSelect.disabled = false;
+                    let optionsHtml = '';
+
+                    // My Class Section vs Other Sections
+                    const myClassItems = scopeList.filter(s => s.isUserSection);
+                    const otherItems = scopeList.filter(s => !s.isUserSection);
+
+                    if (myClassItems.length > 0) {
+                        optionsHtml += `<optgroup label="My Class Section">` +
+                            myClassItems.map(item => `<option value="${item.value}">${escapeHtml(item.className)} · Sec ${escapeHtml(item.section)}</option>`).join('') +
+                            `</optgroup>`;
+                    }
+                    if (otherItems.length > 0) {
+                        optionsHtml += `<optgroup label="All School Sections (${otherItems.length})">` +
+                            otherItems.map(item => `<option value="${item.value}">${escapeHtml(item.className)} · Sec ${escapeHtml(item.section)}</option>`).join('') +
+                            `</optgroup>`;
+                    }
+
+                    sectionSelect.innerHTML = optionsHtml;
+
+                    // Choose selected
+                    if (timetableState.selectedKey && scopeList.some(s => s.value === timetableState.selectedKey)) {
+                        sectionSelect.value = timetableState.selectedKey;
+                    } else if (myClassItems.length > 0) {
+                        sectionSelect.value = myClassItems[0].value;
+                        timetableState.selectedKey = myClassItems[0].value;
+                    } else if (scopeList.length > 0) {
+                        sectionSelect.value = scopeList[0].value;
+                        timetableState.selectedKey = scopeList[0].value;
+                    }
+                }
+            }
+
+            renderTimetableGrid();
+
+            if (forceRefresh) {
+                showModernToast('Timetable refreshed.', 'success', 2500);
+            }
+        } catch (err) {
+            console.error('Error rendering student timetable:', err);
+            if (gridEl) {
+                gridEl.innerHTML = `
+                    <div class="ar-empty-state-card">
+                        <i class="fas fa-triangle-exclamation ar-empty-state-icon" style="color:var(--sp-danger)"></i>
+                        <h4 class="ar-empty-title">Failed to Load Timetable</h4>
+                        <p class="ar-empty-desc">${err.message || 'Please verify internet connection.'}</p>
+                    </div>
+                `;
+            }
+        } finally {
+            timetableState.isLoading = false;
+        }
+    }
+
+    function renderTimetableGrid() {
+        const gridEl = document.getElementById('tt-grid-container');
+        const badgeText = document.getElementById('tt-class-name-display');
+        const todayIndicator = document.getElementById('tt-today-name');
+        const liveBanner = document.getElementById('tt-live-banner');
+        const liveInfo = document.getElementById('tt-live-info');
+        if (!gridEl) return;
+
+        const { scopeList, selectedKey, settings, schedules, courses } = timetableState;
+        const currentItem = scopeList.find(s => s.value === selectedKey);
+
+        if (!currentItem) {
+            gridEl.innerHTML = `
+                <div class="ar-empty-state-card">
+                    <i class="fas fa-calendar-day ar-empty-state-icon"></i>
+                    <h4 class="ar-empty-title">No Timetable Selected</h4>
+                    <p class="ar-empty-desc">Please choose a class section from the dropdown above.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Update badge text in header
+        if (badgeText) {
+            badgeText.innerText = `${currentItem.className} · Sec ${currentItem.section}${currentItem.year ? ' (' + currentItem.year + ')' : ''}`;
+        }
+
+        // Today info & Live detection
+        const now = new Date();
+        const daysMapShort = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        const currentDayKey = daysMapShort[now.getDay()];
+        const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        if (todayIndicator) {
+            todayIndicator.innerText = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+
+        const timetable = schedules[currentItem.classId]?.[currentItem.sectionKey] || {};
+        const periods = settings.periods || [];
+        const days = settings.days || ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        const lunchBreak = settings.lunchBreak || { enabled: false };
+
+        if (periods.length === 0) {
+            gridEl.innerHTML = `
+                <div class="ar-empty-state-card">
+                    <i class="fas fa-clock ar-empty-state-icon"></i>
+                    <h4 class="ar-empty-title">Schedule Periods Not Configured</h4>
+                    <p class="ar-empty-desc">Your institution has not set up schedule bell timings yet.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Check if there is an active live class right now in this section
+        let liveClassFound = null;
+        if (currentDayKey !== 'sun') {
+            periods.forEach(p => {
+                if (p.start && p.end && p.start <= currentTimeStr && currentTimeStr < p.end) {
+                    const slot = timetable.slots?.[currentDayKey]?.[p.id];
+                    if (slot && slot.subject) {
+                        liveClassFound = { period: p, slot };
+                    }
+                }
+            });
+        }
+
+        if (liveBanner) {
+            if (liveClassFound) {
+                liveBanner.style.display = 'flex';
+                if (liveInfo) {
+                    liveInfo.innerHTML = `<strong>${escapeHtml(liveClassFound.slot.subject)}</strong> · ${liveClassFound.slot.room ? 'Room ' + escapeHtml(liveClassFound.slot.room) + ' · ' : ''}${liveClassFound.period.start} – ${liveClassFound.period.end}${liveClassFound.slot.teacherName ? ' · ' + escapeHtml(liveClassFound.slot.teacherName) : ''}`;
+                }
+            } else {
+                liveBanner.style.display = 'none';
+            }
+        }
+
+        // Build Table Columns
+        const columns = [];
+        periods.forEach(period => {
+            columns.push({ type: 'period', period });
+            if (lunchBreak.enabled && lunchBreak.afterPeriodId === period.id) {
+                columns.push({ type: 'lunch' });
+            }
+        });
+
+        // Header HTML
+        const headerCols = columns.map(col => {
+            if (col.type === 'lunch') {
+                return `<th>${escapeHtml(lunchBreak.label || 'Lunch Break')}<span class="tt-period-time-sub">${lunchBreak.start || ''}–${lunchBreak.end || ''}</span></th>`;
+            }
+            return `<th>${escapeHtml(col.period.name || 'Period')}<span class="tt-period-time-sub">${col.period.start && col.period.end ? `${col.period.start}–${col.period.end}` : '—'}</span></th>`;
+        }).join('');
+
+        const headerHtml = `
+            <thead>
+                <tr>
+                    <th class="tt-day-col-header">Day</th>
+                    ${headerCols}
+                </tr>
+            </thead>
+        `;
+
+        // Rows HTML
+        const daysMeta = new Map(DAYS_CONFIG.map(([k, name, short]) => [k, { name, short }]));
+        let rowsHtml = '';
+
+        days.forEach(dayKey => {
+            const meta = daysMeta.get(dayKey) || { name: dayKey.toUpperCase(), short: dayKey.toUpperCase() };
+            const isToday = dayKey === currentDayKey;
+
+            const cellsHtml = columns.map(col => {
+                if (col.type === 'lunch') {
+                    return `
+                        <td>
+                            <div class="tt-lunch-card">
+                                <i class="fas fa-utensils"></i>
+                                <span>${escapeHtml(lunchBreak.label || 'Recess / Lunch')}</span>
+                                <span style="font-size:0.68rem; opacity:0.8;">${lunchBreak.duration ? lunchBreak.duration + ' min' : ''}</span>
+                            </div>
+                        </td>
+                    `;
+                }
+
+                const period = col.period;
+                const slot = timetable.slots?.[dayKey]?.[period.id];
+                const isLiveNow = isToday && period.start && period.end && period.start <= currentTimeStr && currentTimeStr < period.end;
+
+                if (!slot || !slot.subject) {
+                    return `
+                        <td>
+                            <div class="tt-empty-slot">
+                                <span>Free Period</span>
+                            </div>
+                        </td>
+                    `;
+                }
+
+                const subjectName = slot.subject;
+                const teacherName = slot.teacherName || 'Faculty Assigned';
+                const roomName = slot.room || 'Classroom';
+
+                return `
+                    <td>
+                        <div class="tt-slot-card ${isLiveNow ? 'tt-live-period' : ''}">
+                            ${isLiveNow ? '<span class="tt-live-badge"><i class="fas fa-satellite-dish"></i> Live Now</span>' : ''}
+                            <div class="tt-slot-subject">${escapeHtml(subjectName)}</div>
+                            <div class="tt-slot-meta">
+                                <div class="tt-slot-meta-item">
+                                    <i class="fas fa-chalkboard-user"></i>
+                                    <span>${escapeHtml(teacherName)}</span>
+                                </div>
+                                <div class="tt-slot-meta-item">
+                                    <i class="fas fa-door-open"></i>
+                                    <span>${escapeHtml(roomName)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                `;
+            }).join('');
+
+            rowsHtml += `
+                <tr class="${isToday ? 'tt-today-row' : ''}">
+                    <td class="tt-day-cell">
+                        <span class="tt-day-full">${escapeHtml(meta.name)}</span>
+                        <span class="tt-day-short">${escapeHtml(meta.short)}</span>
+                        ${isToday ? '<span class="tt-today-badge">Today</span>' : ''}
+                    </td>
+                    ${cellsHtml}
+                </tr>
+            `;
+        });
+
+        gridEl.innerHTML = `
+            <table class="tt-grid-table">
+                ${headerHtml}
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        `;
+    }
+
+    function escapeHtml(str) {
+        return String(str ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[ch]));
+    }
+
+    // Window Exports & Bridges
     window.showModernToast = showModernToast;
+    window.studentLoadAttendanceHistory = loadAttendanceHistory;
+    window.loadAttendanceHistory = loadAttendanceHistory;
+    window.studentInitHistoryControls = initAttendanceRecordsModule;
+    window.studentRenderTimetable = renderStudentTimetable;
+    window.renderStudentTimetable = renderStudentTimetable;
     window._rollcallStudentState = state;
 
 })();

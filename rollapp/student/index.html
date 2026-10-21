@@ -3540,6 +3540,10 @@
                         <i class="fas fa-history"></i>
                         <span>Attendance Records</span>
                     </button>
+                    <button type="button" class="mobile-sidebar-tab" data-tab="tab-timetable">
+                        <i class="fas fa-calendar-days"></i>
+                        <span>Time Table</span>
+                    </button>
                     <button type="button" class="mobile-sidebar-tab" data-tab="tab-analytics">
                         <i class="fas fa-calculator"></i>
                         <span>Analytics &amp; Bunk Calc</span>
@@ -3586,6 +3590,10 @@
                     </button>
                     <button class="nav-tab-btn" data-tab="tab-history">
                         <i class="fas fa-history"></i> Attendance Records
+                    </button>
+                    <button class="nav-tab-btn" data-tab="tab-timetable">
+                        <i class="fas fa-calendar-days"></i> Time Table
+                        <span class="nav-tab-badge">Weekly</span>
                     </button>
                     <button class="nav-tab-btn" data-tab="tab-analytics">
                         <i class="fas fa-calculator"></i> Analytics & Bunk Calc
@@ -3797,57 +3805,200 @@
                     </div>
                 </section>
 
-                <!-- ================= TAB 3: ATTENDANCE RECORDS (IN-LINE, NO POPUP!) ================= -->
+                <!-- ================= TAB 3: ATTENDANCE RECORDS (PROFESSIONAL REDESIGN) ================= -->
                 <section id="tab-history" class="student-tab-panel">
-                    <div class="panel-header" style="background:var(--sp-bg-card); border-radius:var(--sp-radius-lg) var(--sp-radius-lg) 0 0; border:1px solid var(--sp-border); border-bottom:none;">
-                        <h3 class="panel-title">
-                            <i class="fas fa-file-lines"></i> Complete Attendance History & Logs
-                        </h3>
-                    </div>
-
-                    <!-- Filters Bar -->
-                    <div class="history-filters-bar" style="border-radius:0; border-top:1px solid var(--sp-border-subtle);">
-                        <div class="filter-group-left">
-                            <label style="font-size:0.85rem; font-weight:600;">Month:</label>
-                            <select id="history-month" class="history-select">
-                                <option value="0">January</option>
-                                <option value="1">February</option>
-                                <option value="2">March</option>
-                                <option value="3">April</option>
-                                <option value="4">May</option>
-                                <option value="5">June</option>
-                                <option value="6">July</option>
-                                <option value="7">August</option>
-                                <option value="8">September</option>
-                                <option value="9">October</option>
-                                <option value="10">November</option>
-                                <option value="11">December</option>
-                            </select>
-
-                            <label style="font-size:0.85rem; font-weight:600;">Year:</label>
-                            <select id="history-year" class="history-select">
-                                <!-- Populated dynamically by script -->
-                            </select>
-
-                            <button id="load-history-btn" class="modern-btn-primary" style="padding:8px 16px;">
-                                <i class="fas fa-filter"></i> Apply Filter
-                            </button>
+                    <div class="ar-panel-card">
+                        <!-- Card Header -->
+                        <div class="ar-card-header">
+                            <div class="ar-header-left">
+                                <div class="ar-header-icon-box">
+                                    <i class="fas fa-file-invoice"></i>
+                                </div>
+                                <div>
+                                    <h3 class="ar-panel-title">Attendance Records &amp; Logs</h3>
+                                    <p class="ar-panel-subtitle">
+                                        Verified attendance records across all lectures, labs, and automated roll calls.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="ar-header-actions">
+                                <span class="ar-live-pill">
+                                    <span class="ar-dot-pulse"></span> Live Sync
+                                </span>
+                                <button type="button" class="ar-btn-secondary" id="ar-btn-refresh" title="Refresh attendance records">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                                <button type="button" class="ar-btn-secondary" id="ar-btn-export" title="Export CSV statement">
+                                    <i class="fas fa-file-arrow-down"></i> Export CSV
+                                </button>
+                            </div>
                         </div>
 
-                        <!-- KPI Summary Pill -->
-                        <div id="history-stats" style="display:flex; gap:16px; align-items:center;">
-                            <div style="font-size:0.85rem;">Present: <strong id="stat-present" style="color:var(--sp-success)">0</strong></div>
-                            <div style="font-size:0.85rem;">Total: <strong id="stat-total" style="color:var(--sp-primary)">0</strong></div>
-                            <div style="font-size:0.85rem;">Percentage: <strong id="stat-percentage" style="color:var(--sp-warning)">0%</strong></div>
+                        <!-- KPI Summary Grid -->
+                        <div class="ar-kpi-grid">
+                            <div class="ar-kpi-box ar-kpi-total">
+                                <div class="ar-kpi-icon"><i class="fas fa-layer-group"></i></div>
+                                <div class="ar-kpi-content">
+                                    <span class="ar-kpi-num" id="stat-total">0</span>
+                                    <span class="ar-kpi-label">Total Sessions</span>
+                                </div>
+                            </div>
+
+                            <div class="ar-kpi-box ar-kpi-present">
+                                <div class="ar-kpi-icon"><i class="fas fa-circle-check"></i></div>
+                                <div class="ar-kpi-content">
+                                    <span class="ar-kpi-num" id="stat-present">0</span>
+                                    <span class="ar-kpi-label">Attended Classes</span>
+                                </div>
+                            </div>
+
+                            <div class="ar-kpi-box ar-kpi-absent">
+                                <div class="ar-kpi-icon"><i class="fas fa-circle-xmark"></i></div>
+                                <div class="ar-kpi-content">
+                                    <span class="ar-kpi-num" id="stat-absent">0</span>
+                                    <span class="ar-kpi-label">Missed Classes</span>
+                                </div>
+                            </div>
+
+                            <div class="ar-kpi-box ar-kpi-rate">
+                                <div class="ar-kpi-icon"><i class="fas fa-chart-line"></i></div>
+                                <div class="ar-kpi-content">
+                                    <div class="ar-rate-row">
+                                        <span class="ar-kpi-num" id="stat-percentage">0%</span>
+                                        <span class="ar-badge-status safe" id="stat-status-badge">Safe</span>
+                                    </div>
+                                    <span class="ar-kpi-label">Attendance Rate</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Filter Toolbar -->
+                        <div class="ar-filter-toolbar">
+                            <div class="ar-filter-row">
+                                <div class="ar-select-group">
+                                    <label class="ar-label" for="history-month"><i class="fas fa-calendar-day"></i> Month</label>
+                                    <select id="history-month" class="ar-select">
+                                        <option value="all">All Months</option>
+                                        <option value="0">January</option>
+                                        <option value="1">February</option>
+                                        <option value="2">March</option>
+                                        <option value="3">April</option>
+                                        <option value="4">May</option>
+                                        <option value="5">June</option>
+                                        <option value="6">July</option>
+                                        <option value="7">August</option>
+                                        <option value="8">September</option>
+                                        <option value="9">October</option>
+                                        <option value="10">November</option>
+                                        <option value="11">December</option>
+                                    </select>
+                                </div>
+
+                                <div class="ar-select-group">
+                                    <label class="ar-label" for="history-year"><i class="fas fa-calendar"></i> Year</label>
+                                    <select id="history-year" class="ar-select">
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </div>
+
+                                <button type="button" id="load-history-btn" class="ar-apply-btn">
+                                    <i class="fas fa-filter"></i> Apply Filter
+                                </button>
+
+                                <div class="ar-search-group">
+                                    <label class="ar-label" for="ar-search-input"><i class="fas fa-magnifying-glass"></i> Search</label>
+                                    <div class="ar-search-input-wrap">
+                                        <i class="fas fa-search ar-search-icon"></i>
+                                        <input type="text" id="ar-search-input" class="ar-search-input" placeholder="Search subject, date, class...">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="ar-quick-chips" id="ar-filter-chips">
+                                <button type="button" class="ar-chip active" data-filter="all">All Sessions</button>
+                                <button type="button" class="ar-chip" data-filter="present"><i class="fas fa-check"></i> Present</button>
+                                <button type="button" class="ar-chip" data-filter="absent"><i class="fas fa-times"></i> Absent</button>
+                                <button type="button" class="ar-chip" data-filter="late"><i class="fas fa-clock"></i> Late</button>
+                            </div>
+                        </div>
+
+                        <!-- Records Table Wrap -->
+                        <div class="ar-table-responsive">
+                            <div id="history-list">
+                                <div class="ar-empty-state-card">
+                                    <i class="fas fa-calendar-days ar-empty-state-icon"></i>
+                                    <h4 class="ar-empty-title">Loading Attendance Ledger...</h4>
+                                    <p class="ar-empty-desc">Fetching verified sessions from institution records.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                </section>
 
-                    <!-- Records Table Wrap -->
-                    <div class="modern-table-wrap" style="border-radius:0 0 var(--sp-radius-lg) var(--sp-radius-lg);">
-                        <div id="history-list" class="history-list" style="padding:16px;">
-                            <div class="empty-state" style="text-align:center; padding:30px; color:var(--sp-text-muted);">
-                                <i class="fas fa-calendar-days" style="font-size:2.5rem; margin-bottom:12px; display:block; color:var(--sp-primary)"></i>
-                                <p>Select month and click Apply to load verified attendance logs.</p>
+                <!-- ================= TAB 3.5: TIME TABLE (WEEKLY GRID FORMAT) ================= -->
+                <section id="tab-timetable" class="student-tab-panel">
+                    <div class="tt-panel-card">
+                        <!-- Timetable Header -->
+                        <div class="tt-card-header">
+                            <div class="tt-header-left">
+                                <div class="tt-header-icon-box">
+                                    <i class="fas fa-calendar-days"></i>
+                                </div>
+                                <div>
+                                    <div class="tt-title-row">
+                                        <h3 class="tt-panel-title">Weekly Class Schedule</h3>
+                                        <span class="tt-badge-class" id="tt-active-class-badge">
+                                            <i class="fas fa-graduation-cap"></i> <span id="tt-class-name-display">My Class</span>
+                                        </span>
+                                    </div>
+                                    <p class="tt-panel-subtitle">
+                                        Interactive schedule matrix with real-time active bell timings and room allocations.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="tt-header-right">
+                                <span class="tt-today-pill" id="tt-today-indicator">
+                                    <i class="fas fa-clock"></i> <span id="tt-today-name">Today</span>
+                                </span>
+                                <select id="tt-section-select" class="tt-section-dropdown">
+                                    <option value="">Loading schedules...</option>
+                                </select>
+                                <button type="button" class="ar-btn-secondary" id="tt-btn-refresh" title="Reload Timetable">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                                <button type="button" class="ar-btn-secondary" id="tt-btn-print" title="Print Timetable Grid">
+                                    <i class="fas fa-print"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Timetable Grid Table Wrap -->
+                        <div class="tt-grid-wrapper">
+                            <div id="tt-grid-container">
+                                <div class="ar-empty-state-card">
+                                    <i class="fas fa-spinner fa-spin ar-empty-state-icon"></i>
+                                    <h4 class="ar-empty-title">Loading Weekly Timetable...</h4>
+                                    <p class="ar-empty-desc">Synchronizing class periods and assigned subjects.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer Legend -->
+                        <div class="tt-footer-legend">
+                            <div class="tt-legend-item">
+                                <span class="tt-legend-dot current"></span>
+                                <span>Active Live Class</span>
+                            </div>
+                            <div class="tt-legend-item">
+                                <span class="tt-legend-dot subject"></span>
+                                <span>Scheduled Subject / Lab</span>
+                            </div>
+                            <div class="tt-legend-item">
+                                <span class="tt-legend-dot break"></span>
+                                <span>Recess / Lunch Interval</span>
+                            </div>
+                            <div class="tt-legend-note">
+                                <i class="fas fa-info-circle"></i> Timings follow your institution's official period bell schedule.
                             </div>
                         </div>
                     </div>
@@ -11913,326 +12064,23 @@
     </script>
 
 
-    <!-- History Logic Script -->
+    <!-- Attendance History & Timetable Bridges -->
     <script>
-        // History Logic
-        let currentHistoryMonth = new Date().getMonth();
-        let currentHistoryYear = new Date().getFullYear();
-
-        const historyBtn = document.getElementById('history-btn');
-        if (historyBtn) {
-            historyBtn.addEventListener('click', () => {
-                document.getElementById('history-modal').classList.add('visible');
-                initHistoryControls();
-                loadAttendanceHistory();
-            });
-        }
-
-        const closeHistoryBtn = document.getElementById('close-history-btn');
-        if (closeHistoryBtn) {
-            closeHistoryBtn.addEventListener('click', () => {
-                document.getElementById('history-modal').classList.remove('visible');
-            });
-        }
-
-        // Close history modal on outside click
-        const historyModal = document.getElementById('history-modal');
-        if (historyModal) {
-            historyModal.addEventListener('click', function (e) {
-                if (e.target === this) {
-                    this.classList.remove('visible');
-                }
-            });
-        }
-
-        function initHistoryControls() {
-            const yearSelect = document.getElementById('history-year');
-            const monthSelect = document.getElementById('history-month');
-
-            if (!yearSelect || !monthSelect) return;
-
-            // Populate years (Current - 1 to Current + 1)
-            yearSelect.innerHTML = '';
-            for (let y = currentHistoryYear - 1; y <= currentHistoryYear + 1; y++) {
-                const opt = document.createElement('option');
-                opt.value = y;
-                opt.innerText = y;
-                if (y === currentHistoryYear) opt.selected = true;
-                yearSelect.appendChild(opt);
+        window.loadAttendanceHistory = function() {
+            if (typeof window.studentLoadAttendanceHistory === 'function') {
+                window.studentLoadAttendanceHistory();
             }
-
-            monthSelect.value = currentHistoryMonth;
-
-            // Listener
-            const loadBtn = document.getElementById('load-history-btn');
-            if (loadBtn) loadBtn.onclick = loadAttendanceHistory;
-        }
-
-        function normalizeSectionList(sectionValue) {
-            if (Array.isArray(sectionValue)) {
-                return sectionValue.map(value => String(value).trim()).filter(Boolean);
+        };
+        window.initHistoryControls = function() {
+            if (typeof window.studentInitHistoryControls === 'function') {
+                window.studentInitHistoryControls();
             }
-            if (sectionValue && typeof sectionValue === 'object') {
-                const values = Object.values(sectionValue);
-                const keys = Object.keys(sectionValue);
-                const allBooleans = values.length && values.every(value => typeof value === 'boolean');
-                if (allBooleans) {
-                    return keys.filter(key => sectionValue[key]).map(value => String(value).trim()).filter(Boolean);
-                }
-                return values.map(value => String(value).trim()).filter(Boolean);
+        };
+        window.renderStudentTimetable = function() {
+            if (typeof window.studentRenderTimetable === 'function') {
+                window.studentRenderTimetable();
             }
-            if (typeof sectionValue === 'string') {
-                const trimmed = sectionValue.trim();
-                if (!trimmed) return [];
-                if (trimmed.includes(',')) {
-                    return trimmed.split(',').map(value => value.trim()).filter(Boolean);
-                }
-                return [trimmed];
-            }
-            return [];
-        }
-
-        function normalizeSectionKeys(sectionValue) {
-            return normalizeSectionList(sectionValue)
-                .map(value => {
-                    let trimmed = String(value).trim();
-                    if (!trimmed) return '';
-                    const lower = trimmed.toLowerCase();
-                    if (lower.startsWith('section ')) {
-                        trimmed = trimmed.slice(8).trim();
-                    }
-                    return trimmed.toLowerCase();
-                })
-                .filter(Boolean);
-        }
-
-        function parseScheduleTime(value) {
-            if (!value) return null;
-            if (value instanceof Date && !isNaN(value)) return value;
-            if (value && typeof value === 'object') {
-                if (typeof value.seconds === 'number' && Number.isFinite(value.seconds)) {
-                    return new Date(value.seconds * 1000);
-                }
-                if (typeof value._seconds === 'number' && Number.isFinite(value._seconds)) {
-                    return new Date(value._seconds * 1000);
-                }
-                if (typeof value.milliseconds === 'number' && Number.isFinite(value.milliseconds)) {
-                    return new Date(value.milliseconds);
-                }
-                if (typeof value.ms === 'number' && Number.isFinite(value.ms)) {
-                    return new Date(value.ms);
-                }
-                if (typeof value.timestamp === 'number' && Number.isFinite(value.timestamp)) {
-                    return new Date(value.timestamp);
-                }
-                if (typeof value.iso === 'string' && value.iso.trim()) {
-                    const parsedIso = new Date(value.iso.trim());
-                    if (!isNaN(parsedIso)) {
-                        return parsedIso;
-                    }
-                }
-            }
-            if (typeof value === 'number' && Number.isFinite(value)) {
-                return new Date(value);
-            }
-            if (typeof value === 'string') {
-                const trimmed = value.trim();
-                if (!trimmed) return null;
-                if (/^\d+$/.test(trimmed)) {
-                    const num = Number(trimmed);
-                    if (Number.isFinite(num)) {
-                        return new Date(num);
-                    }
-                }
-                const parsed = new Date(trimmed);
-                if (!isNaN(parsed)) {
-                    return parsed;
-                }
-            }
-            return null;
-        }
-
-        function getScheduleInfo(location) {
-            if (!location) return { start: null, hasValue: false };
-            const raw =
-                location.scheduledStart ||
-                location.scheduled_start ||
-                location.startTime ||
-                location.start_time;
-            const hasValue = raw !== null && raw !== undefined && String(raw).trim() !== '';
-            const start = parseScheduleTime(raw);
-            return { start, hasValue };
-        }
-
-        function getScheduledStart(location) {
-            return getScheduleInfo(location).start;
-        }
-
-        function loadAttendanceHistory() {
-            if (!currentUser) return;
-
-            const month = parseInt(document.getElementById('history-month').value);
-            const year = parseInt(document.getElementById('history-year').value);
-            const listEl = document.getElementById('history-list');
-
-            listEl.innerHTML = '<div style="text-align:center; padding:20px; color: var(--gray-600);"><i class="fas fa-spinner fa-spin"></i> Loading records...</div>';
-
-            const promises = [
-                firebase.database().ref('attendance_by_location').once('value'),
-                firebase.database().ref('locations').once('value')
-            ];
-
-            Promise.all(promises).then(([globalSnap, locSnap]) => {
-                const globalData = globalSnap.val() || {};
-                const locations = locSnap.val() || {};
-
-                let records = [];
-                const processedKeys = new Set(); // To avoid duplicates
-
-                // Normalize User Section
-            const userSectionKeys = normalizeSectionKeys(currentUser.section || '');
-
-                // Iterate Global Attendance to find ALL class sessions
-                Object.keys(globalData).forEach(locId => {
-                    const locDates = globalData[locId];
-                    const locMeta = locations[locId] || { name: 'Unknown Class' };
-                    const locNameLower = (locMeta.name || '').toLowerCase();
-                    const locSectionKeys = normalizeSectionKeys(locMeta.section);
-
-                    Object.keys(locDates).forEach(dateStr => {
-                        const date = new Date(dateStr);
-                        // Check date validity and match selected month/year
-                        if (isNaN(date) || date.getFullYear() !== year || date.getMonth() !== month) return;
-
-                        const sessionAttendees = locDates[dateStr];
-                        const attendeesList = Object.values(sessionAttendees);
-
-                        // Determine relevance
-                        const isUserPresent = !!sessionAttendees[currentUser.uid];
-
-                        // Check Peers: Case-insensitive comparison
-                        const hasPeerFromSection = userSectionKeys.length > 0 && attendeesList.some(a => {
-                            const peerKeys = normalizeSectionKeys(a.section);
-                            return userSectionKeys.some(key => peerKeys.includes(key));
-                        });
-
-                        // Check for 'General' applicability
-                        const isGeneral = locSectionKeys.includes('general') ||
-                            attendeesList.some(a => normalizeSectionKeys(a.section).includes('general')) ||
-                            locNameLower.includes('general');
-
-                        if (isUserPresent || hasPeerFromSection || isGeneral) {
-                            const uniqueKey = dateStr + "_" + locId;
-                            if (processedKeys.has(uniqueKey)) return;
-                            processedKeys.add(uniqueKey);
-
-                            if (isUserPresent) {
-                                const userRecord = sessionAttendees[currentUser.uid];
-                                records.push({
-                                    ...userRecord,
-                                    locationName: locMeta.name,
-                                    status: userRecord.status || 'present', // Use actual status or default to present
-                                    date: dateStr
-                                });
-                            } else {
-                                // Absent Record (No record found)
-                                const refRecord = attendeesList[0] || { timestamp: date.getTime(), time: '00:00:00' };
-                                records.push({
-                                    locationName: locMeta.name,
-                                    date: dateStr,
-                                    time: refRecord.time,
-                                    timestamp: refRecord.timestamp,
-                                    status: 'absent',
-                                    attendanceType: 'Missed'
-                                });
-                            }
-                        }
-                    });
-                });
-
-                // Sort descending (newest first)
-                records.sort((a, b) => b.timestamp - a.timestamp);
-
-                renderHistoryList(records);
-            }).catch(e => {
-                console.error("History fetch error:", e);
-                listEl.innerHTML = '<div class="status-indicator error">Failed to load history.</div>';
-            });
-        }
-
-        function renderHistoryList(records) {
-            const listEl = document.getElementById('history-list');
-            if (records.length === 0) {
-                listEl.innerHTML = `
-                    <div class="empty-state" style="text-align: center; padding: 20px; color: var(--gray-500);">
-                        <i class="fas fa-clipboard" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
-                        No class records found for this month.
-                    </div>`;
-                updateHistoryStats(0, 0);
-                return;
-            }
-
-            let html = '';
-            let presentCount = 0;
-
-            records.forEach(r => {
-                const date = new Date(r.date);
-                const displayDate = date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
-
-                if (r.status === 'present' || r.status === 'late') presentCount++;
-
-                let statusClass = r.status || 'absent';
-                let iconClass = 'fa-times-circle';
-                let statusText = 'Absent';
-
-                if (r.status === 'present') {
-                    iconClass = 'fa-check-circle';
-                    statusText = 'Present';
-                } else if (r.status === 'late') {
-                    iconClass = 'fa-clock';
-                    statusText = 'Late';
-                } else {
-                    // Default to 'absent'
-                    statusClass = 'absent';
-                    iconClass = 'fa-times-circle';
-                    statusText = 'Absent';
-                }
-
-                html += `
-                    <div class="history-item">
-                        <div>
-                            <div class="history-date">${displayDate}</div>
-                            <div class="history-time" style="font-weight: 600; color: var(--primary-color);">${r.locationName}</div>
-                            <div style="font-size: 0.75rem; color: #999;">${r.time} • ${r.attendanceType || 'Unknown'}</div>
-                        </div>
-                        <div class="history-status ${statusClass}">
-                            <i class="fas ${iconClass}"></i> ${statusText}
-                        </div>
-                    </div>
-                `;
-            });
-            listEl.innerHTML = html;
-            updateHistoryStats(presentCount, records.length);
-        }
-
-        function updateHistoryStats(presentCount, totalCount) {
-            const presentEl = document.getElementById('stat-present');
-            const totalEl = document.getElementById('stat-total');
-            const percEl = document.getElementById('stat-percentage');
-
-            if (presentEl) presentEl.innerText = presentCount;
-            if (totalEl) totalEl.innerText = totalCount;
-
-            if (percEl) {
-                const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
-                percEl.innerText = `${percentage}%`;
-
-                // Color coding for percentage
-                if (percentage >= 75) percEl.style.color = 'var(--success-color)';
-                else if (percentage >= 60) percEl.style.color = 'var(--warning-color)';
-                else percEl.style.color = 'var(--error-color)';
-            }
-        }
+        };
     </script>
     <!-- Student Modern Controller -->
     <script src="student-modern.js"></script>
