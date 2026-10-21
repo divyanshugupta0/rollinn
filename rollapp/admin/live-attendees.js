@@ -405,6 +405,7 @@ function processAttendanceData(attendanceData) {
     let recentCount = 0;
 
     attendees.forEach(([userId, data]) => {
+        if (!userId || userId === '_meta' || userId.startsWith('_') || userId === 'undefined' || userId === 'null' || !userId.trim()) return;
         const status = data.status || 'present';
         if (status === 'absent') absentCount++;
         else if (status === 'late') lateCount++;
@@ -566,7 +567,7 @@ window.toggleActionMenu = function (btn) {
 
 // Update attendee status from popup
 window.updateAttendeeStatus = function (userId, newStatus) {
-    if (!currentLocationId) return;
+    if (!currentLocationId || currentLocationId === 'undefined' || !userId || userId === 'undefined' || userId === 'null') return;
 
     const today = new Date().toISOString().split('T')[0];
 

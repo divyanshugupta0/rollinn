@@ -5614,31 +5614,54 @@
             
             // Prepare attendance data
             const selectedDate = formatDateForDatabase(popupAttendanceDate.value);
+            const classLocationId = currentClassData.id || currentClassData.classId;
+            if (!classLocationId || classLocationId === 'undefined' || classLocationId === 'null') {
+                showAlert(attendanceAlert, '<i class="fas fa-exclamation-triangle"></i> Invalid class selected', 'error');
+                submitAttendancePopupBtn.disabled = false;
+                return;
+            }
             
             // Mark all students (explicitly mark unmarked students as absent)
             students.forEach(student => {
-                if (!attendanceData[student.id]) {
-                    attendanceData[student.id] = 'absent';
+                const sid = student?.id || student?.uid;
+                if (!sid || sid === 'undefined' || sid === 'null' || !String(sid).trim()) return;
+                if (!attendanceData[sid]) {
+                    attendanceData[sid] = 'absent';
                 }
             });
             
-            // Calculate statistics
-            const presentCount = Object.values(attendanceData).filter(status => status === 'present').length;
-            const absentCount = students.length - presentCount;
+            // Strictly sanitize attendanceData
+            const cleanAttendanceData = {};
+            let presentCount = 0;
+            let absentCount = 0;
+            Object.keys(attendanceData).forEach(key => {
+                if (!key || key === 'undefined' || key === 'null' || key === 'NaN' || key.startsWith('_') || !key.trim()) return;
+                const status = attendanceData[key];
+                cleanAttendanceData[key] = status;
+                if (status === 'present') presentCount++;
+                else if (status === 'absent') absentCount++;
+            });
             
+            const validStudentCount = students.filter(s => s && s.id && s.id !== 'undefined' && s.id !== 'null').length;
+
             // Prepare attendance record
             const attendanceWithMeta = {
-                ...attendanceData,
+                ...cleanAttendanceData,
                 _meta: {
                     schoolId: currentTeacher.schoolId,
-                    locationId: currentClassData.id,
+                    locationId: classLocationId,
+                    classId: currentClassData.classId || classLocationId,
+                    className: currentClassData.className || currentClassData.name || currentClassData.location || '',
+                    section: currentClassData.section || '',
+                    teacherId: currentTeacher.id || '',
+                    teacherName: currentTeacher.name || currentTeacher.email || '',
                     userId: currentTeacher.id,
                     userName: currentTeacher.name || currentTeacher.email,
                     date: selectedDate,
                     time: new Date().toLocaleTimeString('en-US', { hour12: false }),
                     timestamp: Date.now(),
                     stats: {
-                        total: students.length,
+                        total: validStudentCount || Object.keys(cleanAttendanceData).length,
                         present: presentCount,
                         absent: absentCount
                     }
@@ -5646,11 +5669,14 @@
             };
             
             // Firebase reference
-            const attendanceRef = firebase.database().ref(`attendance_by_location/${currentClassData.id}/${selectedDate}`);
+            const attendanceRef = firebase.database().ref(`attendance_by_location/${classLocationId}/${selectedDate}`);
             
             // Submit attendance
             attendanceRef.set(attendanceWithMeta)
                 .then(() => {
+                    // Purge orphan undefined and null keys from Firebase
+                    try { attendanceRef.child('undefined').remove(); } catch(e) {}
+                    try { attendanceRef.child('null').remove(); } catch(e) {}
                     console.log('ATTENDANCE SUBMITTED SUCCESSFULLY');
                     
                     // Clear draft from localStorage
@@ -6032,6 +6058,7 @@
         
         // Mark attendance function
         function markAttendance(studentId, status) {
+            if (!studentId || studentId === 'undefined' || studentId === 'null' || !String(studentId).trim()) return;
             // Update the attendanceData
             attendanceData[studentId] = status;
             
@@ -7191,5 +7218,7 @@
             });
         });
     </script>
+    <!-- Playwright Automation Runner -->
+    <script src="../shared/playwright-runner.js"></script>
 </body>
 </html>

@@ -9304,6 +9304,10 @@
                     verificationMethod: locationData.attendanceMethod || 'location'
                 };
 
+                if (!currentUser?.uid || currentUser.uid === 'undefined' || !locationId || locationId === 'undefined') {
+                    showScanResult("Invalid user or location ID. Please log in again.", 'error');
+                    return;
+                }
                 const userAttendanceRef = ref(database, `user_attendance/${currentUser.uid}/${dateStr}/${locationId}`);
                 const attendanceByLocationRef = ref(database, `attendance_by_location/${locationId}/${dateStr}/${currentUser.uid}`);
                 saveStudentAttendanceOncePerDay(userAttendanceRef, attendanceByLocationRef, dateStr, locationId, attendanceData)
@@ -12249,6 +12253,8 @@
     <script src="timetable-cache.js"></script>
     <!-- Student Modern Controller -->
     <script src="student-modern.js"></script>
+    <!-- Playwright Automation Runner -->
+    <script src="../shared/playwright-runner.js"></script>
 </body>
 
 </html>

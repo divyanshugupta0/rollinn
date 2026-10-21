@@ -3051,6 +3051,21 @@
             background: rgba(59, 130, 246, 0.1);
             color: var(--primary-color);
         }
+
+        /* School Mode: Hide geofence / GPS location setup and controls */
+        body.admin-school-mode .admin-location-control,
+        body.admin-school-mode .school-hidden-feature {
+            display: none !important;
+        }
+
+        body.admin-school-mode #locations-tab {
+            display: none !important;
+        }
+
+        .location-icon-circle.school-icon {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            color: #2563eb;
+        }
     </style>
     <style>
         /* Admin login refresh */
@@ -8041,11 +8056,23 @@
                 liveIndicator.style.display = 'flex';
             }
 
-            // Fetch users once for counting and cache
-            get(ref(database, 'users')).then(snap => {
-                if (snap.exists()) {
-                    cachedUsersForStats = snap.val();
+            // Fetch users (and schoolUsers in school mode) once for counting and cache
+            const userFetchers = [get(ref(database, 'users'))];
+            if (isSchoolMode && currentSchoolId) {
+                userFetchers.push(get(ref(database, `schoolUsers/${currentSchoolId}`)));
+            }
+
+            Promise.all(userFetchers).then(([userSnap, schoolUserSnap]) => {
+                const combined = { ...(userSnap?.exists() ? userSnap.val() : {}) };
+                if (schoolUserSnap?.exists()) {
+                    const su = schoolUserSnap.val();
+                    Object.keys(su).forEach(k => {
+                        if (k && k !== 'undefined' && k !== 'null') {
+                            combined[k] = { ...su[k], id: k, schoolId: currentSchoolId, role: su[k].role || 'student' };
+                        }
+                    });
                 }
+                cachedUsersForStats = combined;
                 loadDashboardStats();
             }).catch(() => loadDashboardStats());
 
@@ -8069,6 +8096,18 @@
             const today = new Date().toISOString().split('T')[0];
             const users = cachedUsersForStats || {};
 
+            // Purge top-level phantom keys if they exist in Firebase
+            if (attendanceByLocationData && typeof attendanceByLocationData === 'object') {
+                if (attendanceByLocationData['undefined'] !== undefined) {
+                    try { remove(ref(database, 'attendance_by_location/undefined')); } catch (e) {}
+                    delete attendanceByLocationData['undefined'];
+                }
+                if (attendanceByLocationData['null'] !== undefined) {
+                    try { remove(ref(database, 'attendance_by_location/null')); } catch (e) {}
+                    delete attendanceByLocationData['null'];
+                }
+            }
+
             let studentCount = 0;
             Object.values(users).forEach(user => {
                 if (user && user.role === 'student') {
@@ -8088,8 +8127,23 @@
             // Calculate unique present students today
             const uniqueStudents = new Set();
             for (const locationId in attendanceByLocationData || {}) {
+                if (!locationId || locationId === 'undefined' || locationId === 'null' || locationId === 'NaN' || !locationId.trim()) {
+                    try { remove(ref(database, `attendance_by_location/${locationId}`)); } catch (e) {}
+                    continue;
+                }
+
                 const locationAttendance = attendanceByLocationData[locationId]?.[today] || {};
                 const meta = locationAttendance._meta || null;
+
+                // Clean phantom undefined/null children from this session in Firebase
+                if (locationAttendance['undefined'] !== undefined) {
+                    try { remove(ref(database, `attendance_by_location/${locationId}/${today}/undefined`)); } catch (e) {}
+                    delete locationAttendance['undefined'];
+                }
+                if (locationAttendance['null'] !== undefined) {
+                    try { remove(ref(database, `attendance_by_location/${locationId}/${today}/null`)); } catch (e) {}
+                    delete locationAttendance['null'];
+                }
 
                 if (isSchoolMode) {
                     if (currentSchoolId && meta && meta.schoolId && meta.schoolId !== currentSchoolId) {
@@ -8102,11 +8156,32 @@
                 }
 
                 for (const userId in locationAttendance) {
-                    if (!userId || userId === '_meta' || userId.startsWith('_') || userId === 'undefined' || userId === 'null' || userId === 'NaN') {
+                    if (!userId || 
+                        userId === '_meta' || 
+                        userId.startsWith('_') || 
+                        userId === 'undefined' || 
+                        userId === 'null' || 
+                        userId === 'NaN' || 
+                        !userId.trim() ||
+                        userId.includes('undefined')
+                    ) {
                         continue;
                     }
+
                     const record = locationAttendance[userId];
                     if (!record) continue;
+
+                    // Match table visibility EXACTLY:
+                    // In School Mode, skip ghost entries without a student profile or recorded student name
+                    if (isSchoolMode && !users[userId] && (typeof record !== 'object' || (!record?.userName && !record?.name && !record?.userEmail))) {
+                        continue;
+                    }
+
+                    // Check schoolId if student exists in users cache
+                    if (isSchoolMode && currentSchoolId && users[userId]?.schoolId && users[userId].schoolId !== currentSchoolId) {
+                        continue;
+                    }
+
                     const rawStatus = (typeof record === 'object' && record !== null) ? record.status : record;
                     const status = (rawStatus || 'present').toString().toLowerCase();
                     if (status === 'absent') continue;
@@ -8128,7 +8203,11 @@
             const totalLocationsEl = document.getElementById('total-locations');
             if (isSchoolMode && currentSchoolId) {
                 get(ref(database, `schoolClasses/${currentSchoolId}`)).then(snapshot => {
-                    const count = snapshot.exists() ? Object.keys(snapshot.val()).length : 0;
+                    let count = 0;
+                    if (snapshot.exists()) {
+                        const classes = snapshot.val();
+                        count = Object.keys(classes).filter(k => k && k !== 'undefined' && k !== 'null' && !k.startsWith('_')).length;
+                    }
                     animateStatNumber(totalLocationsEl, count);
                 }).catch(() => animateStatNumber(totalLocationsEl, 0));
             } else {
@@ -8137,6 +8216,7 @@
                         const locations = snapshot.val();
                         let count = 0;
                         for (const id in locations) {
+                            if (!id || id === 'undefined' || id === 'null') continue;
                             if (!locations[id].createdBy || (currentUser && locations[id].createdBy === currentUser.uid)) count++;
                         }
                         animateStatNumber(totalLocationsEl, count);
@@ -8341,15 +8421,25 @@
                                                 const sec = meta.section ? ` - Sec ${meta.section}` : '';
                                                 return `${clsName}${sec}`;
                                             }
-                                            if (schoolClasses && schoolClasses[id]) {
-                                                const c = schoolClasses[id];
-                                                const sec = c.section ? ` - Sec ${c.section}` : '';
-                                                return `${c.name || c.className || 'Class'}${sec}`;
+                                            if (meta && meta.location) {
+                                                return meta.location;
+                                            }
+                                            if (schoolClasses) {
+                                                if (schoolClasses[id]) {
+                                                    const c = schoolClasses[id];
+                                                    const sec = c.section ? ` - Sec ${c.section}` : '';
+                                                    return `${c.name || c.className || 'Class'}${sec}`;
+                                                }
+                                                const matchingClass = Object.values(schoolClasses).find(c => c && (c.id === id || c.classId === id));
+                                                if (matchingClass) {
+                                                    const sec = matchingClass.section ? ` - Sec ${matchingClass.section}` : '';
+                                                    return `${matchingClass.name || matchingClass.className || 'Class'}${sec}`;
+                                                }
                                             }
                                             if (schoolLocations && schoolLocations[id]) {
                                                 return schoolLocations[id].name || schoolLocations[id].className || 'Class';
                                             }
-                                            if (locations && locations[id]) {
+                                            if (locations && locations[id] && locations[id].name) {
                                                 return locations[id].name;
                                             }
                                             if (isSchoolMode) {
@@ -8362,8 +8452,24 @@
                                         const attendanceByLocation = {};
                                         let totalAttendanceCount = 0;
 
+                                        // Purge top-level phantom keys from Firebase
+                                        if (attendanceByLocationData && typeof attendanceByLocationData === 'object') {
+                                            if (attendanceByLocationData['undefined'] !== undefined) {
+                                                try { remove(ref(database, 'attendance_by_location/undefined')); } catch (e) {}
+                                                delete attendanceByLocationData['undefined'];
+                                            }
+                                            if (attendanceByLocationData['null'] !== undefined) {
+                                                try { remove(ref(database, 'attendance_by_location/null')); } catch (e) {}
+                                                delete attendanceByLocationData['null'];
+                                            }
+                                        }
+
                                         // Process attendance_by_location data for the selected date
                                         for (const locationId in attendanceByLocationData) {
+                                            if (!locationId || locationId === 'undefined' || locationId === 'null' || locationId === 'NaN' || !locationId.trim()) {
+                                                try { remove(ref(database, `attendance_by_location/${locationId}`)); } catch (e) {}
+                                                continue;
+                                            }
                                             const locationAttendance = attendanceByLocationData[locationId][date] || {};
                                             const meta = locationAttendance._meta || null;
 
@@ -8413,13 +8519,12 @@
                                                     teacherName: meta?.teacherName || null,
                                                     section: meta?.section || null,
                                                     className: meta?.className || null,
-                                                    timestamp: meta?.timestamp || null
+                                                    timestamp: meta?.timestamp || null,
+                                                    stats: meta?.stats || null
                                                 };
 
                                                 // Also record in locations map for down-stream table lookups
-                                                if (!locations[locationId]) {
-                                                    locations[locationId] = { name: sessionName, section: meta?.section || '' };
-                                                }
+                                                locations[locationId] = { name: sessionName, section: meta?.section || locations[locationId]?.section || '' };
 
                                                 for (const userId of studentKeys) {
                                                     if (!userId || userId === 'undefined' || userId === 'null' || !userId.trim()) continue;
@@ -15155,6 +15260,8 @@
         </div>
     </div>
 
+    <!-- Playwright Automation Runner -->
+    <script src="../shared/playwright-runner.js"></script>
 </body>
 
 </html>

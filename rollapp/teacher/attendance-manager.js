@@ -994,7 +994,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (snap.exists()) {
                 snap.forEach(child => {
                     const st = child.val();
-                    st.id = child.key;
+                    const key = child.key;
+                    if (!key || key === 'undefined' || key === 'null' || !key.trim() || !st) return;
+                    st.id = key;
                     const role = String(st.role || '').toLowerCase();
                     if (role && role !== 'student') return;
 
@@ -1032,7 +1034,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (fromDraft && localDraft) {
                 Object.keys(localDraft).forEach(k => {
-                    if (!k.startsWith('_')) attendanceData[k] = localDraft[k];
+                    if (k && k !== 'undefined' && k !== 'null' && !k.startsWith('_')) attendanceData[k] = localDraft[k];
                 });
             } else {
                 // Check Firebase submitted attendance
@@ -1040,7 +1042,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (attSnap.exists()) {
                     const existing = attSnap.val() || {};
                     Object.keys(existing).forEach(k => {
-                        if (k !== '_meta' && typeof existing[k] === 'string') {
+                        if (k && k !== '_meta' && k !== 'undefined' && k !== 'null' && typeof existing[k] === 'string') {
                             attendanceData[k] = existing[k];
                         }
                     });
@@ -1162,7 +1164,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!btn) return;
             const studentId = btn.getAttribute('data-student-id');
             const status = btn.getAttribute('data-status');
-            if (!studentId || !status) return;
+            if (!studentId || studentId === 'undefined' || studentId === 'null' || !studentId.trim() || !status) return;
 
             attendanceData[studentId] = status;
 
@@ -1183,7 +1185,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Mark all present
         document.getElementById('markAllPresentBtn')?.addEventListener('click', () => {
-            studentsList.forEach(st => { attendanceData[st.id] = 'present'; });
+            studentsList.forEach(st => {
+                const sid = st?.id || st?.uid;
+                if (sid && sid !== 'undefined' && sid !== 'null' && String(sid).trim()) {
+                    attendanceData[sid] = 'present';
+                }
+            });
             popupStudentList.querySelectorAll('.student-row').forEach(row => {
                 row.querySelector('.present-btn')?.classList.add('active');
                 row.querySelector('.absent-btn')?.classList.remove('active');
@@ -1193,7 +1200,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Mark all absent
         document.getElementById('markAllAbsentBtn')?.addEventListener('click', () => {
-            studentsList.forEach(st => { attendanceData[st.id] = 'absent'; });
+            studentsList.forEach(st => {
+                const sid = st?.id || st?.uid;
+                if (sid && sid !== 'undefined' && sid !== 'null' && String(sid).trim()) {
+                    attendanceData[sid] = 'absent';
+                }
+            });
             popupStudentList.querySelectorAll('.student-row').forEach(row => {
                 row.querySelector('.absent-btn')?.classList.add('active');
                 row.querySelector('.present-btn')?.classList.remove('active');
@@ -1218,17 +1230,39 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        const classLocationId = currentClassData.id || currentClassData.classId;
+        if (!classLocationId || classLocationId === 'undefined' || classLocationId === 'null') {
+            alert('Invalid class selected.');
+            return;
+        }
+
         const dateInput = document.getElementById('popupAttendanceDate');
         const selectedDate = dateInput?.value ? formatDateForDatabase(new Date(dateInput.value)) : formatDateForDatabase(new Date());
-        const draftKey = `rc_draft_${teacherSchoolId()}_${currentClassData.id}_${selectedDate}`;
+        const draftKey = `rc_draft_${teacherSchoolId()}_${classLocationId}_${selectedDate}`;
 
         // Ensure every student has a status (unmarked defaulted to absent)
         students.forEach(st => {
-            if (!attendanceData[st.id]) attendanceData[st.id] = 'absent';
+            const sid = st?.id || st?.uid;
+            if (!sid || sid === 'undefined' || sid === 'null' || !String(sid).trim()) return;
+            if (!attendanceData[sid]) attendanceData[sid] = 'absent';
         });
 
-        const presentCount = Object.values(attendanceData).filter(s => s === 'present').length;
-        const absentCount = students.length - presentCount;
+        // Strictly sanitize attendanceData so phantom undefined/null keys are NEVER stored
+        const cleanPayload = {};
+        let presentCount = 0;
+        let absentCount = 0;
+        Object.keys(attendanceData).forEach(k => {
+            if (!k || k === 'undefined' || k === 'null' || k === 'NaN' || k.startsWith('_') || !k.trim()) return;
+            const val = attendanceData[k];
+            cleanPayload[k] = val;
+            if (val === 'present') presentCount++;
+            else if (val === 'absent') absentCount++;
+        });
+
+        const validStudentCount = students.filter(st => {
+            const sid = st?.id || st?.uid;
+            return sid && sid !== 'undefined' && sid !== 'null' && String(sid).trim();
+        }).length;
 
         const submitBtn = document.getElementById('submitAttendancePopupBtn');
         if (submitBtn) {
@@ -1237,12 +1271,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const payload = {
-            ...attendanceData,
+            ...cleanPayload,
             _meta: {
                 schoolId: teacherSchoolId(),
-                locationId: currentClassData.id,
-                classId: currentClassData.classId || currentClassData.id,
-                className: currentClassData.className || currentClassData.name,
+                locationId: classLocationId,
+                classId: currentClassData.classId || classLocationId,
+                className: currentClassData.className || currentClassData.name || '',
                 section: currentClassData.section || '',
                 teacherId: currentTeacher?.id || '',
                 teacherName: currentTeacher?.name || currentTeacher?.email || '',
@@ -1252,7 +1286,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 status: 'submitted',
                 submitted: true,
                 stats: {
-                    total: students.length,
+                    total: validStudentCount || Object.keys(cleanPayload).length,
                     present: presentCount,
                     absent: absentCount
                 }
@@ -1260,10 +1294,14 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         try {
-            // SINGLE write call to database
+            // Write clean batch and purge any existing phantom undefined/null keys
             const updates = {};
-            updates[`attendance_by_location/${currentClassData.id}/${selectedDate}`] = payload;
-            updates[`attendance/${teacherSchoolId()}/${currentClassData.id}/${selectedDate}`] = payload;
+            updates[`attendance_by_location/${classLocationId}/${selectedDate}`] = payload;
+            updates[`attendance_by_location/${classLocationId}/${selectedDate}/undefined`] = null;
+            updates[`attendance_by_location/${classLocationId}/${selectedDate}/null`] = null;
+            updates[`attendance/${teacherSchoolId()}/${classLocationId}/${selectedDate}`] = payload;
+            updates[`attendance/${teacherSchoolId()}/${classLocationId}/${selectedDate}/undefined`] = null;
+            updates[`attendance/${teacherSchoolId()}/${classLocationId}/${selectedDate}/null`] = null;
 
             await firebase.database().ref().update(updates);
 
@@ -1272,7 +1310,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Update cache
             window.submittedAttendances = window.submittedAttendances || {};
-            window.submittedAttendances[currentClassData.id] = payload;
+            window.submittedAttendances[classLocationId] = payload;
 
             alert(`Attendance submitted successfully! (${presentCount} Present, ${absentCount} Absent)`);
 
