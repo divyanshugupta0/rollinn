@@ -1506,7 +1506,12 @@
         ];
         const colorIndex = (initial.charCodeAt(0) || 0) % colors.length;
         const [c1, c2] = colors[colorIndex];
-        return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${encodeURIComponent(c1)}"/><stop offset="100%" stop-color="${encodeURIComponent(c2)}"/></linearGradient></defs><rect width="100%" height="100%" rx="24" fill="url(%23g)"/><text x="50%" y="54%" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-weight="700" font-size="44" fill="%23ffffff" dominant-baseline="middle" text-anchor="middle">${initial}</text></svg>`;
+        const rawSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='${c1}'/><stop offset='100%' stop-color='${c2}'/></linearGradient></defs><rect width='100%' height='100%' rx='24' fill='url(#g)'/><text x='50%' y='54%' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif' font-weight='700' font-size='44' fill='#ffffff' dominant-baseline='middle' text-anchor='middle'>${initial}</text></svg>`;
+        try {
+            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(rawSvg)));
+        } catch (e) {
+            return 'data:image/svg+xml;base64,' + btoa(rawSvg);
+        }
     }
 
     function navigateToLeaveTab() {
@@ -1690,7 +1695,7 @@
             <div class="class-teacher-card-v2">
                 <div class="ct-v2-header">
                     <div class="ct-v2-avatar-wrap">
-                        <img src="${avatar}" alt="${name}" class="ct-v2-avatar-img" onerror="this.onerror=null; this.src='${fallbackSvg}';">
+                        <img src="${avatar}" alt="${name}" class="ct-v2-avatar-img" id="ct-v2-avatar-img">
                         <span class="ct-v2-avatar-badge" title="Designated Class Mentor"><i class="fas fa-check"></i></span>
                     </div>
                     <div class="ct-v2-meta">
@@ -1759,6 +1764,13 @@
                 </div>
             </div>
         `;
+
+        const ctAvatarImg = container.querySelector('#ct-v2-avatar-img');
+        if (ctAvatarImg) {
+            ctAvatarImg.addEventListener('error', () => {
+                ctAvatarImg.src = fallbackSvg;
+            }, { once: true });
+        }
 
         const viewProfBtn = container.querySelector('#ct-view-profile-btn');
         if (viewProfBtn) {
