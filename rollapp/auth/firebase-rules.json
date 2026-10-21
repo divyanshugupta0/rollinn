@@ -182,6 +182,52 @@
       }
     },
 
+    "schoolHomework": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": [
+          "section",
+          "classId",
+          "className",
+          "teacherId",
+          "createdAt",
+          "dueDate",
+          "defaultersReviewed"
+        ]
+      }
+    },
+
+    "schoolClassHomework": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "studentHomeworkDefaulters": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$studentId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": ["markedAt", "homeworkId", "dueDate"]
+      }
+    },
+
+    "studentHomeworkStatus": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$studentId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
     "classTeacherProfileRequests": {
       ".read": "auth != null",
       ".write": "auth != null"
