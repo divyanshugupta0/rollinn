@@ -316,48 +316,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Fix header display
     function fixHeaderDisplay() {
-        // Update all teacher info displays
-        const teacherInfoElements = document.querySelectorAll('.teacher-info');
         const currentUser = firebase.auth().currentUser;
-        
-        if (currentUser) {
-            firebase.database().ref('users/' + currentUser.uid).once('value')
-                .then((snapshot) => {
-                    if (snapshot.exists()) {
-                        const teacherData = snapshot.val();
-                        const teacherName = teacherData.name || currentUser.email || 'Teacher';
-                        
-                        teacherInfoElements.forEach(element => {
-                            element.innerHTML = `<i class="fas fa-user-tie"></i> ${teacherName}`;
-                            
-                            // Re-add dropdown if needed
-                            const dropdown = document.createElement('div');
-                            dropdown.className = 'header-dropdown';
-                            dropdown.innerHTML = `
-                                <div class="dropdown-item header-logout-btn">
-                                    <i class="fas fa-sign-out-alt"></i>
-                                    <span>Logout</span>
-                                </div>
-                            `;
-                            element.appendChild(dropdown);
-                            
-                            // Add click event to show dropdown
-                            element.addEventListener('click', function(e) {
-                                e.stopPropagation();
-                                dropdown.classList.toggle('show');
-                            });
-                            
-                            // Add logout event
-                            dropdown.querySelector('.header-logout-btn').addEventListener('click', function() {
-                                if (typeof performLogout === 'function') {
-                                    performLogout();
-                                } else {
-                                    firebase.auth().signOut();
-                                }
-                            });
-                        });
-                    }
-                });
-        }
+        if (!currentUser) return;
+        firebase.database().ref('users/' + currentUser.uid).once('value')
+            .then(snapshot => {
+                const profile = snapshot.val() || {};
+                window.updateTeacherHeaderName?.(profile.name || currentUser.displayName || currentUser.email || 'Teacher');
+            })
+            .catch(error => console.warn('Could not update teacher header name:', error));
     }
 });

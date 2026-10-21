@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script defer src="../shared/image-cache.js"></script>
+<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>RollCall | Teacher Workspace</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,6 +19,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="always-visible.css">
     <link rel="stylesheet" href="section-display.css">
+    <link rel="stylesheet" href="teacher-responsive.css">
     <style>
         * {
             box-sizing: border-box;
@@ -371,7 +373,7 @@
             gap: 12px;
         }
         
-        /* Mobile sidebar toggle button – hidden by default, shown only on mobile via media query */
+        /* Mobile sidebar toggle button â€“ hidden by default, shown only on mobile via media query */
         #mobileSidebarToggle { display: none; }
 
         .sidebar-user {
@@ -512,32 +514,9 @@
             background-color: #fff;
         }
         
-        /* Loading overlay for logout */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            backdrop-filter: blur(3px);
-        }
-        
-        .loading-spinner {
-            font-size: 40px;
-            color: white;
-            margin-bottom: 15px;
-        }
-        
-        .loading-text {
-            color: white;
-            font-size: 18px;
-            font-weight: 500;
+        /* Loading overlay suppressed to avoid stuck blur screen */
+        .loading-overlay, #rollcallLogoutOverlay {
+            display: none !important;
         }
         
         /* Responsive styles for sidebar */
@@ -3692,7 +3671,7 @@
                 box-shadow: 0 0 10px rgba(199, 227, 107, 0.9) !important;
             }
 
-            /* Main content: always full-width on mobile — sidebar is a fixed overlay */
+            /* Main content: always full-width on mobile â€” sidebar is a fixed overlay */
             body.teacher-authenticated .main-content,
             body.teacher-authenticated .main-content-expanded,
             body.teacher-authenticated .main-content.main-content-expanded {
@@ -4005,7 +3984,7 @@
             body.teacher-authenticated #attendanceSection .locations-container { grid-template-columns:minmax(0,1fr) !important; }
             body.teacher-authenticated #attendanceSection .location-actions .action-btn { min-height:44px !important; font-size:9px !important; }
             body.teacher-authenticated #attendanceSection .class-selection-container { padding:14px !important; }
-            /* Modals – slide up from bottom on small screens */
+            /* Modals â€“ slide up from bottom on small screens */
             .popup-overlay,.modal-overlay { align-items:flex-end; padding:8px; }
             #attendancePopup .popup-container { width:calc(100% - 16px) !important; height:min(94vh,900px) !important; max-height:94vh; border-radius:17px 17px 12px 12px; }
             #locationModal .modal-body { padding:15px !important; }
@@ -4023,8 +4002,17 @@
         
 
     </style>
+    <link rel="stylesheet" href="../shared/portal-loader.css?v=20261022-v1">
+    <script defer src="../shared/portal-loader.js?v=20261022-v1"></script>
 </head>
 <body>
+    <div id="page-loader" class="portal-page-loader" role="status" aria-live="polite" aria-label="Loading teacher portal">
+        <div class="portal-loader-card">
+            <div class="portal-loader-brand"><span class="portal-loader-mark"><i class="fas fa-fingerprint" aria-hidden="true"></i></span><span class="portal-loader-brand-copy"><strong>RollCall</strong><span>TEACHER WORKSPACE</span></span><span class="portal-loader-secure"><i class="fas fa-shield-alt" aria-hidden="true"></i> Secure</span></div>
+            <div class="portal-loader-main"><span class="portal-loader-spinner" aria-hidden="true"><i class="fas fa-fingerprint"></i></span><span class="portal-loader-copy"><strong>Preparing your workspace</strong><span>Loading teacher portal...</span></span></div>
+            <div class="portal-loader-track" aria-hidden="true"><span></span></div>
+        </div>
+    </div>
     <!-- Sidebar Navigation -->
     <div class="sidebar">
         <div class="sidebar-header">
@@ -4080,13 +4068,13 @@
                     <div class="user-name" id="sidebarUserName">Teacher</div>
                     <div class="user-role">Faculty</div>
                 </div>
-                <button type="button" class="sidebar-logout-btn" id="sidebarQuickLogoutBtn" title="Log Out">
+                <button type="button" class="sidebar-logout-btn" id="sidebarQuickLogoutBtn" title="Log Out" onclick="performLogout(event)">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
             </div>
         </div>
     </div>
-    
+
     <!-- Main Content Area -->
     <div class="main-content">
         <div class="container">
@@ -4150,7 +4138,7 @@
             <div class="header">
                 <h1><i class="fas fa-th-large"></i> Dashboard</h1>
                 <div class="teacher-info" id="teacherInfo">
-                    <i class="fas fa-user-tie"></i> Loading...
+                    <i class="fas fa-user-tie"></i>
                     <div class="header-dropdown" id="headerDropdown">
                         <div class="dropdown-item" id="headerLogoutBtn">
                             <i class="fas fa-sign-out-alt"></i>
@@ -4228,7 +4216,7 @@
             <div class="header">
                 <h1><i class="fas fa-clipboard-check"></i> Attendance Management</h1>
                 <div class="teacher-info" id="attendanceTeacherInfo">
-                    <i class="fas fa-user-tie"></i> Loading...
+                    <i class="fas fa-user-tie"></i>
                     <div class="header-dropdown">
                         <div class="dropdown-item header-logout-btn">
                             <i class="fas fa-sign-out-alt"></i>
@@ -4305,7 +4293,7 @@
             <div class="header">
                 <h1><i class="fas fa-chalkboard"></i> Classes</h1>
                 <div class="teacher-info" id="classesTeacherInfo">
-                    <i class="fas fa-user-tie"></i> Loading...
+                    <i class="fas fa-user-tie"></i>
                     <div class="header-dropdown">
                         <div class="dropdown-item header-logout-btn">
                             <i class="fas fa-sign-out-alt"></i>
@@ -4336,7 +4324,7 @@
             <div class="header">
                 <h1><i class="fas fa-chart-bar"></i> Attendance Reports</h1>
                 <div class="teacher-info" id="reportsTeacherInfo">
-                    <i class="fas fa-user-tie"></i> Loading...
+                    <i class="fas fa-user-tie"></i>
                     <div class="header-dropdown">
                         <div class="dropdown-item header-logout-btn">
                             <i class="fas fa-sign-out-alt"></i>
@@ -4417,7 +4405,7 @@
             <div class="header">
                 <h1><i class="fas fa-cog"></i> Settings</h1>
                 <div class="teacher-info" id="settingsTeacherInfo">
-                    <i class="fas fa-user-tie"></i> Loading...
+                    <i class="fas fa-user-tie"></i>
                     <div class="header-dropdown">
                         <div class="dropdown-item header-logout-btn">
                             <i class="fas fa-sign-out-alt"></i>
@@ -4616,121 +4604,1166 @@
         </div>
     </div>
 
-    <!-- Simplified Attendance Popup -->
+    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+         Attendance Management Popup â€” Redesigned
+         â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+    <style>
+    /* â”€â”€ Overlay â”€â”€ */
+    #attendancePopup {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(8, 20, 14, 0.65);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        padding: 12px;
+    }
+    /* â”€â”€ Modal shell â”€â”€ */
+    #attendancePopup .ap-shell {
+        display: flex; flex-direction: column;
+        width: min(1080px, 100%);
+        height: min(92vh, 880px);
+        background: #ffffff;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 32px 80px rgba(5, 30, 18, 0.32), 0 2px 8px rgba(0,0,0,.12);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    /* â”€â”€ Header â”€â”€ */
+    #attendancePopup .ap-header {
+        flex: 0 0 auto; display: flex; align-items: center; gap: 14px;
+        padding: 16px 20px;
+        background: linear-gradient(125deg, #0f4c2e 0%, #196644 60%, #1a7a52 100%);
+        color: #fff;
+    }
+    #attendancePopup .ap-header-icon {
+        width: 40px; height: 40px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(255,255,255,.15); border-radius: 12px; font-size: 18px;
+    }
+    #attendancePopup .ap-header-text { flex: 1; min-width: 0; }
+    #attendancePopup .ap-header-text h2 {
+        margin: 0; font-size: 16px; font-weight: 700;
+        letter-spacing: -.02em; color: #fff;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    #attendancePopup .ap-header-text p {
+        margin: 2px 0 0; font-size: 12px; color: rgba(255,255,255,.65);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    #attendancePopup .ap-close {
+        width: 36px; height: 36px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22);
+        border-radius: 10px; color: #fff; cursor: pointer; font-size: 14px;
+        transition: background .18s;
+    }
+    #attendancePopup .ap-close:hover { background: rgba(255,255,255,.24); }
+    /* â”€â”€ Class meta pills â”€â”€ */
+    #attendancePopup .ap-meta {
+        flex: 0 0 auto; display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+        padding: 11px 20px; background: #f6faf7; border-bottom: 1px solid #e3ede6;
+    }
+    #attendancePopup .ap-meta-pill {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 5px 11px; background: #fff;
+        border: 1px solid #d8e8dc; border-radius: 999px;
+        font-size: 12px; font-weight: 500; color: #2d5a42;
+    }
+    #attendancePopup .ap-meta-pill i { font-size: 10px; color: #4e9a6e; }
+    /* â”€â”€ Controls Row & Date bar â”€â”€ */
+    #attendancePopup .ap-controls-row {
+        flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+        gap: 10px; padding: 6px 18px; border-bottom: 1.5px solid #edf1ef; background: #fff;
+        flex-wrap: nowrap;
+    }
+    #attendancePopup .ap-date-bar {
+        flex: 0 0 auto; display: flex !important; flex-direction: row !important;
+        align-items: center !important; flex-wrap: nowrap !important; gap: 6px !important;
+        padding: 0 !important; border: none !important; background: transparent !important;
+    }
+    #attendancePopup .ap-date-bar label {
+        font-size: 12px !important; font-weight: 700 !important; color: #234c35 !important;
+        display: inline-flex !important; align-items: center !important; gap: 5px !important;
+        white-space: nowrap !important; margin: 0 !important; flex: 0 0 auto !important;
+    }
+    #attendancePopup .ap-date-input {
+        width: 130px !important; min-width: 130px !important; max-width: 130px !important;
+        flex: 0 0 130px !important; height: 32px !important; padding: 0 8px !important;
+        border: 1.5px solid #c8dbd0 !important; border-radius: 6px !important; font-size: 12px !important;
+        background: #fff !important; color: #1a2e24 !important; outline: none !important;
+        box-shadow: none !important; margin: 0 !important;
+    }
+    #attendancePopup .ap-date-input:focus { border-color: #14a068 !important; }
+
+    /* ALL DATE BUTTONS IN A SINGLE ROW: Load, Prev, Today, Next */
+    #attendancePopup .ap-date-bar button,
+    #attendancePopup .ap-load-btn,
+    #attendancePopup .ap-nav-btn {
+        width: auto !important; min-width: auto !important; max-width: none !important;
+        flex: 0 0 auto !important; height: 32px !important; padding: 0 12px !important;
+        border-radius: 6px !important; font-size: 12px !important; font-weight: 600 !important;
+        cursor: pointer !important; display: inline-flex !important; align-items: center !important;
+        justify-content: center !important; gap: 5px !important; white-space: nowrap !important;
+        margin: 0 !important; box-shadow: none !important; transform: none !important;
+        transition: background .15s ease, border-color .15s ease !important;
+    }
+    #attendancePopup .ap-load-btn {
+        background: #15803d !important; color: #fff !important; border: 1px solid #15803d !important;
+    }
+    #attendancePopup .ap-load-btn:hover { background: #166534 !important; }
+    #attendancePopup .ap-nav-btn {
+        background: #f0fdf4 !important; color: #166534 !important; border: 1.5px solid #bbf7d0 !important;
+    }
+    #attendancePopup .ap-nav-btn:hover { background: #dcfce7 !important; border-color: #86efac !important; }
+    #attendancePopup .ap-nav-btn.today-btn { background: #dcfce7 !important; border-color: #86efac !important; color: #15803d !important; font-weight: 700 !important; }
+
+    /* â”€â”€ Search â”€â”€ */
+    #attendancePopup .ap-search-wrap {
+        flex: 0 0 220px !important; width: 220px !important; position: relative !important;
+        padding: 0 !important; border: none !important; background: transparent !important;
+        margin-left: auto !important;
+    }
+    #attendancePopup .ap-search-wrap i {
+        position: absolute !important; left: 9px !important; top: 50% !important;
+        transform: translateY(-50%) !important; color: #8aaa96 !important; font-size: 11px !important;
+        pointer-events: none !important;
+    }
+    #attendancePopup .ap-search-input {
+        width: 100% !important; height: 32px !important; padding: 0 34px 0 26px !important;
+        border: 1.5px solid #c8dbd0 !important; border-radius: 6px !important;
+        font-size: 12px !important; background: #fff !important; color: #1e3328 !important;
+        outline: none !important; box-shadow: none !important; margin: 0 !important;
+    }
+    #attendancePopup .ap-search-input:focus { border-color: #14a068 !important; }
+    #attendancePopup .ap-filter-count {
+        position: absolute !important; right: 8px !important; top: 50% !important;
+        transform: translateY(-50%) !important; font-size: 10px !important; font-weight: 600 !important;
+        color: #7a9a86 !important; pointer-events: none !important;
+    }
+
+    /* â”€â”€ Stats strip â”€â”€ */
+    #attendancePopup .ap-stats-strip {
+        flex: 0 0 auto; display: flex; gap: 0;
+        border-bottom: 1px solid #e6eeea; background: #f9fdfb; overflow-x: auto;
+    }
+    #attendancePopup .ap-stat {
+        flex: 1 0 auto; display: flex; flex-direction: column; align-items: center;
+        padding: 10px 8px; min-width: 64px; border-right: 1px solid #e4ede7;
+    }
+    #attendancePopup .ap-stat:last-child { border-right: none; }
+    #attendancePopup .ap-stat strong { font-size: 18px; font-weight: 800; color: #133d27; line-height: 1.1; }
+    #attendancePopup .ap-stat span { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: #6a9a7a; font-weight: 600; margin-top: 2px; }
+    #attendancePopup .ap-stat.present strong { color: #0e8c52; }
+    #attendancePopup .ap-stat.absent strong  { color: #d94040; }
+    #attendancePopup .ap-stat.late strong    { color: #c97a10; }
+    #attendancePopup .ap-stat.excused strong { color: #5b7fd4; }
+    #attendancePopup .ap-stat.rate strong    { color: #126e48; }
+    /* â”€â”€ Workspace toolbar â”€â”€ */
+    #attendancePopup .ap-workspace {
+        flex: 0 0 auto; padding: 10px 20px;
+        background: #fff; border-bottom: 1px solid #edf1ef;
+    }
+    #attendancePopup .ap-workspace-top {
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;
+    }
+    #attendancePopup .ap-mode-label {
+        font-size: 11px; font-weight: 700; color: #4a6657;
+        text-transform: uppercase; letter-spacing: .06em;
+    }
+    #attendancePopup .ap-mode-select {
+        height: 34px; padding: 0 10px; border: 1.5px solid #cdddd4;
+        border-radius: 8px; font-size: 12px; background: #f4f9f5;
+        color: #1e3328; outline: none; cursor: pointer;
+    }
+    #attendancePopup .ap-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+    #attendancePopup .ap-filter-select {
+        height: 32px; padding: 0 10px; border: 1.5px solid #cdddd4;
+        border-radius: 8px; font-size: 11px; background: #f4f9f5;
+        color: #1e3328; outline: none; cursor: pointer;
+    }
+    #attendancePopup .ap-bulk-row {
+        display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+        padding-top: 8px; border-top: 1px solid #edf2ef;
+    }
+    #attendancePopup .ap-bulk-count { font-size: 11px; font-weight: 700; color: #4a6657; min-width: 72px; }
+    #attendancePopup .ap-bulk-btn {
+        height: 28px; padding: 0 10px; border: 1.5px solid #c8ddd0;
+        border-radius: 7px; font-size: 11px; font-weight: 600; color: #2a5540;
+        background: #f0f8f2; cursor: pointer; transition: background .18s, border-color .18s;
+    }
+    #attendancePopup .ap-bulk-btn:hover { background: #d5edde; border-color: #9fcfb0; }
+    #attendancePopup .ap-bulk-btn[data-rc-status="present"] { color: #0a7040; background: #ecfbf2; border-color: #9de8bb; }
+    #attendancePopup .ap-bulk-btn[data-rc-status="absent"]  { color: #9b2828; background: #fff1f1; border-color: #f0a0a0; }
+    #attendancePopup .ap-bulk-btn[data-rc-status="late"]    { color: #7a4e08; background: #fffbee; border-color: #f5d278; }
+    #attendancePopup .ap-bulk-btn[data-rc-status="excused"] { color: #2c4ea0; background: #eef2ff; border-color: #9eb0f0; }
+    #attendancePopup .ap-mode-notice { margin-top: 7px; font-size: 11px; color: #6a8a78; min-height: 16px; }
+
+    /* â”€â”€ Body â”€â”€ */
+    #attendancePopup .ap-body { flex: 1 1 auto; overflow-y: auto; min-height: 0; -webkit-overflow-scrolling: touch; }
+
+    /* Loading Animation: HIDDEN BY DEFAULT, ONLY SHOWN WHEN ACTIVE */
+    #attendancePopup .ap-body .loading-animation {
+        display: none !important;
+        flex-direction: column; align-items: center; justify-content: center;
+        gap: 12px; padding: 40px 20px;
+    }
+    #attendancePopup .ap-body .loading-animation.active {
+        display: flex !important;
+    }
+    #attendancePopup .ap-body .student-list { margin: 0; padding: 0; background: #fff; }
+
+    /* â”€â”€ Student List Table & Minimalist Rows â”€â”€ */
+    #attendancePopup .attendance-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 13px;
+    }
+    #attendancePopup .attendance-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: #f7faf8;
+        color: #4f705e;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        padding: 12px 18px;
+        border-bottom: 1.5px solid #dfebe3;
+        text-align: left;
+    }
+    #attendancePopup .attendance-table thead th.attendance-col {
+        text-align: right;
+    }
+    #attendancePopup .student-row {
+        transition: background .15s ease;
+        border-bottom: 1px solid #edf3ef;
+    }
+    #attendancePopup .student-row:hover {
+        background: #f8fbf9;
+    }
+    #attendancePopup .student-row td {
+        padding: 12px 18px;
+        vertical-align: middle;
+        border-bottom: 1px solid #edf3ef;
+    }
+    #attendancePopup .student-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    #attendancePopup .student-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #e8f5ec, #d0ecdc);
+        color: #1a7a4f;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+    #attendancePopup .student-details {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+    #attendancePopup .student-name {
+        font-size: 13.5px;
+        font-weight: 650;
+        color: #1a3326;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    #attendancePopup .roll-number {
+        font-size: 11px;
+        color: #6a8c78;
+        font-weight: 500;
+    }
+
+    /* Minimalist Segmented Attendance Buttons */
+    #attendancePopup .attendance-cell {
+        text-align: right;
+    }
+    #attendancePopup .attendance-buttons {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #f1f6f3;
+        padding: 3.5px;
+        border-radius: 10px;
+        border: 1px solid #dce8e0;
+    }
+    #attendancePopup .attendance-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-width: 82px;
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 7px;
+        border: 1px solid transparent;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        background: transparent;
+        color: #557262;
+        transition: all .16s ease;
+        box-shadow: none !important;
+        transform: none !important;
+        white-space: nowrap;
+    }
+    #attendancePopup .attendance-btn:hover {
+        background: rgba(255, 255, 255, 0.9);
+        color: #1a3326;
+    }
+    #attendancePopup .attendance-btn.present-btn.active {
+        background: #147a4b !important;
+        color: #ffffff !important;
+        border-color: #147a4b !important;
+        box-shadow: 0 2px 6px rgba(20, 122, 75, 0.3) !important;
+    }
+    #attendancePopup .attendance-btn.absent-btn.active {
+        background: #d43b3b !important;
+        color: #ffffff !important;
+        border-color: #d43b3b !important;
+        box-shadow: 0 2px 6px rgba(212, 59, 59, 0.3) !important;
+    }
+
+    /* â”€â”€ Footer â”€â”€ */
+    #attendancePopup .ap-footer {
+        flex: 0 0 auto; display: flex; align-items: center;
+        justify-content: space-between; gap: 10px; flex-wrap: wrap;
+        padding: 12px 20px; border-top: 1px solid #e3ede6;
+        background: rgba(255,255,255,.96); backdrop-filter: blur(8px);
+    }
+    #attendancePopup .ap-footer-left { display: flex; gap: 8px; flex-wrap: wrap; }
+    #attendancePopup .ap-footer button {
+        height: 40px; padding: 0 16px; border-radius: 10px;
+        font-size: 13px; font-weight: 600; cursor: pointer;
+        display: flex; align-items: center; gap: 7px;
+        transition: background .18s, transform .14s; border: none;
+    }
+    #attendancePopup .ap-footer button:active { transform: scale(.97); }
+    #attendancePopup .ap-btn-ghost {
+        background: #f0f5f1; color: #2e5a41; border: 1.5px solid #cdddd4 !important;
+    }
+    #attendancePopup .ap-btn-ghost:hover { background: #d9ede1; }
+    #attendancePopup .ap-btn-submit {
+        background: linear-gradient(135deg, #14643e, #1a8250);
+        color: #fff; box-shadow: 0 4px 14px rgba(16,90,56,.28); margin-left: auto;
+    }
+    #attendancePopup .ap-btn-submit:hover { background: linear-gradient(135deg, #0f5233, #14683f); }
+
+    /* â”€â”€ Mobile Responsive (Clean Minimal Portal for phones) â”€â”€ */
+    @media (max-width: 600px) {
+        #attendancePopup { padding: 0; align-items: flex-end; }
+        #attendancePopup .ap-shell { width: 100%; height: 96dvh; border-radius: 20px 20px 0 0; }
+        #attendancePopup .ap-header { padding: 14px 16px; }
+        #attendancePopup .ap-header-text h2 { font-size: 15px; }
+        #attendancePopup .ap-meta, #attendancePopup .ap-date-bar,
+        #attendancePopup .ap-search-wrap, #attendancePopup .ap-workspace { padding: 8px 14px; }
+        #attendancePopup .ap-search-wrap i { left: 28px; }
+        #attendancePopup .ap-filter-count { right: 26px; }
+        #attendancePopup .ap-stat { min-width: 50px; padding: 7px 4px; }
+        #attendancePopup .ap-stat strong { font-size: 14px; }
+        #attendancePopup .ap-stat span { font-size: 7.5px; }
+        #attendancePopup .ap-footer { padding: 10px 14px; }
+        #attendancePopup .ap-footer button { height: 38px; font-size: 12px; padding: 0 10px; }
+
+        /* Responsive Student Rows on Mobile: Clean card/list item view */
+        #attendancePopup .attendance-table thead { display: none; }
+        #attendancePopup .attendance-table,
+        #attendancePopup .attendance-table tbody,
+        #attendancePopup .attendance-table tr.student-row {
+            display: block;
+            width: 100%;
+        }
+        #attendancePopup .attendance-table tr.student-row {
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            border-bottom: 1px solid #edf2ee;
+            box-sizing: border-box;
+        }
+        #attendancePopup .attendance-table td {
+            padding: 0;
+            border: none;
+        }
+        #attendancePopup .attendance-table td.student-name-cell {
+            flex: 1;
+            min-width: 0;
+        }
+        #attendancePopup .attendance-table td.attendance-cell {
+            flex-shrink: 0;
+        }
+        #attendancePopup .student-avatar {
+            width: 32px;
+            height: 32px;
+            font-size: 12px;
+            border-radius: 8px;
+        }
+        #attendancePopup .student-name {
+            font-size: 12.5px;
+        }
+        #attendancePopup .roll-number {
+            font-size: 10.5px;
+        }
+        #attendancePopup .attendance-buttons {
+            padding: 2.5px;
+            gap: 3px;
+            border-radius: 8px;
+        }
+        #attendancePopup .attendance-btn {
+            min-width: 66px;
+            height: 29px;
+            font-size: 11px;
+            padding: 0 8px;
+            gap: 4px;
+        }
+    }
+
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       SCHOOL MODE ONLY OVERRIDES (#attendancePopup.ap-school-mode, body.teacher-school-mode #attendancePopup)
+       Maximizes visible area for the student roster & Present/Absent buttons
+       â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+    #attendancePopup.ap-school-mode .ap-shell,
+    body.teacher-school-mode #attendancePopup .ap-shell {
+        width: min(1140px, 98vw);
+        height: min(94vh, 920px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* 1. HIDE REDUNDANT NON-SCHOOL TOOLBARS */
+    #attendancePopup.ap-school-mode .ap-meta,
+    body.teacher-school-mode #attendancePopup .ap-meta,
+    #attendancePopup.ap-school-mode .ap-stats-strip,
+    body.teacher-school-mode #attendancePopup .ap-stats-strip,
+    #attendancePopup.ap-school-mode .ap-workspace,
+    body.teacher-school-mode #attendancePopup .ap-workspace {
+        display: none !important;
+    }
+
+    /* 2. ULTRA-COMPACT SLIM TOP HEADER (Height ~44px) */
+    #attendancePopup.ap-school-mode .ap-header,
+    body.teacher-school-mode #attendancePopup .ap-header {
+        padding: 8px 18px;
+        min-height: 44px;
+        background: linear-gradient(135deg, #0d4a2d 0%, #166440 100%);
+    }
+    #attendancePopup.ap-school-mode .ap-header-icon,
+    body.teacher-school-mode #attendancePopup .ap-header-icon {
+        width: 30px;
+        height: 30px;
+        font-size: 14px;
+        border-radius: 8px;
+    }
+    #attendancePopup.ap-school-mode .ap-header-text h2,
+    body.teacher-school-mode #attendancePopup .ap-header-text h2 {
+        font-size: 15px;
+        font-weight: 700;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    #attendancePopup.ap-school-mode .ap-header-text p,
+    body.teacher-school-mode #attendancePopup .ap-header-text p {
+        display: none !important;
+    }
+    #attendancePopup.ap-school-mode .ap-close,
+    body.teacher-school-mode #attendancePopup .ap-close {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        font-size: 13px;
+    }
+
+    /* 3. COMBINED COMPACT CONTROLS STRIP (Date + Search in ONE SLIM ROW, Height ~38px) */
+    #attendancePopup.ap-school-mode .ap-controls-row,
+    body.teacher-school-mode #attendancePopup .ap-controls-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 6px 18px;
+        background: #f7faf8;
+        border-bottom: 1.5px solid #e1ede5;
+        flex: 0 0 auto;
+    }
+    #attendancePopup.ap-school-mode .ap-date-bar,
+    body.teacher-school-mode #attendancePopup .ap-date-bar {
+        padding: 0;
+        border: none;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    #attendancePopup.ap-school-mode .ap-date-bar label,
+    body.teacher-school-mode #attendancePopup .ap-date-bar label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #2b563e;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    #attendancePopup.ap-school-mode .ap-date-input,
+    body.teacher-school-mode #attendancePopup .ap-date-input {
+        height: 30px;
+        padding: 0 8px;
+        font-size: 12px;
+        border-radius: 6px;
+        border: 1px solid #c8dbd0;
+        background: #fff;
+        width: 135px;
+        flex: 0 0 135px;
+    }
+    #attendancePopup.ap-school-mode .ap-load-btn,
+    body.teacher-school-mode #attendancePopup .ap-load-btn {
+        width: auto !important;
+        min-width: auto !important;
+        max-width: none !important;
+        flex: 0 0 auto !important;
+        height: 30px !important;
+        padding: 0 12px !important;
+        font-size: 11.5px !important;
+        border-radius: 6px !important;
+        white-space: nowrap !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        margin: 0 !important;
+    }
+    #attendancePopup.ap-school-mode .ap-nav-btn,
+    body.teacher-school-mode #attendancePopup .ap-nav-btn {
+        width: auto !important;
+        min-width: auto !important;
+        max-width: none !important;
+        flex: 0 0 auto !important;
+        height: 28px !important;
+        padding: 0 8px !important;
+        font-size: 11px !important;
+        border-radius: 6px !important;
+        white-space: nowrap !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 3px !important;
+        margin: 0 !important;
+    }
+    #attendancePopup.ap-school-mode .ap-search-wrap,
+    body.teacher-school-mode #attendancePopup .ap-search-wrap {
+        padding: 0;
+        border: none;
+        background: transparent;
+        position: relative;
+        width: 240px;
+        flex-shrink: 0;
+    }
+    #attendancePopup.ap-school-mode .ap-search-input,
+    body.teacher-school-mode #attendancePopup .ap-search-input {
+        height: 30px;
+        padding: 0 12px 0 30px;
+        font-size: 12px;
+        border-radius: 6px;
+        border: 1px solid #c8dbd0;
+        background: #fff;
+    }
+    #attendancePopup.ap-school-mode .ap-search-wrap i,
+    body.teacher-school-mode #attendancePopup .ap-search-wrap i {
+        left: 10px;
+        font-size: 11px;
+    }
+
+    /* 4. MAJOR VISIBLE AREA FOR STUDENT ROSTER */
+    #attendancePopup.ap-school-mode .ap-body,
+    body.teacher-school-mode #attendancePopup .ap-body {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        padding: 0;
+        background: #ffffff;
+    }
+    #attendancePopup.ap-school-mode .student-list,
+    body.teacher-school-mode #attendancePopup .student-list {
+        display: block !important;
+        margin: 0;
+        padding: 0;
+    }
+    #attendancePopup.ap-school-mode .table-responsive,
+    body.teacher-school-mode #attendancePopup .table-responsive {
+        margin: 0;
+        padding: 0;
+        overflow-x: auto;
+    }
+
+    /* School Roster Table: Crisp sticky headers and strictly column-aligned rows */
+    #attendancePopup.ap-school-mode .attendance-table,
+    body.teacher-school-mode #attendancePopup .attendance-table,
+    #attendancePopup .attendance-table {
+        width: 100% !important;
+        display: table !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+        font-size: 13.5px;
+    }
+    #attendancePopup.ap-school-mode .attendance-table thead,
+    body.teacher-school-mode #attendancePopup .attendance-table thead,
+    #attendancePopup .attendance-table thead {
+        display: table-header-group !important;
+    }
+    #attendancePopup.ap-school-mode .attendance-table thead tr,
+    body.teacher-school-mode #attendancePopup .attendance-table thead tr,
+    #attendancePopup .attendance-table thead tr {
+        display: table-row !important;
+    }
+    #attendancePopup.ap-school-mode .attendance-table thead th,
+    body.teacher-school-mode #attendancePopup .attendance-table thead th,
+    #attendancePopup .attendance-table thead th {
+        display: table-cell !important;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #f2f7f4;
+        color: #2b543d;
+        font-size: 11.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        padding: 11px 14px;
+        border-bottom: 2px solid #d4e5db;
+        border-top: none;
+        vertical-align: middle;
+        box-sizing: border-box;
+    }
+    #attendancePopup.ap-school-mode .attendance-table thead th:first-child,
+    body.teacher-school-mode #attendancePopup .attendance-table thead th:first-child,
+    #attendancePopup .attendance-table thead th:first-child,
+    #attendancePopup.ap-school-mode .attendance-table thead th.st-roll-header {
+        width: 95px !important;
+        padding-left: 20px !important;
+        text-align: center !important;
+    }
+    #attendancePopup.ap-school-mode .attendance-table thead th.st-running-header,
+    body.teacher-school-mode #attendancePopup .attendance-table thead th.st-running-header {
+        width: 150px !important;
+        text-align: center !important;
+        padding: 11px 10px !important;
+    }
+    #attendancePopup.ap-school-mode .attendance-table thead th:last-child,
+    body.teacher-school-mode #attendancePopup .attendance-table thead th:last-child,
+    #attendancePopup .attendance-table thead th:last-child,
+    #attendancePopup .attendance-table thead th.attendance-col,
+    #attendancePopup.ap-school-mode .attendance-table thead th.st-actions-header {
+        width: 270px !important;
+        padding-right: 28px !important;
+        text-align: center !important;
+    }
+    #attendancePopup.ap-school-mode .attendance-table tbody,
+    body.teacher-school-mode #attendancePopup .attendance-table tbody,
+    #attendancePopup .attendance-table tbody {
+        display: table-row-group !important;
+    }
+    #attendancePopup.ap-school-mode .attendance-table tr.student-row,
+    body.teacher-school-mode #attendancePopup .attendance-table tr.student-row,
+    #attendancePopup .attendance-table tr.student-row,
+    #attendancePopup.ap-school-mode .student-row,
+    body.teacher-school-mode #attendancePopup .student-row {
+        display: table-row !important;
+        border-bottom: 1px solid #eaf0ec !important;
+        transition: background .12s ease;
+    }
+    #attendancePopup.ap-school-mode .student-row:hover,
+    body.teacher-school-mode #attendancePopup .student-row:hover,
+    #attendancePopup .attendance-table tr.student-row:hover {
+        background: #f7faf8 !important;
+    }
+    #attendancePopup.ap-school-mode .attendance-table tr.student-row td,
+    body.teacher-school-mode #attendancePopup .attendance-table tr.student-row td,
+    #attendancePopup .attendance-table tr.student-row td,
+    #attendancePopup.ap-school-mode .student-row td,
+    body.teacher-school-mode #attendancePopup .student-row td {
+        display: table-cell !important;
+        padding: 10px 14px !important;
+        vertical-align: middle !important;
+        border-bottom: 1px solid #edf3ef !important;
+        box-sizing: border-box !important;
+    }
+    #attendancePopup.ap-school-mode .attendance-table tr.student-row td:first-child,
+    body.teacher-school-mode #attendancePopup .attendance-table tr.student-row td:first-child,
+    #attendancePopup .attendance-table tr.student-row td:first-child,
+    #attendancePopup.ap-school-mode .attendance-table td.st-roll-cell {
+        width: 95px !important;
+        padding-left: 20px !important;
+        text-align: center !important;
+    }
+    #attendancePopup.ap-school-mode .attendance-table td.st-running-cell,
+    body.teacher-school-mode #attendancePopup .attendance-table td.st-running-cell {
+        width: 150px !important;
+        padding: 10px 10px !important;
+        text-align: center !important;
+    }
+    #attendancePopup.ap-school-mode .attendance-table tr.student-row td:last-child,
+    body.teacher-school-mode #attendancePopup .attendance-table tr.student-row td:last-child,
+    #attendancePopup .attendance-table tr.student-row td:last-child,
+    #attendancePopup.ap-school-mode .attendance-table td.st-actions-cell,
+    body.teacher-school-mode #attendancePopup .attendance-table td.st-actions-cell,
+    #attendancePopup .attendance-table td.attendance-cell {
+        width: 270px !important;
+        padding: 10px 28px 10px 12px !important;
+        text-align: center !important;
+    }
+
+    /* Running Attendance Live Badge & Metric Styles */
+    #attendancePopup .running-att-wrap {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+    }
+    #attendancePopup .running-att-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-weight: 750;
+        font-size: 12px;
+        letter-spacing: .02em;
+        min-width: 52px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        transition: all .18s ease;
+    }
+    #attendancePopup .running-att-badge.att-good {
+        background: #ecfdf5 !important;
+        color: #15803d !important;
+        border: 1px solid #86efac !important;
+    }
+    #attendancePopup .running-att-badge.att-warn {
+        background: #fffbeb !important;
+        color: #b45309 !important;
+        border: 1px solid #fde68a !important;
+    }
+    #attendancePopup .running-att-badge.att-danger {
+        background: #fef2f2 !important;
+        color: #b91c1c !important;
+        border: 1px solid #fca5a5 !important;
+    }
+    #attendancePopup .running-att-badge.att-neutral {
+        background: #f3f4f6 !important;
+        color: #6b7280 !important;
+        border: 1px solid #e5e7eb !important;
+    }
+    #attendancePopup .running-att-count {
+        display: block;
+        font-size: 11px;
+        color: #64748b;
+        font-weight: 600;
+        white-space: nowrap;
+        line-height: 1;
+    }
+
+    /* Top bar and action buttons strictly inline row with generous border gap */
+    #attendancePopup .school-roster-topbar {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 10px 24px !important;
+        background: #f9fbf9 !important;
+        border-bottom: 1px solid #e5ede7 !important;
+        gap: 12px !important;
+        flex-wrap: nowrap !important;
+    }
+    #attendancePopup .school-roster-actions {
+        display: inline-flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 8px !important;
+        flex-shrink: 0 !important;
+    }
+    #attendancePopup .school-roster-actions button,
+    #attendancePopup #markAllPresentBtn,
+    #attendancePopup #markAllAbsentBtn,
+    #attendancePopup #clearAllDraftBtn {
+        width: auto !important;
+        min-width: unset !important;
+        flex: 0 0 auto !important;
+        white-space: nowrap !important;
+        margin: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* 5. PROMINENT, LARGE, TOUCH-FRIENDLY PRESENT & ABSENT BUTTONS */
+    #attendancePopup.ap-school-mode .attendance-buttons,
+    body.teacher-school-mode #attendancePopup .attendance-buttons {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: transparent;
+        border: none;
+        padding: 0;
+    }
+    #attendancePopup.ap-school-mode .attendance-btn,
+    body.teacher-school-mode #attendancePopup .attendance-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-width: 105px !important;
+        height: 38px !important;
+        padding: 0 16px !important;
+        border-radius: 8px !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        letter-spacing: .02em;
+        cursor: pointer;
+        transition: all .15s ease;
+        text-transform: uppercase;
+    }
+
+    /* Unselected Present */
+    #attendancePopup.ap-school-mode .attendance-btn.present-btn,
+    body.teacher-school-mode #attendancePopup .attendance-btn.present-btn {
+        background: #f0fdf4 !important;
+        color: #15803d !important;
+        border: 1.5px solid #86efac !important;
+        box-shadow: none !important;
+    }
+    #attendancePopup.ap-school-mode .attendance-btn.present-btn:hover,
+    body.teacher-school-mode #attendancePopup .attendance-btn.present-btn:hover {
+        background: #dcfce7 !important;
+        border-color: #4ade80 !important;
+        transform: translateY(-1px);
+    }
+    /* Active Present (Solid Emerald) */
+    #attendancePopup.ap-school-mode .attendance-btn.present-btn.active,
+    body.teacher-school-mode #attendancePopup .attendance-btn.present-btn.active {
+        background: #16a34a !important;
+        color: #ffffff !important;
+        border-color: #15803d !important;
+        box-shadow: 0 3px 10px rgba(22, 163, 74, 0.4) !important;
+    }
+
+    /* Unselected Absent */
+    #attendancePopup.ap-school-mode .attendance-btn.absent-btn,
+    body.teacher-school-mode #attendancePopup .attendance-btn.absent-btn {
+        background: #fef2f2 !important;
+        color: #b91c1c !important;
+        border: 1.5px solid #fca5a5 !important;
+        box-shadow: none !important;
+    }
+    #attendancePopup.ap-school-mode .attendance-btn.absent-btn:hover,
+    body.teacher-school-mode #attendancePopup .attendance-btn.absent-btn:hover {
+        background: #fee2e2 !important;
+        border-color: #f87171 !important;
+        transform: translateY(-1px);
+    }
+    /* Active Absent (Solid Crimson) */
+    #attendancePopup.ap-school-mode .attendance-btn.absent-btn.active,
+    body.teacher-school-mode #attendancePopup .attendance-btn.absent-btn.active {
+        background: #dc2626 !important;
+        color: #ffffff !important;
+        border-color: #b91c1c !important;
+        box-shadow: 0 3px 10px rgba(220, 38, 38, 0.4) !important;
+    }
+
+    /* Active Row Highlights for Instant Visual Feedback */
+    #attendancePopup.ap-school-mode .student-row.is-present,
+    body.teacher-school-mode #attendancePopup .student-row.is-present {
+        background: rgba(240, 253, 244, 0.7) !important;
+    }
+    #attendancePopup.ap-school-mode .student-row.is-absent,
+    body.teacher-school-mode #attendancePopup .student-row.is-absent {
+        background: rgba(254, 242, 242, 0.7) !important;
+    }
+
+    /* 6. STRICTLY SINGLE-ROW FOOTER (Classes, Save draft, Lock, Submit Attendance) */
+    #attendancePopup .ap-footer,
+    #attendancePopup.ap-school-mode .ap-footer,
+    body.teacher-school-mode #attendancePopup .ap-footer {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 10px !important;
+        padding: 10px 18px !important;
+        min-height: 52px !important;
+        background: #ffffff !important;
+        border-top: 1.5px solid #e2ebe5 !important;
+        box-sizing: border-box !important;
+    }
+    #attendancePopup .ap-footer-left,
+    #attendancePopup.ap-school-mode .ap-footer-left,
+    body.teacher-school-mode #attendancePopup .ap-footer-left {
+        display: inline-flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 8px !important;
+        flex: 0 0 auto !important;
+    }
+    #attendancePopup .ap-footer button,
+    #attendancePopup .ap-footer-left button,
+    #attendancePopup #backToClassesPopupBtn,
+    #attendancePopup #rcSaveDraftBtn,
+    #attendancePopup #rcLockSessionBtn,
+    #attendancePopup #submitAttendancePopupBtn,
+    #attendancePopup.ap-school-mode .ap-btn-submit,
+    body.teacher-school-mode #attendancePopup .ap-btn-submit {
+        width: auto !important;
+        min-width: unset !important;
+        flex: 0 0 auto !important;
+        white-space: nowrap !important;
+        margin: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    #attendancePopup #submitAttendancePopupBtn,
+    #attendancePopup.ap-school-mode .ap-btn-submit,
+    body.teacher-school-mode #attendancePopup .ap-btn-submit {
+        height: 38px;
+        padding: 0 20px;
+        font-size: 13.5px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #15803d, #16a34a);
+        box-shadow: 0 3px 10px rgba(21, 128, 61, 0.3);
+        margin-left: auto !important;
+    }
+
+    /* 7. MOBILE OPTIMIZATION FOR SCHOOL MODE */
+    @media (max-width: 600px) {
+        #attendancePopup.ap-school-mode .ap-shell,
+        body.teacher-school-mode #attendancePopup .ap-shell {
+            width: 100%;
+            height: 98dvh;
+            border-radius: 18px 18px 0 0;
+        }
+        #attendancePopup.ap-school-mode .ap-controls-row,
+        body.teacher-school-mode #attendancePopup .ap-controls-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
+            padding: 8px 12px;
+        }
+        #attendancePopup.ap-school-mode .ap-date-bar,
+        body.teacher-school-mode #attendancePopup .ap-date-bar {
+            width: 100% !important;
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            overflow-x: auto !important;
+            gap: 5px !important;
+            padding-bottom: 2px !important;
+        }
+        #attendancePopup.ap-school-mode .ap-date-input,
+        body.teacher-school-mode #attendancePopup .ap-date-input {
+            width: 115px !important;
+            min-width: 115px !important;
+            flex: 0 0 115px !important;
+        }
+        #attendancePopup.ap-school-mode .ap-search-wrap,
+        body.teacher-school-mode #attendancePopup .ap-search-wrap {
+            width: 100%;
+        }
+        #attendancePopup.ap-school-mode .attendance-table,
+        body.teacher-school-mode #attendancePopup .attendance-table {
+            min-width: 540px !important;
+        }
+        #attendancePopup.ap-school-mode .student-row,
+        body.teacher-school-mode #attendancePopup .student-row,
+        #attendancePopup .attendance-table tr.student-row {
+            display: table-row !important;
+        }
+        #attendancePopup.ap-school-mode .attendance-btn,
+        body.teacher-school-mode #attendancePopup .attendance-btn {
+            min-width: 82px !important;
+            height: 36px !important;
+            font-size: 11.5px !important;
+            padding: 0 10px !important;
+        }
+        #attendancePopup.ap-school-mode .attendance-table th.st-running-header,
+        body.teacher-school-mode #attendancePopup .attendance-table th.st-running-header,
+        #attendancePopup.ap-school-mode .attendance-table td.st-running-cell,
+        body.teacher-school-mode #attendancePopup .attendance-table td.st-running-cell {
+            width: 115px !important;
+            padding: 8px 6px !important;
+        }
+        #attendancePopup.ap-school-mode .attendance-table th:last-child,
+        body.teacher-school-mode #attendancePopup .attendance-table th:last-child,
+        #attendancePopup .attendance-table th:last-child,
+        #attendancePopup.ap-school-mode .attendance-table td.st-actions-cell,
+        body.teacher-school-mode #attendancePopup .attendance-table td.st-actions-cell,
+        #attendancePopup .attendance-table tr.student-row td:last-child {
+            width: 220px !important;
+            padding-right: 14px !important;
+        }
+        #attendancePopup .school-roster-topbar {
+            padding: 10px 14px !important;
+        }
+        #attendancePopup .ap-footer {
+            padding: 8px 12px !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
+        #attendancePopup .ap-footer-left {
+            gap: 6px !important;
+        }
+        #attendancePopup .ap-footer button {
+            height: 36px !important;
+            font-size: 12px !important;
+            padding: 0 10px !important;
+        }
+    }
+    </style>
+
     <div id="attendancePopup" class="popup-overlay" role="dialog" aria-modal="true" aria-labelledby="attendancePopupTitle" style="display: none;">
-        <div class="popup-container" style="max-width: 90%; width: 90%; height: 90vh; display: flex; flex-direction: column;">
-            <div class="popup-header">
-                <h3 id="attendancePopupTitle"><i class="fas fa-clipboard-check"></i> Attendance Management</h3>
-                <button id="closeAttendancePopupBtn" class="close-btn"><i class="fas fa-times"></i></button>
+        <div class="ap-shell">
+
+            <!-- Header -->
+            <div class="ap-header">
+                <div class="ap-header-icon"><i class="fas fa-clipboard-check"></i></div>
+                <div class="ap-header-text">
+                    <h2 id="attendancePopupTitle">Attendance Management</h2>
+                    <p>Mark, review and submit class attendance</p>
+                </div>
+                <button id="closeAttendancePopupBtn" class="ap-close" aria-label="Close"><i class="fas fa-times"></i></button>
             </div>
-            <div class="popup-content" style="flex-grow: 1; overflow-y: auto; padding: 20px;">
-                <!-- Class Info Header -->
-                <div class="class-info-header">
-                    <div class="selected-class-info">
-                        <h3><i class="fas fa-map-marker-alt"></i> <span id="popupClassName">Location</span></h3>
-                        <div class="class-details">
-                            <span id="popupClassTime"><i class="far fa-clock"></i> Time: N/A</span>
-                            <span id="popupClassLocation"><i class="fas fa-book"></i> Class: N/A</span>
-                        </div>
-                    </div>
+
+            <!-- Class meta pills -->
+            <div class="ap-meta">
+                <span class="ap-meta-pill"><i class="fas fa-map-marker-alt"></i><span id="popupClassName">â€”</span></span>
+                <span class="ap-meta-pill"><i class="far fa-clock"></i><span id="popupClassTime">Time: N/A</span></span>
+                <span class="ap-meta-pill"><i class="fas fa-book-open"></i><span id="popupClassLocation">Class: N/A</span></span>
+            </div>
+
+            <!-- Controls row (Unified into 1 sleek slim bar in school mode) -->
+            <div class="ap-controls-row">
+                <!-- Date selector bar -->
+                <div class="ap-date-bar">
+                    <label for="popupAttendanceDate"><i class="fas fa-calendar-alt"></i> Date</label>
+                    <input type="date" id="popupAttendanceDate" class="ap-date-input" required>
+                    <button id="loadAttendancePopupBtn" class="ap-load-btn"><i class="fas fa-sync-alt"></i> Load</button>
+                    <button type="button" id="prevDayPopupBtn" class="ap-nav-btn"><i class="fas fa-chevron-left"></i> Prev</button>
+                    <button type="button" id="todayPopupBtn" class="ap-nav-btn today-btn"><i class="fas fa-calendar-day"></i> Today</button>
+                    <button type="button" id="nextDayPopupBtn" class="ap-nav-btn"><i class="fas fa-chevron-right"></i> Next</button>
                 </div>
 
-                <!-- Date Selector -->
-                <div class="date-selector">
-                    <div class="date-input-row">
-                        <label for="popupAttendanceDate"><i class="fas fa-calendar-alt"></i> Select Date:</label>
-                        <input type="date" id="popupAttendanceDate" required>
-                        <button id="loadAttendancePopupBtn"><i class="fas fa-sync-alt"></i> Load</button>
-                    </div>
-                    <div class="date-navigation popup-date-navigation" aria-label="Attendance date navigation">
-                        <button type="button" id="prevDayPopupBtn" class="nav-btn"><i class="fas fa-chevron-left"></i> Previous</button>
-                        <button type="button" id="todayPopupBtn" class="nav-btn today-btn"><i class="fas fa-calendar-day"></i> Today</button>
-                        <button type="button" id="nextDayPopupBtn" class="nav-btn"><i class="fas fa-chevron-right"></i> Next</button>
-                    </div>
-                </div>
-
-                <div class="popup-roster-tools">
-                    <label class="sr-only" for="popupStudentFilter">Filter this class roster</label>
+                <!-- Search bar -->
+                <div class="ap-search-wrap">
+                    <label class="sr-only" for="popupStudentFilter">Filter roster</label>
                     <i class="fas fa-search" aria-hidden="true"></i>
-                    <input id="popupStudentFilter" type="search" placeholder="Find a student in this class..." autocomplete="off">
-                    <span id="popupFilterCount" class="popup-filter-count" aria-live="polite"></span>
+                    <input id="popupStudentFilter" type="search" class="ap-search-input" placeholder="Search student name or rollâ€¦" autocomplete="off">
+                    <span id="popupFilterCount" class="ap-filter-count" aria-live="polite"></span>
                 </div>
+            </div>
 
-                <section class="rc-attendance-workspace" id="rcSessionStats" aria-label="Attendance session tools">
-                    <div class="rc-session-heading">
-                        <div><span class="rc-eyebrow">SESSION WORKSPACE</span><h4>Mark class attendance</h4><p>Choose a mode, filter the roster, and apply changes to selected students.</p></div>
-                        <label class="rc-mode-label" for="rcAttendanceMode">Attendance mode
-                            <select id="rcAttendanceMode"><option value="student">Student-wise</option><option value="checkbox">Checkbox / bulk</option><option value="manual">Manual</option><option value="location">Location-based</option><option value="qr">QR code</option></select>
-                        </label>
-                    </div>
-                    <div class="rc-session-stats" aria-live="polite">
-                        <div><span>Total</span><strong id="rcCountTotal">0</strong></div><div><span>Present</span><strong id="rcCountPresent">0</strong></div><div><span>Absent</span><strong id="rcCountAbsent">0</strong></div><div><span>Late</span><strong id="rcCountLate">0</strong></div><div><span>Excused</span><strong id="rcCountExcused">0</strong></div><div><span>Unmarked</span><strong id="rcCountUnmarked">0</strong></div><div><span>Attendance</span><strong id="rcCountRate">0%</strong></div>
-                    </div>
-                    <div class="rc-attendance-filters">
-                        <label for="rcStatusFilter">Attendance status<select id="rcStatusFilter"><option value="all">All statuses</option><option value="present">Present</option><option value="absent">Absent</option><option value="late">Late</option><option value="excused">Excused</option><option value="onDuty">On duty</option><option value="unmarked">Unmarked</option></select></label>
-                        <label for="rcVerificationFilter">Verification<select id="rcVerificationFilter"><option value="all">All verification</option><option value="notRequired">Not required</option><option value="pending">Pending</option><option value="verified">Verified</option><option value="failed">Failed</option><option value="needsReview">Needs review</option><option value="manuallyOverridden">Manually overridden</option></select></label>
-                    </div>
-                    <div class="rc-bulk-toolbar" role="toolbar" aria-label="Bulk attendance actions">
-                        <span id="rcSelectedCount">0 selected</span>
-                        <button type="button" data-rc-select="all">Select visible</button><button type="button" data-rc-select="none">Deselect</button>
-                        <button type="button" data-rc-status="present">Mark present</button><button type="button" data-rc-status="absent">Mark absent</button><button type="button" data-rc-status="late">Mark late</button><button type="button" data-rc-status="excused">Mark excused</button><button type="button" data-rc-status="onDuty">On duty</button><button type="button" data-rc-status="unmarked">Clear</button><button type="button" data-rc-undo="true">Undo</button>
-                    </div>
-                    <div id="rcModeNotice" class="rc-mode-notice" role="status"></div>
-                </section>
+            <!-- Live stats strip -->
+            <div class="ap-stats-strip" aria-live="polite">
+                <div class="ap-stat"><strong id="rcCountTotal">0</strong><span>Total</span></div>
+                <div class="ap-stat present"><strong id="rcCountPresent">0</strong><span>Present</span></div>
+                <div class="ap-stat absent"><strong id="rcCountAbsent">0</strong><span>Absent</span></div>
+                <div class="ap-stat late"><strong id="rcCountLate">0</strong><span>Late</span></div>
+                <div class="ap-stat excused"><strong id="rcCountExcused">0</strong><span>Excused</span></div>
+                <div class="ap-stat"><strong id="rcCountUnmarked">0</strong><span>Unmarked</span></div>
+                <div class="ap-stat rate"><strong id="rcCountRate">0%</strong><span>Attend.</span></div>
+            </div>
 
-                <!-- Fancy Loading Animation -->
+            <!-- Workspace: mode + filters + bulk toolbar -->
+            <section class="ap-workspace rc-attendance-workspace" id="rcSessionStats" aria-label="Attendance session tools">
+                <div class="ap-workspace-top">
+                    <span class="ap-mode-label">Mode</span>
+                    <select id="rcAttendanceMode" class="ap-mode-select">
+                        <option value="student">Student-wise</option>
+                        <option value="checkbox">Checkbox / Bulk</option>
+                        <option value="manual">Manual</option>
+                        <option value="location">Location-based</option>
+                        <option value="qr">QR Code</option>
+                    </select>
+                    <div class="ap-filters">
+                        <select id="rcStatusFilter" class="ap-filter-select">
+                            <option value="all">All statuses</option>
+                            <option value="present">Present</option>
+                            <option value="absent">Absent</option>
+                            <option value="late">Late</option>
+                            <option value="excused">Excused</option>
+                            <option value="onDuty">On duty</option>
+                            <option value="unmarked">Unmarked</option>
+                        </select>
+                        <select id="rcVerificationFilter" class="ap-filter-select">
+                            <option value="all">All verification</option>
+                            <option value="notRequired">Not required</option>
+                            <option value="pending">Pending</option>
+                            <option value="verified">Verified</option>
+                            <option value="failed">Failed</option>
+                            <option value="needsReview">Needs review</option>
+                            <option value="manuallyOverridden">Overridden</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ap-bulk-row rc-bulk-toolbar" role="toolbar" aria-label="Bulk attendance actions">
+                    <span id="rcSelectedCount" class="ap-bulk-count">0 selected</span>
+                    <button type="button" data-rc-select="all" class="ap-bulk-btn">Select visible</button>
+                    <button type="button" data-rc-select="none" class="ap-bulk-btn">Deselect</button>
+                    <button type="button" data-rc-status="present" class="ap-bulk-btn">&#10003; Present</button>
+                    <button type="button" data-rc-status="absent" class="ap-bulk-btn">&#10007; Absent</button>
+                    <button type="button" data-rc-status="late" class="ap-bulk-btn">Late</button>
+                    <button type="button" data-rc-status="excused" class="ap-bulk-btn">Excused</button>
+                    <button type="button" data-rc-status="onDuty" class="ap-bulk-btn">On duty</button>
+                    <button type="button" data-rc-status="unmarked" class="ap-bulk-btn">Clear</button>
+                    <button type="button" data-rc-undo="true" class="ap-bulk-btn">&#8617; Undo</button>
+                </div>
+                <div id="rcModeNotice" class="ap-mode-notice rc-mode-notice" role="status"></div>
+            </section>
+
+            <!-- Scrollable body -->
+            <div class="ap-body">
                 <div id="attendancePopupLoadingAnimation" class="loading-animation">
                     <div class="dot-pulse"></div>
-                    <span class="loading-text">Loading attendance data...</span>
+                    <span class="loading-text">Loading attendance dataâ€¦</span>
                 </div>
-
-                <!-- Student List Container -->
-                <div class="student-list" id="popupStudentList" style="display: none;">
-                    <!-- Students will be loaded here -->
-                    <div class="loader-container">
-                        <div class="loader"></div>
-                    </div>
+                <div class="student-list" id="popupStudentList" style="display:none;">
+                    <div class="loader-container"><div class="loader"></div></div>
                 </div>
-
-                <!-- Attendance Summary -->
-                <div class="attendance-summary" id="attendanceSummary" style="display: none;">
-                    <div class="summary-card present-card">
-                        <i class="fas fa-user-check"></i>
-                        <div>
-                            <h4>Present</h4>
-                            <div id="popupPresentCount" class="count">0</div>
-                        </div>
-                    </div>
-                    <div class="summary-card absent-card">
-                        <i class="fas fa-user-times"></i>
-                        <div>
-                            <h4>Absent</h4>
-                            <div id="popupAbsentCount" class="count">0</div>
-                        </div>
-                    </div>
-                    <div class="summary-card total-card">
-                        <i class="fas fa-users"></i>
-                        <div>
-                            <h4>Total</h4>
-                            <div id="popupTotalCount" class="count">0</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="popup-actions">
-                    <button type="button" id="backToClassesPopupBtn" class="secondary-btn"><i class="fas fa-arrow-left"></i> Classes</button>
-                    <button type="button" id="rcSaveDraftBtn" class="secondary-btn"><i class="fas fa-file-alt"></i> Save draft</button>
-                    <button type="button" id="rcLockSessionBtn" class="secondary-btn" hidden><i class="fas fa-lock"></i> Lock session</button>
-                    <button id="submitAttendancePopupBtn" class="primary-btn" style="display: none;">
-                        <i class="fas fa-save"></i> Submit Attendance
-                    </button>
+                <!-- Legacy summary (hidden â€” stats strip above replaces visual) -->
+                <div class="attendance-summary" id="attendanceSummary" style="display:none;">
+                    <div class="summary-card present-card"><i class="fas fa-user-check"></i><div><h4>Present</h4><div id="popupPresentCount" class="count">0</div></div></div>
+                    <div class="summary-card absent-card"><i class="fas fa-user-times"></i><div><h4>Absent</h4><div id="popupAbsentCount" class="count">0</div></div></div>
+                    <div class="summary-card total-card"><i class="fas fa-users"></i><div><h4>Total</h4><div id="popupTotalCount" class="count">0</div></div></div>
                 </div>
             </div>
-        </div>
-    </div>
-    </div>
-    <script src="attendance-workspace.js"></script>
+
+            <!-- Sticky footer -->
+            <div class="ap-footer">
+                <div class="ap-footer-left">
+                    <button type="button" id="backToClassesPopupBtn" class="ap-btn-ghost"><i class="fas fa-arrow-left"></i> Classes</button>
+                    <button type="button" id="rcSaveDraftBtn" class="ap-btn-ghost"><i class="fas fa-file-alt"></i> Save draft</button>
+                    <button type="button" id="rcLockSessionBtn" class="ap-btn-ghost" hidden><i class="fas fa-lock"></i> Lock</button>
+                </div>
+                <button id="submitAttendancePopupBtn" class="ap-btn-submit" style="display:none;">
+                    <i class="fas fa-paper-plane"></i> Submit Attendance
+                </button>
+            </div>
+
+        </div><!-- /.ap-shell -->
+    </div><!-- /#attendancePopup -->
+        <script src="attendance-workspace.js"></script>
     <script src="teacher-attendance-records.js"></script>
 
     <!-- Add external scripts for new features -->
@@ -4742,6 +5775,7 @@
     <script src="teacher-panels-redesign.js"></script>
     <script src="../shared/profile-upload.js"></script>
     <script src="../shared/password-reset.js"></script>
+    <script src="../shared/search-autofill.js"></script>
     <script src="teacher-settings-profile.js"></script>
     <script src="attendance-manager.js"></script>
     <script src="class-manager.js"></script>
@@ -4798,24 +5832,6 @@
                 sidebarToggle.addEventListener('click', function() {
                     sidebar.classList.toggle('sidebar-collapsed');
                     mainContent.classList.toggle('main-content-expanded');
-                });
-            }
-            
-            // Add event listeners for all header logout buttons
-            const headerLogoutBtns = document.querySelectorAll('.header-logout-btn');
-            headerLogoutBtns.forEach(btn => {
-                btn.addEventListener('click', performLogout);
-            });
-
-            // Quick sidebar logout button
-            const sidebarLogoutBtn = document.getElementById('sidebarQuickLogoutBtn');
-            if (sidebarLogoutBtn) {
-                sidebarLogoutBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (confirm('Are you sure you want to log out?')) {
-                        performLogout();
-                    }
                 });
             }
         });
@@ -5037,9 +6053,27 @@
         firebase.auth().onAuthStateChanged((user) => {
             if (user) {
                 // Do not reveal teacher data until the authenticated account's role is verified.
-                firebase.database().ref('users/' + user.uid).once('value')
-                    .then(async (snapshot) => {
+                Promise.all([
+                    firebase.database().ref('users/' + user.uid).once('value'),
+                    firebase.database().ref('blockedUsers/' + user.uid).once('value')
+                ])
+                    .then(async ([snapshot, blockedSnapshot]) => {
                         let profile = snapshot.val();
+                        if (profile?.blocked === true || blockedSnapshot.exists()) {
+                            const blockedInfo = blockedSnapshot.val() || {};
+                            const blockReason = String(blockedInfo.reason || '').trim().replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+                            currentTeacher = null;
+                            students = [];
+                            document.body.classList.remove('teacher-authenticated', 'teacher-school-mode');
+                            loginContainer.style.display = 'grid';
+                            document.querySelector('.sidebar').style.display = 'none';
+                            document.querySelector('.main-content').style.display = 'block';
+                            attendanceContainer.style.display = 'none';
+                            showAlert(loginAlert, `This teacher account has been blocked.${blockReason ? ` Reason: ${blockReason}` : ''} Contact your school administrator.`, 'error');
+                            loginAlert.dataset.persistent = 'true';
+                            await firebase.auth().signOut().catch(error => console.warn('Unable to end blocked teacher session:', error));
+                            return;
+                        }
                         if (!profile || profile.role !== 'teacher') {
                             currentTeacher = null;
                             students = [];
@@ -5069,8 +6103,39 @@
                             profile = connectedProfile;
                         }
 
+                        if (firebase.auth().currentUser?.uid !== user.uid) return;
+
                         currentTeacher = profile;
                         currentTeacher.id = user.uid;
+
+                        // Revoke active access immediately if an administrator blocks this teacher.
+                        if (window.__teacherBlockedWatchUid !== user.uid) {
+                            window.__teacherBlockedWatchRefs?.forEach(({ ref, callback }) => ref.off('value', callback));
+                            const enforceBlockedStatus = (blocked, blockInfo = {}) => {
+                                if (!blocked || firebase.auth().currentUser?.uid !== user.uid) return;
+                                currentTeacher = null;
+                                document.body.classList.remove('teacher-authenticated', 'teacher-school-mode');
+                                const reason = String(blockInfo.reason || '').trim().replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+                                showAlert(loginAlert, `This teacher account has been blocked.${reason ? ` Reason: ${reason}` : ''} Contact your school administrator.`, 'error');
+                                loginAlert.dataset.persistent = 'true';
+                                firebase.auth().signOut().catch(error => console.warn('Unable to end blocked teacher session:', error));
+                            };
+                            const blockedRefs = [
+                                {
+                                    ref: firebase.database().ref('blockedUsers/' + user.uid),
+                                    callback: snapshot => enforceBlockedStatus(snapshot.exists(), snapshot.val() || {})
+                                },
+                                {
+                                    ref: firebase.database().ref('users/' + user.uid + '/blocked'),
+                                    callback: snapshot => enforceBlockedStatus(snapshot.val() === true)
+                                }
+                            ];
+                            blockedRefs.forEach(({ ref, callback }) => {
+                                ref.on('value', callback);
+                            });
+                            window.__teacherBlockedWatchUid = user.uid;
+                            window.__teacherBlockedWatchRefs = blockedRefs;
+                        }
                         document.body.classList.add('teacher-authenticated');
 
                         // Detect School Mode vs College Mode
@@ -5120,11 +6185,15 @@
                             
                         // Update all teacher info displays
                         const teacherName = currentTeacher.name || user.email;
-                        document.getElementById('teacherInfo').innerHTML = `<i class="fas fa-user-tie"></i> Teacher: ${teacherName}`;
-                        document.getElementById('attendanceTeacherInfo').innerHTML = `<i class="fas fa-user-tie"></i> Teacher: ${teacherName}`;
-                        document.getElementById('classesTeacherInfo').innerHTML = `<i class="fas fa-user-tie"></i> Teacher: ${teacherName}`;
-                        document.getElementById('reportsTeacherInfo').innerHTML = `<i class="fas fa-user-tie"></i> Teacher: ${teacherName}`;
-                        document.getElementById('settingsTeacherInfo').innerHTML = `<i class="fas fa-user-tie"></i> Teacher: ${teacherName}`;
+                        if (window.updateTeacherHeaderName) {
+                            window.updateTeacherHeaderName(teacherName);
+                        } else {
+                            document.querySelectorAll('.teacher-info').forEach(element => {
+                                const icon = document.createElement('i');
+                                icon.className = 'fas fa-user-tie';
+                                element.replaceChildren(icon, document.createTextNode(teacherName));
+                            });
+                        }
                             
                         // Update sidebar user name & profile photo
                         document.getElementById('sidebarUserName').textContent = teacherName;
@@ -5152,13 +6221,22 @@
                     });
             } else {
                 // User is signed out
+                window.__teacherBlockedWatchRefs?.forEach(({ ref, callback }) => ref.off('value', callback));
+                window.__teacherBlockedWatchRefs = null;
+                window.__teacherBlockedWatchUid = null;
+                document.querySelectorAll('.loading-overlay, #rollcallLogoutOverlay').forEach(el => el.remove());
                 if (currentTeacher?.id) window.RollCallSubscriptionExpiry?.clearStaffExpiryState(currentTeacher.id);
                 document.getElementById('teacher-dob-setup-overlay')?.remove();
-                document.body.classList.remove('teacher-authenticated');
-                loginContainer.style.display = 'block';
-                document.querySelector('.sidebar').style.display = 'none';
-                document.querySelector('.main-content').style.display = 'none';
-                attendanceContainer.style.display = 'none';
+                document.body.classList.remove('teacher-authenticated', 'teacher-school-mode', 'mobile-sidebar-open');
+                if (loginContainer) loginContainer.style.display = 'grid';
+                const sidebarEl = document.querySelector('.sidebar');
+                if (sidebarEl) sidebarEl.style.display = 'none';
+                const mainContentEl = document.querySelector('.main-content');
+                if (mainContentEl) mainContentEl.style.display = 'block';
+                document.querySelectorAll('.section-container').forEach(el => el.style.display = 'none');
+                if (attendanceContainer) attendanceContainer.style.display = 'none';
+                const attendancePopup = document.getElementById('attendancePopup');
+                if (attendancePopup) attendancePopup.style.display = 'none';
                 currentTeacher = null;
                 students = [];
                 if (window.location.hash) {
@@ -5950,7 +7028,7 @@
             
             // Show fancy loading animation
             const loadingAnimation = document.getElementById('attendancePopupLoadingAnimation');
-            loadingAnimation.classList.add('active');
+            loadingAnimation.classList.add('active'); loadingAnimation.style.display = 'flex';
             loadingAnimation.querySelector('.loading-text').textContent = `Loading attendance for ${popupAttendanceDate.value}...`;
             
             // Make sure student list is hidden while loading
@@ -5970,7 +7048,7 @@
             firebase.database().ref(`attendance_by_location/${currentClassData.id}/${selectedDate}`).once('value')
                 .then((snapshot) => {
                     // Hide loading animation
-                    loadingAnimation.classList.remove('active');
+                    loadingAnimation.classList.remove('active'); loadingAnimation.style.display = 'none';
                     
                     // Reset attendance data
                     attendanceData = {};
@@ -6026,7 +7104,7 @@
                     console.error('Error loading attendance:', error);
                     
                     // Hide loading animation
-                    loadingAnimation.classList.remove('active');
+                    loadingAnimation.classList.remove('active'); loadingAnimation.style.display = 'none';
                     
                     // Show error state
                     popupStudentList.innerHTML = `
@@ -6293,103 +7371,57 @@
                 }
             });
             
-            // Sidebar logout button
-            const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
-            if (sidebarLogoutBtn) {
-                sidebarLogoutBtn.addEventListener('click', performLogout);
-            }
+            // Sidebar logout buttons (support both ID variants)
+            ['sidebarLogoutBtn', 'sidebarQuickLogoutBtn'].forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    btn.addEventListener('click', function(e) {
+                        performLogout(e);
+                    });
+                }
+            });
             
             // Header logout button
             const headerLogoutBtn = document.getElementById('headerLogoutBtn');
             if (headerLogoutBtn) {
                 headerLogoutBtn.addEventListener('click', performLogout);
             }
+            document.querySelectorAll('.header-logout-btn, .sidebar-logout-btn, .logout-btn').forEach(btn => {
+                btn.addEventListener('click', performLogout);
+            });
         });
         
-        // Shared logout function with proper cleanup
-        function performLogout() {
-            // Show loading indicator
-            const loadingOverlay = document.createElement('div');
-            loadingOverlay.className = 'loading-overlay';
-            loadingOverlay.innerHTML = `
-                <div class="loading-spinner">
-                    <i class="fas fa-spinner fa-spin"></i>
-                </div>
-                <div class="loading-text">Logging out...</div>
-            `;
-            document.body.appendChild(loadingOverlay);
-            
-            // Clear any stored data
-            currentTeacher = null;
-            students = [];
-            attendanceData = {};
-            activeClasses = [];
-            currentClassData = null;
-            submittedAttendances = {};
-            
-            // Sign out from Firebase
-            firebase.auth().signOut()
-                .then(() => {
-                    // Sign-out successful
-                    loginContainer.style.display = 'block';
-                    document.querySelector('.sidebar').style.display = 'none';
-                    // Keep main content visible
-                    document.querySelector('.main-content').style.display = 'block';
-                    
-                    // Reset UI elements
-                    if (attendanceContainer) attendanceContainer.style.display = 'none';
-                    if (classSelectionContainer) classSelectionContainer.style.display = 'none';
-                    if (attendanceMarkingContainer) attendanceMarkingContainer.style.display = 'none';
-                    if (viewSubmittedContainer) viewSubmittedContainer.style.display = 'none';
-                    if (attendancePopup) attendancePopup.style.display = 'none';
-                    
-                    // Remove loading overlay
-                    document.body.removeChild(loadingOverlay);
-                    
-                    console.log('User signed out successfully');
-                })
-                .catch((error) => {
-                    console.error('Logout error:', error);
-                    showAlert(attendanceAlert, '<i class="fas fa-exclamation-circle"></i> Error logging out', 'error');
-                    
-                    // Remove loading overlay
-                    document.body.removeChild(loadingOverlay);
-                });
+        // Leave the dashboard before running Firebase auth callbacks. The minimal
+        // logout page handles sign-out without the teacher page's listeners.
+        function performLogout(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (window.__teacherLogoutInProgress) return;
+            window.__teacherLogoutInProgress = true;
+            try {
+                sessionStorage.setItem('rollcall_teacher_logout_requested', '1');
+                window.location.replace('logout.html');
+            } catch (err) {
+                window.location.replace('../index.html?logout=unavailable');
+            }
         }
-        
-        // Original logout button function
-        logoutBtn.addEventListener('click', () => {
-            // Show loading state
-            const originalBtnText = logoutBtn.innerHTML;
-            logoutBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging out...';
-            logoutBtn.disabled = true;
-            
-            firebase.auth().signOut()
-                .then(() => {
-                    // Sign-out successful
-                    loginContainer.style.display = 'block';
-                    document.querySelector('.sidebar').style.display = 'none';
-                    document.querySelector('.main-content').style.display = 'none';
-                    logoutBtn.innerHTML = originalBtnText;
-                    logoutBtn.disabled = false;
-                })
-                .catch((error) => {
-                    console.error('Logout error:', error);
-                    showAlert(attendanceAlert, '<i class="fas fa-exclamation-circle"></i> Error logging out', 'error');
-                    logoutBtn.innerHTML = originalBtnText;
-                    logoutBtn.disabled = false;
-                });
-        });
+        window.performLogout = performLogout;
+
+        // Header and settings logout buttons
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', performLogout);
+        }
         
         // Helper function to show alerts
         function showAlert(element, message, type) {
             element.innerHTML = message;
             element.className = `alert alert-${type}`;
             element.style.display = 'block';
+            element.dataset.persistent = type === 'error' && String(message).toLowerCase().includes('account has been blocked') ? 'true' : 'false';
             
             // Hide alert after 5 seconds
             setTimeout(() => {
-                element.style.display = 'none';
+                if (element.dataset.persistent !== 'true') element.style.display = 'none';
             }, 5000);
         }
 
@@ -6513,10 +7545,11 @@
             element.innerHTML = message;
             element.className = `alert alert-${type}`;
             element.style.display = 'block';
+            element.dataset.persistent = type === 'error' && String(message).toLowerCase().includes('account has been blocked') ? 'true' : 'false';
             
             // Hide alert after 5 seconds
             setTimeout(() => {
-                element.style.display = 'none';
+                if (element.dataset.persistent !== 'true') element.style.display = 'none';
             }, 5000);
         }
 
@@ -7218,7 +8251,7 @@
             });
         });
     </script>
-    <!-- Playwright Automation Runner -->
-    <script src="../shared/playwright-runner.js"></script>
+    <script src="teacher-header.js"></script>
+    <script src="../shared/remote-support-loader.js"></script>
 </body>
 </html>

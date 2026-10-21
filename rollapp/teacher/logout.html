@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Signing out | RollCall</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { min-height: 100vh; margin: 0; display: grid; place-items: center; background: #f5f8f6; color: #173326; font: 16px/1.5 Arial, sans-serif; }
+        main { padding: 32px; text-align: center; }
+        .spinner { width: 34px; height: 34px; margin: 0 auto 16px; border: 3px solid #d9e7de; border-top-color: #238451; border-radius: 50%; animation: spin .8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <main aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <strong>Signing out...</strong>
+        <p>You will be returned to the teacher login.</p>
+    </main>
+    <script>
+        (() => {
+            let done = false;
+            const leave = (path) => {
+                if (done) return;
+                done = true;
+                window.location.replace(path);
+            };
+
+            // A direct URL visit must not sign out the browser. Only continue
+            // when the teacher page initiated this navigation in the same tab.
+            let logoutRequested = false;
+            try {
+                logoutRequested = sessionStorage.getItem('rollcall_teacher_logout_requested') === '1';
+                sessionStorage.removeItem('rollcall_teacher_logout_requested');
+            } catch (_) {}
+            if (!logoutRequested) {
+                leave('teacher.html');
+                return;
+            }
+
+            const fallback = setTimeout(() => leave('../index.html?logout=timeout'), 4000);
+            const finish = (path) => {
+                clearTimeout(fallback);
+                leave(path);
+            };
+
+            try {
+                localStorage.removeItem('rollcall_remember_teacher');
+                sessionStorage.removeItem('rollcall_remember_teacher');
+            } catch (_) {}
+
+            const loadScript = (src) => new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('Could not load authentication service.'));
+                document.head.appendChild(script);
+            });
+
+            (async () => {
+                try {
+                    await loadScript('https://rollcall-worker.divyanshugupta415.workers.dev/firebase-config');
+                    await loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js');
+                    await loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js');
+                    if (!window.ROLLCALL_FIREBASE_CONFIG) throw new Error('Firebase config is unavailable.');
+                    if (!firebase.apps.length) firebase.initializeApp(window.ROLLCALL_FIREBASE_CONFIG);
+                    await firebase.auth().signOut();
+                    finish('teacher.html?logout=' + Date.now());
+                } catch (error) {
+                    console.error('Teacher sign-out failed:', error);
+                    finish('../index.html?logout=error');
+                }
+            })();
+        })();
+    </script>
+</body>
+</html>

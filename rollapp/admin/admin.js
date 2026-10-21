@@ -59,226 +59,6 @@ window.AdminPanelAPI = window.AdminPanelAPI || (() => {
     };
 })();
 
-// Initialize attendance modification section
-function initAttendanceModification() {
-    console.log("Initializing attendance modification section");
-
-    // Initialize Firebase if not already initialized
-    if (typeof firebase === 'undefined' || !firebase.apps.length) {
-        const firebaseConfig = window.ROLLCALL_FIREBASE_CONFIG;
-        firebase.initializeApp(firebaseConfig);
-    }
-
-    // Get references to Firebase services
-    const db = firebase.database();
-
-    // Find the correct section - could be original template or active clone
-    const originalSection = document.getElementById('attendance-modification-section');
-    const activeSection = document.getElementById('attendance-modification-section-active');
-
-    // Pick which section is currently visible
-    const section = activeSection || originalSection;
-
-    if (!section) {
-        console.error('Attendance modification section not found in DOM');
-        return;
-    }
-
-    // Find the list container inside the correct section
-    const requestsList = section.querySelector('#modification-requests-list');
-
-    if (!requestsList) {
-        console.error('Modification requests list element not found');
-        console.log('Section HTML:', section.innerHTML);
-        return;
-    }
-
-    console.log('Found modification requests list:', requestsList);
-
-    // Find template for request cards
-    const template = document.getElementById('modification-request-template');
-    if (!template) {
-        console.error('Modification request template not found');
-        return;
-    }
-
-    // Show loading indicator
-    requestsList.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading modification requests...</div>';
-
-    // Listen for modification requests
-    db.ref('modificationRequests').on('value', (snapshot) => {
-        try {
-            const requests = snapshot.val() || {};
-            console.log('Loaded modification requests:', Object.keys(requests).length);
-
-            // Clear previous content
-            requestsList.innerHTML = '';
-
-            if (!requests || Object.keys(requests).length === 0) {
-                requestsList.innerHTML = `
-                    <div class="status-indicator info">
-                        <p>No modification requests found.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // Sort requests by timestamp (newest first)
-            const sortedRequests = Object.entries(requests)
-                .sort(([, a], [, b]) => (b.timestamp || 0) - (a.timestamp || 0));
-
-            console.log('Processing sorted requests:', sortedRequests.length);
-
-            sortedRequests.forEach(([requestId, request]) => {
-                try {
-                    console.log('Creating card for request:', requestId);
-                    const card = template.content.cloneNode(true);
-
-                    // Set request details with error handling
-                    try { card.querySelector('.teacher-name').textContent = request.teacherName || 'Unknown'; } catch (e) { }
-                    try { card.querySelector('.date').textContent = new Date(request.timestamp || Date.now()).toLocaleString(); } catch (e) { }
-                    try { card.querySelector('.class-name').textContent = request.className || 'Unknown'; } catch (e) { }
-                    try { card.querySelector('.student-name').textContent = request.studentName || 'Unknown'; } catch (e) { }
-                    try { card.querySelector('.status').textContent = request.status || 'pending'; } catch (e) { }
-                    try { card.querySelector('.old-status').textContent = request.oldStatus || 'Unknown'; } catch (e) { }
-                    try { card.querySelector('.new-status').textContent = request.newStatus || 'Unknown'; } catch (e) { }
-                    try { card.querySelector('.reason').textContent = request.reason || 'No reason provided'; } catch (e) { }
-
-                    // Add status-specific styling
-                    const statusBadge = card.querySelector('.status-badge');
-                    if (statusBadge) {
-                        statusBadge.classList.remove('pending', 'approved', 'rejected');
-                        switch (request.status) {
-                            case 'pending':
-                                statusBadge.classList.add('pending');
-                                break;
-                            case 'approved':
-                                statusBadge.classList.add('approved');
-                                break;
-                            case 'rejected':
-                                statusBadge.classList.add('rejected');
-                                break;
-                            default:
-                                statusBadge.classList.add('pending');
-                        }
-                    }
-
-                    // Handle approve button
-                    const approveBtn = card.querySelector('.approve-btn');
-                    if (approveBtn) {
-                        approveBtn.addEventListener('click', () => {
-                            if (confirm('Are you sure you want to approve this modification request?')) {
-                                approveModificationRequest(requestId, request);
-                            }
-                        });
-                    }
-
-                    // Handle reject button
-                    const rejectBtn = card.querySelector('.reject-btn');
-                    if (rejectBtn) {
-                        rejectBtn.addEventListener('click', () => {
-                            const reason = prompt('Please provide a reason for rejection:');
-                            if (reason !== null) {
-                                rejectModificationRequest(requestId, request, reason);
-                            }
-                        });
-                    }
-
-                    // Only show action buttons for pending requests
-                    const actions = card.querySelector('.request-actions');
-                    if (request.status !== 'pending' && actions) {
-                        actions.style.display = 'none';
-                    }
-
-                    requestsList.appendChild(card);
-                    console.log('Card appended for request:', requestId);
-                } catch (cardError) {
-                    console.error('Error creating request card:', cardError);
-                }
-            });
-        } catch (error) {
-            console.error('Error processing modification requests:', error);
-            requestsList.innerHTML = `
-                <div class="status-indicator error">
-                    <p>Error loading modification requests. Please try refreshing.</p>
-                    <p>Error: ${error.message}</p>
-                </div>
-            `;
-        }
-    }, (error) => {
-        console.error('Firebase error when loading modification requests:', error);
-        requestsList.innerHTML = `
-            <div class="status-indicator error">
-                <p>Error connecting to database. Please check your connection and try again.</p>
-                <p>Error: ${error ? error.message : 'Unknown error'}</p>
-            </div>
-        `;
-    });
-}
-
-// Handle modification request approval
-function approveModificationRequest(requestId, request) {
-    const { date, classId, studentId, newStatus } = request;
-
-    // Update attendance record
-    firebase.database().ref(`attendance/${classId}/${date}/${studentId}`).update({
-        status: newStatus,
-        lastModified: Date.now(),
-        modifiedBy: 'admin',
-        modificationReason: request.reason
-    })
-        .then(() => {
-            // Update request status
-            return firebase.database().ref(`modificationRequests/${requestId}`).update({
-                status: 'approved',
-                approvedAt: Date.now(),
-                approvedBy: firebase.auth().currentUser.uid
-            });
-        })
-        .then(() => {
-            // Notify teacher
-            return firebase.database().ref(`notifications/${request.teacherId}`).push({
-                type: 'modification_approved',
-                message: `Your attendance modification request for ${request.studentName} has been approved.`,
-                timestamp: Date.now(),
-                read: false
-            });
-        })
-        .then(() => {
-            showAlert('Modification request approved successfully', 'success');
-        })
-        .catch((error) => {
-            console.error('Error approving modification:', error);
-            showAlert('Error approving modification request', 'error');
-        });
-}
-
-// Handle modification request rejection
-function rejectModificationRequest(requestId, request, reason) {
-    firebase.database().ref(`modificationRequests/${requestId}`).update({
-        status: 'rejected',
-        rejectedAt: Date.now(),
-        rejectedBy: firebase.auth().currentUser.uid,
-        rejectionReason: reason
-    })
-        .then(() => {
-            // Notify teacher
-            return firebase.database().ref(`notifications/${request.teacherId}`).push({
-                type: 'modification_rejected',
-                message: `Your attendance modification request for ${request.studentName} has been rejected. Reason: ${reason}`,
-                timestamp: Date.now(),
-                read: false
-            });
-        })
-        .then(() => {
-            showAlert('Modification request rejected', 'success');
-        })
-        .catch((error) => {
-            console.error('Error rejecting modification:', error);
-            showAlert('Error rejecting modification request', 'error');
-        });
-}
-
 let sidebarBadgesInitialized = false;
 const SIDEBAR_BADGE_KEYS = {
     notifications: 'adminNotificationsLastSeen',
@@ -400,335 +180,249 @@ function initSidebarBadges() {
     });
 }
 
-// Add refresh button functionality
-function setupRefreshButton() {
-    // Add refresh button functionality to both template and active sections
-    const refreshBtns = document.querySelectorAll('#refresh-modification-requests');
-    refreshBtns.forEach(btn => {
-        if (btn) {
-            console.log('Found refresh button, attaching listener');
-            btn.addEventListener('click', () => {
-                console.log('Refresh button clicked');
-                initAttendanceModification();
-            });
-        }
-    });
-}
-
-// Initialize the section when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    // First initialization
-    initAttendanceModification();
-
-    // Setup refresh button
-    setupRefreshButton();
-
-    // Initialize sidebar badges
-    initSidebarBadges();
-
-    // Add global click handler for dynamically added buttons
-    document.addEventListener('click', (e) => {
-        if (e.target && e.target.id === 'refresh-modification-requests' ||
-            (e.target.closest('button') && e.target.closest('button').id === 'refresh-modification-requests')) {
-            initAttendanceModification();
-            showAlert('Modification requests refreshed', 'success');
-        }
-    });
-});
+document.addEventListener('DOMContentLoaded', initSidebarBadges);
 
 
-
-function initBlockedUsers() {
-    // Initialize Firebase if not already initialized
+function initBlockedUsers(panelRoot = null) {
     if (typeof firebase === 'undefined' || !firebase.apps.length) {
-        const firebaseConfig = window.ROLLCALL_FIREBASE_CONFIG;
-        firebase.initializeApp(firebaseConfig);
+        firebase.initializeApp(window.ROLLCALL_FIREBASE_CONFIG);
     }
-
-    // Get references to Firebase services
     const db = firebase.database();
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
-    // Create blocked users section if it doesn't exist
     if (!document.getElementById('blocked-users-section')) {
         const section = document.createElement('div');
         section.id = 'blocked-users-section';
         section.className = 'section-template';
         section.innerHTML = `
-                    <div class="card">
-                        <div class="header">
-                            <div class="header-content">
-                                <button class="section-menu-btn">
-                                    <i class="fas fa-bars"></i>
-                                </button>
-                                <h2><i class="fas fa-ban"></i> Blocked Users</h2>
-                            </div>
-                            <button id="add-blocked-user-btn" class="primary-btn" style="padding: 8px 16px;">
-                                <i class="fas fa-plus"></i> Add User
-                            </button>
-                            <button id="refresh-blocked-users-btn" class="primary-btn" style="padding: 8px 16px;">
-                                <i class="fas fa-sync-alt"></i> Refresh
-                            </button>
-                        </div>
-                        <div class="card-body">
-                            <div id="blocked-users-container">
-                                <div class="status-indicator info">
-                                    <p>This section shows blocked users. These users cannot log in to the system.</p>
-                                </div>
-                                <table class="attendance-list">
-                                    <thead>
-                                        <tr>
-                                            <th>Email</th>
-                                            <th>Name</th>
-                                            <th>Blocked Date</th>
-                                            <th>Reason</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="blocked-users-list">
-                                        <!-- Blocked users will be listed here -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+            <section class="bu-workspace" aria-labelledby="bu-title">
+                <header class="bu-header"><div class="bu-heading"><button class="section-menu-btn" type="button" aria-label="Open navigation"><i class="fas fa-bars"></i></button><div class="bu-heading-copy"><span class="bu-kicker">ACCESS MANAGEMENT</span><h2 id="bu-title">Blocked users</h2><p>Review restricted accounts and manage access.</p></div></div>
+                    <div class="bu-header-actions"><button id="refresh-blocked-users-btn" class="secondary-btn" type="button"><i class="fas fa-rotate"></i><span>Refresh</span></button><button id="add-blocked-user-btn" class="primary-btn" type="button"><i class="fas fa-user-plus"></i><span>Block user</span></button></div>
+                </header>
+                <div id="blocked-users-container" class="bu-content">
+                    <div class="bu-overview"><div class="bu-overview-main"><span class="bu-overview-icon"><i class="fas fa-user-lock"></i></span><span class="bu-overview-copy"><span>Restricted accounts</span><strong id="blocked-user-total-count">0</strong></span></div><div class="bu-overview-divider"></div><div class="bu-role-total"><span class="bu-role-dot student"></span><span>Students</span><strong id="blocked-user-student-count">0</strong></div><div class="bu-role-total"><span class="bu-role-dot teacher"></span><span>Teachers</span><strong id="blocked-user-teacher-count">0</strong></div></div>
+                    <section class="bu-list-panel"><div class="bu-list-toolbar"><div class="bu-list-heading"><h3>Account list</h3><span id="blocked-user-count" class="bu-result-count"></span></div><div class="bu-filters"><label class="bu-filter-role" for="blocked-user-type-filter"><span>Role</span><select id="blocked-user-type-filter" class="form-control"><option value="all">All roles</option><option value="student">Students</option><option value="teacher">Teachers</option></select></label><label class="bu-filter-search" for="blocked-user-search"><span>Search accounts</span><span class="bu-search-field"><i class="fas fa-search"></i><input id="blocked-user-search" type="search" name="blocked-account-filter" autocomplete="off" autocapitalize="off" spellcheck="false" readonly placeholder="Name, email, or reason"></span></label></div></div>
+                        <div class="bu-table-scroll"><table class="attendance-list bu-table"><thead><tr><th>User</th><th>Role</th><th>Reason</th><th>Blocked on</th><th>Action</th></tr></thead><tbody id="blocked-users-list"></tbody></table></div>
+                    </section>
                 </div>
-            `;
+            </section>`;
         document.body.appendChild(section);
     }
 
-    // Create popup for adding blocked users
+    const panel = panelRoot || document.querySelector('#blocked-users-section-active:not(.hidden)') || document.querySelector('#blocked-users-section:not(.hidden)');
+    if (!panel) return;
+
+
+
     if (!document.getElementById('block-user-popup')) {
         const popup = document.createElement('div');
         popup.id = 'block-user-popup';
-        popup.className = 'popup-overlay hidden';
-        popup.innerHTML = `
-                    <div class="popup-content">
-                        <div class="popup-header">
-                            <h3>Block User</h3>
-                            <button class="close-popup-btn"><i class="fas fa-times"></i></button>
-                        </div>
-                        <div class="popup-body">
-                            <p>Select a student to block from the system:</p>
-                            <div class="form-group">
-                                <label for="student-select">Student:</label>
-                                <select id="student-select" class="form-control">
-                                    <option value="">Loading students...</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="block-reason">Reason (optional):</label>
-                                <textarea id="block-reason" class="form-control" rows="3"></textarea>
-                            </div>
-                        </div>
-                        <div class="popup-footer">
-                            <button id="confirm-block-btn" class="primary-btn">Block User</button>
-                            <button class="cancel-btn close-popup-btn">Cancel</button>
-                        </div>
-            </div>
-                `;
+        popup.className = 'popup-container hidden';
+        popup.innerHTML = `<div class="popup"><div class="popup-header"><h3>Block User</h3><button class="close-popup-btn"><i class="fas fa-times"></i></button></div><div class="popup-body">
+            <div class="form-group"><label for="block-user-type">User Type</label><select id="block-user-type"><option value="student">Student</option><option value="teacher">Teacher</option></select></div>
+            <div class="form-group"><label for="block-user-search-input">Find user</label><input id="block-user-search-input" type="search" name="block-account-lookup" autocomplete="off" autocapitalize="off" spellcheck="false" readonly placeholder="Search by name or email"></div>
+            <div class="form-group"><label for="block-user-select">Select <span id="block-user-type-label">Student</span></label><select id="block-user-select"><option value="">Select a user</option></select></div>
+            <div class="form-group"><label for="block-reason">Reason (optional)</label><textarea id="block-reason" rows="3" maxlength="500"></textarea></div>
+            <div class="popup-footer"><button id="confirm-block-btn" class="primary-btn">Block User</button><button class="cancel-btn close-popup-btn">Cancel</button></div>
+        </div></div>`;
         document.body.appendChild(popup);
     }
 
-    // Function to load blocked users
-    function loadBlockedUsers() {
-        const blockedUsersList = document.getElementById('blocked-users-list');
-        blockedUsersList.innerHTML = `
-                    <tr>
-                        <td colspan="5" style="text-align: center;">
-                            <i class="fas fa-spinner fa-spin"></i> Loading blocked users...
-                        </td>
-                    </tr>`;
+    const list = panel.querySelector('#blocked-users-list');
+    const typeFilter = panel.querySelector('#blocked-user-type-filter');
+    const blockedSearch = panel.querySelector('#blocked-user-search');
+    const blockedCount = panel.querySelector('#blocked-user-count');
+    const blockedTotalCount = panel.querySelector('#blocked-user-total-count');
+    const blockedStudentCount = panel.querySelector('#blocked-user-student-count');
+    const blockedTeacherCount = panel.querySelector('#blocked-user-teacher-count');
+    const userType = document.getElementById('block-user-type');
+    const userSearch = document.getElementById('block-user-search-input');
+    const userSelect = document.getElementById('block-user-select');
+    const userTypeLabel = document.getElementById('block-user-type-label');
+    let blockedRows = [];
+    let eligibleUsers = [];
 
-        db.ref('blockedUsers').once('value')
-            .then(snapshot => {
-                if (snapshot.exists()) {
-                    let html = '';
-                    snapshot.forEach(childSnapshot => {
-                        const userId = childSnapshot.key;
-                        const userData = childSnapshot.val();
-                        html += `
-                                    <tr>
-                                        <td>${userData.email || 'N/A'}</td>
-                                        <td>${userData.name || 'N/A'}</td>
-                                        <td>${userData.reason || 'No reason provided'}</td>
-                                        <td>${new Date(userData.blockedDate).toLocaleString()}</td>
-                                        <td>
-                                            <button class="unblock-user-btn small-btn" data-id="${userId}" data-name="${userData.name || 'Unknown'}" data-email="${userData.email || 'No email'}">
-                                                <i class="fas fa-unlock"></i> Unblock
-                                                </button>
-                                        </td>
-                                    </tr>
-        `;
-                    });
-
-                    if (html === '') {
-                        blockedUsersList.innerHTML = `
-                                    <tr>
-                                        <td colspan="5" style="text-align: center;">No blocked users found</td>
-                                    </tr>`;
-                    } else {
-                        blockedUsersList.innerHTML = html;
-
-                        // Add event listeners to unblock buttons
-                        document.querySelectorAll('.unblock-user-btn').forEach(btn => {
-                            btn.addEventListener('click', function () {
-                                const userId = this.getAttribute('data-id');
-                                const userName = this.getAttribute('data-name');
-                                const userEmail = this.getAttribute('data-email');
-
-                                // Show unblock confirmation popup
-                                document.getElementById('unblock-user-name').textContent = userName;
-                                document.getElementById('unblock-user-email').textContent = userEmail;
-                                document.getElementById('unblock-confirm-popup').classList.remove('hidden');
-
-                                // Store the user ID for the confirm button
-                                document.getElementById('confirm-unblock-btn').setAttribute('data-id', userId);
-                            });
-                        });
-                    }
-                } else {
-                    blockedUsersList.innerHTML = `
-                                <tr>
-                                    <td colspan="5" style="text-align: center;">No blocked users found</td>
-                                </tr>`;
-                }
-            })
-            .catch(error => {
-                blockedUsersList.innerHTML = `
-                            <tr>
-                                <td colspan="5" style="text-align: center;">Error loading blocked users: ${error.message}</td>
-                            </tr>`;
-            });
-    }
-
-    // Function to load students for the dropdown
-    function loadStudents() {
-        const studentSelect = document.getElementById('student-select');
-        studentSelect.innerHTML = '<option value="">Loading students...</option>';
-
-        db.ref('users').orderByChild('role').equalTo('student').once('value')
-            .then(snapshot => {
-                let options = '<option value="">Select a student</option>';
-                if (snapshot.exists()) {
-                    snapshot.forEach(childSnapshot => {
-                        const userId = childSnapshot.key;
-                        const userData = childSnapshot.val();
-                        // Skip already blocked users
-                        if (!userData.blocked) {
-                            options += `<option value="${userId}" data-name="${userData.name}" data-email="${userData.email}">${userData.name} (${userData.email})</option>`;
-                        }
-                    });
-                }
-                studentSelect.innerHTML = options;
-            })
-            .catch(error => {
-                studentSelect.innerHTML = '<option value="">Error loading students</option>';
-                console.error('Error loading students:', error);
-            });
-    }
-
-    // Add event listeners
-    document.getElementById('refresh-blocked-users-btn').addEventListener('click', loadBlockedUsers);
-
-    document.getElementById('add-blocked-user-btn').addEventListener('click', function () {
-        loadStudents();
-        document.getElementById('block-user-popup').classList.remove('hidden');
+    [blockedSearch, userSearch].forEach(input => {
+        if (!input) return;
+        input.value = '';
+        input.setAttribute('readonly', 'readonly');
+        input.onfocus = () => input.removeAttribute('readonly');
     });
 
-    document.querySelectorAll('.close-popup-btn').forEach(btn => {
-        btn.addEventListener('click', function () {
-            // Hide all popups
-            document.querySelectorAll('.popup-container').forEach(popup => {
-                popup.classList.add('hidden');
-            });
-        });
-    });
-
-    document.getElementById('confirm-block-btn').addEventListener('click', function () {
-        const studentSelect = document.getElementById('student-select');
-        const studentId = studentSelect.value;
-        const reason = document.getElementById('block-reason').value;
-
-        if (!studentId) {
-            alert('Please select a student to block');
+    function renderBlockedUsers() {
+        const role = typeFilter?.value || 'all';
+        const term = (blockedSearch?.value || '').trim().toLowerCase();
+        if (blockedTotalCount) blockedTotalCount.textContent = blockedRows.length;
+        if (blockedStudentCount) blockedStudentCount.textContent = blockedRows.filter(user => user.role === 'student').length;
+        if (blockedTeacherCount) blockedTeacherCount.textContent = blockedRows.filter(user => user.role === 'teacher').length;
+        const rows = blockedRows.filter(user => (role === 'all' || user.role === role) &&
+            (!term || [user.name, user.email, user.reason, user.role].some(value => String(value || '').toLowerCase().includes(term))));
+        if (blockedCount) blockedCount.textContent = `${rows.length} of ${blockedRows.length} blocked user${blockedRows.length === 1 ? '' : 's'}`;
+        if (!rows.length) {
+            const filtered = blockedRows.length > 0;
+            list.innerHTML = `<tr class="bu-empty-row"><td colspan="5"><div class="bu-empty-state"><span class="bu-empty-icon"><i class="fas ${filtered ? 'fa-filter' : 'fa-user-shield'}"></i></span><strong>${filtered ? 'No matching accounts' : 'No blocked accounts'}</strong><span>${filtered ? 'Try a different role or search term.' : 'Accounts you block will appear here.'}</span></div></td></tr>`;
             return;
         }
+        list.innerHTML = rows.map(user => {
+            const role = ['student', 'teacher'].includes(user.role) ? user.role : 'unknown';
+            const name = user.name || 'Unnamed user';
+            return `
+            <tr>
+                <td data-label="User"><div class="bu-user-cell"><span class="bu-avatar" aria-hidden="true"><i class="fas fa-user"></i></span><span class="bu-user-copy"><strong>${escapeHtml(name)}</strong><span>${escapeHtml(user.email || 'No email on file')}</span></span></div></td>
+                <td data-label="Role"><span class="bu-role-badge ${role}"><span></span>${escapeHtml(role === 'unknown' ? 'Unknown' : role[0].toUpperCase() + role.slice(1))}</span></td>
+                <td data-label="Reason"><span class="bu-reason">${escapeHtml(user.reason || 'No reason provided')}</span></td>
+                <td data-label="Blocked on">${escapeHtml(user.blockedDate ? new Date(user.blockedDate).toLocaleString() : 'Unknown')}</td>
+                <td data-label="Action" class="bu-action-cell"><button class="unblock-user-btn small-btn" data-id="${escapeHtml(user.id)}" type="button"><i class="fas fa-unlock"></i><span>Unblock</span></button></td>
+            </tr>`;
+        }).join('');
+    }
 
-        // Get selected student details
-        const selectedOption = studentSelect.options[studentSelect.selectedIndex];
-        const studentName = selectedOption.getAttribute('data-name');
-        const studentEmail = selectedOption.getAttribute('data-email');
+    function loadBlockedUsers() {
+        list.innerHTML = '<tr class="bu-empty-row"><td colspan="5"><div class="bu-empty-state"><i class="fas fa-spinner fa-spin"></i><span>Loading blocked accounts...</span></div></td></tr>';
+        Promise.all([db.ref('blockedUsers').once('value'), db.ref('users').once('value')]).then(([blockedSnapshot, usersSnapshot]) => {
+            const users = usersSnapshot.val() || {};
+            blockedRows = [];
+            if (blockedSnapshot.exists()) blockedSnapshot.forEach(child => {
+                const data = child.val() || {};
+                const profile = users[child.key] || {};
+                blockedRows.push({
+                    id: child.key,
+                    role: String(data.role || profile.role || '').toLowerCase(),
+                    name: data.name || profile.name || '',
+                    email: data.email || profile.email || '',
+                    reason: data.reason || '',
+                    blockedDate: Number(data.blockedDate) || 0
+                });
+            });
+            blockedRows.sort((a, b) => b.blockedDate - a.blockedDate);
+            renderBlockedUsers();
+        }).catch(error => {
+            list.innerHTML = `<tr class="bu-empty-row"><td colspan="5"><div class="bu-empty-state bu-load-error"><strong>Could not load blocked accounts</strong><span>${escapeHtml(error.message)}</span></div></td></tr>`;
+        });
+    }
 
-        // Show block confirmation popup
-        document.getElementById('block-confirm-user-name').textContent = studentName;
-        document.getElementById('block-confirm-user-email').textContent = studentEmail;
+    function renderEligibleUsers() {
+        const role = userType.value;
+        const term = (userSearch?.value || '').trim().toLowerCase();
+        const matches = eligibleUsers.filter(user => user.role === role && (!term || `${user.name} ${user.email}`.toLowerCase().includes(term)));
+        userSelect.innerHTML = `<option value="">${matches.length ? `Select a ${role}` : `No available ${role}s found`}</option>` + matches.map(user =>
+            `<option value="${escapeHtml(user.id)}" data-name="${escapeHtml(user.name)}" data-email="${escapeHtml(user.email)}" data-role="${escapeHtml(user.role)}">${escapeHtml(user.name || 'Unnamed user')} (${escapeHtml(user.email || 'no email')})</option>`).join('');
+        if (userTypeLabel) userTypeLabel.textContent = role === 'teacher' ? 'Teacher' : 'Student';
+    }
+
+    function loadEligibleUsers() {
+        userSelect.innerHTML = '<option value="">Loading users...</option>';
+        Promise.all([db.ref('users').once('value'), db.ref('blockedUsers').once('value')]).then(([usersSnapshot, blockedSnapshot]) => {
+            const blocked = blockedSnapshot.val() || {};
+            eligibleUsers = [];
+            usersSnapshot.forEach(child => {
+                const data = child.val() || {};
+                const role = String(data.role || '').toLowerCase();
+                if (!['student', 'teacher'].includes(role) || data.blocked || blocked[child.key]) return;
+                eligibleUsers.push({ id: child.key, role, name: data.name || '', email: data.email || '' });
+            });
+            eligibleUsers.sort((a, b) => a.name.localeCompare(b.name));
+            renderEligibleUsers();
+        }).catch(error => {
+            userSelect.innerHTML = '<option value="">Unable to load users</option>';
+            console.error('Error loading users to block:', error);
+        });
+    }
+
+    panel.querySelector('#refresh-blocked-users-btn').onclick = loadBlockedUsers;
+    if (typeFilter) typeFilter.onchange = renderBlockedUsers;
+    if (blockedSearch) blockedSearch.oninput = renderBlockedUsers;
+    userType.onchange = renderEligibleUsers;
+    if (userSearch) userSearch.oninput = renderEligibleUsers;
+    panel.querySelector('#add-blocked-user-btn').onclick = () => {
+        userType.value = 'student';
+        if (userSearch) userSearch.value = '';
+        loadEligibleUsers();
+        document.getElementById('block-user-popup').classList.remove('hidden');
+    };
+
+    document.querySelectorAll('#block-user-popup .close-popup-btn').forEach(button => button.onclick = () => {
+        document.getElementById('block-user-popup').classList.add('hidden');
+    });
+
+    document.getElementById('confirm-block-btn').onclick = () => {
+        const id = userSelect.value;
+        if (!id) return alert('Please select a user to block.');
+        const option = userSelect.options[userSelect.selectedIndex];
+        document.getElementById('block-confirm-user-name').textContent = option.dataset.name || 'Unknown user';
+        document.getElementById('block-confirm-user-email').textContent = option.dataset.email || 'No email';
+        const roleEl = document.getElementById('block-confirm-user-role');
+        if (roleEl) roleEl.textContent = option.dataset.role === 'teacher' ? 'Teacher' : 'Student';
+        const finalButton = document.getElementById('final-confirm-block-btn');
+        finalButton.dataset.id = id;
+        finalButton.dataset.role = option.dataset.role || userType.value;
+        finalButton.dataset.reason = (document.getElementById('block-reason').value || '').trim().slice(0, 500);
         document.getElementById('block-confirm-popup').classList.remove('hidden');
         document.getElementById('block-user-popup').classList.add('hidden');
+    };
 
-        // Store data for final confirmation
-        document.getElementById('final-confirm-block-btn').setAttribute('data-id', studentId);
-        document.getElementById('final-confirm-block-btn').setAttribute('data-reason', reason);
-    });
+    document.getElementById('final-confirm-block-btn').onclick = function () {
+        const id = this.dataset.id;
+        const role = this.dataset.role;
+        if (!id || !['student', 'teacher'].includes(role)) return;
+        this.disabled = true;
+        db.ref(`users/${id}`).once('value').then(snapshot => {
+            if (!snapshot.exists()) throw new Error('Selected user not found.');
+            const user = snapshot.val() || {};
+            if (String(user.role || '').toLowerCase() !== role) throw new Error('The user type changed. Refresh and try again.');
+            const updates = {};
+            const blockedAt = Date.now();
+            const reason = this.dataset.reason || '';
+            const noticeKey = db.ref(`notifications/${id}`).push().key;
+            updates[`blockedUsers/${id}`] = {
+                name: user.name || '', email: user.email || '', role,
+                reason, blockedDate: blockedAt,
+                blockedBy: firebase.auth().currentUser?.uid || null
+            };
+            updates[`users/${id}/blocked`] = true;
+            updates[`notifications/${id}/${noticeKey}`] = {
+                title: 'Account access blocked',
+                message: `Your ${role} account was blocked by your school administrator.${reason ? ` Reason: ${reason}` : ''} Contact your administrator if you believe this is a mistake.`,
+                type: 'warning',
+                category: 'Account access',
+                timestamp: blockedAt,
+                read: false
+            };
+            return db.ref().update(updates);
+        }).then(() => {
+            document.getElementById('block-confirm-popup').classList.add('hidden');
+            document.getElementById('block-user-popup').classList.add('hidden');
+            document.getElementById('block-reason').value = '';
+            loadBlockedUsers();
+            loadEligibleUsers();
+        }).catch(error => alert(`Error blocking user: ${error.message}`)).finally(() => { this.disabled = false; });
+    };
 
-    // Handle final block confirmation
-    document.getElementById('final-confirm-block-btn').addEventListener('click', function () {
-        const studentId = this.getAttribute('data-id');
-        const reason = this.getAttribute('data-reason');
+    document.getElementById('confirm-unblock-btn').onclick = function () {
+        const id = this.dataset.id;
+        if (!id) return;
+        this.disabled = true;
+        const updates = {};
+        updates[`blockedUsers/${id}`] = null;
+        updates[`users/${id}/blocked`] = false;
+        db.ref().update(updates).then(() => {
+            document.getElementById('unblock-confirm-popup').classList.add('hidden');
+            loadBlockedUsers();
+            loadEligibleUsers();
+        }).catch(error => alert(`Error unblocking user: ${error.message}`)).finally(() => { this.disabled = false; });
+    };
 
-        db.ref(`users/${studentId}`).once('value')
-            .then(snapshot => {
-                if (snapshot.exists()) {
-                    const userData = snapshot.val();
+    list.onclick = event => {
+        const button = event.target.closest('.unblock-user-btn');
+        if (!button) return;
+        const user = blockedRows.find(item => item.id === button.dataset.id);
+        if (!user) return;
+        document.getElementById('unblock-user-name').textContent = user.name || 'Unknown';
+        document.getElementById('unblock-user-email').textContent = user.email || 'No email';
+        document.getElementById('confirm-unblock-btn').dataset.id = user.id;
+        document.getElementById('unblock-confirm-popup').classList.remove('hidden');
+    };
 
-                    // Add to blocked users list
-                    db.ref(`blockedUsers/${studentId}`).set({
-                        email: userData.email,
-                        name: userData.name,
-                        reason: reason,
-                        blockedDate: Date.now()
-                    })
-                        .then(() => {
-                            // Update user record
-                            return db.ref(`users/${studentId}`).update({
-                                blocked: true
-                            });
-                        })
-                        .then(() => {
-                            document.getElementById('block-confirm-popup').classList.add('hidden');
-                            loadBlockedUsers();
-                        })
-                        .catch(error => {
-                            alert('Error blocking user: ' + error.message);
-                        });
-                } else {
-                    alert('Selected student not found');
-                }
-            })
-            .catch(error => {
-                alert('Error blocking user: ' + error.message);
-            });
-    });
-
-    // Handle unblock confirmation
-    document.getElementById('confirm-unblock-btn').addEventListener('click', function () {
-        const userId = this.getAttribute('data-id');
-
-        db.ref(`blockedUsers/${userId}`).remove()
-            .then(() => {
-                // Update user record
-                return db.ref(`users/${userId}`).update({
-                    blocked: false
-                });
-            })
-            .then(() => {
-                document.getElementById('unblock-confirm-popup').classList.add('hidden');
-                loadBlockedUsers();
-            })
-            .catch(error => {
-                alert('Error unblocking user: ' + error.message);
-            });
-    });
-
-    // Load blocked users on initialization
     loadBlockedUsers();
 }
 
@@ -1423,30 +1117,7 @@ function initDatabaseManagement() {
     function loadDatabaseSections() {
         const sectionsContainer = document.getElementById('db-sections-list');
         if (!sectionsContainer) return;
-
-        sectionsContainer.innerHTML = '<div class="loading-indicator"><i class="fas fa-spinner fa-spin"></i> Loading database sections...</div>';
-
-        firebase.database().ref().once('value')
-            .then(snapshot => {
-                sectionsContainer.innerHTML = '';
-                const data = snapshot.val();
-
-                if (!data) {
-                    sectionsContainer.innerHTML = '<div class="no-sections-message">No database sections found.</div>';
-                    return;
-                }
-
-                Object.keys(data).forEach(key => {
-                    if (typeof data[key] === 'object') {
-                        const itemCount = countItems(data[key]);
-                        const sectionCard = createSectionCard(key, itemCount);
-                        sectionsContainer.appendChild(sectionCard);
-                    }
-                });
-            })
-            .catch(error => {
-                sectionsContainer.innerHTML = `<div class="status-indicator error"><p>Error loading database sections: ${error.message}</p></div>`;
-            });
+        sectionsContainer.innerHTML = '<div class="db-load-error">Use the institution-scoped Database Storage panel to review records.</div>';
     }
 
     // Function to count items in a section
@@ -1542,35 +1213,12 @@ function initDatabaseManagement() {
 
     // Function to delete a section
     function deleteSection(path) {
-        firebase.database().ref(path).remove()
-            .then(() => {
-                const popup = document.getElementById('delete-db-section-popup');
-                if (popup) popup.classList.add('hidden');
-
-                loadDatabaseSections();
-                showAlert(`Section "${path}" has been deleted successfully`, 'success');
-            })
-            .catch(error => {
-                showAlert(`Error deleting section: ${error.message}`, 'error');
-            });
+        showAlert('Deleting arbitrary database sections is disabled. Use the dated attendance cleanup in Database Storage.', 'warning');
     }
 
     // Function to delete entire database
     function deleteAllDatabase() {
-        firebase.database().ref().remove()
-            .then(() => {
-                const popup = document.getElementById('delete-all-db-popup');
-                const confirmInput = document.getElementById('delete-confirmation-input');
-
-                if (popup) popup.classList.add('hidden');
-                if (confirmInput) confirmInput.value = '';
-
-                loadDatabaseSections();
-                showAlert('Entire database has been deleted successfully', 'success');
-            })
-            .catch(error => {
-                showAlert(`Error deleting database: ${error.message}`, 'error');
-            });
+        showAlert('Whole-database deletion is disabled to protect student and administrator accounts.', 'warning');
     }
 
     // Helper function to show alerts
@@ -1593,276 +1241,6 @@ function initDatabaseManagement() {
     }
 }
 
-// Function to initialize the recent logins section
-function initRecentLoginsSection() {
-    console.log("Initializing recent logins section");
-
-    // Reference to the active devices list container
-    const activeDevicesList = document.getElementById('active-devices-list');
-    const refreshBtn = document.getElementById('refresh-recent-logins-btn');
-    if (refreshBtn) {
-        refreshBtn.onclick = () => initRecentLoginsSection();
-    }
-
-    // Clear existing content
-    if (activeDevicesList) {
-        activeDevicesList.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading active devices...</div>';
-
-        // Get current user
-        const user = firebase.auth().currentUser;
-
-        if (user) {
-            console.log("Current user found:", user.uid);
-            // Reference to all user sessions in the database
-            const allSessionsRef = firebase.database().ref('userSessions');
-
-            // Fetch all sessions
-            allSessionsRef.once('value')
-                .then((snapshot) => {
-                    // Clear loading spinner
-                    activeDevicesList.innerHTML = '';
-
-                    if (snapshot.exists()) {
-                        console.log("Sessions data found");
-                        const allSessions = snapshot.val();
-                        let sessionsFound = false;
-
-                        // Get current device ID for highlighting
-                        const currentDeviceId = localStorage.getItem('deviceId') || 'unknown';
-                        console.log("Current device ID:", currentDeviceId);
-
-                        activeDevicesList.innerHTML = `
-                            <div class="recent-logins-wrapper">
-                                <div class="recent-logins-stats">
-                                    <div class="recent-logins-stat">
-                                        <span class="stat-label">Active Devices</span>
-                                        <span class="stat-value" id="recent-active-count">0</span>
-                                    </div>
-                                    <div class="recent-logins-stat">
-                                        <span class="stat-label">This Device</span>
-                                        <span class="stat-value" id="recent-current-device">—</span>
-                                    </div>
-                                    <div class="recent-logins-stat">
-                                        <span class="stat-label">Last Active</span>
-                                        <span class="stat-value" id="recent-current-active">—</span>
-                                    </div>
-                                </div>
-                                <div class="recent-logins-grid">
-                                    <div class="recent-logins-panel">
-                                        <h3>Current Device</h3>
-                                        <div id="current-device-card" class="device-card-list"></div>
-                                    </div>
-                                    <div class="recent-logins-panel">
-                                        <h3>Other Devices</h3>
-                                        <div id="other-devices-list" class="device-card-list"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-
-                        // Find current user's sessions
-                        const userSessions = allSessions[user.uid] || {};
-
-                        const currentCardContainer = document.getElementById('current-device-card');
-                        const otherDevicesContainer = document.getElementById('other-devices-list');
-                        const activeCountEl = document.getElementById('recent-active-count');
-                        const currentDeviceNameEl = document.getElementById('recent-current-device');
-                        const currentDeviceActiveEl = document.getElementById('recent-current-active');
-
-                        const formatKeyLabel = (key) => {
-                            return key
-                                .replace(/_/g, ' ')
-                                .replace(/([A-Z])/g, ' $1')
-                                .replace(/\s+/g, ' ')
-                                .trim()
-                                .replace(/\b\w/g, (char) => char.toUpperCase());
-                        };
-
-                        const formatValue = (key, value) => {
-                            if (value === null || value === undefined || value === '') return 'N/A';
-                            if (key === 'lastActive' || key === 'loginTime' || key.includes('Time') || key.includes('Date')) {
-                                if (!isNaN(value)) {
-                                    const date = new Date(value);
-                                    return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-                                }
-                            }
-                            if (typeof value === 'object') {
-                                const json = JSON.stringify(value);
-                                return json.length > 80 ? `${json.slice(0, 77)}...` : json;
-                            }
-                            const str = String(value);
-                            return str.length > 80 ? `${str.slice(0, 77)}...` : str;
-                        };
-
-                        const getDeviceIcon = (deviceType) => {
-                            if (deviceType === 'mobile') return 'fas fa-mobile-alt';
-                            if (deviceType === 'tablet') return 'fas fa-tablet-alt';
-                            return 'fas fa-desktop';
-                        };
-
-                        const renderDeviceCard = (session, options = {}) => {
-                            if (!session) return '';
-                            const deviceIcon = getDeviceIcon(session.deviceType);
-                            const deviceName = session.deviceName || options.fallbackName || 'Unknown Device';
-                            const chips = [];
-                            if (session.deviceType) chips.push(session.deviceType);
-                            if (session.ipAddress) chips.push(session.ipAddress);
-                            if (session.browser) chips.push(session.browser);
-                            const chipHtml = chips.map(chip => `<span class="device-card__chip">${chip}</span>`).join('');
-
-                            const detailsHtml = Object.entries(session).map(([key, value]) => {
-                                const formattedValue = formatValue(key, value);
-                                return `
-                                    <div class="device-info-item">
-                                        <span class="label">${formatKeyLabel(key)}</span>
-                                        <span class="value">${formattedValue}</span>
-                                    </div>
-                                `;
-                            }).join('');
-
-                            return `
-                                <div class="device-card ${options.isCurrent ? 'is-current' : ''}">
-                                    <div class="device-card__header">
-                                        <div class="device-card__identity">
-                                            <div class="device-card__icon"><i class="${deviceIcon}"></i></div>
-                                            <div>
-                                                <div class="device-card__title">${deviceName}</div>
-                                                <div class="device-card__subtitle">${session.email || ''}</div>
-                                            </div>
-                                        </div>
-                                        ${options.isCurrent ? '<span class="device-card__badge">Current</span>' : ''}
-                                    </div>
-                                    ${chipHtml ? `<div class="device-card__chips">${chipHtml}</div>` : ''}
-                                    <div class="device-card__grid">${detailsHtml}</div>
-                                    ${options.showLogout ? `
-                                        <div class="device-card__actions">
-                                            <button class="logout-device-btn" data-user-id="${options.userId}" data-device-id="${options.deviceId}">
-                                                <i class="fas fa-sign-out-alt"></i> Log Out
-                                            </button>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `;
-                        };
-
-                        // Add current device info if available
-                        const currentSession = userSessions[currentDeviceId] || null;
-                        if (currentSession) {
-                            sessionsFound = true;
-                            if (currentCardContainer) {
-                                currentCardContainer.innerHTML = renderDeviceCard(currentSession, {
-                                    isCurrent: true,
-                                    fallbackName: 'This Device',
-                                    showLogout: false
-                                });
-                            }
-                            if (currentDeviceNameEl) {
-                                currentDeviceNameEl.textContent = currentSession.deviceName || 'This Device';
-                            }
-                            if (currentDeviceActiveEl) {
-                                currentDeviceActiveEl.textContent = currentSession.lastActive
-                                    ? formatValue('lastActive', currentSession.lastActive)
-                                    : 'Unknown';
-                            }
-                        } else if (currentCardContainer) {
-                            currentCardContainer.innerHTML = '<div class="device-empty">Current device information not available.</div>';
-                        }
-
-                        let otherDevicesFound = false;
-                        const otherDevicesHtml = [];
-
-                        // Loop through all user sessions to find devices with same login ID
-                        Object.keys(allSessions).forEach(userId => {
-                            const sessions = allSessions[userId];
-
-                            Object.keys(sessions).forEach(deviceId => {
-                                const session = sessions[deviceId];
-
-                                // Skip if this is the current device
-                                if (userId === user.uid && deviceId === currentDeviceId) {
-                                    return;
-                                }
-
-                                // Check if session is still valid (not expired)
-                                const isValid = session.lastActive && (Date.now() - session.lastActive < 30 * 24 * 60 * 60 * 1000);
-
-                                // Check if this session has the same email as current user
-                                const isSameUser = session.email === user.email;
-
-                                if (isValid && isSameUser) {
-                                    otherDevicesFound = true;
-                                    sessionsFound = true;
-                                    otherDevicesHtml.push(renderDeviceCard(session, {
-                                        isCurrent: false,
-                                        showLogout: true,
-                                        userId,
-                                        deviceId
-                                    }));
-                                }
-                            });
-                        });
-
-                        // If no other devices found
-                        if (otherDevicesContainer) {
-                            if (!otherDevicesFound) {
-                                otherDevicesContainer.innerHTML = '<div class="device-empty">No other active devices found.</div>';
-                            } else {
-                                otherDevicesContainer.innerHTML = otherDevicesHtml.join('');
-                            }
-                        }
-
-                        if (activeCountEl) {
-                            const activeCount = (currentSession ? 1 : 0) + (otherDevicesFound ? otherDevicesHtml.length : 0);
-                            activeCountEl.textContent = String(activeCount);
-                        }
-
-                        // If no valid sessions found at all
-                        if (!sessionsFound) {
-                            console.log("No active devices found at all");
-                            activeDevicesList.innerHTML = '<p class="no-data">No active devices found.</p>';
-                        }
-
-                        // Add event listeners to logout buttons
-                        document.querySelectorAll('.logout-device-btn').forEach(button => {
-                            button.addEventListener('click', function () {
-                                const userId = this.getAttribute('data-user-id');
-                                const deviceId = this.getAttribute('data-device-id');
-                                if (confirm('Are you sure you want to log out this device?')) {
-                                    firebase.database().ref(`userSessions/${userId}/${deviceId}`).remove()
-                                        .then(() => {
-                                            showAlert('Device logged out successfully', 'success');
-                                            initRecentLoginsSection(); // Refresh the list
-                                        })
-                                        .catch(error => {
-                                            console.error('Error logging out device:', error);
-                                            showAlert('Error logging out device', 'error');
-                                        });
-                                }
-                            });
-                        });
-                    } else {
-                        console.log("No sessions data found in snapshot");
-                        activeDevicesList.innerHTML = '<p class="no-data">No active devices found.</p>';
-                    }
-                })
-                .catch((error) => {
-                    console.error('Error fetching active devices:', error);
-                    activeDevicesList.innerHTML = '<p class="error-message">Error loading active devices. Please try again.</p>';
-                });
-        } else {
-            console.log("No user is currently logged in");
-            activeDevicesList.innerHTML = '<p class="error-message">You must be logged in to view active devices.</p>';
-        }
-    } else {
-        console.error("Could not find active-devices-list element");
-    }
-}
-
-// Alias function to fix the reference error
-function initRecentLogins() {
-    initRecentLoginsSection();
-}
-
 function initManageAccountSection() {
     const section = document.getElementById('manage-account-section-active');
     if (!section) return;
@@ -1875,15 +1253,22 @@ function initManageAccountSection() {
     }
 
     const nameInput = section.querySelector('#account-name');
-    const emailInput = section.querySelector('#account-email');
+    const nameDisplay = section.querySelector('#account-name-display');
     const usernameInput = section.querySelector('#account-username');
+    const usernameDisplay = section.querySelector('#account-username-display');
+    const dobInput = section.querySelector('#account-dob');
+    const dobDisplay = section.querySelector('#account-dob-display');
+    const editableProfileFields = [
+        { input: nameInput, display: nameDisplay },
+        { input: usernameInput, display: usernameDisplay },
+        { input: dobInput, display: dobDisplay }
+    ];
     const schoolValue = section.querySelector('#account-school-value');
     const subscriptionValue = section.querySelector('#account-subscription-value');
     const subscriptionDetails = section.querySelector('#account-subscription-details');
     const editButton = section.querySelector('#edit-account-profile-btn');
     const requestButton = section.querySelector('#request-account-profile-btn');
     const cancelButton = section.querySelector('#cancel-account-profile-btn');
-    const resetPasswordButton = section.querySelector('#reset-account-password-btn');
     const securityResetButton = section.querySelector('#account-security-reset-btn');
     const copyCodeButton = section.querySelector('#copy-institution-code-btn');
     const exportButton = section.querySelector('#export-account-summary-btn');
@@ -1902,7 +1287,13 @@ function initManageAccountSection() {
     let loadedSubscription = null;
     let loadedSchoolId = '';
     const setEditing = editing => {
-        nameInput.readOnly = !editing;
+        editableProfileFields.forEach(({ input, display }) => {
+            const field = input.closest('.ac-account-field');
+            input.hidden = !editing;
+            display.hidden = editing;
+            field.classList.toggle('is-editing', editing);
+            field.querySelector('.ac-edit-label').hidden = !editing;
+        });
         editButton.hidden = editing;
         requestButton.hidden = !editing;
         cancelButton.hidden = !editing;
@@ -1917,14 +1308,15 @@ function initManageAccountSection() {
         status.className = `status-indicator ${kind}`;
         status.innerHTML = `<p>${icon ? `<i class="fas ${icon}"></i> ` : ''}${escape(message)}</p>`;
         status.hidden = false;
-        if (kind === 'success') {
-            const successMessage = status.innerHTML;
+        const dismissalDelay = kind === 'success' ? 4000 : kind === 'warning' ? 6500 : kind === 'error' ? 8000 : 0;
+        if (dismissalDelay) {
+            const currentMessage = status.innerHTML;
             statusHideTimer = setTimeout(() => {
-                if (status.classList.contains('success') && status.innerHTML === successMessage) {
+                if (status.innerHTML === currentMessage) {
                     status.hidden = true;
                     statusHideTimer = null;
                 }
-            }, 4000);
+            }, dismissalDelay);
         }
     };
     const sendPasswordReset = button => {
@@ -1954,8 +1346,13 @@ function initManageAccountSection() {
                 loadedUser = user;
                 loadedSchoolId = schoolId;
                 nameInput.value = user.name || currentUser.displayName || '';
-                emailInput.value = user.email || currentUser.email || '';
+                nameDisplay.textContent = user.name || currentUser.displayName || 'Not provided';
+                section.querySelector('#account-email').textContent = user.email || currentUser.email || 'Not provided';
                 usernameInput.value = user.username || '';
+                usernameDisplay.textContent = user.username || 'Not provided';
+                const dobValue = String(user.dob || user.dateOfBirth || '').slice(0, 10);
+                dobInput.value = /^\d{4}-\d{2}-\d{2}$/.test(dobValue) ? dobValue : '';
+                dobDisplay.textContent = formatDate(dobValue);
                 section.querySelector('#account-role-value').textContent = user.role || 'Administrator';
                 section.querySelector('#account-hero-name').textContent = user.name || currentUser.displayName || 'Administrator';
                 section.querySelector('#account-hero-email').textContent = currentUser.email || 'No sign-in email available';
@@ -1963,9 +1360,12 @@ function initManageAccountSection() {
                 section.querySelector('#account-last-signin').textContent = formatDate(currentUser.metadata?.lastSignInTime);
                 section.querySelector('#account-created-at').textContent = formatDate(currentUser.metadata?.creationTime);
                 setEditing(false);
-                return firebase.database().ref(`schools/${schoolId}`).once('value');
+                return Promise.all([
+                    firebase.database().ref(`schools/${schoolId}`).once('value'),
+                    firebase.database().ref('users').once('value')
+                ]).then(([schoolSnapshot, usersSnapshot]) => ({ schoolSnapshot, usersSnapshot }));
             })
-            .then(schoolSnapshot => {
+            .then(({ schoolSnapshot, usersSnapshot }) => {
                 const school = schoolSnapshot.val() || {};
                 const subscription = school.subscription || {};
                 loadedSchool = school;
@@ -1974,10 +1374,24 @@ function initManageAccountSection() {
                 const endDate = formatDate(subscription.endDate);
                 const startDate = formatDate(subscription.startDate);
                 const topups = Array.isArray(subscription.topups) ? subscription.topups : Object.values(subscription.topups || {});
-                const topupStudents = topups.reduce((sum, item) => sum + (Number(item?.studentCapacity) || 0), 0);
-                const topupTeachers = topups.reduce((sum, item) => sum + (Number(item?.teacherCapacity) || 0), 0);
+                const now = Date.now();
+                const activeTopups = topups.filter(item => {
+                    const startsAt = Date.parse(item?.startDate || '');
+                    const endsAt = Date.parse(item?.endDate || '');
+                    return (!Number.isFinite(startsAt) || startsAt <= now) && (!Number.isFinite(endsAt) || endsAt > now);
+                });
+                const topupStudents = activeTopups.reduce((sum, item) => sum + (Number(item?.studentCapacity) || 0), 0);
+                const topupTeachers = activeTopups.reduce((sum, item) => sum + (Number(item?.teacherCapacity) || 0), 0);
                 const studentCapacity = (Number(subscription.studentCapacity) || 0) + topupStudents;
                 const teacherCapacity = (Number(subscription.teacherCapacity) || 0) + topupTeachers;
+                const usage = { students: 0, teachers: 0 };
+                usersSnapshot.forEach(userSnapshot => {
+                    const user = userSnapshot.val() || {};
+                    if (String(user.schoolId || '') !== loadedSchoolId) return;
+                    const role = String(user.role || '').toLowerCase();
+                    if (role === 'student') usage.students += 1;
+                    else if (role === 'teacher') usage.teachers += 1;
+                });
                 const endTime = Date.parse(subscription.endDate || '');
                 const expired = Number.isFinite(endTime) && endTime < Date.now();
                 const schoolStatus = school.status || 'Unknown';
@@ -2000,14 +1414,25 @@ function initManageAccountSection() {
                 const topupLabel = topups.length
                     ? topups.map(item => `${item.name || 'Capacity top-up'}${item.bonus ? ' · Bonus' : ''}`).join(', ')
                     : 'No top-ups assigned';
+                const renderUsage = (label, icon, usedValue, capacityValue, category) => {
+                    const used = Math.max(0, Number(usedValue) || 0);
+                    const capacity = Math.max(0, Number(capacityValue) || 0);
+                    const remaining = Math.max(0, capacity - used);
+                    const percent = capacity ? Math.min(100, Math.round((used / capacity) * 100)) : 0;
+                    return `<section class="account-usage-item ${category}">
+                        <div class="account-usage-heading"><span class="account-usage-icon"><i class="fas ${icon}"></i></span><div><strong>${label}</strong><span>${used.toLocaleString()} used of ${capacity.toLocaleString()} allotted</span></div></div>
+                        <div class="account-usage-track" role="progressbar" aria-label="${label} usage" aria-valuemin="0" aria-valuemax="${capacity || 1}" aria-valuenow="${Math.min(used, capacity)}"><span style="width:${percent}%"></span></div>
+                        <div class="account-usage-footer"><span>${percent}% used</span><strong>${remaining.toLocaleString()} remaining</strong></div>
+                    </section>`;
+                };
                 subscriptionDetails.innerHTML = `
                     <div class="account-plan-heading">
                         <strong>${escape(plan)}</strong>
                         <span class="account-plan-status ${statusActive ? '' : 'is-inactive'}">${statusActive ? 'Active' : 'Inactive'}</span>
                     </div>
-                    <div class="account-capacity-grid">
-                        <div class="account-capacity-item"><span>Student record capacity</span><strong>${studentCapacity.toLocaleString()}</strong></div>
-                        <div class="account-capacity-item"><span>Teacher account capacity</span><strong>${teacherCapacity.toLocaleString()}</strong></div>
+                    <div class="account-usage-grid">
+                        ${renderUsage('Student profiles', 'fa-user-graduate', usage.students, studentCapacity, 'students')}
+                        ${renderUsage('Teacher accounts', 'fa-chalkboard-user', usage.teachers, teacherCapacity, 'teachers')}
                     </div>
                     <div class="account-topups"><strong>Top-ups:</strong> ${escape(topupLabel)}${topupStudents || topupTeachers ? ` · +${topupStudents.toLocaleString()} student records · +${topupTeachers.toLocaleString()} teachers` : ''}</div>
                     <dl class="account-detail-list">
@@ -2028,6 +1453,9 @@ function initManageAccountSection() {
     editButton.addEventListener('click', () => setEditing(true));
     cancelButton.addEventListener('click', () => {
         nameInput.value = loadedUser?.name || currentUser.displayName || '';
+        usernameInput.value = loadedUser?.username || '';
+        const dobValue = String(loadedUser?.dob || loadedUser?.dateOfBirth || '').slice(0, 10);
+        dobInput.value = /^\d{4}-\d{2}-\d{2}$/.test(dobValue) ? dobValue : '';
         setEditing(false);
     });
 
@@ -2043,6 +1471,42 @@ function initManageAccountSection() {
             nameInput.focus();
             return;
         }
+        const username = usernameInput.value.trim();
+        if (username.length > 64) {
+            showStatus('warning', 'Your username must be 64 characters or fewer.');
+            usernameInput.focus();
+            return;
+        }
+        const dob = dobInput.value;
+        if (dob && dob > new Date().toISOString().slice(0, 10)) {
+            showStatus('warning', 'Date of birth cannot be in the future.');
+            dobInput.focus();
+            return;
+        }
+
+        const currentName = loadedUser?.name || currentUser.displayName || '';
+        const currentUsername = loadedUser?.username || '';
+        const currentDob = String(loadedUser?.dob || loadedUser?.dateOfBirth || '').slice(0, 10);
+        const requestedData = {};
+        const currentData = {};
+        if (name !== currentName) {
+            currentData.name = currentName;
+            requestedData.name = name;
+        }
+        if (username !== currentUsername) {
+            currentData.username = currentUsername;
+            requestedData.username = username;
+        }
+        if (dob && dob !== currentDob) {
+            currentData.dob = currentDob;
+            currentData.dateOfBirth = currentDob;
+            requestedData.dob = dob;
+            requestedData.dateOfBirth = dob;
+        }
+        if (!Object.keys(requestedData).length) {
+            showStatus('info', 'No profile changes to submit.');
+            return;
+        }
 
         requestButton.disabled = true;
         requestButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
@@ -2053,8 +1517,8 @@ function initManageAccountSection() {
             ownerId: null,
             userName: loadedUser?.name || currentUser.displayName || '',
             userEmail: currentUser.email || '',
-            currentData: { name: loadedUser?.name || '' },
-            requestedData: { name },
+            currentData,
+            requestedData,
             status: 'pending',
             timestamp: Date.now()
         };
@@ -2067,6 +1531,9 @@ function initManageAccountSection() {
             .then(() => {
                 showStatus('success', 'Update request sent to the school owner for approval.', 'fa-check-circle');
                 nameInput.value = loadedUser?.name || currentUser.displayName || '';
+                usernameInput.value = loadedUser?.username || '';
+                const dobValue = String(loadedUser?.dob || loadedUser?.dateOfBirth || '').slice(0, 10);
+                dobInput.value = /^\d{4}-\d{2}-\d{2}$/.test(dobValue) ? dobValue : '';
                 setEditing(false);
             })
             .catch(error => {
@@ -2079,7 +1546,6 @@ function initManageAccountSection() {
             });
     });
 
-    resetPasswordButton.addEventListener('click', () => sendPasswordReset(resetPasswordButton));
     securityResetButton.addEventListener('click', () => sendPasswordReset(securityResetButton));
     copyCodeButton.addEventListener('click', () => {
         const code = String(loadedSchool?.code || '').trim();
@@ -2219,8 +1685,9 @@ function initManageAdminsSection() {
                             lastLoginText = `Last login: ${lastLogin.toLocaleDateString()} at ${lastLogin.toLocaleTimeString()}`;
                         }
 
-                        const avatarContent = admin.photoURL
-                            ? `<img src="${admin.photoURL}" alt="${admin.name || 'Admin'}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`
+                        const profilePhoto = admin.profilePhoto || admin.photoURL || '';
+                        const avatarContent = profilePhoto
+                            ? `<img class="admin-profile-photo" alt="${admin.name || 'Admin'} profile photo" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: none;">`
                             : `<i class="fas fa-user-shield"></i>`;
 
                         adminCard.innerHTML = `
@@ -2251,6 +1718,41 @@ function initManageAdminsSection() {
                                     '<span class="current-user-badge">Current User</span>'}
                             </div>
                         `;
+
+                        if (profilePhoto) {
+                            const avatar = adminCard.querySelector('.admin-avatar');
+                            const photo = adminCard.querySelector('.admin-profile-photo');
+                            const fallbackIcon = document.createElement('i');
+                            fallbackIcon.className = 'fas fa-user-shield';
+                            photo.addEventListener('load', () => {
+                                photo.style.display = 'block';
+                                fallbackIcon.remove();
+                            }, { once: true });
+                            photo.addEventListener('error', () => {
+                                photo.remove();
+                            }, { once: true });
+                            photo.style.cursor = 'zoom-in';
+                            photo.setAttribute('role', 'button');
+                            photo.tabIndex = 0;
+                            photo.setAttribute('aria-label', `Preview ${admin.name || 'admin'} profile photo`);
+                            photo.addEventListener('click', event => {
+                                event.stopPropagation();
+                                window.showProfilePhotoPreview(profilePhoto, admin.profilePhotoKey || profilePhoto, `${admin.name || 'Admin'} profile photo`);
+                            });
+                            photo.addEventListener('keydown', event => {
+                                if (event.key !== 'Enter' && event.key !== ' ') return;
+                                event.preventDefault();
+                                window.showProfilePhotoPreview(profilePhoto, admin.profilePhotoKey || profilePhoto, `${admin.name || 'Admin'} profile photo`);
+                            });
+                            avatar.appendChild(fallbackIcon);
+
+                            const cacheKey = admin.profilePhotoKey || profilePhoto;
+                            if (typeof window.applyEncryptedPhotoToImg === 'function') {
+                                window.applyEncryptedPhotoToImg(photo, profilePhoto, cacheKey);
+                            } else {
+                                photo.src = profilePhoto;
+                            }
+                        }
 
                         adminUsersList.appendChild(adminCard);
                     });
@@ -2698,9 +2200,20 @@ function initNotificationsSection() {
         readRecent('notifications')
             .then(snapshot => {
                 const notifications = [];
+                const collectNotifications = (value, path) => {
+                    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+                    const isNotification = ['header', 'title', 'subject', 'body', 'message', 'content']
+                        .some(field => typeof value[field] === 'string') ||
+                        (value.timestamp !== undefined && value.type !== undefined);
+                    if (isNotification) {
+                        notifications.push({ ...value, id: path.join('/') });
+                        return;
+                    }
+                    Object.entries(value).forEach(([key, child]) => collectNotifications(child, [...path, key]));
+                };
                 if (snapshot.exists()) {
                     snapshot.forEach(child => {
-                        notifications.push({ id: child.key, ...child.val() });
+                        collectNotifications(child.val(), [child.key]);
                     });
                 }
                 notifications.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -2772,21 +2285,27 @@ function initNotificationsSection() {
             }
         };
 
-        notificationsList.innerHTML = notifications.map(notif => `
-            <div class="notification-item ${notif.type || 'info'}" onclick="viewBroadcastItem('${notif.id}', 'notifications')">
-                <div class="notification-icon">
-                    <i class="fas ${getTypeIcon(notif.type)}"></i>
+        notificationsList.innerHTML = notifications.map(notif => {
+            const title = notif.header || notif.title || notif.subject || 'Notification';
+            const rawBody = notif.body || notif.message || notif.content || '';
+            const preview = String(rawBody).replace(/<[^>]*>/g, '').trim();
+            const timestamp = Number(notif.timestamp || notif.createdAt || notif.sentAt) || Date.now();
+            return `
+                <div class="notification-item ${notif.type || 'info'}" onclick="viewBroadcastItem('${notif.id}', 'notifications')">
+                    <div class="notification-icon">
+                        <i class="fas ${getTypeIcon(notif.type)}"></i>
+                    </div>
+                    <div class="notification-content">
+                        <h4>${title}</h4>
+                        <p>${preview ? `${preview.substring(0, 110)}${preview.length > 110 ? '…' : ''}` : 'No message content was saved.'}</p>
+                        <small><i class="fas fa-clock"></i> ${new Date(timestamp).toLocaleString()}</small>
+                    </div>
+                    <button onclick="deleteBroadcastItem('${notif.id}', 'notifications', event)" class="delete-btn" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </div>
-                <div class="notification-content">
-                    <h4>${notif.header || 'Notification'}</h4>
-                    <p>${(notif.body || '').replace(/<[^>]*>/g, '').substring(0, 100)}...</p>
-                    <small><i class="fas fa-clock"></i> ${new Date(notif.timestamp).toLocaleString()}</small>
-                </div>
-                <button onclick="deleteBroadcastItem('${notif.id}', 'notifications', event)" class="delete-btn" title="Delete">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     setupNotificationButtons();
@@ -3407,6 +2926,11 @@ function initNotifications() {
 // Function to initialize the Profile Requests section
 function initProfileRequestsSection() {
     const profileRequestsList = document.getElementById('profile-requests-list');
+    const requestCount = document.getElementById('requests-count');
+    const updateRequestCount = count => {
+        const label = requestCount?.querySelector('span');
+        if (label) label.textContent = `${count} request${count === 1 ? '' : 's'}`;
+    };
 
     if (!profileRequestsList) {
         console.error("Could not find profile-requests-list element");
@@ -3416,6 +2940,7 @@ function initProfileRequestsSection() {
     markProfileRequestsSeen();
 
     // Show loading state
+    updateRequestCount(0);
     profileRequestsList.innerHTML = '<div class="profile-requests-loading"><i class="fas fa-spinner fa-spin"></i> Loading profile requests...</div>';
 
     // Reference to profile requests in Firebase
@@ -3565,6 +3090,7 @@ function initProfileRequestsSection() {
 
                     // Sort by timestamp descending (newest first)
                     requests.sort((a, b) => b.timestamp - a.timestamp);
+                    updateRequestCount(requests.length);
 
                     if (requests.length > 0) {
                         // Clear loading message
@@ -3746,7 +3272,7 @@ function initProfileRequestsSection() {
         });
 
     // Set up refresh button event listener
-    const refreshRequestsBtn = document.getElementById('refresh-profile-requests-btn');
+    const refreshRequestsBtn = document.getElementById('refresh-requests-btn');
     if (refreshRequestsBtn) {
         // Remove existing event listeners by cloning and replacing the button
         const newRefreshBtn = refreshRequestsBtn.cloneNode(true);
@@ -3838,11 +3364,19 @@ function showProfilePhotoPreview(photoUrl, cacheKey, altText) {
         if (popupContainer.parentNode) {
             popupContainer.parentNode.removeChild(popupContainer);
         }
+        document.removeEventListener('keydown', handleEscape);
     };
 
     popupContainer.querySelectorAll('.photo-preview-close').forEach(btn => {
         btn.addEventListener('click', close);
     });
+
+    const handleEscape = event => {
+        if (event.key === 'Escape') {
+            close();
+        }
+    };
+    document.addEventListener('keydown', handleEscape);
 
     popupContainer.addEventListener('click', (event) => {
         if (event.target === popupContainer) {
@@ -3850,6 +3384,7 @@ function showProfilePhotoPreview(photoUrl, cacheKey, altText) {
         }
     });
 }
+window.showProfilePhotoPreview = showProfilePhotoPreview;
 
 
 // Function to add event listeners to profile request buttons
@@ -4969,6 +4504,8 @@ function updateLeaveRequestsKpis() {
     document.querySelectorAll('[id^="kpi-leave-rejected"]').forEach(el => el.innerText = rejected);
     document.querySelectorAll('#leave-filter-pending-count').forEach(el => el.innerText = pending);
     document.querySelectorAll('#leave-requests-total-badge').forEach(el => el.innerText = `${total} Request${total === 1 ? '' : 's'}`);
+    document.querySelectorAll('#leave-filter-total-count').forEach(el => el.innerText = total);
+    document.querySelectorAll('#requests-count span').forEach(el => el.innerText = `${total} ${total === 1 ? 'request' : 'requests'}`);
 
     const sidebarBadge = document.getElementById('leave-badge');
     if (sidebarBadge) {
@@ -4988,12 +4525,8 @@ function setupLeaveRequestsFilterListeners() {
         btn.onclick = function() {
             document.querySelectorAll('.leave-tab-filter').forEach(b => {
                 b.classList.remove('active');
-                b.style.background = '#ffffff';
-                b.style.color = '#475569';
             });
             this.classList.add('active');
-            this.style.background = '#4f46e5';
-            this.style.color = '#ffffff';
             window.leaveFilterState.status = this.getAttribute('data-filter') || 'all';
             renderAdminLeaveRequests();
         };
@@ -5023,177 +4556,77 @@ function setupLeaveRequestsFilterListeners() {
 
 function renderAdminLeaveRequests() {
     const listContainers = document.querySelectorAll('#leave-requests-list, #leave-requests-section-active #leave-requests-list');
-    if (listContainers.length === 0) return;
+    if (!listContainers.length) return;
 
+    const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
     const all = window.allLeaveRequests || [];
     const filter = window.leaveFilterState || { status: 'all', type: 'all', search: '' };
-
     const filtered = all.filter(item => {
-        const s = (item.status || '').toLowerCase();
-        if (filter.status === 'pending' && !s.includes('pending')) return false;
-        if (filter.status === 'approved' && !s.includes('approve')) return false;
-        if (filter.status === 'rejected' && !s.includes('reject')) return false;
-
-        if (filter.type !== 'all' && (item.type || '').toLowerCase() !== filter.type.toLowerCase()) {
-            return false;
-        }
-
+        const status = String(item.status || '').toLowerCase();
+        if (filter.status === 'pending' && !status.includes('pending')) return false;
+        if (filter.status === 'approved' && !status.includes('approve')) return false;
+        if (filter.status === 'rejected' && !status.includes('reject')) return false;
+        if (filter.type !== 'all' && String(item.type || '').toLowerCase() !== filter.type.toLowerCase()) return false;
         if (filter.search) {
             const user = window.studentUserCache[item.userId] || {};
-            const name = (item.studentName || user.name || '').toLowerCase();
-            const roll = (item.studentRoll || user.univRoll || user.classRoll || '').toLowerCase();
-            const reason = (item.reason || '').toLowerCase();
-            if (!name.includes(filter.search) && !roll.includes(filter.search) && !reason.includes(filter.search)) {
-                return false;
-            }
+            const haystack = [item.studentName, item.studentRoll, user.name, user.email, user.univRoll, user.classRoll, item.reason, item.type].join(' ').toLowerCase();
+            if (!haystack.includes(filter.search)) return false;
         }
         return true;
     });
 
-    if (filtered.length === 0) {
-        listContainers.forEach(c => {
-            c.innerHTML = `
-                <div style="text-align:center;padding:50px 20px;color:#94a3b8;background:#f8fafc;border-radius:12px;border:1px dashed #cbd5e1;">
-                    <i class="fas fa-folder-open" style="font-size:2.5rem;color:#cbd5e1;margin-bottom:12px;display:block;"></i>
-                    <h4 style="margin:0 0 6px;color:#475569;font-weight:700;">No Teacher Leave Requests Found</h4>
-                    <p style="margin:0;font-size:0.85rem;">No teacher applications match the selected filter criteria.</p>
-                </div>
-            `;
+    const count = document.querySelector('#requests-count span');
+    if (count) count.textContent = `${filtered.length} ${filtered.length === 1 ? 'request' : 'requests'}`;
+    const totalFilterCount = document.getElementById('leave-filter-total-count');
+    if (totalFilterCount) totalFilterCount.textContent = all.length;
+
+    if (!filtered.length) {
+        const hasFilters = filter.status !== 'all' || filter.type !== 'all' || Boolean(filter.search);
+        listContainers.forEach(container => {
+            container.innerHTML = `<div class="lr-empty-state"><span class="lr-empty-icon"><i class="fas ${hasFilters ? 'fa-filter-circle-xmark' : 'fa-inbox'}"></i></span><h4>${hasFilters ? 'No matching requests' : 'No leave requests yet'}</h4><p>${hasFilters ? 'Try changing the filters or search terms.' : 'Teacher leave and on-duty applications will appear here.'}</p></div>`;
         });
         return;
     }
 
-    const html = `
-        <div class="modern-table-container" style="overflow-x:auto;">
-            <table class="modern-table" style="width:100%;border-collapse:collapse;">
-                <thead>
-                    <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;text-align:left;">
-                        <th style="padding:14px 16px;font-size:0.8rem;text-transform:uppercase;color:#475569;font-weight:700;">Teacher</th>
-                        <th style="padding:14px 16px;font-size:0.8rem;text-transform:uppercase;color:#475569;font-weight:700;">Leave Type</th>
-                        <th style="padding:14px 16px;font-size:0.8rem;text-transform:uppercase;color:#475569;font-weight:700;">Duration & Dates</th>
-                        <th style="padding:14px 16px;font-size:0.8rem;text-transform:uppercase;color:#475569;font-weight:700;max-width:280px;">Reason</th>
-                        <th style="padding:14px 16px;font-size:0.8rem;text-transform:uppercase;color:#475569;font-weight:700;">Applied On</th>
-                        <th style="padding:14px 16px;font-size:0.8rem;text-transform:uppercase;color:#475569;font-weight:700;">Status</th>
-                        <th style="padding:14px 16px;font-size:0.8rem;text-transform:uppercase;color:#475569;font-weight:700;text-align:right;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${filtered.map(req => {
-                        const user = window.studentUserCache[req.userId] || {};
-                        const displayName = req.studentName || user.name || (user.email ? user.email.split('@')[0] : 'Student');
-                        const roll = req.studentRoll || user.univRoll || user.classRoll || 'No Roll';
-                        const branch = user.department || user.branch || 'Undergraduate';
-                        const photoUrl = user.profilePhoto || user.photoURL || '';
-                        const initials = displayName.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() || 'S';
-
-                        const avatarHtml = photoUrl
-                            ? `<img src="${photoUrl}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:1.5px solid #e2e8f0;">`
-                            : `<div style="width:38px;height:38px;border-radius:50%;background:#e0e7ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;">${initials}</div>`;
-
-                        let durationDays = 1;
-                        if (req.from && req.to) {
-                            const d1 = new Date(req.from);
-                            const d2 = new Date(req.to);
-                            if (!isNaN(d1) && !isNaN(d2)) {
-                                durationDays = Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1);
-                            }
-                        }
-
-                        const t = (req.type || '').toLowerCase();
-                        let typeBadge = '';
-                        if (t.includes('medical')) {
-                            typeBadge = `<span class="badge" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;display:inline-flex;align-items:center;gap:4px;"><i class="fas fa-stethoscope"></i> ${req.type}</span>`;
-                        } else if (t.includes('od') || t.includes('duty')) {
-                            typeBadge = `<span class="badge" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;display:inline-flex;align-items:center;gap:4px;"><i class="fas fa-award"></i> ${req.type}</span>`;
-                        } else if (t.includes('emergency')) {
-                            typeBadge = `<span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;display:inline-flex;align-items:center;gap:4px;"><i class="fas fa-triangle-exclamation"></i> ${req.type}</span>`;
-                        } else {
-                            typeBadge = `<span class="badge" style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;display:inline-flex;align-items:center;gap:4px;"><i class="fas fa-user-clock"></i> ${req.type}</span>`;
-                        }
-
-                        const s = (req.status || '').toLowerCase();
-                        let statusBadge = '';
-                        if (s.includes('approve')) {
-                            statusBadge = `<span class="badge badge-success" style="display:inline-flex;align-items:center;gap:4px;font-weight:600;"><i class="fas fa-circle-check"></i> Approved</span>`;
-                        } else if (s.includes('reject')) {
-                            statusBadge = `<span class="badge" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;display:inline-flex;align-items:center;gap:4px;font-weight:600;"><i class="fas fa-circle-xmark"></i> Rejected</span>`;
-                        } else {
-                            statusBadge = `<span class="badge badge-warning" style="display:inline-flex;align-items:center;gap:4px;font-weight:600;"><i class="fas fa-clock"></i> Pending Review</span>`;
-                        }
-
-                        const appliedDate = new Date(req.createdAt).toLocaleDateString(undefined, {
-                            month: 'short', day: 'numeric', year: 'numeric'
-                        });
-
-                        const isPending = !s.includes('approve') && !s.includes('reject');
-
-                        return `
-                            <tr style="border-bottom:1px solid #f1f5f9;transition:background-color 0.15s ease;">
-                                <td style="padding:14px 16px;">
-                                    <div style="display:flex;align-items:center;gap:12px;">
-                                        ${avatarHtml}
-                                        <div>
-                                            <div style="font-weight:700;color:#0f172a;font-size:0.92rem;cursor:pointer;" onclick="showUserDetails('${req.userId}')">${displayName}</div>
-                                            <div style="font-size:0.78rem;color:#64748b;">Email: ${roll} • ${branch}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td style="padding:14px 16px;">${typeBadge}</td>
-                                <td style="padding:14px 16px;">
-                                    <div style="font-size:0.86rem;font-weight:600;color:#1e293b;">
-                                        ${req.from} <i class="fas fa-arrow-right" style="font-size:0.75rem;color:#94a3b8;margin:0 4px;"></i> ${req.to}
-                                    </div>
-                                    <div style="font-size:0.75rem;color:#64748b;margin-top:2px;">
-                                        <span class="badge" style="background:#f1f5f9;color:#475569;padding:2px 6px;">${durationDays} Day${durationDays === 1 ? '' : 's'}</span>
-                                    </div>
-                                </td>
-                                <td style="padding:14px 16px;max-width:280px;">
-                                    <div style="font-size:0.84rem;color:#334155;line-height:1.4;word-break:break-word;">
-                                        ${req.reason}
-                                    </div>
-                                    ${req.rejectionReason ? `<div style="font-size:0.75rem;color:#dc2626;margin-top:4px;"><i class="fas fa-circle-info"></i> Reason: ${req.rejectionReason}</div>` : ''}
-                                </td>
-                                <td style="padding:14px 16px;font-size:0.82rem;color:#64748b;">
-                                    ${appliedDate}
-                                </td>
-                                <td style="padding:14px 16px;">
-                                    ${statusBadge}
-                                </td>
-                                <td style="padding:14px 16px;text-align:right;">
-                                    <div style="display:inline-flex;gap:6px;align-items:center;">
-                                        ${isPending ? `
-                                            <button type="button" class="primary-btn" onclick="approveLeaveRequest('${req.userId}', '${req.requestId}')" style="background:#16a34a;padding:6px 12px;font-size:0.8rem;border-radius:6px;" title="Approve Leave">
-                                                <i class="fas fa-check"></i> Approve
-                                            </button>
-                                            <button type="button" class="secondary-btn" onclick="rejectLeaveRequest('${req.userId}', '${req.requestId}')" style="color:#dc2626;border-color:#fca5a5;padding:6px 12px;font-size:0.8rem;border-radius:6px;" title="Reject Leave">
-                                                <i class="fas fa-times"></i> Reject
-                                            </button>
-                                        ` : `
-                                            <button type="button" class="secondary-btn" onclick="approveLeaveRequest('${req.userId}', '${req.requestId}')" style="padding:5px 9px;font-size:0.75rem;border-radius:6px;" title="Update / Re-approve">
-                                                <i class="fas fa-rotate"></i>
-                                            </button>
-                                            <button type="button" class="secondary-btn" onclick="rejectLeaveRequest('${req.userId}', '${req.requestId}')" style="padding:5px 9px;font-size:0.75rem;border-radius:6px;color:#dc2626;" title="Reject">
-                                                <i class="fas fa-ban"></i>
-                                            </button>
-                                        `}
-                                        <button type="button" class="secondary-btn" onclick="deleteLeaveRequest('${req.userId}', '${req.requestId}')" style="padding:5px 9px;font-size:0.75rem;border-radius:6px;color:#94a3b8;" title="Delete Record">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    }).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
-
-    listContainers.forEach(c => {
-        c.innerHTML = html;
-    });
+    const html = `<div class="lr-request-list">${filtered.map(req => {
+        const user = window.studentUserCache[req.userId] || {};
+        const name = req.studentName || user.name || (user.email ? user.email.split('@')[0] : 'Teacher');
+        const email = req.studentRoll || user.email || '';
+        const photo = user.profilePhoto || user.photoURL || '';
+        const initials = String(name).split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase() || 'T';
+        const status = String(req.status || '').toLowerCase();
+        const isApproved = status.includes('approve');
+        const isRejected = status.includes('reject');
+        const isPending = !isApproved && !isRejected;
+        const statusClass = isApproved ? 'approved' : isRejected ? 'rejected' : 'pending';
+        const statusLabel = isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending review';
+        const type = String(req.type || 'Leave Request');
+        const typeLower = type.toLowerCase();
+        const typeClass = typeLower.includes('medical') ? 'medical' : typeLower.includes('emergency') ? 'emergency' : typeLower.includes('od') || typeLower.includes('duty') ? 'duty' : 'leave';
+        const from = req.from || 'Not specified';
+        const to = req.to || req.from || 'Not specified';
+        let days = 1;
+        if (req.from && req.to) {
+            const first = new Date(req.from);
+            const last = new Date(req.to);
+            if (!Number.isNaN(first.getTime()) && !Number.isNaN(last.getTime())) days = Math.max(1, Math.round((last - first) / 86400000) + 1);
+        }
+        const appliedDate = new Date(Number(req.createdAt) || req.createdAt);
+        const appliedLabel = Number.isNaN(appliedDate.getTime()) ? 'Date unavailable' : appliedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        const avatar = photo
+            ? `<img class="lr-avatar" src="${escape(photo)}" alt="" loading="lazy">`
+            : `<span class="lr-avatar lr-avatar-fallback" aria-hidden="true">${escape(initials)}</span>`;
+        const userId = escape(req.userId);
+        const requestId = escape(req.requestId);
+        return `<article class="lr-request-card">
+            <header class="lr-request-header"><div class="lr-teacher"><button type="button" class="lr-teacher-profile" onclick="showUserDetails('${userId}')" aria-label="View ${escape(name)} profile">${avatar}<span class="lr-teacher-copy"><strong>${escape(name)}</strong><span>${escape(email || 'No email provided')}</span></span></button></div><span class="lr-status ${statusClass}"><i class="fas ${isApproved ? 'fa-circle-check' : isRejected ? 'fa-circle-xmark' : 'fa-clock'}"></i>${statusLabel}</span></header>
+            <div class="lr-request-details"><div class="lr-detail-item"><span>Request type</span><strong><span class="lr-type ${typeClass}">${escape(type)}</span></strong></div><div class="lr-detail-item"><span>Requested dates</span><strong>${escape(from)} <i class="fas fa-arrow-right" aria-hidden="true"></i> ${escape(to)}</strong><small>${days} ${days === 1 ? 'day' : 'days'}</small></div><div class="lr-detail-item"><span>Applied on</span><strong>${escape(appliedLabel)}</strong></div></div>
+            <div class="lr-reason"><span>Reason</span><p>${escape(req.reason || 'No specific reason provided')}</p>${req.rejectionReason ? `<small><i class="fas fa-circle-info"></i> Review note: ${escape(req.rejectionReason)}</small>` : ''}</div>
+            <footer class="lr-request-footer"><span class="lr-request-id">${isPending ? 'Awaiting your review' : `Reviewed${req.reviewedAt ? ` on ${escape(new Date(req.reviewedAt).toLocaleDateString())}` : ''}`}</span><div class="lr-actions">${isPending ? `<button type="button" class="lr-action-btn approve" onclick="approveLeaveRequest('${userId}', '${requestId}')"><i class="fas fa-check"></i> Approve</button><button type="button" class="lr-action-btn reject" onclick="rejectLeaveRequest('${userId}', '${requestId}')"><i class="fas fa-xmark"></i> Reject</button>` : `<button type="button" class="lr-action-btn review" onclick="approveLeaveRequest('${userId}', '${requestId}')" title="Re-approve request"><i class="fas fa-rotate"></i><span class="sr-only">Re-approve</span></button><button type="button" class="lr-action-btn review" onclick="rejectLeaveRequest('${userId}', '${requestId}')" title="Reject request"><i class="fas fa-ban"></i><span class="sr-only">Reject</span></button>`}<button type="button" class="lr-action-btn delete" onclick="deleteLeaveRequest('${userId}', '${requestId}')" title="Delete request"><i class="fas fa-trash"></i><span class="sr-only">Delete</span></button></div></footer>
+        </article>`;
+    }).join('')}</div>`;
+    listContainers.forEach(container => { container.innerHTML = html; });
 }
-
 function approveLeaveRequest(userId, requestId) {
     if (!userId || !requestId) return;
     const req = (window.allLeaveRequests || []).find(r => r.userId === userId && r.requestId === requestId);
@@ -5628,6 +5061,9 @@ document.addEventListener('DOMContentLoaded', function () {
             document.querySelectorAll('.section-template').forEach(template => {
                 template.classList.add('hidden');
             });
+            // Keep the content wrapper as the single vertical scroll owner and
+            // start each newly selected panel at its own top edge.
+            contentWrapper.scrollTop = 0;
 
             // Remove active class from all menu items
             sidebarMenuItems.forEach(mi => mi.classList.remove('active'));
@@ -5640,6 +5076,16 @@ document.addEventListener('DOMContentLoaded', function () {
             existingActiveSections.forEach(activeSection => {
                 if (activeSection.parentNode === contentWrapper) {
                     contentWrapper.removeChild(activeSection);
+                    const sourceTemplate = activeSection.__sourceTemplate;
+                    const sourceParent = activeSection.__sourceTemplateParent;
+                    const sourceNextSibling = activeSection.__sourceTemplateNextSibling;
+                    if (sourceTemplate && sourceParent) {
+                        if (sourceNextSibling && sourceNextSibling.parentNode === sourceParent) {
+                            sourceParent.insertBefore(sourceTemplate, sourceNextSibling);
+                        } else {
+                            sourceParent.appendChild(sourceTemplate);
+                        }
+                    }
                 }
             });
 
@@ -5662,6 +5108,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 const clonedTemplate = templateToShow.cloneNode(true);
                 clonedTemplate.classList.remove('hidden');
                 clonedTemplate.id = `${section}-section-active`;
+                clonedTemplate.__sourceTemplate = templateToShow;
+                clonedTemplate.__sourceTemplateParent = templateToShow.parentNode;
+                clonedTemplate.__sourceTemplateNextSibling = templateToShow.nextSibling;
+                templateToShow.remove();
                 currentContentWrapper.appendChild(clonedTemplate);
                 window.AdminPanelAPI?.mount(section, clonedTemplate);
 
@@ -5672,9 +5122,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Initialize section specific functionality with safe error boundary
                 try {
-                    if (section === 'recent-logins') {
-                        initRecentLogins();
-                    } else if (section === 'manage-account') {
+                    if (section === 'manage-account') {
                         initManageAccountSection();
                     } else if (section === 'manage-admins') {
                         initManageAdmins();
@@ -5685,141 +5133,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     } else if (section === 'leave-requests') {
                         initLeaveRequestsSection();
                     } else if (section === 'blocked-users') {
-                        initBlockedUsers();
+                        initBlockedUsers(clonedTemplate);
                     } else if (section === 'download-limit') {
                         initDownloadLimitSection();
                     } else if (section === 'device-locks') {
                         initDeviceLocksSection();
-                    } else if (section === 'attendance-modification' || section === 'attendance-modification-section') {
-                        setTimeout(() => {
-                            try { initAttendanceModification(); } catch(e) { console.error('Attendance modification init error:', e); }
-                        }, 100);
-                    } else if (section === 'student-details') {
-                    // Initialize student details section with a delay to ensure DOM is ready
-                    setTimeout(() => {
-                        const searchInput = document.querySelector('#student-details-section-active #student-search-input');
-                        const searchButton = document.querySelector('#student-details-section-active #search-student-btn');
-                        const detailsContainer = document.querySelector('#student-details-section-active #student-details-container');
-                        const suggestionsContainer = document.querySelector('#student-details-section-active #search-suggestions');
 
-                        if (!searchInput || !searchButton || !detailsContainer || !suggestionsContainer) {
-                            console.error("Required elements not found for student details section");
-                            return;
-                        }
-
-                        let allStudents = [];
-
-                        // Show loading state
-                        detailsContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading students data...</div>';
-
-                        // Load all students
-                        const db = firebase.database();
-                        const usersRef = db.ref('users');
-
-                        usersRef.orderByChild('role').equalTo('student').once('value')
-                            .then((snapshot) => {
-                                if (snapshot.exists()) {
-                                    snapshot.forEach((childSnapshot) => {
-                                        const student = childSnapshot.val();
-                                        student.id = childSnapshot.key;
-                                        allStudents.push(student);
-                                    });
-                                    console.log(`Loaded ${allStudents.length} students`);
-                                    detailsContainer.innerHTML = '<div class="empty-state">Enter a search term to find students</div>';
-
-                                    // Add search functionality
-                                    searchInput.addEventListener('input', () => {
-                                        const searchTerm = searchInput.value.toLowerCase().trim();
-                                        if (!searchTerm) {
-                                            suggestionsContainer.style.display = 'none';
-                                            return;
-                                        }
-
-                                        const matches = allStudents.filter(student => {
-                                            return (
-                                                (student.name && student.name.toLowerCase().includes(searchTerm)) ||
-                                                (student.email && student.email.toLowerCase().includes(searchTerm)) ||
-                                                (student.classRoll && student.classRoll.toString().includes(searchTerm)) ||
-                                                (student.univRoll && student.univRoll.toString().includes(searchTerm))
-                                            );
-                                        }).slice(0, 5);
-
-                                        if (matches.length === 0) {
-                                            suggestionsContainer.style.display = 'none';
-                                            return;
-                                        }
-
-                                        const html = matches.map(student => `
-                                                <div class="suggestion-item" data-student-id="${student.id}">
-                                                    <div class="suggestion-details">
-                                                        <div class="suggestion-name">${student.name || 'Unknown Name'}</div>
-                                                        <div class="suggestion-roll">
-                                                            ${student.classRoll ? `Roll: ${student.classRoll}` : ''}
-                            </div>
-                            </div>
-                                                    <div class="suggestion-email">${student.email}</div>
-                        </div>
-                                            `).join('');
-
-                                        suggestionsContainer.innerHTML = html;
-                                        suggestionsContainer.style.display = 'block';
-                                    });
-
-                                    // Handle search button click
-                                    searchButton.addEventListener('click', () => {
-                                        const searchTerm = searchInput.value.toLowerCase().trim();
-                                        if (!searchTerm) {
-                                            showMessage('Please enter a search term', 'warning');
-                                            return;
-                                        }
-
-                                        const matches = allStudents.filter(student => {
-                                            return (
-                                                (student.name && student.name.toLowerCase().includes(searchTerm)) ||
-                                                (student.email && student.email.toLowerCase().includes(searchTerm)) ||
-                                                (student.classRoll && student.classRoll.toString().includes(searchTerm)) ||
-                                                (student.univRoll && student.univRoll.toString().includes(searchTerm))
-                                            );
-                                        });
-
-                                        if (matches.length === 0) {
-                                            detailsContainer.innerHTML = '<div class="empty-state">No students found matching your search</div>';
-                                            return;
-                                        }
-
-                                        displayStudentDetails(matches[0]);
-                                        suggestionsContainer.style.display = 'none';
-                                    });
-
-                                    // Handle suggestion clicks
-                                    suggestionsContainer.addEventListener('click', (e) => {
-                                        const suggestionItem = e.target.closest('.suggestion-item');
-                                        if (suggestionItem) {
-                                            const studentId = suggestionItem.dataset.studentId;
-                                            const student = allStudents.find(s => s.id === studentId);
-                                            if (student) {
-                                                searchInput.value = student.name || student.email;
-                                                displayStudentDetails(student);
-                                                suggestionsContainer.style.display = 'none';
-                                            }
-                                        }
-                                    });
-
-                                    // Handle Enter key
-                                    searchInput.addEventListener('keyup', (e) => {
-                                        if (e.key === 'Enter') {
-                                            searchButton.click();
-                                        }
-                                    });
-                                } else {
-                                    detailsContainer.innerHTML = '<div class="empty-state">No students found in the database</div>';
-                                }
-                            })
-                            .catch((error) => {
-                                console.error('Error loading students:', error);
-                                detailsContainer.innerHTML = `<div class="error-message">Error loading students: ${error.message}</div>`;
-                            });
-                    }, 100);
                 }
             } catch (initErr) {
                 console.error(`Error initializing section ${section}:`, initErr);
@@ -5869,34 +5188,6 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("Current device type:", currentDeviceType);
     }
 });
-
-// Page loader handling
-window.addEventListener('load', function () {
-    const loader = document.getElementById('page-loader');
-    // Add a small delay to ensure all resources are loaded and rendered
-    setTimeout(function () {
-        loader.classList.add('loader-hidden');
-        // Remove loader from DOM after animation completes
-        setTimeout(function () {
-            if (loader.parentNode) {
-                loader.parentNode.removeChild(loader);
-            }
-        }, 500);
-    }, 800);
-});
-// Helper function to get time ago for password reset requests
-function getTimeAgo(timestamp) {
-    const now = Date.now();
-    const diff = now - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-    if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-    return 'Just now';
-}
 
 // Simple selectStudents function for general use
 function selectStudents() {

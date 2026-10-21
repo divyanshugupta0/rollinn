@@ -183,11 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
             profile = { ...profile, ...updates };
             populate();
             if (photoInput) photoInput.value = '';
-            document.querySelectorAll('#teacherInfo,#attendanceTeacherInfo,#classesTeacherInfo,#reportsTeacherInfo,#settingsTeacherInfo').forEach(element => {
-                const icon = document.createElement('i');
-                icon.className = 'fas fa-user-tie';
-                element.replaceChildren(icon, document.createTextNode(` Teacher: ${name}`));
-            });
+            window.updateTeacherHeaderName?.(name);
             const sidebarName = document.getElementById('sidebarUserName');
             if (sidebarName) sidebarName.textContent = name;
             if (typeof window.updateSidebarTeacherProfile === 'function') {

@@ -947,8 +947,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const popup = document.getElementById('attendancePopup');
         if (!popup) return;
         popup.style.display = 'flex';
+        popup.classList.add('ap-school-mode');
+        document.body.classList.add('teacher-school-mode');
 
         // Update popup titles
+        const popupTitle = document.getElementById('attendancePopupTitle');
+        if (popupTitle) {
+            popupTitle.innerHTML = `<i class="fas fa-school" style="margin-right:6px;color:#a7f3d0;"></i> ${escapeHtml(card.name)} <span style="font-size:12px;font-weight:500;opacity:0.85;margin-left:6px;">Section: ${escapeHtml(card.section || 'A')}</span>`;
+        }
         const popupName = document.getElementById('popupClassName');
         if (popupName) popupName.textContent = card.name;
         const popupLoc = document.getElementById('popupClassLocation');
@@ -981,7 +987,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const submitBtn = document.getElementById('submitAttendancePopupBtn');
         const attendanceSummary = document.getElementById('attendanceSummary');
 
-        if (loadingAnimation) loadingAnimation.classList.add('active');
+        if (loadingAnimation) {
+            loadingAnimation.classList.add('active');
+            loadingAnimation.style.display = 'flex';
+        }
         if (popupStudentList) popupStudentList.style.display = 'none';
         if (attendanceSummary) attendanceSummary.style.display = 'none';
 
@@ -1008,10 +1017,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
 
+            // Sort students ascending by Roll Number (numeric first, then alphanumeric)
+            const parseRollNumber = (item) => {
+                const raw = item?.classRoll ?? item?.rollNo ?? item?.roll ?? '';
+                const str = String(raw).trim();
+                const num = parseInt(str.replace(/\D+/g, ''), 10);
+                return {
+                    num: isNaN(num) ? Infinity : num,
+                    str: str.toLowerCase()
+                };
+            };
+
             students.sort((a, b) => {
-                const rollA = a.classRoll || a.rollNo || a.roll || '';
-                const rollB = b.classRoll || b.rollNo || b.roll || '';
-                if (rollA && rollB) return String(rollA).localeCompare(String(rollB), undefined, { numeric: true });
+                const pa = parseRollNumber(a);
+                const pb = parseRollNumber(b);
+                if (pa.num !== pb.num) return pa.num - pb.num;
+                if (pa.str && pb.str) return pa.str.localeCompare(pb.str, undefined, { numeric: true, sensitivity: 'base' });
                 return (a.name || a.email || '').localeCompare(b.name || b.email || '');
             });
 
@@ -1031,15 +1052,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             attendanceData = {};
+            let studentHistory = {};
 
-            if (fromDraft && localDraft) {
-                Object.keys(localDraft).forEach(k => {
-                    if (k && k !== 'undefined' && k !== 'null' && !k.startsWith('_')) attendanceData[k] = localDraft[k];
-                });
-            } else {
-                // Check Firebase submitted attendance
-                const attSnap = await firebase.database().ref(`attendance_by_location/${card.id}/${selectedDate}`).once('value');
-                if (attSnap.exists()) {
+            try {
+                // Fetch today's attendance AND full class attendance history in parallel
+                const [attSnap, classAllSnap] = await Promise.all([
+                    firebase.database().ref(`attendance_by_location/${card.id}/${selectedDate}`).once('value'),
+                    firebase.database().ref(`attendance_by_location/${card.id}`).once('value')
+                ]);
+
+                if (fromDraft && localDraft) {
+                    Object.keys(localDraft).forEach(k => {
+                        if (k && k !== 'undefined' && k !== 'null' && !k.startsWith('_')) attendanceData[k] = localDraft[k];
+                    });
+                } else if (attSnap.exists()) {
                     const existing = attSnap.val() || {};
                     Object.keys(existing).forEach(k => {
                         if (k && k !== '_meta' && k !== 'undefined' && k !== 'null' && typeof existing[k] === 'string') {
@@ -1047,15 +1073,49 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                 }
+
+                // Compute historical baseline (excluding currently selected date so live selection adds to baseline)
+                if (classAllSnap && classAllSnap.exists()) {
+                    const allData = classAllSnap.val() || {};
+                    Object.keys(allData).forEach(dateKey => {
+                        if (dateKey === '_meta' || dateKey === selectedDate) return;
+                        const dayVal = allData[dateKey];
+                        if (!dayVal || typeof dayVal !== 'object') return;
+
+                        // Verify that attendance was actually recorded for this date
+                        const hasMarks = Object.keys(dayVal).some(k => !k.startsWith('_') && typeof dayVal[k] === 'string');
+                        if (!hasMarks) return;
+
+                        students.forEach(st => {
+                            if (!studentHistory[st.id]) studentHistory[st.id] = { present: 0, total: 0 };
+                            const rec = dayVal[st.id + '_record'] || {};
+                            const stStatus = String(rec.status || dayVal[st.id] || '').toLowerCase();
+                            if (['present', 'late', 'onduty'].includes(stStatus)) {
+                                studentHistory[st.id].present++;
+                                studentHistory[st.id].total++;
+                            } else if (stStatus === 'absent') {
+                                studentHistory[st.id].total++;
+                            }
+                        });
+                    });
+                }
+            } catch (fetchErr) {
+                console.warn('Error reading attendance records:', fetchErr);
             }
 
-            if (loadingAnimation) loadingAnimation.classList.remove('active');
+            if (loadingAnimation) {
+                loadingAnimation.classList.remove('active');
+                loadingAnimation.style.display = 'none';
+            }
 
-            window.renderSchoolRosterTable(students, attendanceData, draftKey, editable, fromDraft);
+            window.renderSchoolRosterTable(students, attendanceData, draftKey, editable, fromDraft, studentHistory);
 
         } catch (err) {
             console.error('Error loading attendance sheet:', err);
-            if (loadingAnimation) loadingAnimation.classList.remove('active');
+            if (loadingAnimation) {
+                loadingAnimation.classList.remove('active');
+                loadingAnimation.style.display = 'none';
+            }
             if (popupStudentList) {
                 popupStudentList.style.display = 'block';
                 popupStudentList.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Error: ${err.message}</p></div>`;
@@ -1064,14 +1124,14 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     // Render Student Table for School Mode
-    window.renderSchoolRosterTable = function(studentsList, attData, draftKey, editable = true, fromDraft = false) {
+    window.renderSchoolRosterTable = function(studentsList, attData, draftKey, editable = true, fromDraft = false, studentHistory = {}) {
         const popupStudentList = document.getElementById('popupStudentList');
         const submitBtn = document.getElementById('submitAttendancePopupBtn');
         if (!popupStudentList) return;
 
         popupStudentList.style.display = 'block';
 
-        if (studentsList.length === 0) {
+        if (!studentsList || studentsList.length === 0) {
             popupStudentList.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-user-slash"></i>
@@ -1082,50 +1142,105 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Live calculation of currently running attendance for each student
+        const computeRunningAtt = (studentId, currentStatus) => {
+            const hist = (studentHistory && studentHistory[studentId]) || { present: 0, total: 0 };
+            let p = hist.present || 0;
+            let t = hist.total || 0;
+
+            if (currentStatus === 'present') {
+                p += 1;
+                t += 1;
+            } else if (currentStatus === 'absent') {
+                t += 1;
+            }
+
+            if (t === 0) {
+                return {
+                    pct: null,
+                    html: `<div class="running-att-wrap"><span class="running-att-badge att-neutral">—</span><small class="running-att-count">No sessions</small></div>`
+                };
+            }
+
+            const pct = Math.round((p / t) * 100);
+            const badgeClass = pct >= 75 ? 'att-good' : pct >= 60 ? 'att-warn' : 'att-danger';
+            return {
+                pct,
+                html: `<div class="running-att-wrap"><span class="running-att-badge ${badgeClass}">${pct}%</span><small class="running-att-count">${p}/${t} attended</small></div>`
+            };
+        };
+
+        // Ascending numeric/alphanumeric sort by Roll Number
+        const getRollVal = (st) => {
+            const raw = st?.classRoll ?? st?.rollNo ?? st?.roll ?? '';
+            const str = String(raw).trim();
+            const num = parseInt(str.replace(/\D+/g, ''), 10);
+            return {
+                num: isNaN(num) ? Infinity : num,
+                str: str.toLowerCase()
+            };
+        };
+
+        studentsList.sort((a, b) => {
+            const pa = getRollVal(a);
+            const pb = getRollVal(b);
+            if (pa.num !== pb.num) return pa.num - pb.num;
+            if (pa.str && pb.str) return pa.str.localeCompare(pb.str, undefined, { numeric: true, sensitivity: 'base' });
+            return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), undefined, { numeric: true, sensitivity: 'base' });
+        });
+
         let tableHtml = `
-            ${fromDraft ? '<div class="alert alert-info" style="display:flex;align-items:center;gap:8px;padding:8px 14px;margin-bottom:12px;background:#e8f4fd;color:#0c5460;border-radius:8px;font-size:13px;"><i class="fas fa-info-circle"></i> Restored unsaved attendance draft from your device.</div>' : ''}
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:6px 0;flex-wrap:wrap;gap:10px;">
-                <div style="font-weight:700;font-size:15px;color:#26372e;"><i class="fas fa-user-graduate" style="color:#176b4d;margin-right:6px;"></i> Students (${studentsList.length})</div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button type="button" id="markAllPresentBtn" class="secondary-btn" style="padding:6px 12px;font-size:12px;background:#e8f5e9;color:#1b5e20;border-color:#c8e6c9;"><i class="fas fa-check-double"></i> All Present</button>
-                    <button type="button" id="markAllAbsentBtn" class="secondary-btn" style="padding:6px 12px;font-size:12px;background:#ffebee;color:#b71c1c;border-color:#ffcdd2;"><i class="fas fa-times"></i> All Absent</button>
-                    <button type="button" id="clearAllDraftBtn" class="secondary-btn" style="padding:6px 12px;font-size:12px;color:#d9534f;"><i class="fas fa-trash-alt"></i> Clear Draft</button>
+            ${fromDraft ? '<div class="alert alert-info" style="display:flex;align-items:center;gap:8px;padding:8px 14px;margin-bottom:10px;background:#e8f4fd;color:#0c5460;border-radius:8px;font-size:12.5px;"><i class="fas fa-info-circle"></i> Restored unsaved attendance draft from your device.</div>' : ''}
+            <div class="school-roster-topbar" style="display:flex;justify-content:space-between;align-items:center;padding:10px 24px;background:#f9fbf9;border-bottom:1px solid #e5ede7;flex-wrap:nowrap;gap:12px;">
+                <div style="font-weight:700;font-size:13.5px;color:#1e3d2b;white-space:nowrap;flex-shrink:0;">
+                    <i class="fas fa-user-graduate" style="color:#15803d;margin-right:6px;"></i> Students Enrolled: 
+                    <span class="badge" style="background:#e8f5ec;color:#15803d;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:700;">${studentsList.length}</span>
+                </div>
+                <div class="school-roster-actions" style="display:inline-flex !important;flex-direction:row !important;flex-wrap:nowrap !important;align-items:center !important;gap:8px !important;flex-shrink:0;">
+                    <button type="button" id="markAllPresentBtn" class="secondary-btn" style="width:auto !important;flex:0 0 auto !important;white-space:nowrap !important;margin:0 !important;padding:6px 14px;font-size:12px;font-weight:700;background:#ecfdf5;color:#15803d;border:1.5px solid #86efac;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="fas fa-check-double"></i> All Present</button>
+                    <button type="button" id="markAllAbsentBtn" class="secondary-btn" style="width:auto !important;flex:0 0 auto !important;white-space:nowrap !important;margin:0 !important;padding:6px 14px;font-size:12px;font-weight:700;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="fas fa-times"></i> All Absent</button>
+                    <button type="button" id="clearAllDraftBtn" class="secondary-btn" style="width:auto !important;flex:0 0 auto !important;white-space:nowrap !important;margin:0 !important;padding:6px 12px;font-size:12px;font-weight:600;color:#dc2626;background:#fff;border:1px solid #fca5a5;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="fas fa-trash-alt"></i> Clear</button>
                 </div>
             </div>
             <div class="table-responsive" style="overflow-x:auto;">
-                <table class="attendance-table" style="width:100%;border-collapse:collapse;">
+                <table class="attendance-table" style="width:100%;border-collapse:collapse;table-layout:fixed;min-width:540px;">
                     <thead>
-                        <tr style="background:#f4f6f8;border-bottom:2px solid #e1e4e8;text-align:left;">
-                            <th style="padding:12px;width:50px;">#</th>
-                            <th style="padding:12px;">Student Name</th>
-                            <th style="padding:12px;width:120px;">Roll No</th>
-                            <th style="padding:12px;text-align:center;width:230px;">Attendance Status</th>
+                        <tr style="background:#f4f7f5;border-bottom:2px solid #d9e5dc;text-align:left;">
+                            <th class="st-roll-header" style="padding:11px 14px 11px 20px;width:95px;text-align:center;">Roll No</th>
+                            <th class="st-name-header" style="padding:11px 16px;text-align:left;">Student Name</th>
+                            <th class="st-running-header" style="padding:11px 10px;width:150px;text-align:center;">Running Att.</th>
+                            <th class="st-actions-header" style="padding:11px 28px 11px 12px;width:270px;text-align:center;">Attendance Status</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
 
         studentsList.forEach((st, idx) => {
-            const roll = st.classRoll || st.rollNo || st.roll || (idx + 1);
+            const rawRoll = st.classRoll || st.rollNo || st.roll || (idx + 1);
+            const cleanRoll = String(rawRoll).trim();
             const name = st.name || st.email || `Student ${idx + 1}`;
             const currentStatus = attData[st.id] || '';
 
             tableHtml += `
-                <tr class="student-row" data-student-id="${st.id}" style="border-bottom:1px solid #edf1ee;">
-                    <td style="padding:12px;color:#666;font-size:13px;">${idx + 1}</td>
-                    <td style="padding:12px;">
-                        <div style="font-weight:650;color:#222;font-size:14px;">${escapeHtml(name)}</div>
-                        ${st.email ? `<small style="color:#888;font-size:12px;">${escapeHtml(st.email)}</small>` : ''}
+                <tr class="student-row ${currentStatus === 'present' ? 'is-present' : currentStatus === 'absent' ? 'is-absent' : ''}" data-student-id="${st.id}">
+                    <td class="st-roll-cell" style="width:95px;text-align:center;padding:10px 14px 10px 20px;vertical-align:middle;">
+                        <span class="st-roll-badge" style="display:inline-block;padding:4px 10px;border-radius:6px;background:#eef6f1;color:#166534;font-weight:700;font-size:13px;border:1px solid #bbf7d0;">${escapeHtml(cleanRoll)}</span>
                     </td>
-                    <td style="padding:12px;color:#555;font-weight:600;font-size:13px;">${escapeHtml(roll)}</td>
-                    <td style="padding:12px;text-align:center;">
-                        <div class="attendance-buttons" style="display:inline-flex;gap:8px;">
+                    <td class="st-name-cell" style="padding:10px 16px;text-align:left;vertical-align:middle;">
+                        <div class="st-name" style="font-weight:700;color:#111827;font-size:14px;line-height:1.25;">${escapeHtml(name)}</div>
+                        ${st.email ? `<small style="color:#6b7280;font-size:12px;display:block;margin-top:2px;">${escapeHtml(st.email)}</small>` : ''}
+                    </td>
+                    <td class="st-running-cell" id="runningAtt_${st.id}" style="width:150px;text-align:center;padding:10px 10px;vertical-align:middle;">
+                        ${computeRunningAtt(st.id, currentStatus).html}
+                    </td>
+                    <td class="st-actions-cell" style="width:270px;text-align:center;padding:10px 28px 10px 12px;vertical-align:middle;">
+                        <div class="attendance-buttons" style="display:inline-flex;gap:8px;justify-content:center;">
                             <button type="button" class="attendance-btn present-btn ${currentStatus === 'present' ? 'active' : ''}" 
-                                data-student-id="${st.id}" data-status="present" style="min-width:85px;padding:6px 12px;cursor:pointer;border-radius:6px;">
+                                data-student-id="${st.id}" data-status="present">
                                 <i class="fas fa-check"></i> Present
                             </button>
                             <button type="button" class="attendance-btn absent-btn ${currentStatus === 'absent' ? 'active' : ''}" 
-                                data-student-id="${st.id}" data-status="absent" style="min-width:85px;padding:6px 12px;cursor:pointer;border-radius:6px;">
+                                data-student-id="${st.id}" data-status="absent">
                                 <i class="fas fa-times"></i> Absent
                             </button>
                         </div>
@@ -1158,7 +1273,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         };
 
-        // Event delegation for marking Present/Absent
+        // Event delegation for marking Present/Absent with instant running attendance update
         popupStudentList.onclick = function(e) {
             const btn = e.target.closest('.attendance-btn');
             if (!btn) return;
@@ -1177,6 +1292,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         b.classList.remove('active');
                     }
                 });
+                row.classList.toggle('is-present', status === 'present');
+                row.classList.toggle('is-absent', status === 'absent');
+            }
+
+            // Live update of Running Attendance column
+            const runningCell = document.getElementById(`runningAtt_${studentId}`);
+            if (runningCell) {
+                runningCell.innerHTML = computeRunningAtt(studentId, status).html;
             }
 
             // ONLY local storage - NO DATABASE CALL!
@@ -1189,11 +1312,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 const sid = st?.id || st?.uid;
                 if (sid && sid !== 'undefined' && sid !== 'null' && String(sid).trim()) {
                     attendanceData[sid] = 'present';
+                    const cell = document.getElementById(`runningAtt_${sid}`);
+                    if (cell) cell.innerHTML = computeRunningAtt(sid, 'present').html;
                 }
             });
             popupStudentList.querySelectorAll('.student-row').forEach(row => {
                 row.querySelector('.present-btn')?.classList.add('active');
                 row.querySelector('.absent-btn')?.classList.remove('active');
+                row.classList.add('is-present');
+                row.classList.remove('is-absent');
             });
             persistDraft();
         });
@@ -1204,22 +1331,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 const sid = st?.id || st?.uid;
                 if (sid && sid !== 'undefined' && sid !== 'null' && String(sid).trim()) {
                     attendanceData[sid] = 'absent';
+                    const cell = document.getElementById(`runningAtt_${sid}`);
+                    if (cell) cell.innerHTML = computeRunningAtt(sid, 'absent').html;
                 }
             });
             popupStudentList.querySelectorAll('.student-row').forEach(row => {
                 row.querySelector('.absent-btn')?.classList.add('active');
                 row.querySelector('.present-btn')?.classList.remove('active');
+                row.classList.add('is-absent');
+                row.classList.remove('is-present');
             });
             persistDraft();
         });
 
-        // Clear local draft
+        // Clear all draft
         document.getElementById('clearAllDraftBtn')?.addEventListener('click', () => {
-            if (confirm('Clear local draft attendance for this class?')) {
-                attendanceData = {};
-                try { localStorage.removeItem(draftKey); } catch (e) {}
-                popupStudentList.querySelectorAll('.attendance-btn').forEach(b => b.classList.remove('active'));
-            }
+            if (!confirm('Clear all attendance selections and local draft for this class?')) return;
+            attendanceData = {};
+            try { localStorage.removeItem(draftKey); } catch (e) {}
+            studentsList.forEach(st => {
+                const sid = st?.id || st?.uid;
+                if (sid) {
+                    const cell = document.getElementById(`runningAtt_${sid}`);
+                    if (cell) cell.innerHTML = computeRunningAtt(sid, '').html;
+                }
+            });
+            popupStudentList.querySelectorAll('.student-row').forEach(row => {
+                row.querySelectorAll('.attendance-btn').forEach(b => b.classList.remove('active'));
+                row.classList.remove('is-present', 'is-absent');
+            });
         });
     };
 

@@ -146,7 +146,7 @@
                             list.innerHTML = '<div class="alert alert-light">No pending administrator update requests.</div>';
                             return;
                         }
-                        list.innerHTML = requests.sort((a, b) => b.timestamp - a.timestamp).map(request => `<div class="card mb-3"><div class="card-body"><div class="d-flex justify-content-between gap-3 flex-wrap"><div><h3 class="h6 mb-1">${escapeHtml(request.userName || request.userEmail)}</h3><p class="text-muted mb-2">${escapeHtml(request.userEmail || '')}</p><p class="mb-1"><strong>Name:</strong> ${escapeHtml(request.currentData?.name || 'Not set')} &rarr; ${escapeHtml(request.requestedData?.name || '')}</p><small class="text-muted">${new Date(request.timestamp).toLocaleString()}</small></div><div class="d-flex gap-2 align-items-start"><button type="button" class="btn btn-success approve-admin-request" data-request-id="${request.id}" data-user-id="${request.userId}">Approve</button><button type="button" class="btn btn-outline-danger reject-admin-request" data-request-id="${request.id}">Reject</button></div></div></div></div>`).join('');
+                        list.innerHTML = requests.sort((a, b) => b.timestamp - a.timestamp).map(request => `<div class="card mb-3"><div class="card-body"><div class="d-flex justify-content-between gap-3 flex-wrap"><div><h3 class="h6 mb-1">${escapeHtml(request.userName || request.userEmail)}</h3><p class="text-muted mb-2">${escapeHtml(request.userEmail || '')}</p>${renderAdminProfileChanges(request)}<small class="text-muted">${new Date(request.timestamp).toLocaleString()}</small></div><div class="d-flex gap-2 align-items-start"><button type="button" class="btn btn-success approve-admin-request" data-request-id="${request.id}" data-user-id="${request.userId}">Approve</button><button type="button" class="btn btn-outline-danger reject-admin-request" data-request-id="${request.id}">Reject</button></div></div></div></div>`).join('');
                         list.querySelectorAll('.approve-admin-request').forEach(button => button.addEventListener('click', () => review(requests.find(request => request.id === button.dataset.requestId), true)));
                         list.querySelectorAll('.reject-admin-request').forEach(button => button.addEventListener('click', () => review(requests.find(request => request.id === button.dataset.requestId), false)));
                     } catch (error) {
@@ -216,7 +216,7 @@
                     const data = child.val() || {};
                     if (data.ownerId === ownerUid && data.requestType === 'Administrator Profile Update' && data.status === 'pending') requests.push({ id: child.key, ...data });
                 });
-                list.innerHTML = requests.length ? requests.map(request => `<div class="card mb-3"><div class="card-body d-flex justify-content-between gap-3 flex-wrap"><div><strong>${escapeHtml(request.userName || request.userEmail)}</strong><div>${escapeHtml(request.currentData?.name || 'Not set')} &rarr; ${escapeHtml(request.requestedData?.name || '')}</div><small class="text-muted">${new Date(request.timestamp).toLocaleString()}</small></div><div><button type="button" class="btn btn-success approve-admin-request" data-id="${request.id}">Approve</button> <button type="button" class="btn btn-outline-danger reject-admin-request" data-id="${request.id}">Reject</button></div></div></div>`).join('') : '<div class="alert alert-light">No pending administrator update requests.</div>';
+                list.innerHTML = requests.length ? requests.map(request => `<div class="card mb-3"><div class="card-body d-flex justify-content-between gap-3 flex-wrap"><div><strong>${escapeHtml(request.userName || request.userEmail)}</strong><div>${renderAdminProfileChanges(request)}</div><small class="text-muted">${new Date(request.timestamp).toLocaleString()}</small></div><div><button type="button" class="btn btn-success approve-admin-request" data-id="${request.id}">Approve</button> <button type="button" class="btn btn-outline-danger reject-admin-request" data-id="${request.id}">Reject</button></div></div></div>`).join('') : '<div class="alert alert-light">No pending administrator update requests.</div>';
                 list.querySelectorAll('.approve-admin-request,.reject-admin-request').forEach(button => button.addEventListener('click', async () => {
                     const request = requests.find(item => item.id === button.dataset.id);
                     if (!request) return;
@@ -258,7 +258,7 @@
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
                         <h2><i class="fas fa-rotate"></i> Re-subscription requests</h2>
-                        <p class="text-muted mb-0">Staff requests are listed here. Renew the institution plan separately to restore portal access.</p>
+                        <p class="text-muted mb-0">Choose a main plan, add optional capacity top-ups, and renew the institution from its request.</p>
                     </div>
                     <button type="button" class="btn btn-outline-secondary" id="refresh-subscription-requests"><i class="fas fa-sync"></i> Refresh</button>
                 </div>
@@ -290,14 +290,20 @@
                     list.innerHTML = '<div class="alert alert-light">No pending re-subscription requests.</div>';
                     return;
                 }
-                list.innerHTML = requests.map(request => {
+                const mainPlans = pricingPlans.filter(plan => plan.active !== false && plan.type !== 'topup');
+                const topupPlans = pricingPlans.filter(plan => plan.active !== false && plan.type === 'topup');
+                list.innerHTML = requests.map((request, index) => {
                     const plan = request.requestedPlan;
                     const planSummary = plan?.name
                         ? `${plan.name} · ${plan.currency || 'INR'} ${Number(plan.price || 0).toLocaleString()} · ${Number(plan.durationMonths || 0)} months · ${Number(plan.studentCapacity || 0).toLocaleString()} student records · ${Number(plan.teacherCapacity || 0).toLocaleString()} teacher accounts`
                         : 'No plan selected (legacy request)';
+                    const selectedPlanId = mainPlans.some(item => item.id === plan?.id) ? plan.id : mainPlans[0]?.id;
+                    const planOptions = mainPlans.map(item => `<option value="${escapeAttr(item.id)}" ${item.id === selectedPlanId ? 'selected' : ''}>${escapeHtml(item.name || 'Plan')} · ${escapeHtml(item.currency || 'INR')} ${Number(item.price || 0).toLocaleString()} · ${Number(item.durationMonths || 0)} months</option>`).join('');
+                    const topupOptions = topupPlans.length ? topupPlans.map(item => `<label class="d-flex justify-content-between align-items-center gap-2 border rounded p-2"><span>${escapeHtml(item.name || 'Top-up')} <small class="text-muted">${Number(item.studentCapacity || 0)} students · ${Number(item.teacherCapacity || 0)} teachers · ${escapeHtml(item.currency || 'INR')} ${Number(item.price || 0).toLocaleString()} each</small></span><input type="number" class="form-control form-control-sm request-topup-quantity" data-topup-id="${escapeAttr(item.id)}" min="0" max="99" step="1" value="0" aria-label="${escapeAttr(item.name || 'Top-up')} quantity" style="width:88px"></label>`).join('') : '<p class="text-muted mb-0">No active top-ups.</p>';
                     return `
-                        <article class="card mb-3">
-                            <div class="card-body d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                        <article class="card mb-3" data-request-index="${index}">
+                            <div class="card-body">
+                              <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
                                 <div>
                                     <h3 class="h6 mb-1">${escapeHtml(request.schoolName || 'Institution')}</h3>
                                     <p class="text-muted mb-2">${escapeHtml(request.schoolCode || request.schoolId || '')} · ${escapeHtml(request.requesterRole || 'Staff')} · ${escapeHtml(request.requesterName || 'Staff member')} (${escapeHtml(request.requesterEmail || '')})</p>
@@ -308,12 +314,37 @@
                                     <button type="button" class="btn btn-outline-primary open-request-subscription" data-school-id="${escapeHtml(request.schoolId)}">Open subscription</button>
                                     <button type="button" class="btn btn-success mark-subscription-request-reviewed" data-school-id="${escapeHtml(request.schoolId)}" data-requester-uid="${escapeHtml(request.requesterUid)}">Mark reviewed</button>
                                 </div>
+                              </div>
+                              <div class="row g-3 mt-1">
+                                <div class="col-12"><label class="form-label" for="request-main-plan-${index}">Main plan</label><select id="request-main-plan-${index}" class="form-select request-main-plan" ${mainPlans.length ? '' : 'disabled'}>${planOptions || '<option value="">No active main plans</option>'}</select></div>
+                                <div class="col-12"><div class="small fw-semibold mb-2">Optional top-ups (quantity)</div><div class="d-grid gap-2">${topupOptions}</div></div>
+                                <div class="col-12"><button type="button" class="btn btn-primary fulfill-subscription-request" ${mainPlans.length ? '' : 'disabled'}>Apply plan and top-ups</button></div>
+                              </div>
                             </div>
                         </article>`;
                 }).join('');
 
                 list.querySelectorAll('.open-request-subscription').forEach(button => {
                     button.addEventListener('click', () => switchSection('owner-pricing'));
+                });
+                list.querySelectorAll('.fulfill-subscription-request').forEach(button => {
+                    button.addEventListener('click', async () => {
+                        const card = button.closest('[data-request-index]');
+                        const request = requests[Number(card?.dataset.requestIndex)];
+                        const planId = card?.querySelector('.request-main-plan')?.value;
+                        const selectedTopups = Array.from(card?.querySelectorAll('.request-topup-quantity') || []).map(input => ({ id: input.dataset.topupId, quantity: Number(input.value || 0) }));
+                        button.disabled = true;
+                        try {
+                            await fulfillSubscriptionRequest(request, planId, selectedTopups, ownerUid);
+                            notify('Subscription renewed and request fulfilled.', 'success');
+                            await refreshSchoolData();
+                            await render();
+                        } catch (error) {
+                            console.error('Could not fulfill re-subscription request:', error);
+                            notify(error.message || 'Could not renew this subscription.', 'danger');
+                            button.disabled = false;
+                        }
+                    });
                 });
                 list.querySelectorAll('.mark-subscription-request-reviewed').forEach(button => {
                     button.addEventListener('click', async () => {
@@ -342,6 +373,58 @@
 
         section.querySelector('#refresh-subscription-requests').addEventListener('click', render);
         section._renderSubscriptionRequests = render;
+
+        async function fulfillSubscriptionRequest(request, planId, selectedTopups, ownerUid) {
+            if (!request?.schoolId || !request?.requesterUid || !ownerUid) throw new Error('Request or owner session is missing. Refresh and try again.');
+            const selectedPlan = pricingPlans.find(item => item.id === planId && item.active !== false && item.type !== 'topup');
+            if (!selectedPlan) throw new Error('Select an active main plan.');
+            const startDate = new Date();
+            const endDate = new Date(startDate);
+            endDate.setMonth(endDate.getMonth() + Number(selectedPlan.durationMonths || 0));
+            if (!Number.isFinite(endDate.getTime()) || endDate <= startDate) throw new Error('The selected plan has an invalid duration.');
+
+            const topups = [];
+            for (const selection of selectedTopups || []) {
+                const quantity = Number(selection.quantity);
+                if (!Number.isInteger(quantity) || quantity < 0 || quantity > 99) throw new Error('Top-up quantities must be whole numbers from 0 to 99.');
+                const topup = pricingPlans.find(item => item.id === selection.id && item.active !== false && item.type === 'topup');
+                if (!topup && quantity) throw new Error('A selected top-up is no longer available. Refresh and try again.');
+                if (!quantity) continue;
+                for (let count = 0; count < quantity; count += 1) {
+                    const bonus = topup.bonus === true;
+                    topups.push({ planId: topup.id, name: topup.name || 'Top-up', studentCapacity: bonus && topup.bonusStudentCapacity != null ? Number(topup.bonusStudentCapacity) : Number(topup.studentCapacity || 0), teacherCapacity: bonus && topup.bonusTeacherCapacity != null ? Number(topup.bonusTeacherCapacity) : Number(topup.teacherCapacity || 0), price: bonus ? 0 : Number(topup.price || 0), listPrice: Number(topup.price || 0), currency: topup.currency || selectedPlan.currency || 'INR', bonus, startDate: startDate.toISOString(), endDate: endDate.toISOString(), assignedAt: startDate.toISOString() });
+                }
+            }
+            if (selectedPlan.bonus) topups.push(createBonusTopupEntry(selectedPlan, startDate, endDate));
+
+            const db = ownerAuth.database();
+            const requestPath = `subscriptionResubscribeRequests/${request.schoolId}/${request.requesterUid}`;
+            const [liveRequestSnapshot, schoolSnapshot] = await Promise.all([
+                db.ref(requestPath).once('value'),
+                db.ref(`schools/${request.schoolId}`).once('value')
+            ]);
+            const liveRequest = liveRequestSnapshot.val();
+            const school = schoolSnapshot.val();
+            if (!liveRequest || liveRequest.status !== 'pending' || liveRequest.ownerId !== ownerUid) throw new Error('This request is no longer pending or is not assigned to your account. Refresh the list.');
+            if (!school || school.ownerId !== ownerUid) throw new Error('You do not own this institution.');
+            const usage = schoolUserUsage[request.schoolId] || { students: 0, teachers: 0 };
+            const oldSubscription = school.subscription || {};
+            const retainedTopups = Array.isArray(oldSubscription.topups) ? oldSubscription.topups.filter(item => Date.parse(item.endDate || '') > startDate.getTime() && !item.includedWithPlan) : [];
+            const subscription = { ...oldSubscription, plan: selectedPlan.name || '', planId: selectedPlan.id, price: Number(selectedPlan.price || 0), currency: selectedPlan.currency || 'INR', durationMonths: Number(selectedPlan.durationMonths || 0), autoRenew: Boolean(selectedPlan.autoRenew), studentCapacity: Number(selectedPlan.studentCapacity || 0), teacherCapacity: Number(selectedPlan.teacherCapacity || 0), topups: [...retainedTopups, ...topups], usage: { students: usage.students, teachers: usage.teachers, updatedAt: Date.now() }, startDate: startDate.toISOString(), endDate: endDate.toISOString(), status: 'active', updatedAt: Date.now() };
+            const timestamp = Date.now();
+            const updates = {
+                [`schools/${request.schoolId}/status`]: 'Active',
+                [`schools/${request.schoolId}/subscription`]: subscription,
+                [`schools/${request.schoolId}/lastUpdated`]: startDate.toISOString(),
+                [`publicSchools/${request.schoolId}/status`]: 'Active',
+                [`publicSchools/${request.schoolId}/subscriptionEndDate`]: subscription.endDate,
+                [`publicSchools/${request.schoolId}/updatedAt`]: timestamp,
+                [`subscriptionResubscribeRequests/${request.schoolId}`]: null,
+                [`subscriptionExpiryOverlayCounts/${request.schoolId}`]: null
+            };
+            await db.ref().update(updates);
+            await ownerPath(`schools/${request.schoolId}`).update({ status: 'Active', subscription, lastUpdated: startDate.toISOString() }).catch(() => {});
+        }
     }
 
     function addManageTeachersPanel() {
@@ -765,6 +848,7 @@
             renderPricingPlans();
             renderSchoolPlanOptions();
             renderSubscriptionRows();
+            document.getElementById('owner-subscription-requests')?._renderSubscriptionRequests?.();
         } catch (error) { console.error('Unable to load pricing plans', error); }
     }
 
@@ -866,6 +950,15 @@
     }
 
     function escapeHtml(value) { return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char])); }
+    function renderAdminProfileChanges(request) {
+        const labels = { name: 'Name', username: 'Username', dob: 'Date of birth' };
+        return Object.entries(request.requestedData || {})
+            .filter(([field]) => field !== 'dateOfBirth')
+            .map(([field, value]) => {
+                const currentValue = request.currentData?.[field] || 'Not set';
+                return `<p class="mb-1"><strong>${escapeHtml(labels[field] || field)}:</strong> ${escapeHtml(currentValue)} -&gt; ${escapeHtml(value)}</p>`;
+            }).join('');
+    }
     function escapeAttr(value) { return escapeHtml(value); }
 
     function createBonusTopupEntry(plan, startDate, endDate) {
@@ -1041,7 +1134,14 @@
                     if (!school || !school.name) return;
                     const subscriptionExpired = school.subscription?.endDate && Date.parse(school.subscription.endDate) < Date.now();
                     const status = String(school.status || 'Active').toLowerCase() === 'inactive' || subscriptionExpired ? 'Inactive' : (school.status || 'Active');
-                    directoryUpdates[`publicSchools/${id}`] = { name: school.name, code: school.code || '', type: school.type || '', status, subscriptionEndDate: school.subscription?.endDate || '', updatedAt: Date.now() };
+                    // Publish directory fields as leaf updates so institution
+                    // controls such as publicSchools/{id}/registrationLive stay intact.
+                    directoryUpdates[`publicSchools/${id}/name`] = school.name;
+                    directoryUpdates[`publicSchools/${id}/code`] = school.code || '';
+                    directoryUpdates[`publicSchools/${id}/type`] = school.type || '';
+                    directoryUpdates[`publicSchools/${id}/status`] = status;
+                    directoryUpdates[`publicSchools/${id}/subscriptionEndDate`] = school.subscription?.endDate || '';
+                    directoryUpdates[`publicSchools/${id}/updatedAt`] = Date.now();
                     if (school.adminCredentials?.password) legacyPasswordRemovals[`schools/${id}/adminCredentials/password`] = null;
                 });
                 if (Object.keys(directoryUpdates).length) database.ref().update(directoryUpdates).catch(error => console.warn('Could not synchronize the public registered-school directory.', error));

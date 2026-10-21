@@ -1,7 +1,5 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null",
     "schools": {
       ".read": "auth != null",
       ".write": "auth != null",
@@ -19,12 +17,19 @@
     },
     "publicSchools": {
       ".read": true,
-      ".write": "auth != null",
       ".indexOn": [
         "code",
         "status",
         "subscriptionEndDate"
-      ]
+      ],
+      "$schoolId": {
+        ".write": "auth != null && root.child('schools').child($schoolId).child('ownerId').val() === auth.uid",
+        "registrationLive": {
+          ".read": true,
+          ".write": "auth != null && ((root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('schoolId').val() === $schoolId) || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)",
+          ".validate": "newData.isBoolean()"
+        }
+      }
     },
     "publicCourseCatalog": {
       ".read": true,
@@ -485,7 +490,34 @@
     },
     "accessibility_settings": {
       ".read": true,
-      ".write": "auth != null"
+      ".write": "auth != null",
+      "attendanceCapturing": {
+        ".validate": "newData.isBoolean()"
+      },
+      "desktopAttendanceBlocked": {
+        ".validate": "newData.isBoolean()"
+      },
+      "privacyMode": {
+        ".validate": "newData.isBoolean()"
+      },
+      "largeText": {
+        ".validate": "newData.isBoolean()"
+      },
+      "highContrast": {
+        ".validate": "newData.isBoolean()"
+      },
+      "audioNotifications": {
+        ".validate": "newData.isBoolean()"
+      },
+      "mobileOptimization": {
+        ".validate": "newData.isBoolean()"
+      },
+      "lastUpdated": {
+        ".validate": "newData.isNumber()"
+      },
+      "updatedBy": {
+        ".validate": "newData.isString()"
+      }
     },
     "cloudflare_r2": {
       ".read": "auth != null",

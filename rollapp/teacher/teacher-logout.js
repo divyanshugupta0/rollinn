@@ -17,18 +17,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Global logout function that can be called from anywhere
     window.performLogout = function() {
-        // Show loading indicator
-        const loadingOverlay = document.createElement('div');
-        loadingOverlay.className = 'loading-overlay';
-        loadingOverlay.innerHTML = `
-            <div class="loading-spinner">
-                <i class="fas fa-spinner fa-spin"></i>
-            </div>
-            <div class="loading-text">Logging out...</div>
-        `;
-        document.body.appendChild(loadingOverlay);
+        document.querySelectorAll('.loading-overlay, #rollcallLogoutOverlay').forEach(el => el.remove());
         
-        // Clear any stored data
+        document.body.classList.remove('teacher-authenticated', 'teacher-school-mode', 'mobile-sidebar-open');
+        document.body.style.overflow = '';
+        
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) sidebar.style.display = 'none';
+        document.querySelectorAll('.section-container').forEach(el => el.style.display = 'none');
+        
+        const loginContainer = document.getElementById('loginContainer');
+        if (loginContainer) loginContainer.style.display = 'grid';
+        
+        // Clear stored data
         if (window.currentTeacher) window.currentTeacher = null;
         if (window.students) window.students = [];
         if (window.attendanceData) window.attendanceData = {};
@@ -36,55 +37,38 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.currentClassData) window.currentClassData = null;
         if (window.submittedAttendances) window.submittedAttendances = {};
         
-        // Sign out from Firebase
-        firebase.auth().signOut()
-            .then(() => {
-                // Sign-out successful
-                const loginContainer = document.getElementById('loginContainer');
-                if (loginContainer) loginContainer.style.display = 'block';
-                
-                const sidebar = document.querySelector('.sidebar');
-                if (sidebar) sidebar.style.display = 'none';
-                
-                const mainContent = document.querySelector('.main-content');
-                if (mainContent) mainContent.style.display = 'none';
-                
-                // Reset UI elements
-                const containers = [
-                    'attendanceContainer',
-                    'classSelectionContainer',
-                    'attendanceMarkingContainer',
-                    'viewSubmittedContainer',
-                    'attendancePopup'
-                ];
-                
-                containers.forEach(id => {
-                    const element = document.getElementById(id);
-                    if (element) element.style.display = 'none';
+        try {
+            sessionStorage.clear();
+            localStorage.removeItem('rollcall_remember_teacher');
+            if (window.location.hash) {
+                history.replaceState(null, '', window.location.pathname);
+            }
+        } catch (e) {}
+
+        let redirected = false;
+        const redirect = () => {
+            if (redirected) return;
+            redirected = true;
+            document.querySelectorAll('.loading-overlay, #rollcallLogoutOverlay').forEach(el => el.remove());
+            try {
+                window.location.replace('teacher.html');
+            } catch (e) {
+                window.location.reload();
+            }
+        };
+
+        const timer = setTimeout(redirect, 400);
+
+        if (window.firebase && firebase.auth) {
+            firebase.auth().signOut()
+                .catch(err => console.warn('Logout error:', err))
+                .finally(() => {
+                    clearTimeout(timer);
+                    redirect();
                 });
-                
-                // Remove loading overlay
-                document.body.removeChild(loadingOverlay);
-                
-                console.log('User signed out successfully');
-            })
-            .catch((error) => {
-                console.error('Logout error:', error);
-                
-                // Show error alert if possible
-                const attendanceAlert = document.getElementById('attendanceAlert');
-                if (attendanceAlert) {
-                    attendanceAlert.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error logging out';
-                    attendanceAlert.className = 'alert alert-error';
-                    attendanceAlert.style.display = 'block';
-                    
-                    setTimeout(() => {
-                        attendanceAlert.style.display = 'none';
-                    }, 5000);
-                }
-                
-                // Remove loading overlay
-                document.body.removeChild(loadingOverlay);
-            });
+        } else {
+            clearTimeout(timer);
+            redirect();
+        }
     };
 });

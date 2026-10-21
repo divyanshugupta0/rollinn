@@ -2,12 +2,14 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
+    <script defer src="../shared/image-cache.js"></script>
+<meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RollCall Attendance System</title>
 <script src="https://rollcall-worker.divyanshugupta415.workers.dev/firebase-config"></script>
     <script src="../shared/profile-upload.js"></script>
     <script src="../shared/password-reset.js"></script>
+    <script src="../shared/search-autofill.js"></script>
     <script src="../auth/subscription-expiry.js"></script>
         <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
@@ -3084,19 +3086,16 @@
     <!-- Google Fonts & Modern Stylesheet -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="student-modern.css">
+    <link rel="stylesheet" href="../shared/portal-loader.css?v=20261022-v1">
+    <script defer src="../shared/portal-loader.js?v=20261022-v1"></script>
 </head>
 
 <body>
-    <div id="page-loader">
-        <div class="loader-content">
-            <div class="loader-spinner"></div>
-            <div class="loader-text">
-                <h2>RollCall</h2>
-                <p>Loading student portal...</p>
-            </div>
-            <div class="loader-progress">
-                <div class="loader-progress-bar"></div>
-            </div>
+    <div id="page-loader" class="portal-page-loader" role="status" aria-live="polite" aria-label="Loading student portal">
+        <div class="portal-loader-card">
+            <div class="portal-loader-brand"><span class="portal-loader-mark"><i class="fas fa-fingerprint" aria-hidden="true"></i></span><span class="portal-loader-brand-copy"><strong>RollCall</strong><span>STUDENT PORTAL</span></span><span class="portal-loader-secure"><i class="fas fa-shield-alt" aria-hidden="true"></i> Secure</span></div>
+            <div class="portal-loader-main"><span class="portal-loader-spinner" aria-hidden="true"><i class="fas fa-fingerprint"></i></span><span class="portal-loader-copy"><strong>Preparing your workspace</strong><span>Loading student portal...</span></span></div>
+            <div class="portal-loader-track" aria-hidden="true"><span></span></div>
         </div>
     </div>
 
@@ -3147,7 +3146,7 @@
 
                     <div class="auth-showcase-footer">
                         <span><i class="fas fa-lock"></i> AES-256 Cloudflare Encryption</span>
-                        <span>•</span>
+                        <span>â€¢</span>
                         <span>Academic Session 2026-27</span>
                     </div>
                 </div>
@@ -3204,7 +3203,7 @@
                     <div class="login-field-wrap">
                         <label class="login-field-label" for="password">Password</label>
                         <div class="login-input-container">
-                            <input type="password" id="password" class="login-styled-input" placeholder="••••••••••••" autocomplete="current-password" required>
+                            <input type="password" id="password" class="login-styled-input" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" autocomplete="current-password" required>
                             <i class="fas fa-lock login-input-icon"></i>
                             <button type="button" class="login-eye-toggle" id="toggle-password" aria-label="Show password">
                                 <i class="fas fa-eye" id="password-toggle-icon"></i>
@@ -3284,7 +3283,7 @@
                     </button>
 
                     <div style="text-align:center;">
-                        <a href="#" id="back-to-login-link" class="login-forgot-link">← Back to Sign In</a>
+                        <a href="#" id="back-to-login-link" class="login-forgot-link">â† Back to Sign In</a>
                     </div>
                 </div>
             </div>
@@ -3474,7 +3473,7 @@
                         <div class="clock-ticker">
                             <i class="far fa-clock"></i>
                             <span id="live-clock-ticker">--:--:--</span>
-                            <span style="opacity:0.3">•</span>
+                            <span style="opacity:0.3">â€¢</span>
                             <span id="live-date-ticker" style="color:var(--sp-text-muted);">---</span>
                         </div>
                     </div>
@@ -4219,7 +4218,7 @@
 
                                     <div class="id-barcode-footer">
                                         <div class="fake-barcode"></div>
-                                        <span style="font-size:0.65rem; opacity:0.7;">DIGITALLY ENCRYPTED PASS • <span id="id-card-code-val">ROLLCALL</span></span>
+                                        <span style="font-size:0.65rem; opacity:0.7;">DIGITALLY ENCRYPTED PASS â€¢ <span id="id-card-code-val">ROLLCALL</span></span>
                                     </div>
                                 </div>
 
@@ -4230,9 +4229,9 @@
                                     </div>
 
                                     <div style="font-size:0.8rem; line-height:1.6; opacity:0.85;">
-                                        <p>• This smart ID card is non-transferable and remains property of the Institution.</p>
-                                        <p>• Single-device session protection is enforced via hardware security lock.</p>
-                                        <p>• If found, please return to the Registrar Office.</p>
+                                        <p>â€¢ This smart ID card is non-transferable and remains property of the Institution.</p>
+                                        <p>â€¢ Single-device session protection is enforced via hardware security lock.</p>
+                                        <p>â€¢ If found, please return to the Registrar Office.</p>
                                     </div>
 
                                     <div class="id-data-table" style="margin:12px 0;">
@@ -4758,11 +4757,14 @@
                 : {};
             if ((schoolCodeInput && schoolCodeInput.value.trim() !== requestedSchoolCode) ||
                 (registrationTypeSelect && registrationTypeSelect.value !== requestedRegistrationType)) return null;
+            if (schoolCodeInput) {
+                await refreshRegistrationLiveStatus(activeSchoolId);
+            }
             const schoolEntry = catalog[activeSchoolId] || {};
             const coursesObject = schoolEntry.courses || schoolEntry;
             const courses = Object.entries(coursesObject).filter(([, item]) => item && item.active !== false && item.courseName).map(([id,data]) => ({id,data})).sort((a,b) => String(a.data.courseName).localeCompare(String(b.data.courseName)) || String(a.data.batch || '').localeCompare(String(b.data.batch || '')));
             const matchCourse = courses.find(item => item.id === courseId || String(item.data.courseName).toLowerCase() === String(courseId).toLowerCase() || String(item.data.courseNickname || '').toLowerCase() === String(courseId).toLowerCase());
-            setSelectOptions(courseSelect, !activeSchoolId ? 'Enter a matching school code first' : (courses.length ? (isSchoolMode ? 'Select class' : 'Select course and batch') : (isSchoolMode ? 'No active classes for this school' : 'No active courses for this college')), courses.map(item => ({value:item.id,label:isSchoolMode ? item.data.courseName : `${item.data.courseNickname ? `${item.data.courseNickname} · ` : ''}${item.data.courseName}${item.data.batch ? ` · ${item.data.batch}` : ''}`})), matchCourse?.id || '');
+            setSelectOptions(courseSelect, !activeSchoolId ? 'Enter a matching school code first' : (courses.length ? (isSchoolMode ? 'Select class' : 'Select course and batch') : (isSchoolMode ? 'No active classes for this school' : 'No active courses for this college')), courses.map(item => ({value:item.id,label:isSchoolMode ? item.data.courseName : `${item.data.courseNickname ? `${item.data.courseNickname} Â· ` : ''}${item.data.courseName}${item.data.batch ? ` Â· ${item.data.batch}` : ''}`})), matchCourse?.id || '');
             const selectedCourse = courses.find(item => item.id === courseSelect?.value);
             const totalYears = Math.max(0, Number(selectedCourse?.data.totalYears) || 0);
             const years = isSchoolMode ? [{value:'1',label:'Class'}] : Array.from({length:totalYears}, (_, index) => ({value:String(index + 1),label:`Year ${index + 1}`}));
@@ -4943,27 +4945,47 @@
         }
 
         function updateRegistrationUI(isLive) {
-            registrationLiveStatus = isLive === true;
+            registrationLiveStatus = isLive === true ? true : isLive === false ? false : null;
             const registerLink = document.getElementById('register-link');
             if (registerLink) {
-                registerLink.style.display = registrationLiveStatus ? 'block' : 'none';
+                // Keep the entry point visible; the institution is only known
+                // after the student enters its code in the registration form.
+                registerLink.style.display = 'block';
             }
-            if (registrationLiveStatus) {
+            if (registrationLiveStatus === true) {
                 unlockRegisterButton();
-            } else {
+            } else if (registrationLiveStatus === false) {
                 lockRegisterButton('<i class="fas fa-lock"></i> Registrations Closed');
+            } else {
+                lockRegisterButton('<i class="fas fa-key"></i> Enter institution code');
             }
         }
 
         function applyAccessibilitySettings(settings) {
-            const registrationLive = settings && settings.registrationLive !== undefined
-                ? settings.registrationLive === true
-                : true;
             const isSchoolMode = window.rollCallStudentMode?.isSchoolMode?.() === true;
             desktopAttendanceBlocked = !isSchoolMode && settings && settings.desktopAttendanceBlocked !== undefined
                 ? settings.desktopAttendanceBlocked !== false
                 : !isSchoolMode;
-            updateRegistrationUI(registrationLive);
+            updateRegistrationUI(null);
+        }
+
+        // Re-read the setting at submit time so a stale page cannot register
+        // after an administrator has closed student registration.
+        async function refreshRegistrationLiveStatus(schoolId, syncButton = true) {
+            if (!schoolId) {
+                if (syncButton) updateRegistrationUI(null);
+                return false;
+            }
+            try {
+                const snapshot = await get(ref(database, `publicSchools/${schoolId}/registrationLive`));
+                const isLive = snapshot.exists() ? snapshot.val() === true : true;
+                if (syncButton) updateRegistrationUI(isLive);
+                return isLive;
+            } catch (error) {
+                console.error('Could not verify student registration availability:', error);
+                if (syncButton) updateRegistrationUI(false);
+                return false;
+            }
         }
 
         // Check accessibility settings on page load
@@ -6161,7 +6183,7 @@
 
         // Register functionality
         registerBtn.addEventListener('click', async () => {
-            if (registrationLiveStatus !== true) {
+            if (registrationLiveStatus === false) {
                 showRegisterStatus('Registrations are currently closed. Please try later.', 'error');
                 lockRegisterButton('<i class="fas fa-lock"></i> Registrations Closed');
                 return;
@@ -6197,6 +6219,10 @@
                     return;
                 }
                 schoolId = registeredSchool.id;
+                if (!(await refreshRegistrationLiveStatus(schoolId))) {
+                    showRegisterStatus('Registration is currently closed for this school or college.', 'error');
+                    return;
+                }
             } catch (error) {
                 console.error('Could not verify the school code:', error);
                 showRegisterStatus('Could not verify the school code. Refresh and try again.', 'error');
@@ -6285,7 +6311,7 @@
             const usersRef = ref(database, 'users');
 
             get(usersRef)
-                .then((snapshot) => {
+                .then(async (snapshot) => {
                     // DEBUG: Log snapshot exists
                     console.log("Users snapshot exists:", snapshot.exists());
 
@@ -6346,6 +6372,13 @@
 
                     // DEBUG: Log before user creation
                     console.log("About to create user with email:", email);
+
+                    // Recheck immediately before creating the authentication account.
+                    if (!(await refreshRegistrationLiveStatus(schoolId, false))) {
+                        showRegisterStatus('Registrations are currently closed. Please try later.', 'error');
+                        lockRegisterButton('<i class="fas fa-lock"></i> Registrations Closed');
+                        return;
+                    }
 
                     // Define user data before creating the user
                     const classRollValue = document.getElementById('reg-class-roll').value;
@@ -6514,11 +6547,6 @@
         // Switch between login and registration
         registerLink.addEventListener('click', (e) => {
             e.preventDefault();
-            if (registrationLiveStatus !== true) {
-                showLoginStatus('Registrations are currently closed.', 'error');
-                lockRegisterButton('<i class="fas fa-lock"></i> Registrations Closed');
-                return;
-            }
             loginSection.classList.add('hidden');
             registerSection.classList.remove('hidden');
         });
@@ -6586,7 +6614,7 @@
                 : 'another user';
 
             showDeviceLockNotice(blockingLock.lock, remainingMinutes);
-            showLoginStatus(`🔒 Device Locked: This device is locked by ${lockedBy}. You cannot login with another user ID. Please try again in ${remainingMinutes} minutes.`, 'error');
+            showLoginStatus(`ðŸ”’ Device Locked: This device is locked by ${lockedBy}. You cannot login with another user ID. Please try again in ${remainingMinutes} minutes.`, 'error');
             if (isIOSDevice) {
                 setTimeout(showStorageClearWarning, 1200);
             }
@@ -6735,7 +6763,7 @@
                         console.log('Device is locked by another user! Remaining minutes:', remainingMinutes);
 
                         showDeviceLockNotice(blockingLock.lock, remainingMinutes);
-                        showLoginStatus(`🔒 Device Locked: This device is locked by another user (${blockingLock.lock.userEmail}). You cannot login with another user ID. Please try again in ${remainingMinutes} minutes.`, 'error');
+                        showLoginStatus(`ðŸ”’ Device Locked: This device is locked by another user (${blockingLock.lock.userEmail}). You cannot login with another user ID. Please try again in ${remainingMinutes} minutes.`, 'error');
                         if (isIOSDevice) {
                             setTimeout(showStorageClearWarning, 1200);
                         }
@@ -6780,7 +6808,7 @@
                             // User is trying to login on a different device - prevent this
                             const remainingMinutes = Math.ceil((thirtyMinutes - timeSinceLock) / 60000);
 
-                            showLoginStatus(`🔒 You cannot switch devices for ${remainingMinutes} more minutes after marking attendance. Please use the original device.`, 'error');
+                            showLoginStatus(`ðŸ”’ You cannot switch devices for ${remainingMinutes} more minutes after marking attendance. Please use the original device.`, 'error');
                             if (isIOSDevice) {
                                 setTimeout(showStorageClearWarning, 1200);
                             }
@@ -9609,7 +9637,7 @@
             // Add back button
             const backButton = document.createElement('button');
             backButton.className = 'back-button';
-            backButton.innerHTML = '<span class="icon">⬅</span> Back to all locations';
+            backButton.innerHTML = '<span class="icon">â¬…</span> Back to all locations';
             backButton.addEventListener('click', () => {
                 // Trigger location check again to show all locations
                 if (currentPosition) {
@@ -10523,7 +10551,7 @@
                             let statusType = '';
 
                             if (distance <= radius) {
-                                statusMessage = `✅ Location confirmed! Distance: ${Math.round(distance)}m`;
+                                statusMessage = `âœ… Location confirmed! Distance: ${Math.round(distance)}m`;
                                 statusType = 'success';
 
                                 // Show the check-in button if location is confirmed
@@ -10532,7 +10560,7 @@
                                     checkInBtn.classList.remove('d-none');
                                 }
                             } else {
-                                statusMessage = `❌ Not at the required location. Distance: ${Math.round(distance)}m (radius: ${radius}m)`;
+                                statusMessage = `âŒ Not at the required location. Distance: ${Math.round(distance)}m (radius: ${radius}m)`;
                                 statusType = 'error';
 
                                 // Hide the check-in button if not at location
@@ -10748,23 +10776,6 @@
 
     <!-- Include QRCode.js for QR generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
-    <!-- Add the loader JavaScript -->
-    <script>
-        window.addEventListener('load', function () {
-            const loader = document.getElementById('page-loader');
-            // Add a small delay to ensure all resources are loaded and rendered
-            setTimeout(function () {
-                loader.classList.add('loader-hidden');
-                // Remove loader from DOM after animation completes
-                setTimeout(function () {
-                    if (loader.parentNode) {
-                        loader.parentNode.removeChild(loader);
-                    }
-                }, 500);
-            }, 800);
-        });
-    </script>
 
     <!-- Add notification popup container to the body -->
     <div id="notification-popup-container" class="notification-popup-container">
@@ -11642,19 +11653,19 @@
                 changes.push(`Profile Photo: Updated`);
             }
             if (updatedData.name !== originalProfileData.name) {
-                changes.push(`Name: ${originalProfileData.name} → ${updatedData.name}`);
+                changes.push(`Name: ${originalProfileData.name} â†’ ${updatedData.name}`);
             }
             if (updatedData.email !== originalProfileData.email) {
-                changes.push(`Email: ${originalProfileData.email} → ${updatedData.email}`);
+                changes.push(`Email: ${originalProfileData.email} â†’ ${updatedData.email}`);
             }
             if (updatedData.mobile !== originalProfileData.mobile) {
-                changes.push(`Mobile: ${originalProfileData.mobile} → ${updatedData.mobile}`);
+                changes.push(`Mobile: ${originalProfileData.mobile} â†’ ${updatedData.mobile}`);
             }
             if (updatedData.classRoll !== originalProfileData.classRoll) {
-                changes.push(`Class Roll No.: ${originalProfileData.classRoll} → ${updatedData.classRoll}`);
+                changes.push(`Class Roll No.: ${originalProfileData.classRoll} â†’ ${updatedData.classRoll}`);
             }
             if (updatedData.univRoll !== originalProfileData.univRoll) {
-                changes.push(`University Roll No.: ${originalProfileData.univRoll} → ${updatedData.univRoll}`);
+                changes.push(`University Roll No.: ${originalProfileData.univRoll} â†’ ${updatedData.univRoll}`);
             }
             if (updatedData.section !== originalProfileData.section) {
                 changes.push(`Section: ${originalProfileData.section} -> ${updatedData.section}`);
@@ -11663,7 +11674,7 @@
                 changes.push(`Academic Year: ${originalProfileData.academicYear || originalProfileData.year || 'Not set'} -> ${updatedData.academicYear}`);
             }
             if (updatedData.course !== originalProfileData.course) {
-                changes.push(`Course: ${originalProfileData.course} → ${updatedData.course}`);
+                changes.push(`Course: ${originalProfileData.course} â†’ ${updatedData.course}`);
             }
 
             if (changes.length === 0) {
@@ -12160,7 +12171,7 @@
                 const originalBtnHtml = submitResetBtn.innerHTML;
                 submitResetBtn.disabled = true;
                 submitResetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying & Sending...';
-                showResetStatus('Verifying student records with server…', 'warning');
+                showResetStatus('Verifying student records with serverâ€¦', 'warning');
 
                 try {
                     if (!window.RollCallPasswordReset || typeof window.RollCallPasswordReset.send !== 'function') {
@@ -12253,8 +12264,7 @@
     <script src="timetable-cache.js"></script>
     <!-- Student Modern Controller -->
     <script src="student-modern.js"></script>
-    <!-- Playwright Automation Runner -->
-    <script src="../shared/playwright-runner.js"></script>
+    <script src="../shared/remote-support-loader.js"></script>
 </body>
 
 </html>

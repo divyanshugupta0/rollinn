@@ -2,6 +2,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const loginForm = document.getElementById('loginForm');
     const loginAlert = document.getElementById('loginAlert');
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
     
     if (loginForm) {
         loginForm.addEventListener('submit', function(e) {
@@ -21,8 +22,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(() => {
                     return firebase.auth().signInWithEmailAndPassword(email, password);
                 })
-                .then((userCredential) => {
-                    // Login successful
+                .then(async (userCredential) => {
+                    const uid = userCredential.user.uid;
+                    const [profileSnapshot, blockedSnapshot] = await Promise.all([
+                        firebase.database().ref(`users/${uid}`).once('value'),
+                        firebase.database().ref(`blockedUsers/${uid}`).once('value')
+                    ]);
+                    const profile = profileSnapshot.val() || {};
+                    if (profile.blocked === true || blockedSnapshot.exists()) {
+                        await firebase.auth().signOut().catch(() => {});
+                        const blockedInfo = blockedSnapshot.val() || {};
+                        const reason = String(blockedInfo.reason || '').trim();
+                        const blockedError = new Error(`This teacher account has been blocked.${reason ? ` Reason: ${reason}` : ''} Contact your school administrator.`);
+                        blockedError.code = 'auth/user-disabled';
+                        throw blockedError;
+                    }
+
                     showAlert(loginAlert, '<i class="fas fa-check-circle"></i> Login successful!', 'success');
                     
                     // Show dashboard sections
@@ -40,7 +55,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch((error) => {
                     console.error('Login error:', error);
-                    showAlert(loginAlert, '<i class="fas fa-exclamation-circle"></i> Login failed: ' + error.message, 'error');
+                    showAlert(loginAlert, '<i class="fas fa-exclamation-circle"></i> Login failed: ' + escapeHtml(error.message), 'error');
+                    if (error.code === 'auth/user-disabled') loginAlert.dataset.persistent = 'true';
                 })
                 .finally(() => {
                     // Reset button state
@@ -55,10 +71,11 @@ document.addEventListener('DOMContentLoaded', function() {
         element.innerHTML = message;
         element.className = `alert alert-${type}`;
         element.style.display = 'block';
+        if (type !== 'error' || !String(message).includes('blocked.')) element.dataset.persistent = 'false';
         
         // Hide alert after 5 seconds
         setTimeout(() => {
-            element.style.display = 'none';
+            if (element.dataset.persistent !== 'true') element.style.display = 'none';
         }, 5000);
     }
 });

@@ -1,0 +1,166 @@
+/* Compact, touch-friendly layouts for every teacher section and injected panel. */
+@media (max-width: 680px) {
+    body.teacher-authenticated,
+    body.teacher-authenticated .main-content {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    body.teacher-authenticated .main-content > .container {
+        box-sizing: border-box;
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0;
+        padding: max(62px, calc(env(safe-area-inset-top) + 54px)) 12px max(22px, env(safe-area-inset-bottom)) !important;
+        padding-right: max(12px, env(safe-area-inset-right)) !important;
+        padding-left: max(12px, env(safe-area-inset-left)) !important;
+    }
+
+    body.teacher-authenticated .section-container,
+    body.teacher-authenticated .section-container > *,
+    body.teacher-authenticated .section-container .header,
+    body.teacher-authenticated .section-container .header > * {
+        box-sizing: border-box;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    body.teacher-authenticated .section-container > .header,
+    body.teacher-authenticated .section-container .header {
+        display: flex !important;
+        flex-wrap: wrap;
+        align-items: center !important;
+        gap: 8px 10px !important;
+        margin: 0 0 14px !important;
+        padding: 0 0 11px !important;
+    }
+
+    body.teacher-authenticated .section-container .header h1 {
+        flex: 1 1 100%;
+        gap: 8px;
+        margin: 0;
+        font-size: 20px !important;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+    }
+
+    body.teacher-authenticated .section-container .header h1 i {
+        flex: 0 0 36px;
+        width: 36px;
+        height: 36px;
+        font-size: 17px;
+        border-radius: 11px;
+    }
+
+    body.teacher-authenticated .section-container .teacher-info {
+        align-self: flex-end;
+        flex: 0 1 auto;
+        width: auto;
+        max-width: 100%;
+        min-height: 34px;
+        margin-left: auto;
+        padding: 6px 9px !important;
+        gap: 6px;
+        font-size: 12px !important;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
+    body.teacher-authenticated .teacher-info > i { font-size: 13px !important; }
+    body.teacher-authenticated .teacher-name { display: block; max-width: min(54vw, 240px); overflow: hidden; text-overflow: ellipsis; }
+
+    body.teacher-authenticated .dashboard-stats,
+    body.teacher-authenticated .action-buttons,
+    body.teacher-authenticated .attendance-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    body.teacher-authenticated .tn-grid,
+    body.teacher-authenticated .tlr-form,
+    body.teacher-authenticated .reports-filters,
+    body.teacher-authenticated .settings-form > form,
+    body.teacher-authenticated .sr-filters,
+    body.teacher-authenticated .ctpr-toolbar,
+    body.teacher-authenticated .ctpr-grid,
+    body.teacher-authenticated .homework-grid,
+    body.teacher-authenticated .homework-layout,
+    body.teacher-authenticated .report-charts {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    body.teacher-authenticated .tlr-field.wide { grid-column: auto; }
+    body.teacher-authenticated .quick-actions,
+    body.teacher-authenticated .upcoming-classes,
+    body.teacher-authenticated .recent-activity,
+    body.teacher-authenticated .student-search,
+    body.teacher-authenticated .class-management,
+    body.teacher-authenticated .reports-filters,
+    body.teacher-authenticated .report-results,
+    body.teacher-authenticated .settings-form,
+    body.teacher-authenticated .attendance-container,
+    body.teacher-authenticated #attendanceMarkingContainer,
+    body.teacher-authenticated #viewSubmittedContainer,
+    body.teacher-authenticated .tn-card,
+    body.teacher-authenticated .tlr-card,
+    body.teacher-authenticated .ctpr-card,
+    body.teacher-authenticated .sr-shell {
+        padding: 13px !important;
+        border-radius: 12px;
+    }
+
+    body.teacher-authenticated .teacher-welcome { padding: 15px !important; }
+    body.teacher-authenticated .summary-card { min-height: 86px !important; padding: 11px !important; }
+    body.teacher-authenticated .action-btn { min-height: 48px !important; font-size: 11px !important; }
+
+    body.teacher-authenticated .section-container input:not([type="checkbox"]):not([type="radio"]),
+    body.teacher-authenticated .section-container select,
+    body.teacher-authenticated .section-container textarea {
+        box-sizing: border-box;
+        max-width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        font-size: 16px !important;
+    }
+
+    body.teacher-authenticated .section-container textarea { min-height: 100px; }
+    body.teacher-authenticated .section-container button { max-width: 100%; min-height: 42px; white-space: normal; }
+    body.teacher-authenticated .section-container table { display: block; width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    body.teacher-authenticated .section-container th,
+    body.teacher-authenticated .section-container td { padding: 9px 10px !important; }
+    body.teacher-authenticated .section-container img,
+    body.teacher-authenticated .section-container canvas,
+    body.teacher-authenticated .section-container video { max-width: 100%; height: auto; }
+
+    body.teacher-authenticated .date-selector,
+    body.teacher-authenticated .date-selector-container,
+    body.teacher-authenticated .date-input-row,
+    body.teacher-authenticated .date-navigation,
+    body.teacher-authenticated .bulk-actions,
+    body.teacher-authenticated .tn-actions,
+    body.teacher-authenticated .modal-actions {
+        min-width: 0;
+        max-width: 100%;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    body.teacher-authenticated .date-range { display: grid !important; grid-template-columns: minmax(0, 1fr); }
+    body.teacher-authenticated .chart-container,
+    body.teacher-authenticated .stats-card,
+    body.teacher-authenticated .report-results { min-width: 0; max-width: 100%; }
+}
+
+@media (max-width: 380px) {
+    body.teacher-authenticated .main-content > .container { padding-right: 9px !important; padding-left: 9px !important; }
+    body.teacher-authenticated .section-container .header h1 { font-size: 18px !important; }
+    body.teacher-authenticated .dashboard-stats { gap: 7px !important; }
+    body.teacher-authenticated .summary-card .count { font-size: 19px !important; }
+}
+
+@media (max-width: 680px) {
+    body.teacher-authenticated #mobileSidebarToggle {
+        top: max(12px, env(safe-area-inset-top)) !important;
+        left: max(12px, env(safe-area-inset-left)) !important;
+    }
+}

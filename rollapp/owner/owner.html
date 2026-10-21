@@ -2,7 +2,8 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
+    <script defer src="../shared/image-cache.js"></script>
+<meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RollCall - Comprehensive School Management</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -11,7 +12,6 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    <link rel="stylesheet" href="playwright-runner.css">
     <style>
         /* Login Page Styles */
         .login-container {
@@ -1516,9 +1516,18 @@
             ::-webkit-scrollbar { width: 7px; height: 7px; }
         }
     </style>
+    <link rel="stylesheet" href="../shared/portal-loader.css?v=20261022-v1">
+    <script defer src="../shared/portal-loader.js?v=20261022-v1"></script>
 </head>
 
 <body>
+    <div id="page-loader" class="portal-page-loader" role="status" aria-live="polite" aria-label="Loading platform owner portal">
+        <div class="portal-loader-card">
+            <div class="portal-loader-brand"><span class="portal-loader-mark"><i class="fas fa-fingerprint" aria-hidden="true"></i></span><span class="portal-loader-brand-copy"><strong>RollCall</strong><span>PLATFORM OWNER</span></span><span class="portal-loader-secure"><i class="fas fa-shield-alt" aria-hidden="true"></i> Secure</span></div>
+            <div class="portal-loader-main"><span class="portal-loader-spinner" aria-hidden="true"><i class="fas fa-fingerprint"></i></span><span class="portal-loader-copy"><strong>Preparing your workspace</strong><span>Loading owner console...</span></span></div>
+            <div class="portal-loader-track" aria-hidden="true"><span></span></div>
+        </div>
+    </div>
     <!-- Owner sign-in -->
     <div id="loginContainer" class="login-container">
         <div class="owner-auth-glow owner-auth-glow-one" aria-hidden="true"></div>
@@ -2196,7 +2205,7 @@
                                         <div class="card-body">
                                             <i class="fas fa-graduation-cap fa-2x text-info mb-2"></i>
                                             <h5>Total Students</h5>
-                                            <h3 id="totalStudents" class="text-info">—</h3>
+                                            <h3 id="totalStudents" class="text-info">â€”</h3>
                                             <small class="text-muted">From registered school records</small>
                                         </div>
                                     </div>
@@ -2206,7 +2215,7 @@
                                         <div class="card-body">
                                             <i class="fas fa-chalkboard-teacher fa-2x text-warning mb-2"></i>
                                             <h5>Total Teachers</h5>
-                                            <h3 id="totalTeachers" class="text-warning">—</h3>
+                                            <h3 id="totalTeachers" class="text-warning">â€”</h3>
                                             <small class="text-muted">From registered school records</small>
                                         </div>
                                     </div>
@@ -2216,7 +2225,7 @@
                                         <div class="card-body">
                                             <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
                                             <h5>Growth Rate</h5>
-                                            <h3 id="growthRate" class="text-success">—</h3>
+                                            <h3 id="growthRate" class="text-success">â€”</h3>
                                             <small class="text-muted">No historical data yet</small>
                                         </div>
                                     </div>
@@ -2226,7 +2235,7 @@
                                         <div class="card-body">
                                             <i class="fas fa-star fa-2x text-danger mb-2"></i>
                                             <h5>Avg Rating</h5>
-                                            <h3 id="avgRating" class="text-danger">—</h3>
+                                            <h3 id="avgRating" class="text-danger">â€”</h3>
                                             <small class="text-muted">No review data yet</small>
                                         </div>
                                     </div>
@@ -2296,7 +2305,7 @@
                                             <div class="mb-4">
                                                 <h6>Renewal Rate</h6>
                                                 <div class="d-flex align-items-center">
-                                                    <div class="display-4 me-3" id="renewalRate">—</div>
+                                                    <div class="display-4 me-3" id="renewalRate">â€”</div>
                                                     <div>
                                                         <div class="text-muted" id="renewalTrend">No trend data</div>
                                                         <small class="text-muted">Available after renewals are recorded</small>
@@ -3281,8 +3290,7 @@
             document.getElementById('appContent').style.display = 'block';
 
             // Navigate to the correct panel based on the URL hash now that
-            // appContent is visible. Runs after every auth state change so
-            // a refresh on e.g. #playwright-runner lands on the right panel.
+            // appContent is visible. Runs after every auth state change.
             navigateToHash();
 
             // Update user name in header
@@ -3960,7 +3968,7 @@
             const totalPrice = Number(plan?.price || 0) + topups.reduce((sum, item) => sum + Number(item.price || 0) * item.quantity, 0);
             const planCurrency = plan?.currency || 'INR';
             const topupMarkup = topups.length
-                ? topups.map(item => `<div class="registration-preview-line"><span>${escape(item.name)} × ${item.quantity}</span><strong>${escape(item.currency || planCurrency)} ${ (Number(item.price || 0) * item.quantity).toLocaleString() }</strong></div>`).join('')
+                ? topups.map(item => `<div class="registration-preview-line"><span>${escape(item.name)} Ã— ${item.quantity}</span><strong>${escape(item.currency || planCurrency)} ${ (Number(item.price || 0) * item.quantity).toLocaleString() }</strong></div>`).join('')
                 : '<p class="text-muted small mb-0">No additional top-ups selected.</p>';
             const modalId = 'previewModal';
             document.getElementById(modalId)?.remove();
@@ -3979,14 +3987,14 @@
                             <div class="modal-body">
                                 <div class="registration-preview-hero">
                                     <div class="registration-preview-icon"><i class="fas fa-school"></i></div>
-                                    <div><h3>${escape(value('schoolName'))}</h3><p>${escape(value('schoolType'))} · ${escape(value('schoolCode'))}</p></div>
+                                    <div><h3>${escape(value('schoolName'))}</h3><p>${escape(value('schoolType'))} Â· ${escape(value('schoolCode'))}</p></div>
                                 </div>
                                 <div class="registration-preview-grid">
                                     <section class="registration-preview-section"><h6><i class="fas fa-location-dot"></i> School details</h6>${field('Established', value('establishedYear'))}${field('Address', value('schoolAddress'))}${field('Location', `${value('city')}, ${value('state')} ${value('zipCode')}`)}</section>
                                     <section class="registration-preview-section"><h6><i class="fas fa-user-tie"></i> Primary contact</h6>${field('Principal', value('principalName'))}${field('Email', value('principalEmail'))}${field('Phone', value('schoolPhone'))}</section>
                                 </div>
                                 <section class="registration-preview-section"><h6><i class="fas fa-user-shield"></i> School administrator</h6>${field('Name', value('adminName'))}${field('Username', value('schoolAdminUsername'))}${field('Email', value('schoolAdminContactEmail'))}${field('Profile image', value('schoolAdminPhotoUrl') === 'Not provided' ? 'Not provided' : 'Included')}<div class="registration-preview-field"><span>Password</span><strong>Will be shared after registration</strong></div></section>
-                                <section class="registration-preview-section"><h6><i class="fas fa-crown"></i> Subscription</h6><div class="registration-preview-line"><span>${escape(plan?.name || 'No main plan selected')}</span><strong>${escape(plan ? `${planCurrency} ${Number(plan.price || 0).toLocaleString()} · ${plan.durationMonths || 1} months` : '—')}</strong></div>${topupMarkup}<div class="registration-preview-total"><span>Total${topupCount ? ` · ${topupCount} top-up${topupCount === 1 ? '' : 's'}` : ''}</span><strong>${escape(planCurrency)} ${totalPrice.toLocaleString()}</strong></div></section>
+                                <section class="registration-preview-section"><h6><i class="fas fa-crown"></i> Subscription</h6><div class="registration-preview-line"><span>${escape(plan?.name || 'No main plan selected')}</span><strong>${escape(plan ? `${planCurrency} ${Number(plan.price || 0).toLocaleString()} Â· ${plan.durationMonths || 1} months` : 'â€”')}</strong></div>${topupMarkup}<div class="registration-preview-total"><span>Total${topupCount ? ` Â· ${topupCount} top-up${topupCount === 1 ? '' : 's'}` : ''}</span><strong>${escape(planCurrency)} ${totalPrice.toLocaleString()}</strong></div></section>
                             </div>
                             <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Continue editing</button><button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="document.getElementById('registerSchoolBtn')?.focus()">Looks good</button></div>
                         </div>
@@ -4226,9 +4234,9 @@
     </script>
     <script src="../shared/profile-upload.js"></script>
     <script src="../shared/password-reset.js"></script>
+    <script src="../shared/search-autofill.js"></script>
     <script src="owner-core.js"></script>
     <script src="owner-registration.js"></script>
-    <script src="playwright-runner-manager.js"></script>
 </body>
 
 </html>

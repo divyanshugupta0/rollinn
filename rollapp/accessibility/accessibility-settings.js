@@ -13,24 +13,20 @@ function loadAccessibilitySettings() {
             const settings = snapshot.val() || {
                 attendanceCapturing: true,
                 desktopAttendanceBlocked: true,
-                registrationLive: true,
                 privacyMode: false,
                 largeText: false,
                 highContrast: false,
                 audioNotifications: true,
-                emailNotifications: true,
                 mobileOptimization: true
             };
             
             // Set toggle states and apply settings
             setToggleAndApply('attendance-capturing-toggle', settings.attendanceCapturing);
             setToggleAndApply('desktop-attendance-block-toggle', settings.desktopAttendanceBlocked !== false);
-            setToggleAndApply('registration-live-toggle', settings.registrationLive);
             setToggleAndApply('privacy-mode-toggle', settings.privacyMode);
             setToggleAndApply('large-text-toggle', settings.largeText);
             setToggleAndApply('high-contrast-toggle', settings.highContrast);
             setToggleAndApply('audio-notifications-toggle', settings.audioNotifications);
-            setToggleAndApply('email-notifications-toggle', settings.emailNotifications);
             setToggleAndApply('mobile-optimization-toggle', settings.mobileOptimization);
             
             // Initialize audio notifications
@@ -60,12 +56,10 @@ function addAutoSaveListeners() {
     const toggles = [
         'attendance-capturing-toggle',
         'desktop-attendance-block-toggle',
-        'registration-live-toggle', 
         'privacy-mode-toggle',
         'large-text-toggle',
         'high-contrast-toggle',
         'audio-notifications-toggle',
-        'email-notifications-toggle',
         'mobile-optimization-toggle'
     ];
     
@@ -87,12 +81,10 @@ function autoSaveSettings() {
     const settings = {
         attendanceCapturing: document.getElementById('attendance-capturing-toggle').checked,
         desktopAttendanceBlocked: document.getElementById('desktop-attendance-block-toggle').checked,
-        registrationLive: document.getElementById('registration-live-toggle').checked,
         privacyMode: document.getElementById('privacy-mode-toggle').checked,
         largeText: document.getElementById('large-text-toggle').checked,
         highContrast: document.getElementById('high-contrast-toggle').checked,
         audioNotifications: document.getElementById('audio-notifications-toggle').checked,
-        emailNotifications: document.getElementById('email-notifications-toggle').checked,
         mobileOptimization: document.getElementById('mobile-optimization-toggle').checked,
         lastUpdated: Date.now()
     };
@@ -111,6 +103,9 @@ function applySetting(toggleId, value) {
     const body = document.body;
     
     switch(toggleId) {
+        case 'privacy-mode-toggle':
+            body.classList.toggle('privacy-mode', value);
+            break;
         case 'large-text-toggle':
             body.classList.toggle('large-text', value);
             break;
@@ -128,28 +123,74 @@ function applySetting(toggleId, value) {
     }
 }
 
-// Text-to-speech function
-function speakNotification(text) {
+function chooseNaturalVoice(voices) {
+    if (!voices.length) return null;
+
+    const preferredLanguage = String(navigator.language || 'en-US').toLowerCase();
+    const preferredBaseLanguage = preferredLanguage.split('-')[0];
+    const englishVoices = voices.filter(voice => voice.lang.toLowerCase().startsWith('en'));
+    const candidates = englishVoices.length ? englishVoices : voices;
+    const naturalVoiceTerms = /natural|neural|online|aria|jenny|samantha|ava|guy|zira|google us english/i;
+
+    return candidates
+        .map(voice => {
+            const language = voice.lang.toLowerCase();
+            let score = language === preferredLanguage ? 30 : language.startsWith(`${preferredBaseLanguage}-`) ? 20 : 0;
+            if (naturalVoiceTerms.test(voice.name)) score += 50;
+            if (/natural|neural/i.test(voice.name)) score += 30;
+            if (voice.default) score += 2;
+            return { voice, score };
+        })
+        .sort((first, second) => second.score - first.score)[0].voice;
+}
+
+async function getSpeechVoices() {
+    const voices = speechSynthesis.getVoices();
+    if (voices.length) return voices;
+
+    return new Promise(resolve => {
+        let finished = false;
+        const finish = () => {
+            if (finished) return;
+            finished = true;
+            clearTimeout(timeoutId);
+            speechSynthesis.removeEventListener('voiceschanged', finish);
+            resolve(speechSynthesis.getVoices());
+        };
+        const timeoutId = setTimeout(finish, 1200);
+        speechSynthesis.addEventListener('voiceschanged', finish);
+    });
+}
+
+// Use the best natural-sounding voice available in the user's browser/device.
+async function speakNotification(text) {
     const toggle = document.getElementById('audio-notifications-toggle');
     const isEnabled = toggle && toggle.checked;
-    
-    console.log('speakNotification called with:', text);
-    console.log('Toggle found:', !!toggle);
-    console.log('Toggle checked:', toggle ? toggle.checked : 'N/A');
-    console.log('Speech synthesis available:', 'speechSynthesis' in window);
-    
-    if (!isEnabled || !('speechSynthesis' in window)) {
-        console.log('Audio notification skipped - not enabled or no speech synthesis');
-        return;
-    }
-    
-    const cleanText = text.replace(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/g, ' ');
-    console.log('Speaking:', cleanText);
-    
+
+    if (!isEnabled || !('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) return;
+
+    const cleanText = String(text ?? '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;|&#160;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!cleanText) return;
+
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
-    utterance.volume = 0.8;
+    const voices = await getSpeechVoices();
+    if (!toggle.checked) return;
+    const voice = chooseNaturalVoice(voices);
+    if (voice) {
+        utterance.voice = voice;
+        utterance.lang = voice.lang;
+    } else {
+        utterance.lang = navigator.language || 'en-US';
+    }
+    utterance.rate = 0.96;
+    utterance.pitch = 1.02;
+    utterance.volume = 0.9;
+
+    speechSynthesis.cancel();
     speechSynthesis.speak(utterance);
 }
 

@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="header">
                 <h1><i class="fas fa-calendar-alt"></i> Class Timetable</h1>
                 <div class="teacher-info" id="timetableTeacherInfo">
-                    <i class="fas fa-user-tie"></i> Loading...
+                    <i class="fas fa-user-tie"></i>
                     <div class="header-dropdown">
                         <div class="dropdown-item header-logout-btn">
                             <i class="fas fa-sign-out-alt"></i>
