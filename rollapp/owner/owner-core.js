@@ -6,6 +6,62 @@
     let schoolUserUsage = {};
     let currentSchoolFilter = '';
     let connectionLoadForUid = null;
+    const SCHOOL_CACHE_DB = 'rollcall-owner-cache';
+    const SCHOOL_CACHE_STORE = 'schools';
+
+    function openSchoolCache() {
+        return new Promise((resolve, reject) => {
+            if (!window.indexedDB) return reject(new Error('IndexedDB is unavailable.'));
+            const request = window.indexedDB.open(SCHOOL_CACHE_DB, 1);
+            request.onupgradeneeded = () => {
+                const cacheDb = request.result;
+                if (!cacheDb.objectStoreNames.contains(SCHOOL_CACHE_STORE)) {
+                    cacheDb.createObjectStore(SCHOOL_CACHE_STORE, { keyPath: 'ownerUid' });
+                }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error || new Error('Could not open the school cache.'));
+            request.onblocked = () => reject(new Error('The school cache is blocked by another tab.'));
+        });
+    }
+
+    async function readSchoolsCache(ownerUid = currentUser?.uid) {
+        if (!ownerUid) return null;
+        let cacheDb;
+        try {
+            cacheDb = await openSchoolCache();
+            return await new Promise((resolve, reject) => {
+                const request = cacheDb.transaction(SCHOOL_CACHE_STORE, 'readonly')
+                    .objectStore(SCHOOL_CACHE_STORE).get(ownerUid);
+                request.onsuccess = () => resolve(Array.isArray(request.result?.schools) ? request.result.schools : null);
+                request.onerror = () => reject(request.error || new Error('Could not read the school cache.'));
+            });
+        } catch (error) {
+            console.warn('Owner school cache read failed; Firebase will be used.', error);
+            return null;
+        } finally {
+            cacheDb?.close();
+        }
+    }
+
+    async function writeSchoolsCache(items = schools, ownerUid = currentUser?.uid) {
+        if (!ownerUid || !Array.isArray(items)) return;
+        let cacheDb;
+        try {
+            cacheDb = await openSchoolCache();
+            await new Promise((resolve, reject) => {
+                const transaction = cacheDb.transaction(SCHOOL_CACHE_STORE, 'readwrite');
+                transaction.objectStore(SCHOOL_CACHE_STORE).put({ ownerUid, schools: items, cachedAt: Date.now() });
+                transaction.oncomplete = resolve;
+                transaction.onerror = () => reject(transaction.error || new Error('Could not save the school cache.'));
+                transaction.onabort = () => reject(transaction.error || new Error('School cache update was cancelled.'));
+            });
+        } catch (error) {
+            console.warn('Owner school cache write failed.', error);
+        } finally {
+            cacheDb?.close();
+        }
+    }
 
     function ownerPath(path) {
         if (!currentUser?.uid || window.__rollCallOwnerAuthorizedUid !== currentUser.uid) {
@@ -1135,7 +1191,7 @@
 
     async function refreshSchoolData() {
         if (!database) return notify('The shared database is still connecting. Please try again in a moment.', 'warning');
-        try { const snapshot = await database.ref('schools').once('value'); schools = snapshot.val() ? Object.entries(snapshot.val()).map(([id, value]) => ({ id, ...value })) : []; await loadSchoolUserUsage(); loadSchoolsTable(); updateDashboardStats(); renderSubscriptionRows(); }
+        try { const snapshot = await database.ref('schools').once('value'); schools = snapshot.val() ? Object.entries(snapshot.val()).map(([id, value]) => ({ id, ...value })) : []; await writeSchoolsCache(); await loadSchoolUserUsage(); loadSchoolsTable(); updateDashboardStats(); renderSubscriptionRows(); }
         catch (error) { notify(`School data could not be read: ${error.message}`, 'danger'); }
     }
 
@@ -1248,6 +1304,7 @@
             isFirebaseConnected = true;
             setConnection('Connected and school data loaded', 'success');
             schools = data ? Object.entries(data).map(([id, value]) => ({ id, ...value })) : [];
+            writeSchoolsCache();
             if (data) {
                 const directoryUpdates = {};
                 const legacyPasswordRemovals = {};
@@ -1427,9 +1484,47 @@
             (schools || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).forEach(school => schoolSelect.add(new Option(school.name || 'Unnamed school', school.id)));
             if ((schools || []).some(school => String(school.id) === previousSchool)) schoolSelect.value = previousSchool;
         }
-        section._onCustomMailOpen = () => {
-            renderSchoolOptions();
-            loadUsers().then(renderRecipients).catch(error => notify(error.message, 'danger'));
+        section._onCustomMailOpen = async () => {
+            schoolSelect.disabled = true;
+            schoolSelect.replaceChildren(new Option('Loading schools…', ''));
+            let hasSchoolList = false;
+            try {
+                const cachedSchools = await readSchoolsCache();
+                if (Array.isArray(cachedSchools)) {
+                    schools = cachedSchools;
+                    hasSchoolList = true;
+                    renderSchoolOptions();
+                }
+            } catch (error) {
+                console.warn('Could not load cached schools for custom mail.', error);
+            }
+            try {
+                if (!database) throw new Error('The shared database is still connecting.');
+                const schoolSnapshot = await database.ref('schools').once('value');
+                schools = Object.entries(schoolSnapshot.val() || {}).map(([id, school]) => ({ id, ...(school || {}) }));
+                hasSchoolList = true;
+                renderSchoolOptions();
+                await writeSchoolsCache();
+            } catch (error) {
+                if (!hasSchoolList) {
+                    schoolSelect.replaceChildren(new Option('Could not load schools', ''));
+                    notify(`Could not load schools for custom mail: ${error.message}`, 'danger');
+                    schoolSelect.disabled = false;
+                    return;
+                }
+                notify('Showing the saved school list. Firebase could not refresh it right now.', 'warning');
+            }
+            try {
+                if (database) {
+                    await loadUsers();
+                    renderRecipients();
+                }
+                if (!schools.length) schoolSelect.replaceChildren(new Option('No schools found', ''));
+            } catch (error) {
+                notify(`Schools are available, but recipient accounts could not be loaded: ${error.message}`, 'danger');
+            } finally {
+                schoolSelect.disabled = false;
+            }
         };
         schoolSelect.addEventListener('change', async () => {
             classLoadKey = ''; classes = [];
