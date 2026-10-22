@@ -208,20 +208,30 @@
     }
 
     function topups(start, end) {
-        const durationDays = Math.max(1, Math.ceil((end - start) / 86400000));
         return Array.from(document.querySelectorAll('.topup-quantity')).flatMap(input => {
             const count = Math.max(0, Math.min(99, Number(input.value) || 0));
             const plan = plans().find(item => item.id === input.closest('[data-plan-id]')?.dataset.planId);
             if (!plan) return [];
             return Array.from({ length: count }, () => ({
-                planId: plan.id, name: plan.name,
-                studentCapacity: Number(plan.studentCapacity || 0),
-                teacherCapacity: Number(plan.teacherCapacity || 0),
-                price: Math.round(Number(plan.price || 0) * durationDays / Math.max(1, durationDays) * 100) / 100,
+                planId: plan.id, name: plan.name, topupKind: plan.topupKind === 'months' ? 'months' : 'capacity',
+                monthsAdded: plan.topupKind === 'months' ? Number(plan.durationMonths || 0) : 0,
+                studentCapacity: plan.topupKind === 'months' ? 0 : Number(plan.studentCapacity || 0),
+                teacherCapacity: plan.topupKind === 'months' ? 0 : Number(plan.teacherCapacity || 0),
+                price: Number(plan.price || 0),
                 listPrice: Number(plan.price || 0), currency: plan.currency || 'INR',
                 startDate: start.toISOString(), endDate: end.toISOString(), assignedAt: start.toISOString()
             }));
         });
+    }
+
+    function addCalendarMonths(date, months) {
+        const result = new Date(date);
+        const day = result.getDate();
+        result.setDate(1);
+        result.setMonth(result.getMonth() + Number(months || 0));
+        const finalDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+        result.setDate(Math.min(day, finalDay));
+        return result;
     }
 
     function button(label, busy) {
@@ -257,10 +267,33 @@
     function showCredentials(school, password) {
         const modal = document.createElement('div');
         modal.className = 'modal fade';
-        modal.innerHTML = `<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Registration successful</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="alert alert-success">${escape(school.name)} is ready.</div><p>Send these administrator credentials securely.</p><dl><dt>Name</dt><dd>${escape(school.contacts.admin.name)}</dd><dt>Username</dt><dd>${escape(school.contacts.admin.username)}</dd><dt>Email</dt><dd>${escape(school.contacts.admin.email)}</dd><dt>Password</dt><dd><input class="form-control" value="${escape(password)}" readonly></dd></dl></div><div class="modal-footer"><button type="button" class="btn btn-primary" data-bs-dismiss="modal">Done</button></div></div></div>`;
+        modal.innerHTML = `<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Registration successful</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="alert alert-success">${escape(school.name)} is ready.</div><p>Administrator credentials are shown here and will be emailed to the admin.</p><dl><dt>Name</dt><dd>${escape(school.contacts.admin.name)}</dd><dt>Username</dt><dd>${escape(school.contacts.admin.username)}</dd><dt>Email</dt><dd>${escape(school.contacts.admin.email)}</dd><dt>Password</dt><dd><input class="form-control" value="${escape(password)}" readonly></dd></dl><p id="adminCredentialEmailStatus" class="small mb-0" role="status">Sending credentials email…</p></div><div class="modal-footer"><button type="button" class="btn btn-primary" data-bs-dismiss="modal">Done</button></div></div></div>`;
         document.body.appendChild(modal);
         modal.addEventListener('hidden.bs.modal', () => modal.remove(), { once: true });
         bootstrap.Modal.getOrCreateInstance(modal).show();
+        return modal.querySelector('#adminCredentialEmailStatus');
+    }
+
+    async function emailAdministratorCredentials(schoolId, adminUid) {
+        const user = ownerAuth?.auth().currentUser;
+        const workerUrl = String(window.ROLLCALL_FIREBASE_CONFIG?.profileUploadWorkerUrl || '').trim();
+        if (!user || !workerUrl) throw new Error('The secure email service is unavailable.');
+        const endpoint = new URL(workerUrl);
+        if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
+            throw new Error('The secure email service URL is invalid.');
+        }
+        endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/school-admin-credentials`;
+        const result = await fetch(endpoint.href, {
+            method: 'POST',
+            credentials: 'omit',
+            redirect: 'error',
+            referrerPolicy: 'no-referrer',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await user.getIdToken()}` },
+            body: JSON.stringify({ schoolId, adminUid })
+        });
+        const data = await result.json().catch(() => ({}));
+        if (!result.ok) throw new Error(data.error || 'The administrator credentials email could not be sent.');
+        return data;
     }
 
     async function createAdministratorAccount({ email, password, name, username, schoolId, schoolName, dob }) {
@@ -339,6 +372,29 @@
             const code = await reserveCode(value('schoolType'));
             document.getElementById('schoolCode').value = code;
             const selectedTopups = topups(start, end);
+            if (plan.bonus === true) {
+                selectedTopups.push({
+                    planId: plan.id,
+                    name: `${plan.name} bonus top-up`,
+                    studentCapacity: plan.bonusStudentCapacity ?? Number(plan.studentCapacity || 0),
+                    teacherCapacity: plan.bonusTeacherCapacity ?? Number(plan.teacherCapacity || 0),
+                    price: 0,
+                    listPrice: Number(plan.price || 0),
+                    currency: plan.currency || 'INR',
+                    bonus: true,
+                    includedWithPlan: true,
+                    startDate: start.toISOString(),
+                    endDate: end.toISOString(),
+                    assignedAt: start.toISOString()
+                });
+            }
+            const basePlanEnd = new Date(end);
+            const termExtensionMonths = selectedTopups.reduce((sum, item) => sum + Number(item.monthsAdded || 0), 0);
+            if (termExtensionMonths) end.setTime(addCalendarMonths(end, termExtensionMonths).getTime());
+            selectedTopups.forEach(item => {
+                item.startDate = item.topupKind === 'months' ? basePlanEnd.toISOString() : start.toISOString();
+                item.endDate = end.toISOString();
+            });
             const image = document.getElementById('schoolAdminPhotoUrl')?.files?.[0];
             const reference = database.ref('schools').push();
             const adminEmail = value('schoolAdminContactEmail').toLowerCase();
@@ -367,7 +423,7 @@
                 contacts: { principal: { name: value('principalName'), email: value('principalEmail') }, admin: { uid: administrator.uid, name: value('adminName'), username: value('schoolAdminUsername'), email: adminEmail, dob: adminDob, dateOfBirth: adminDob, photoURL }, phone: value('schoolPhone'), alternatePhone: value('alternatePhone') },
                 details: { capacity: Number(value('studentCapacity')) || 0, currentStudents: Number(value('currentStudents')) || 0, teacherCount: Number(value('teacherCount')) || 0, accreditation: value('accreditation'), website: value('website') },
                 facilities: { library: document.getElementById('hasLibrary')?.checked === true, computerLab: document.getElementById('hasLab')?.checked === true, sports: document.getElementById('hasSports')?.checked === true, transportation: document.getElementById('hasTransport')?.checked === true },
-                subscription: { plan: plan.name, planId: plan.id, price: Number(plan.price || 0) + selectedTopups.reduce((sum, item) => sum + item.price, 0), basePlanPrice: Number(plan.price || 0), currency: plan.currency || 'INR', durationMonths: Number(plan.durationMonths), autoRenew: plan.autoRenew === true, studentCapacity: Number(plan.studentCapacity || value('studentCapacity')), teacherCapacity: Number(plan.teacherCapacity || 0), topups: selectedTopups, status: 'active', startDate: start.toISOString(), endDate: end.toISOString() },
+                subscription: { plan: plan.name, planId: plan.id, price: (() => { const totals = selectedTopups.reduce((result, item) => { const currency = item.currency || plan.currency || 'INR'; result[currency] = Number(result[currency] || 0) + Number(item.price || 0); return result; }, { [plan.currency || 'INR']: Number(plan.price || 0) }); return Object.keys(totals).length === 1 ? Object.values(totals)[0] : Number(plan.price || 0); })(), basePlanPrice: Number(plan.price || 0), priceBreakdown: selectedTopups.reduce((totals, item) => { const currency = item.currency || plan.currency || 'INR'; totals[currency] = Number(totals[currency] || 0) + Number(item.price || 0); return totals; }, { [plan.currency || 'INR']: Number(plan.price || 0) }), currency: plan.currency || 'INR', durationMonths: Number(plan.durationMonths), termExtensionMonths, autoRenew: plan.autoRenew === true, studentCapacity: Number(plan.studentCapacity || value('studentCapacity')), teacherCapacity: Number(plan.teacherCapacity || 0), topups: selectedTopups, status: 'active', startDate: start.toISOString(), endDate: end.toISOString() },
                 status: 'Active', ownerId: currentUser.uid, registrationDate: start.toISOString(), lastUpdated: start.toISOString()
             };
             stage = 'saving the school and administrator records';
@@ -387,8 +443,22 @@
             button('', false);
             clearStatus();
             saving = false;
-            notify(`Registered ${school.name}.`, 'success');
-            showCredentials(school, administratorPassword);
+            const emailStatus = showCredentials(school, administratorPassword);
+            try {
+                await emailAdministratorCredentials(reference.key, administrator.uid);
+                if (emailStatus) {
+                    emailStatus.className = 'small text-success mb-0';
+                    emailStatus.textContent = `Credentials email sent to ${adminEmail}.`;
+                }
+                notify(`Registered ${school.name}; the administrator credentials were emailed to ${adminEmail}.`, 'success');
+            } catch (emailError) {
+                if (emailStatus) {
+                    emailStatus.className = 'small text-danger mb-0';
+                    emailStatus.textContent = `Registration succeeded, but the credentials email failed: ${emailError.message}`;
+                }
+                console.error('School registration succeeded, but administrator credentials email failed.', emailError);
+                notify(`Registered ${school.name}, but the administrator credentials email failed. ${emailError.message}`, 'warning');
+            }
             if (typeof refreshSchoolData === 'function') await refreshSchoolData();
         } catch (error) {
             saving = false;

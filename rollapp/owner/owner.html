@@ -3965,8 +3965,10 @@
                 })
                 .filter(Boolean);
             const topupCount = topups.reduce((sum, item) => sum + item.quantity, 0);
-            const totalPrice = Number(plan?.price || 0) + topups.reduce((sum, item) => sum + Number(item.price || 0) * item.quantity, 0);
             const planCurrency = plan?.currency || 'INR';
+            const priceByCurrency = { [planCurrency]: Number(plan?.price || 0) };
+            topups.forEach(item => { const currency = item.currency || planCurrency; priceByCurrency[currency] = Number(priceByCurrency[currency] || 0) + Number(item.price || 0) * item.quantity; });
+            const priceSummary = Object.entries(priceByCurrency).map(([currency, amount]) => `${currency} ${Number(amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}`).join(' + ');
             const topupMarkup = topups.length
                 ? topups.map(item => `<div class="registration-preview-line"><span>${escape(item.name)} Ã— ${item.quantity}</span><strong>${escape(item.currency || planCurrency)} ${ (Number(item.price || 0) * item.quantity).toLocaleString() }</strong></div>`).join('')
                 : '<p class="text-muted small mb-0">No additional top-ups selected.</p>';
@@ -3994,7 +3996,7 @@
                                     <section class="registration-preview-section"><h6><i class="fas fa-user-tie"></i> Primary contact</h6>${field('Principal', value('principalName'))}${field('Email', value('principalEmail'))}${field('Phone', value('schoolPhone'))}</section>
                                 </div>
                                 <section class="registration-preview-section"><h6><i class="fas fa-user-shield"></i> School administrator</h6>${field('Name', value('adminName'))}${field('Username', value('schoolAdminUsername'))}${field('Email', value('schoolAdminContactEmail'))}${field('Profile image', value('schoolAdminPhotoUrl') === 'Not provided' ? 'Not provided' : 'Included')}<div class="registration-preview-field"><span>Password</span><strong>Will be shared after registration</strong></div></section>
-                                <section class="registration-preview-section"><h6><i class="fas fa-crown"></i> Subscription</h6><div class="registration-preview-line"><span>${escape(plan?.name || 'No main plan selected')}</span><strong>${escape(plan ? `${planCurrency} ${Number(plan.price || 0).toLocaleString()} Â· ${plan.durationMonths || 1} months` : 'â€”')}</strong></div>${topupMarkup}<div class="registration-preview-total"><span>Total${topupCount ? ` Â· ${topupCount} top-up${topupCount === 1 ? '' : 's'}` : ''}</span><strong>${escape(planCurrency)} ${totalPrice.toLocaleString()}</strong></div></section>
+                                <section class="registration-preview-section"><h6><i class="fas fa-crown"></i> Subscription</h6><div class="registration-preview-line"><span>${escape(plan?.name || 'No main plan selected')}</span><strong>${escape(plan ? `${planCurrency} ${Number(plan.price || 0).toLocaleString()} Â· ${plan.durationMonths || 1} months` : 'â€”')}</strong></div>${topupMarkup}<div class="registration-preview-total"><span>Total${topupCount ? ` Â· ${topupCount} top-up${topupCount === 1 ? '' : 's'}` : ''}</span><strong>${escape(priceSummary)}</strong></div></section>
                             </div>
                             <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Continue editing</button><button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="document.getElementById('registerSchoolBtn')?.focus()">Looks good</button></div>
                         </div>

@@ -418,6 +418,120 @@ async function deleteTeacher(request, env, origin) {
     }
 }
 
+async function sendCustomMail(request, env, origin) {
+    const authorization = request.headers.get('Authorization') || '';
+    const tokenMatch = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]+)$/);
+    if (!tokenMatch) return response({ error: 'Owner authentication is required.' }, 401, origin);
+
+    let caller;
+    try {
+        caller = await verifyFirebaseToken(tokenMatch[1], env.FIREBASE_PROJECT_ID);
+    } catch (error) {
+        console.error('Custom mail requester verification failed:', error);
+        return response({ error: 'Authentication could not be verified. Try again shortly.' }, 503, origin);
+    }
+    if (!caller) return response({ error: 'Authentication token is invalid or expired.' }, 401, origin);
+
+    const payload = await readJsonWithinLimit(request, 24 * 1024);
+    const subject = String(payload?.subject || '').trim();
+    const message = String(payload?.message || '').trim();
+    const recipientUids = Array.isArray(payload?.recipientUids)
+        ? [...new Set(payload.recipientUids.map(uid => String(uid || '').trim()))]
+        : [];
+    if (!payload || subject.length < 1 || subject.length > 160 || message.length < 1 || message.length > 10000 ||
+        !recipientUids.length || recipientUids.length > 100 || recipientUids.some(uid => !/^[A-Za-z0-9_-]{1,128}$/.test(uid))) {
+        return response({ error: 'Enter a subject and message, then select between 1 and 100 recipients.' }, 400, origin);
+    }
+
+    try {
+        const [ownerProfile, userProfile] = await Promise.all([
+            readDatabaseProfile(env, `owners/${caller.uid}`, tokenMatch[1]),
+            readDatabaseProfile(env, `users/${caller.uid}`, tokenMatch[1])
+        ]);
+        const ownerRoles = new Set(['owner', 'platform_owner', 'super_owner']);
+        const profileRole = String(userProfile?.role || '').trim().toLowerCase();
+        const storedOwnerRole = String(ownerProfile?.role || ownerProfile?.accountType || ownerProfile?.platformRole || '').trim().toLowerCase();
+        const isKnownNonOwner = profileRole && !ownerRoles.has(profileRole);
+        const hasOwnerRecord = !!ownerProfile && typeof ownerProfile === 'object' && (!storedOwnerRole || ownerRoles.has(storedOwnerRole));
+        const hasExplicitOwnerRole = ownerRoles.has(profileRole) || ownerRoles.has(storedOwnerRole);
+        if (isKnownNonOwner || (!hasOwnerRecord && !hasExplicitOwnerRole)) {
+            return response({ error: 'Platform owner access is required.' }, 403, origin);
+        }
+        const accessToken = await getFirebaseAccessToken(env);
+        const profiles = await Promise.all(recipientUids.map(async uid => {
+            const profile = await readDatabaseWithAccessToken(env, `users/${uid}`, accessToken);
+            return profile && typeof profile === 'object' ? { uid, ...profile } : null;
+        }));
+        const recipients = [...new Map(profiles
+            .filter(profile => profile && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(profile.email || '').trim()))
+            .map(profile => [String(profile.email).trim().toLowerCase(), String(profile.email).trim()])).values()];
+        if (!recipients.length) return response({ error: 'None of the selected accounts has a valid email address.' }, 400, origin);
+
+        await Promise.all(recipients.map(email => sendBrevoCustomMail(env, email, subject, message)));
+        return response({ sent: recipients.length }, 200, origin);
+    } catch (error) {
+        console.error('Owner custom mail delivery failed:', error);
+        return response({ error: error.message || 'Custom mail could not be sent.' }, 503, origin);
+    }
+}
+
+async function sendSchoolAdminCredentials(request, env, origin) {
+    const authorization = request.headers.get('Authorization') || '';
+    const tokenMatch = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]+)$/);
+    if (!tokenMatch) return response({ error: 'Owner authentication is required.' }, 401, origin);
+
+    let caller;
+    try {
+        caller = await verifyFirebaseToken(tokenMatch[1], env.FIREBASE_PROJECT_ID);
+    } catch (error) {
+        console.error('School credentials requester verification failed:', error);
+        return response({ error: 'Authentication could not be verified. Try again shortly.' }, 503, origin);
+    }
+    if (!caller) return response({ error: 'Authentication token is invalid or expired.' }, 401, origin);
+
+    const payload = await readJsonWithinLimit(request, 4096);
+    const schoolId = String(payload?.schoolId || '').trim();
+    const adminUid = String(payload?.adminUid || '').trim();
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(schoolId) || !/^[A-Za-z0-9_-]{1,128}$/.test(adminUid)) {
+        return response({ error: 'A valid school and administrator are required.' }, 400, origin);
+    }
+
+    try {
+        const [ownerProfile, userProfile] = await Promise.all([
+            readDatabaseProfile(env, `owners/${caller.uid}`, tokenMatch[1]),
+            readDatabaseProfile(env, `users/${caller.uid}`, tokenMatch[1])
+        ]);
+        const ownerRoles = new Set(['owner', 'platform_owner', 'super_owner']);
+        const profileRole = String(userProfile?.role || '').trim().toLowerCase();
+        const storedOwnerRole = String(ownerProfile?.role || ownerProfile?.accountType || ownerProfile?.platformRole || '').trim().toLowerCase();
+        const isKnownNonOwner = profileRole && !ownerRoles.has(profileRole);
+        const hasOwnerRecord = !!ownerProfile && typeof ownerProfile === 'object' && (!storedOwnerRole || ownerRoles.has(storedOwnerRole));
+        const hasExplicitOwnerRole = ownerRoles.has(profileRole) || ownerRoles.has(storedOwnerRole);
+        if (isKnownNonOwner || (!hasOwnerRecord && !hasExplicitOwnerRole)) {
+            return response({ error: 'Platform owner access is required.' }, 403, origin);
+        }
+
+        const accessToken = await getFirebaseAccessToken(env);
+        const [school, admin] = await Promise.all([
+            readDatabaseWithAccessToken(env, `schools/${schoolId}`, accessToken),
+            readDatabaseWithAccessToken(env, `schoolAdmins/${schoolId}`, accessToken)
+        ]);
+        const recipientEmail = String(admin?.email || '').trim();
+        if (!school || String(school.ownerId || '') !== caller.uid ||
+            String(school.contacts?.admin?.uid || '') !== adminUid || String(admin?.authUid || '') !== adminUid ||
+            String(school.contacts?.admin?.email || '').toLowerCase() !== recipientEmail.toLowerCase() ||
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail) || !admin.password) {
+            return response({ error: 'The registered school administrator credentials could not be verified.' }, 403, origin);
+        }
+
+        await sendBrevoSchoolAdminCredentials(env, recipientEmail, school, admin);
+        return response({ sent: true }, 200, origin);
+    } catch (error) {
+        console.error('School administrator credentials email failed:', error);
+        return response({ error: error.message || 'The administrator credentials email could not be sent.' }, 503, origin);
+    }
+}
+
 async function generatePasswordResetLink(env, email) {
     const accessToken = await getFirebaseAccessToken(env);
     if (!env.FIREBASE_API_KEY) throw new Error('Firebase Web API key is not configured.');
@@ -536,6 +650,101 @@ This is an automated security message from RollCall. Please don’t reply to thi
     if (!response.ok) {
         console.error('Brevo password reset email delivery failed:', response.status);
         throw new Error('The password reset email could not be sent.');
+    }
+}
+
+async function sendBrevoCustomMail(env, email, subject, message) {
+    if (!env.BREVO_API_KEY || !env.BREVO_SENDER_EMAIL || !env.BREVO_SENDER_NAME) {
+        throw new Error('Brevo sender configuration is incomplete.');
+    }
+    const safeSubject = escapeHtml(subject);
+    const paragraphs = message.split(/\r?\n/).map(line =>
+        line ? `<p style="margin:0 0 12px;color:#334155;font-size:16px;line-height:26px;">${escapeHtml(line)}</p>` : '<br>'
+    ).join('');
+    const htmlContent = `<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>${safeSubject}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#eaf0f8;font-family:Arial,Helvetica,sans-serif;color:#1e293b;">
+    <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">${safeSubject}</span>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#eaf0f8" style="width:100%;background-color:#eaf0f8;">
+        <tr>
+            <td align="center" style="padding:40px 16px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:620px;background-color:#ffffff;border:1px solid #dbe5f1;border-radius:16px;overflow:hidden;">
+                    <tr>
+                        <td bgcolor="#173b70" style="padding:26px 36px;background-color:#173b70;border-bottom:4px solid #38bdf8;">
+                            <p style="margin:0;color:#ffffff;font-size:24px;line-height:30px;font-weight:700;letter-spacing:0.2px;">RollCall</p>
+                            <p style="margin:5px 0 0;color:#dbeafe;font-size:13px;line-height:20px;">Attendance, made simple</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:36px;">
+                            <h1 style="margin:0 0 22px;color:#0f172a;font-size:24px;line-height:32px;font-weight:700;">${safeSubject}</h1>
+                            <div style="padding:22px 24px;background-color:#f5f8fc;border:1px solid #e3eaf3;border-radius:10px;">
+                                ${paragraphs}
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td bgcolor="#f8fafc" style="padding:18px 36px;background-color:#f8fafc;border-top:1px solid #e2e8f0;">
+                            <p style="margin:0;color:#64748b;font-size:12px;line-height:18px;">This message was sent by the RollCall platform team.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>`;
+    const textContent = `RollCall\n\n${subject}\n\n${message}`;
+    const result = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': env.BREVO_API_KEY, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+            sender: { name: env.BREVO_SENDER_NAME, email: env.BREVO_SENDER_EMAIL },
+            to: [{ email }], subject, htmlContent, textContent
+        })
+    });
+    if (!result.ok) {
+        console.error('Brevo custom mail delivery failed:', result.status);
+        throw new Error('The custom email could not be delivered.');
+    }
+}
+
+async function sendBrevoSchoolAdminCredentials(env, email, school, admin) {
+    if (!env.BREVO_API_KEY || !env.BREVO_SENDER_EMAIL || !env.BREVO_SENDER_NAME) {
+        throw new Error('Brevo sender configuration is incomplete.');
+    }
+    const schoolName = escapeHtml(school.name || 'Your school');
+    const adminName = escapeHtml(admin.name || school.contacts?.admin?.name || 'Administrator');
+    const username = escapeHtml(admin.username || school.contacts?.admin?.username || email);
+    const safeEmail = escapeHtml(email);
+    const password = escapeHtml(admin.password);
+    const subject = `Administrator login details for ${school.name || 'your school'}`;
+    const htmlContent = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;padding:0;background-color:#eaf0f8;font-family:Arial,Helvetica,sans-serif;color:#1e293b;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#eaf0f8" style="width:100%;background-color:#eaf0f8;"><tr><td align="center" style="padding:40px 16px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:620px;background-color:#ffffff;border:1px solid #dbe5f1;border-radius:16px;overflow:hidden;">
+<tr><td bgcolor="#173b70" style="padding:26px 36px;background-color:#173b70;border-bottom:4px solid #38bdf8;"><p style="margin:0;color:#fff;font-size:24px;line-height:30px;font-weight:700;">RollCall</p><p style="margin:5px 0 0;color:#dbeafe;font-size:13px;line-height:20px;">Attendance, made simple</p></td></tr>
+<tr><td style="padding:36px;"><p style="margin:0 0 8px;color:#2563eb;font-size:13px;line-height:20px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Administrator account</p><h1 style="margin:0 0 14px;color:#0f172a;font-size:24px;line-height:32px;">Welcome to RollCall, ${adminName}</h1><p style="margin:0 0 22px;color:#475569;font-size:16px;line-height:25px;">The administrator account for <strong>${schoolName}</strong> is ready. Use these details to sign in:</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f5f8fc" style="width:100%;background-color:#f5f8fc;border:1px solid #e3eaf3;border-radius:10px;"><tr><td style="padding:20px 22px;"><p style="margin:0 0 14px;color:#64748b;font-size:12px;line-height:18px;text-transform:uppercase;letter-spacing:.7px;">Username</p><p style="margin:-10px 0 18px;color:#0f172a;font-size:16px;line-height:24px;font-weight:700;">${username}</p><p style="margin:0 0 14px;color:#64748b;font-size:12px;line-height:18px;text-transform:uppercase;letter-spacing:.7px;">Email</p><p style="margin:-10px 0 18px;color:#0f172a;font-size:16px;line-height:24px;">${safeEmail}</p><p style="margin:0 0 14px;color:#64748b;font-size:12px;line-height:18px;text-transform:uppercase;letter-spacing:.7px;">Temporary password</p><p style="margin:-10px 0 0;color:#0f172a;font-size:16px;line-height:24px;font-weight:700;word-break:break-word;">${password}</p></td></tr></table>
+<p style="margin:22px 0 0;color:#475569;font-size:14px;line-height:22px;">For account security, sign in and change the temporary password as soon as possible.</p></td></tr>
+<tr><td bgcolor="#f8fafc" style="padding:18px 36px;background-color:#f8fafc;border-top:1px solid #e2e8f0;"><p style="margin:0;color:#64748b;font-size:12px;line-height:18px;">This message was sent by the RollCall platform team.</p></td></tr>
+</table></td></tr></table></body></html>`;
+    const textContent = `RollCall administrator account\n\nHello ${admin.name || school.contacts?.admin?.name || 'Administrator'},\n\nThe administrator account for ${school.name || 'your school'} is ready.\n\nUsername: ${admin.username || school.contacts?.admin?.username || email}\nEmail: ${email}\nTemporary password: ${admin.password}\n\nFor account security, sign in and change the temporary password as soon as possible.`;
+    const result = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': env.BREVO_API_KEY, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ sender: { name: env.BREVO_SENDER_NAME, email: env.BREVO_SENDER_EMAIL }, to: [{ email }], subject, htmlContent, textContent })
+    });
+    if (!result.ok) {
+        console.error('Brevo administrator credentials email failed:', result.status);
+        throw new Error('Brevo could not deliver the administrator credentials email.');
     }
 }
 
@@ -963,6 +1172,16 @@ export default {
             if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
             if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
             return deleteTeacher(request, env, allowedOrigin);
+        }
+        if (url.pathname.endsWith('/custom-mail')) {
+            if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);
+            if (request.method !== 'POST') return response({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            return sendCustomMail(request, env, allowedOrigin);
+        }
+        if (url.pathname.endsWith('/school-admin-credentials')) {
+            if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);
+            if (request.method !== 'POST') return response({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            return sendSchoolAdminCredentials(request, env, allowedOrigin);
         }
         if (request.method === 'GET' && (url.pathname.startsWith('/file/') || url.searchParams.has('key'))) {
             return getProfilePhoto(allowedOrigin, env, url);

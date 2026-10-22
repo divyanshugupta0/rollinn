@@ -471,7 +471,10 @@
       }
     },
     "subscriptionResubscribeRequests": {
+      ".read": "auth != null && root.child('owners').child(auth.uid).exists()",
+      ".write": "auth != null && root.child('owners').child(auth.uid).exists()",
       "$schoolId": {
+        ".read": "auth != null && root.child('schools').child($schoolId).child('ownerId').val() === auth.uid",
         "$requesterUid": {
           ".read": "auth != null && (auth.uid === $requesterUid || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)",
           ".write": "auth != null && ((auth.uid === $requesterUid && root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'teacher')) || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)"
