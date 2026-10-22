@@ -10033,34 +10033,22 @@
             loadAttendanceData(selectedAttendanceDate);
         });
 
-        // Load users
-        const USERS_READ_CHUNK_SIZE = 500;
-        async function readUsersInChunks() {
+        // Read student profiles whose canonical users.schoolId matches this school.
+        async function readUsersForSchool(schoolId) {
+            const snapshot = await get(query(ref(database, 'users'), orderByChild('schoolId'), equalTo(schoolId)));
             const records = {};
-            let cursor = null;
-            let loadedCount = 0;
-            while (true) {
-                const usersRef = ref(database, 'users');
-                const usersQuery = cursor === null
-                    ? query(usersRef, orderByKey(), limitToFirst(USERS_READ_CHUNK_SIZE))
-                    : query(usersRef, orderByKey(), startAt(cursor), limitToFirst(USERS_READ_CHUNK_SIZE + 1));
-                const snapshot = await get(usersQuery);
-                const chunkKeys = [];
-                snapshot.forEach(childSnapshot => {
-                    if (childSnapshot.key === cursor) return;
-                    records[childSnapshot.key] = childSnapshot.val() || {};
-                    chunkKeys.push(childSnapshot.key);
-                });
-                loadedCount += chunkKeys.length;
-                if (usersList && loadedCount) usersList.innerHTML = `<p class="text-muted">Loading user recordsÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ ${loadedCount.toLocaleString()} processed</p>`;
-                if (chunkKeys.length < USERS_READ_CHUNK_SIZE) break;
-                cursor = chunkKeys[chunkKeys.length - 1];
-            }
+            snapshot.forEach(childSnapshot => {
+                const profile = childSnapshot.val() || {};
+                if (String(profile.schoolId || '').trim() === schoolId) {
+                    records[childSnapshot.key] = profile;
+                }
+            });
             return records;
         }
 
         function loadUsers(forceReload = false) {
             const isSchoolMode = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
+            const currentSchoolId = String(currentUser?.schoolId || window.rollCallAdminMode?.schoolId || '').trim();
             if (forceReload) {
                 usersReadGeneration += 1;
                 allUserRecordsCache = null;
@@ -10070,8 +10058,8 @@
             if (!allUserRecordsCache && !allUserRecordsPromise) {
                 currentUserRecords = [];
                 updateUsersExportControls();
-                usersList.innerHTML = '<p class="text-muted">Loading student records in batchesÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</p>';
-                allUserRecordsPromise = readUsersInChunks();
+                usersList.innerHTML = '<p class="text-muted">Loading this school\'s student records...</p>';
+                allUserRecordsPromise = currentSchoolId ? readUsersForSchool(currentSchoolId) : Promise.resolve({});
             }
             const recordsPromise = allUserRecordsCache ? Promise.resolve(allUserRecordsCache) : allUserRecordsPromise;
 
@@ -10082,7 +10070,7 @@
                     allUserRecordsPromise = null;
                     if (Object.keys(users).length) {
 
-                        // The Users tab is intentionally limited to student accounts.
+                        // Show only student accounts assigned to this administrator's school.
                         // Administrator, teacher, and owner accounts are managed elsewhere.
                         const searchTerm = userSearch.value.toLowerCase();
                         const selectedBloodGroup = document.getElementById('users-blood-filter')?.value || 'all';
@@ -10102,7 +10090,7 @@
                         for (const id in users) {
                             const user = users[id];
                             const userRole = String(user.role || '').trim().toLowerCase();
-                            const isStudent = userRole === 'student';
+                            const isStudent = userRole === 'student' && String(user.schoolId || '').trim() === currentSchoolId;
                             const bloodGroup = String(user.bloodGroup || user.blood || '').trim();
                             const hasFaceId = !!(user.faceDescriptor || user.faceRegistered || user.faceEnrolled);
                             const matchesSearch = !searchTerm ||
@@ -10297,7 +10285,7 @@
                             });
                         }
                     } else {
-                        usersList.innerHTML = '<p>No users found.</p>';
+                        usersList.innerHTML = '<p>No students found for this school.</p>';
                     }
                 })
                 .catch((error) => {
