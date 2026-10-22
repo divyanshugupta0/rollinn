@@ -1068,11 +1068,36 @@ async function createProfileUpload(request, env, origin) {
     const contentType = String(payload.contentType || '').toLowerCase();
     const extension = CONTENT_TYPES.get(contentType);
     const contentLength = Number(payload.contentLength);
+    const targetUid = String(payload.userId || caller.uid).trim();
     if (!extension || !Number.isInteger(contentLength) || contentLength < 1 || contentLength > MAX_BYTES) {
         return uploadResponse({ error: 'Invalid image type or size.' }, 400, origin);
     }
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(targetUid)) {
+        return uploadResponse({ error: 'Invalid profile owner.' }, 400, origin);
+    }
+    if (targetUid !== caller.uid) {
+        try {
+            const [ownerProfile, callerProfile, targetProfile] = await Promise.all([
+                readDatabaseProfile(env, `owners/${caller.uid}`, tokenMatch[1]),
+                readDatabaseProfile(env, `users/${caller.uid}`, tokenMatch[1]),
+                readDatabaseProfile(env, `users/${targetUid}`, tokenMatch[1])
+            ]);
+            const ownerRoles = new Set(['owner', 'platform_owner', 'super_owner']);
+            const profileRole = String(callerProfile?.role || '').trim().toLowerCase();
+            const storedOwnerRole = String(ownerProfile?.role || ownerProfile?.accountType || ownerProfile?.platformRole || '').trim().toLowerCase();
+            const knownNonOwner = profileRole && !ownerRoles.has(profileRole);
+            const hasOwnerRecord = !!ownerProfile && typeof ownerProfile === 'object' && (!storedOwnerRole || ownerRoles.has(storedOwnerRole));
+            const explicitOwnerRole = ownerRoles.has(profileRole) || ownerRoles.has(storedOwnerRole);
+            if (knownNonOwner || (!hasOwnerRecord && !explicitOwnerRole) || !targetProfile) {
+                return uploadResponse({ error: 'Only the platform owner can upload pictures for another account.' }, 403, origin);
+            }
+        } catch (error) {
+            console.error('Owner profile-upload authorization failed:', error);
+            return uploadResponse({ error: 'The target account could not be verified.' }, 503, origin);
+        }
+    }
 
-    const key = `profile-photos/${encodeURIComponent(caller.uid)}/${crypto.randomUUID()}.${extension}`;
+    const key = `profile-photos/${encodeURIComponent(targetUid)}/${crypto.randomUUID()}.${extension}`;
     const expiresAt = String(Math.floor(Date.now() / 1000) + 300);
     try {
         const signature = await signUpload(env, key, contentType, expiresAt);

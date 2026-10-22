@@ -19,6 +19,14 @@
         leaveRequests: []
     };
 
+    function loadStableStudentReference(path, ttlMs, force = false) {
+        const reference = firebase.database().ref(path);
+        const loadFromFirebase = () => reference.once('value').then(snapshot => snapshot.val() || {});
+        return window.RollCallStudentDataCache
+            ? window.RollCallStudentDataCache.getOrLoad(`rtdb:${path}`, loadFromFirebase, { ttlMs, force })
+            : loadFromFirebase();
+    }
+
     // Initialize once DOM is ready
     document.addEventListener('DOMContentLoaded', () => {
         initLiveClock();
@@ -310,9 +318,9 @@
         function loadSchoolMode(profile) {
             const schoolId = String(profile?.schoolId || '').trim();
             if (!schoolId || schoolModeLoadPromise) return schoolModeLoadPromise;
-            schoolModeLoadPromise = firebase.database().ref(`schools/${schoolId}/type`).once('value')
-                .then(snapshot => {
-                    state.schoolType = String(snapshot.val() || '').trim().toLowerCase();
+            schoolModeLoadPromise = loadStableStudentReference(`schools/${schoolId}/type`, 12 * 60 * 60 * 1000)
+                .then(value => {
+                    state.schoolType = String(value || '').trim().toLowerCase();
                     state.mobileAttendanceEnabled = state.schoolType !== 'school';
                     const isSchoolMode = state.schoolType === 'school';
                     document.body.classList.toggle('student-school-mode', isSchoolMode);
@@ -715,16 +723,16 @@
 
         if (!settings || !timetables) {
             try {
-                const settingsPromise = db.ref(`schoolTimetableSettings/${schoolId}`).once('value');
+                const settingsPromise = loadStableStudentReference(`schoolTimetableSettings/${schoolId}`, 15 * 60 * 1000);
                 const timetablesPromise = window.RollCallTimetableCache
                     ? window.RollCallTimetableCache.syncTimetables(schoolId)
                     : db.ref(`schoolTimetables/${schoolId}`).once('value').then(s => ({ timetables: s.val() || {} }));
 
-                const [settingsSnap, cacheResult] = await Promise.all([
+                const [settingsData, cacheResult] = await Promise.all([
                     settingsPromise,
                     timetablesPromise
                 ]);
-                settings = settingsSnap.val() || {};
+                settings = settingsData || {};
                 timetables = cacheResult.timetables || {};
                 state.timetableSettings = settings;
                 state.schoolTimetables = timetables;
@@ -3706,16 +3714,16 @@
             ];
 
             if (schoolId) {
-                fetchPromises.push(db.ref(`schoolCourses/${schoolId}`).once('value'));
-                fetchPromises.push(db.ref(`schoolClasses/${schoolId}`).once('value'));
+                fetchPromises.push(loadStableStudentReference(`schoolCourses/${schoolId}`, 30 * 60 * 1000, forceRefresh));
+                fetchPromises.push(loadStableStudentReference(`schoolClasses/${schoolId}`, 30 * 60 * 1000, forceRefresh));
             }
 
             const results = await Promise.all(fetchPromises);
             const globalAtt = results[0].val() || {};
             const locations = results[1].val() || {};
             const userDirectAtt = results[2].val() || {};
-            const courses = (results[3] ? results[3].val() : {}) || {};
-            const classes = (results[4] ? results[4].val() : {}) || {};
+            const courses = results[3] || {};
+            const classes = results[4] || {};
 
             const userSectionKeys = normalizeSectionKeys(user.section || '');
             const recordsMap = new Map();
@@ -4204,23 +4212,21 @@
             timetableState.isLoading = true;
             const db = firebase.database();
 
-            const settingsPromise = db.ref(`schoolTimetableSettings/${schoolId}`).once('value');
+            const settingsPromise = loadStableStudentReference(`schoolTimetableSettings/${schoolId}`, 15 * 60 * 1000, forceRefresh);
             const timetablesPromise = window.RollCallTimetableCache
                 ? window.RollCallTimetableCache.syncTimetables(schoolId, forceRefresh)
                 : db.ref(`schoolTimetables/${schoolId}`).once('value').then(s => ({ timetables: s.val() || {} }));
-            const coursesPromise = db.ref(`schoolCourses/${schoolId}`).once('value');
+            const coursesPromise = loadStableStudentReference(`schoolCourses/${schoolId}`, 30 * 60 * 1000, forceRefresh);
             const subjectAssignmentsPromise = db.ref(`subjectTeacherAssignments/${schoolId}`).once('value');
 
-            const [settingsSnap, cacheResult, coursesSnap, subjectAssignmentsSnap] = await Promise.all([
+            const [config, cacheResult, courses, subjectAssignmentsSnap] = await Promise.all([
                 settingsPromise,
                 timetablesPromise,
                 coursesPromise,
                 subjectAssignmentsPromise
             ]);
 
-            const config = settingsSnap.val() || {};
             const timetables = cacheResult.timetables || {};
-            const courses = coursesSnap.val() || {};
             const subjectAssignments = subjectAssignmentsSnap.val() || {};
 
             state.timetableSettings = config;

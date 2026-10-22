@@ -4656,21 +4656,28 @@
         let registeredSchoolDirectoryCache = null;
         async function loadRegisteredSchoolDirectory(force = false) {
             if (registeredSchoolDirectoryCache && !force) return registeredSchoolDirectoryCache;
-            const snapshot = await get(ref(database, 'publicSchools'));
-            registeredSchoolDirectoryCache = snapshot.val() || {};
+            const loadFromFirebase = async () => (await get(ref(database, 'publicSchools'))).val() || {};
+            registeredSchoolDirectoryCache = window.RollCallStudentDataCache
+                ? await window.RollCallStudentDataCache.getOrLoad('rtdb:publicSchools', loadFromFirebase, { ttlMs: 12 * 60 * 60 * 1000, force })
+                : await loadFromFirebase();
             return registeredSchoolDirectoryCache;
         }
         async function loadStudentCourseCatalog(force = false, schoolId = '') {
             if (schoolId) {
-                const snapshot = await get(ref(database, `publicCourseCatalog/${schoolId}`));
-                const entry = snapshot.val();
+                const path = `publicCourseCatalog/${schoolId}`;
+                const loadFromFirebase = async () => (await get(ref(database, path))).val();
+                const entry = window.RollCallStudentDataCache
+                    ? await window.RollCallStudentDataCache.getOrLoad(`rtdb:${path}`, loadFromFirebase, { ttlMs: 6 * 60 * 60 * 1000, force })
+                    : await loadFromFirebase();
                 if (!entry) return {};
                 studentCourseCatalogCache = { ...(studentCourseCatalogCache || {}), [schoolId]: entry };
                 return studentCourseCatalogCache;
             }
             if (studentCourseCatalogCache && !force) return studentCourseCatalogCache;
-            const snapshot = await get(ref(database, 'publicCourseCatalog'));
-            studentCourseCatalogCache = snapshot.val() || {};
+            const loadFromFirebase = async () => (await get(ref(database, 'publicCourseCatalog'))).val() || {};
+            studentCourseCatalogCache = window.RollCallStudentDataCache
+                ? await window.RollCallStudentDataCache.getOrLoad('rtdb:publicCourseCatalog', loadFromFirebase, { ttlMs: 6 * 60 * 60 * 1000, force })
+                : await loadFromFirebase();
             return studentCourseCatalogCache;
         }
         async function resolveRegisteredSchoolCode(code, force = false) {
@@ -12268,6 +12275,7 @@
         };
     </script>
     <!-- Versioned Timetable Cache (Synced with Admin & Teacher) -->
+    <script src="student-data-cache.js"></script>
     <script src="timetable-cache.js"></script>
     <!-- Student Modern Controller -->
     <script src="student-modern.js"></script>

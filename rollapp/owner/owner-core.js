@@ -1339,6 +1339,8 @@
         if (activeSection === 'owner-pricing') { loadPricingPlans(); renderSubscriptionRows(); }
         if (activeSection === 'owner-subscription-requests') document.getElementById('owner-subscription-requests')?._renderSubscriptionRequests?.();
         if (activeSection === 'owner-custom-mail') document.getElementById('owner-custom-mail')?._onCustomMailOpen?.();
+        if (activeSection === 'owner-bulk-registrations') document.getElementById('owner-bulk-registrations')?._onBulkRegistrationsOpen?.();
+        if (activeSection === 'owner-bulk-profile-photos') document.getElementById('owner-bulk-profile-photos')?._onBulkPhotosOpen?.();
         if (activeSection === 'schools') refreshSchoolData();
         if (activeSection === 'analytics' && typeof initializeAnalyticsCharts === 'function') initializeAnalyticsCharts();
         if (window.innerWidth <= 768) document.querySelector('.sidebar')?.classList.remove('show');
@@ -1572,8 +1574,269 @@
         });
     }
 
+    function parseOwnerCsv(text) {
+        const rows = [];
+        let row = [], field = '', quoted = false;
+        const source = String(text || '').replace(/^\uFEFF/, '');
+        for (let index = 0; index < source.length; index += 1) {
+            const character = source[index];
+            if (quoted) {
+                if (character === '"' && source[index + 1] === '"') { field += '"'; index += 1; }
+                else if (character === '"') quoted = false;
+                else field += character;
+            } else if (character === '"') quoted = true;
+            else if (character === ',') { row.push(field.trim()); field = ''; }
+            else if (character === '\n' || character === '\r') {
+                row.push(field.trim()); field = '';
+                if (row.some(value => value !== '')) rows.push(row);
+                row = [];
+                if (character === '\r' && source[index + 1] === '\n') index += 1;
+            } else field += character;
+        }
+        row.push(field.trim());
+        if (row.some(value => value !== '')) rows.push(row);
+        if (quoted) throw new Error('The CSV contains an unclosed quoted field.');
+        if (rows.length < 2) throw new Error('The CSV needs a header row and at least one user row.');
+        const headers = rows.shift().map(value => value.trim().toLowerCase());
+        if (new Set(headers).size !== headers.length || headers.some(value => !value)) throw new Error('CSV column headings must be non-empty and unique.');
+        return rows.map((values, index) => ({ rowNumber: index + 2, data: Object.fromEntries(headers.map((header, headerIndex) => [header, values[headerIndex] || ''])) }));
+    }
+
+    function addBulkRegistrationsPanel() {
+        const nav = document.querySelector('.nav-links'); const main = document.querySelector('.main-content');
+        if (!nav || !main || document.getElementById('owner-bulk-registrations')) return;
+        const item = document.createElement('li'); item.className = 'nav-item';
+        item.innerHTML = '<a class="nav-link" href="#owner-bulk-registrations"><i class="fas fa-file-import"></i>Bulk registrations</a>'; nav.appendChild(item);
+        const section = document.createElement('section'); section.id = 'owner-bulk-registrations'; section.className = 'animated-section'; section.style.display = 'none';
+        section.innerHTML = `<div class="section-card"><div class="mb-3"><h2><i class="fas fa-file-import"></i> Bulk teacher & student registrations</h2><p class="text-muted mb-0">Create sign-in accounts and school profiles from a CSV file.</p></div>
+          <div class="alert alert-warning"><strong>CSV passwords are sensitive.</strong> Use a trusted device and remove the file after importing. Rows are processed individually; failures won’t undo successful accounts.</div>
+          <div class="row g-3"><div class="col-md-6"><label class="form-label" for="ownerBulkSchool">School</label><select id="ownerBulkSchool" class="form-select"><option value="">Select school</option></select><div id="ownerBulkSchoolCode" class="form-text">School code: —</div></div>
+          <div class="col-md-6"><label class="form-label" for="ownerBulkType">Account type</label><select id="ownerBulkType" class="form-select"><option value="student">Student</option><option value="teacher">Teacher</option></select></div>
+          <div class="col-md-6" id="ownerBulkClassField"><label class="form-label" for="ownerBulkClass">Student class</label><select id="ownerBulkClass" class="form-select" disabled><option value="">Select a school first</option></select></div>
+          <div class="col-md-6 d-flex align-items-end"><button id="ownerBulkTemplate" type="button" class="btn btn-outline-primary"><i class="fas fa-download"></i> Download CSV template</button></div>
+          <div class="col-12"><label class="form-label" for="ownerBulkCsv">CSV file</label><input id="ownerBulkCsv" type="file" class="form-control" accept=".csv,text/csv"><div id="ownerBulkCsvHelp" class="form-text">Student columns: name,email,password,dateOfBirth,mobile,classRoll,section; optional: univRoll. School and class are selected above.</div></div>
+          <div class="col-12"><div id="ownerBulkPreview"><p class="text-muted mb-0">Choose a school, account type, class, and CSV file to preview accounts.</p></div></div>
+          <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2"><span id="ownerBulkStatus" class="small text-muted" role="status">No CSV loaded.</span><button id="ownerBulkImport" type="button" class="btn btn-primary" disabled><i class="fas fa-user-plus"></i> Create accounts</button></div></div></div>`;
+        main.appendChild(section);
+        const schoolSelect = section.querySelector('#ownerBulkSchool'); const typeSelect = section.querySelector('#ownerBulkType');
+        const classSelect = section.querySelector('#ownerBulkClass'); const csvInput = section.querySelector('#ownerBulkCsv'); const importButton = section.querySelector('#ownerBulkImport');
+        let rows = []; let classes = [];
+        function renderSchools() {
+            const selected = schoolSelect.value; schoolSelect.replaceChildren(new Option('Select school', ''));
+            (schools || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).forEach(school => schoolSelect.add(new Option(`${school.name || 'Unnamed school'} · ${school.code || 'No code'}`, school.id)));
+            if ((schools || []).some(school => String(school.id) === selected)) schoolSelect.value = selected;
+            const school = (schools || []).find(record => String(record.id) === schoolSelect.value);
+            section.querySelector('#ownerBulkSchoolCode').textContent = `School code: ${school?.code || '—'}`;
+        }
+        function previewRows() {
+            importButton.disabled = !rows.length || !schoolSelect.value || (typeSelect.value === 'student' && !classSelect.value);
+            const preview = section.querySelector('#ownerBulkPreview'); preview.replaceChildren();
+            if (!rows.length) { preview.textContent = 'Choose a CSV file to preview accounts.'; preview.className = 'text-muted'; return; }
+            preview.className = 'table-responsive';
+            const fields = ['name', 'email', 'dateOfBirth', typeSelect.value === 'student' ? 'classRoll' : 'phone', typeSelect.value === 'student' ? 'section' : 'designation'];
+            const table = document.createElement('table'); table.className = 'table table-sm table-striped align-middle';
+            const head = document.createElement('thead'); const headerRow = document.createElement('tr');
+            ['CSV row', ...fields].forEach(value => { const cell = document.createElement('th'); cell.textContent = value; headerRow.append(cell); }); head.append(headerRow); table.append(head);
+            const body = document.createElement('tbody'); rows.slice(0, 10).forEach(item => { const line = document.createElement('tr'); const n = document.createElement('td'); n.textContent = String(item.rowNumber); line.append(n); fields.forEach(key => { const cell = document.createElement('td'); cell.textContent = item.data[key.toLowerCase()] || '—'; line.append(cell); }); body.append(line); }); table.append(body); preview.append(table);
+            const count = document.createElement('p'); count.className = 'small text-muted mb-0'; count.textContent = `Previewing up to 10 of ${rows.length} rows. Passwords are hidden.`; preview.append(count);
+        }
+        async function loadClasses() {
+            const schoolId = schoolSelect.value; classes = []; classSelect.disabled = true; classSelect.replaceChildren(new Option(schoolId ? 'Loading classes…' : 'Select a school first', ''));
+            if (!schoolId) return;
+            const [courseSnapshot, classSnapshot] = await Promise.all([database.ref(`schoolCourses/${schoolId}`).once('value'), database.ref(`schoolClasses/${schoolId}`).once('value')]);
+            const map = new Map(); [courseSnapshot.val(), classSnapshot.val()].forEach(records => Object.entries(records || {}).forEach(([id, record]) => { if (record && typeof record === 'object') map.set(id, { id, name: record.courseName || record.className || record.name || record.title || 'Class' }); }));
+            classes = [...map.values()].sort((a, b) => a.name.localeCompare(b.name)); classSelect.replaceChildren(new Option(classes.length ? 'Select class' : 'No classes found', ''));
+            classes.forEach(record => classSelect.add(new Option(record.name, record.id))); classSelect.disabled = !classes.length;
+        }
+        function downloadTemplate() {
+            const teacher = typeSelect.value === 'teacher';
+            const header = teacher ? 'name,email,password,dateOfBirth,phone,designation,subjectsTaught' : 'name,email,password,dateOfBirth,mobile,classRoll,section,univRoll,academicYear';
+            const sample = teacher ? 'Aarav Sharma,aarav@example.com,ChangeMe123!,2000-05-15,9876543210,Mathematics Teacher,Math|Science' : 'Aarav Sharma,aarav@example.com,ChangeMe123!,2010-05-15,9876543210,01,A,';
+            const url = URL.createObjectURL(new Blob([`${header}\r\n${sample}\r\n`], { type: 'text/csv;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${teacher ? 'teacher' : 'student'}-registration-template.csv`; anchor.click(); URL.revokeObjectURL(url);
+        }
+        section._onBulkRegistrationsOpen = async () => {
+            const cached = await readSchoolsCache();
+            if (Array.isArray(cached)) { schools = cached; renderSchools(); }
+            if (database) {
+                try {
+                    const snapshot = await database.ref('schools').once('value');
+                    schools = Object.entries(snapshot.val() || {}).map(([id, school]) => ({ id, ...(school || {}) }));
+                    await writeSchoolsCache(); renderSchools();
+                } catch (error) {
+                    if (!Array.isArray(cached)) notify(`Could not load schools for bulk registration: ${error.message}`, 'danger');
+                }
+            }
+        };
+        schoolSelect.addEventListener('change', async () => { renderSchools(); try { await loadClasses(); } catch (error) { notify(`Could not load classes: ${error.message}`, 'danger'); } previewRows(); });
+        classSelect.addEventListener('change', previewRows);
+        typeSelect.addEventListener('change', () => { const student = typeSelect.value === 'student'; section.querySelector('#ownerBulkClassField').hidden = !student; section.querySelector('#ownerBulkCsvHelp').textContent = student ? 'Student columns: name,email,password,dateOfBirth,mobile,classRoll,section; optional: univRoll. School and class are selected above.' : 'Teacher columns: name,email,password,dateOfBirth,phone,designation,subjectsTaught. Use | between subjects. School and teacher account type are selected above.'; rows = []; previewRows(); });
+        section.querySelector('#ownerBulkTemplate').addEventListener('click', downloadTemplate);
+        csvInput.addEventListener('change', async () => { rows = []; importButton.disabled = true; const file = csvInput.files?.[0]; if (!file) return previewRows(); try { if (file.size > 2 * 1024 * 1024) throw new Error('CSV files must be smaller than 2 MB.'); rows = parseOwnerCsv(await file.text()); section.querySelector('#ownerBulkStatus').textContent = `${rows.length} CSV rows loaded.`; previewRows(); } catch (error) { section.querySelector('#ownerBulkStatus').textContent = error.message; notify(error.message, 'warning'); } });
+        importButton.addEventListener('click', async () => {
+            const school = (schools || []).find(record => String(record.id) === schoolSelect.value); const accountType = typeSelect.value; const cls = classes.find(record => record.id === classSelect.value);
+            if (!database || !currentUser || !school || (accountType === 'student' && !cls)) return notify('Select a connected school and, for students, a class.', 'warning');
+            importButton.disabled = true; const status = section.querySelector('#ownerBulkStatus'); const failures = []; let created = 0; let temporaryApp = null;
+            try {
+                status.textContent = 'Checking existing accounts and roll numbers…';
+                const snapshot = await database.ref('users').once('value'); const existingUsers = snapshot.val() || {};
+                const rolls = new Set(Object.values(existingUsers).filter(user => user && String(user.schoolId) === String(school.id)).map(user => `${String(user.courseId || user.classId || user.className || user.courseName || '').toLowerCase()}|${String(user.section || '').toLowerCase()}|${String(user.classRoll || '')}`));
+                const emails = new Set(); temporaryApp = firebase.initializeApp(ownerAuth.options, `ownerBulk-${Date.now()}`);
+                for (let index = 0; index < rows.length; index += 1) {
+                    const { rowNumber, data } = rows[index]; status.textContent = `Creating ${index + 1} of ${rows.length}…`; let account = null;
+                    try {
+                        const name = String(data.name || '').trim(); const email = String(data.email || '').trim().toLowerCase(); const password = String(data.password || ''); const dob = String(data.dateofbirth || data.dob || '').trim();
+                        if (!name || name.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || password.length < 8 || !/^\d{4}-\d{2}-\d{2}$/.test(dob) || dob > new Date().toISOString().slice(0, 10)) throw new Error('Provide a name, valid email, password of 8+ characters, and valid non-future dateOfBirth (YYYY-MM-DD).');
+                        if (emails.has(email)) throw new Error('This email is duplicated in the CSV.'); emails.add(email);
+                        const profile = { uid: '', name, email, username: email.split('@')[0], dob, dateOfBirth: dob, role: accountType, schoolId: school.id, schoolCode: school.code || '', schoolName: school.name || '', createdAt: new Date().toISOString(), createdBy: currentUser.uid };
+                        if (accountType === 'student') {
+                            const mobile = String(data.mobile || '').trim(); const classRoll = String(data.classroll || '').trim(); const sectionName = String(data.section || '').trim();
+                            if (!/^\d{10}$/.test(mobile) || !/^\d{2}$/.test(classRoll) || !sectionName) throw new Error('Student rows need a 10-digit mobile, 2-digit classRoll, and section.');
+                            const schoolType = String(school.type || school.institutionType || '').trim().toLowerCase();
+                            const isSchool = !schoolType.includes('college') && !schoolType.includes('university');
+                            const univRoll = String(data.univroll || '').trim(); const academicYear = Number(data.academicyear || 1);
+                            if (!isSchool && (!/^\d{10}$/.test(univRoll) || !Number.isInteger(academicYear) || academicYear < 1 || academicYear > 10)) throw new Error('College/university students need a 10-digit univRoll and academicYear from 1 to 10.');
+                            const rollKey = `${cls.id.toLowerCase()}|${sectionName.toLowerCase()}|${classRoll}`; if (rolls.has(rollKey) || rolls.has(`${cls.name.toLowerCase()}|${sectionName.toLowerCase()}|${classRoll}`)) throw new Error('This class roll already exists for this class and section.');
+                            Object.assign(profile, { registrationType: isSchool ? 'school' : 'university', mobile, classRoll, univRoll, courseId: cls.id, classId: cls.id, course: cls.name, courseName: cls.name, className: cls.name, section: sectionName, ...(!isSchool ? { academicYear, year: academicYear } : {}) });
+                        } else {
+                            const phone = String(data.phone || data.mobile || '').trim(); const designation = String(data.designation || '').trim(); const subjectsTaught = String(data.subjectstaught || '').split('|').map(value => value.trim()).filter(Boolean);
+                            if (!/^\d{10}$/.test(phone) || !designation || !subjectsTaught.length) throw new Error('Teacher rows need a 10-digit phone, designation, and at least one subject (separate subjects with |).');
+                            Object.assign(profile, { phone, designation, subjectsTaught, teacherType: 'teacher', classTeacherEnabled: false, roles: ['teacher'], assignedSections: [] });
+                        }
+                        account = (await temporaryApp.auth().createUserWithEmailAndPassword(email, password)).user; profile.uid = account.uid; await account.updateProfile({ displayName: name });
+                        await database.ref().update({ [`users/${account.uid}`]: profile, [`schoolUsers/${school.id}/${account.uid}`]: profile });
+                        if (accountType === 'student') {
+                            rolls.add(`${cls.id.toLowerCase()}|${String(profile.section).toLowerCase()}|${profile.classRoll}`);
+                            rolls.add(`${cls.name.toLowerCase()}|${String(profile.section).toLowerCase()}|${profile.classRoll}`);
+                        }
+                        created += 1;
+                    } catch (error) { if (account) await account.delete().catch(cleanup => console.warn('Could not remove incomplete import account.', cleanup)); failures.push({ rowNumber, message: error.message || 'Account creation failed.' }); }
+                    finally { await temporaryApp.auth().signOut().catch(() => {}); }
+                }
+            } catch (error) { failures.push({ rowNumber: '—', message: error.message || 'Import stopped.' }); }
+            finally { if (temporaryApp) await temporaryApp.delete().catch(error => console.warn('Bulk import Firebase app cleanup failed.', error)); importButton.disabled = false; }
+            status.textContent = `Created ${created} accounts; ${failures.length} rows failed.`;
+            if (failures.length) { const list = document.createElement('ul'); list.className = 'small text-danger mt-2'; failures.forEach(failure => { const line = document.createElement('li'); line.textContent = `CSV row ${failure.rowNumber}: ${failure.message}`; list.append(line); }); section.querySelector('#ownerBulkPreview').append(list); }
+            if (created) notify(`Created ${created} ${accountType} account${created === 1 ? '' : 's'} for ${school.name}.`, failures.length ? 'warning' : 'success');
+        });
+        item.querySelector('a').addEventListener('click', event => { event.preventDefault(); switchSection('owner-bulk-registrations'); renderSchools(); });
+    }
+
+    function addBulkProfilePhotosPanel() {
+        const nav = document.querySelector('.nav-links'); const main = document.querySelector('.main-content');
+        if (!nav || !main || document.getElementById('owner-bulk-profile-photos')) return;
+        const item = document.createElement('li'); item.className = 'nav-item';
+        item.innerHTML = '<a class="nav-link" href="#owner-bulk-profile-photos"><i class="fas fa-images"></i>Bulk profile photos</a>'; nav.appendChild(item);
+        const section = document.createElement('section'); section.id = 'owner-bulk-profile-photos'; section.className = 'animated-section'; section.style.display = 'none';
+        section.innerHTML = `<div class="section-card"><div class="mb-3"><h2><i class="fas fa-images"></i> Bulk profile photo upload</h2><p class="text-muted mb-0">Upload profile images to R2 and attach them to existing student or teacher accounts.</p></div>
+          <div class="alert alert-info">Select a school and optionally a class, then add multiple image files. Filenames must match a class roll number, email/local part, username, or Firebase UID. Class-roll matches are scoped to the selected class.</div>
+          <div class="row g-3"><div class="col-md-6"><label class="form-label" for="ownerPhotoSchool">School</label><select id="ownerPhotoSchool" class="form-select"><option value="">Select school</option></select></div>
+          <div class="col-md-6"><label class="form-label" for="ownerPhotoClass">Class filter</label><select id="ownerPhotoClass" class="form-select" disabled><option value="">Select school first</option></select></div>
+          <div class="col-12"><label class="form-label" for="ownerPhotoFiles">Profile pictures</label><input id="ownerPhotoFiles" class="form-control" type="file" accept="image/png,image/jpeg,image/webp" multiple><div class="form-text">Source images may be up to 10 MB; they are resized before R2 upload.</div></div>
+          <div class="col-12"><div id="ownerPhotoMatches"><p class="text-muted mb-0">Select a school and image files to preview matches.</p></div></div>
+          <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2"><span id="ownerPhotoStatus" class="small text-muted" role="status">No images selected.</span><button id="ownerPhotoUpload" type="button" class="btn btn-primary" disabled><i class="fas fa-cloud-upload-alt"></i> Upload matched photos</button></div></div></div>`;
+        main.appendChild(section);
+        const schoolSelect = section.querySelector('#ownerPhotoSchool'); const classSelect = section.querySelector('#ownerPhotoClass');
+        const filesInput = section.querySelector('#ownerPhotoFiles'); const matchesElement = section.querySelector('#ownerPhotoMatches'); const uploadButton = section.querySelector('#ownerPhotoUpload');
+        let accounts = []; let classes = []; let matches = []; let accountLoad = null;
+        function renderPhotoSchools() {
+            const previous = schoolSelect.value; schoolSelect.replaceChildren(new Option('Select school', ''));
+            (schools || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).forEach(school => schoolSelect.add(new Option(`${school.name || 'Unnamed school'} · ${school.code || 'No code'}`, school.id)));
+            if ((schools || []).some(school => String(school.id) === previous)) schoolSelect.value = previous;
+        }
+        async function loadPhotoClasses() {
+            const schoolId = schoolSelect.value; classes = []; classSelect.disabled = true;
+            classSelect.replaceChildren(new Option(schoolId ? 'Loading classes…' : 'Select school first', ''));
+            if (!schoolId) return;
+            const [courses, schoolClasses] = await Promise.all([database.ref(`schoolCourses/${schoolId}`).once('value'), database.ref(`schoolClasses/${schoolId}`).once('value')]);
+            const map = new Map(); [courses.val(), schoolClasses.val()].forEach(records => Object.entries(records || {}).forEach(([id, record]) => { if (record && typeof record === 'object') map.set(id, { id, name: record.courseName || record.className || record.name || record.title || 'Class' }); }));
+            classes = [...map.values()].sort((a, b) => a.name.localeCompare(b.name)); classSelect.replaceChildren(new Option('All users in school', ''));
+            classes.forEach(record => classSelect.add(new Option(record.name, record.id))); classSelect.disabled = false;
+        }
+        async function loadPhotoAccounts() {
+            if (accounts.length) return;
+            if (!database) throw new Error('The owner database is not connected.');
+            if (!accountLoad) accountLoad = database.ref('users').once('value').then(snapshot => { accounts = Object.entries(snapshot.val() || {}).map(([uid, profile]) => ({ uid, ...(profile || {}) })); }).finally(() => { accountLoad = null; });
+            await accountLoad;
+        }
+        const normalizedRoll = value => String(value || '').trim().toLowerCase().replace(/^0+(?=\d)/, '');
+        function matchPhotoFiles(files) {
+            const schoolId = schoolSelect.value; const selectedClass = classes.find(record => record.id === classSelect.value);
+            const schoolAccounts = accounts.filter(profile => {
+                if (String(profile.schoolId || '') !== schoolId || !['student', 'teacher'].includes(String(profile.role || '').toLowerCase())) return false;
+                if (!selectedClass) return true;
+                const ids = [profile.courseId, profile.classId, profile.enrolledClassId].filter(Boolean).map(String);
+                const nameMatch = String(profile.className || profile.courseName || profile.course || '').trim().toLowerCase() === selectedClass.name.toLowerCase();
+                return ids.includes(selectedClass.id) || nameMatch;
+            });
+            const claimed = new Set();
+            matches = Array.from(files).map(file => {
+                const base = file.name.replace(/\.[^.]+$/, '').trim().toLowerCase();
+                const candidates = schoolAccounts.filter(profile => {
+                    const values = [profile.uid, profile.username, profile.email, String(profile.email || '').split('@')[0]].filter(Boolean).map(value => String(value).trim().toLowerCase());
+                    return values.includes(base) || Boolean(selectedClass && profile.classRoll && normalizedRoll(profile.classRoll) === normalizedRoll(base));
+                });
+                const profile = candidates.length === 1 && !claimed.has(candidates[0].uid) ? candidates[0] : null;
+                if (profile) claimed.add(profile.uid);
+                return { file, profile, status: profile ? 'Ready' : candidates.length > 1 ? 'Filename matches multiple accounts' : 'No matching account' };
+            });
+            renderPhotoMatches();
+        }
+        function renderPhotoMatches() {
+            matchesElement.replaceChildren();
+            if (!matches.length) { const empty = document.createElement('p'); empty.className = 'text-muted mb-0'; empty.textContent = 'Select a school and image files to preview matches.'; matchesElement.append(empty); uploadButton.disabled = true; return; }
+            const table = document.createElement('table'); table.className = 'table table-sm table-striped align-middle';
+            const head = document.createElement('thead'); const header = document.createElement('tr'); ['Image', 'Matched account', 'Account type', 'Status'].forEach(value => { const cell = document.createElement('th'); cell.textContent = value; header.append(cell); }); head.append(header); table.append(head);
+            const body = document.createElement('tbody'); matches.forEach(match => { const row = document.createElement('tr'); [match.file.name, match.profile?.name || match.profile?.email || '—', match.profile?.role || '—', match.status].forEach(value => { const cell = document.createElement('td'); cell.textContent = value; row.append(cell); }); body.append(row); }); table.append(body); matchesElement.append(table);
+            uploadButton.disabled = !matches.some(match => match.profile); section.querySelector('#ownerPhotoStatus').textContent = `${matches.filter(match => match.profile).length} matched of ${matches.length} images.`;
+        }
+        async function compressPhoto(file) {
+            if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) throw new Error(`${file.name}: choose an image smaller than 10 MB.`);
+            const objectUrl = URL.createObjectURL(file); let image;
+            try { image = await new Promise((resolve, reject) => { const element = new Image(); element.onload = () => resolve(element); element.onerror = () => reject(new Error(`${file.name}: could not decode image.`)); element.src = objectUrl; }); }
+            finally { URL.revokeObjectURL(objectUrl); }
+            const scale = Math.min(1, 640 / Math.max(image.width, image.height)); const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(image.width * scale)); canvas.height = Math.max(1, Math.round(image.height * scale));
+            const context = canvas.getContext('2d'); if (!context) throw new Error('Could not prepare the selected images.'); context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
+            if (!blob || blob.size > 2 * 1024 * 1024) throw new Error(`${file.name}: prepared image exceeds the 2 MB upload limit.`);
+            return blob;
+        }
+        section._onBulkPhotosOpen = async () => {
+            const cached = await readSchoolsCache();
+            if (Array.isArray(cached)) schools = cached;
+            renderPhotoSchools();
+            if (database) {
+                try { const snapshot = await database.ref('schools').once('value'); schools = Object.entries(snapshot.val() || {}).map(([id, school]) => ({ id, ...(school || {}) })); await writeSchoolsCache(); renderPhotoSchools(); }
+                catch (error) { if (!Array.isArray(cached)) notify(`Could not load schools for profile photos: ${error.message}`, 'danger'); }
+            }
+            try { await loadPhotoAccounts(); } catch (error) { notify(`Could not load accounts for photo matching: ${error.message}`, 'danger'); }
+        };
+        schoolSelect.addEventListener('change', async () => { filesInput.value = ''; matches = []; renderPhotoMatches(); try { await loadPhotoAccounts(); await loadPhotoClasses(); } catch (error) { notify(`Could not load school accounts or classes: ${error.message}`, 'danger'); } });
+        classSelect.addEventListener('change', () => { if (filesInput.files?.length) matchPhotoFiles(filesInput.files); });
+        filesInput.addEventListener('change', async () => { matches = []; uploadButton.disabled = true; if (!schoolSelect.value) { notify('Select a school before choosing profile photos.', 'warning'); filesInput.value = ''; return; } try { await loadPhotoAccounts(); matchPhotoFiles(filesInput.files || []); } catch (error) { notify(error.message, 'danger'); } });
+        uploadButton.addEventListener('click', async () => {
+            const ready = matches.filter(match => match.profile); const owner = ownerAuth?.auth().currentUser;
+            if (!ready.length || !owner || !window.RollCallProfileUpload) return notify('Select matched photos and ensure the secure upload service is ready.', 'warning');
+            uploadButton.disabled = true; let uploaded = 0; const failures = []; const status = section.querySelector('#ownerPhotoStatus');
+            for (let index = 0; index < ready.length; index += 1) {
+                const match = ready[index]; status.textContent = `Uploading ${index + 1} of ${ready.length}: ${match.file.name}`;
+                try {
+                    const blob = await compressPhoto(match.file);
+                    const result = await window.RollCallProfileUpload.upload(blob, { uid: match.profile.uid, getIdToken: () => owner.getIdToken() });
+                    const updates = { [`users/${match.profile.uid}/profilePhoto`]: result.publicUrl, [`users/${match.profile.uid}/profilePhotoKey`]: result.key, [`users/${match.profile.uid}/profilePhotoUpdatedAt`]: Date.now() };
+                    const linked = await database.ref(`schoolUsers/${match.profile.schoolId}/${match.profile.uid}`).once('value');
+                    if (linked.exists()) { updates[`schoolUsers/${match.profile.schoolId}/${match.profile.uid}/profilePhoto`] = result.publicUrl; updates[`schoolUsers/${match.profile.schoolId}/${match.profile.uid}/profilePhotoKey`] = result.key; updates[`schoolUsers/${match.profile.schoolId}/${match.profile.uid}/profilePhotoUpdatedAt`] = Date.now(); }
+                    await database.ref().update(updates); match.profile.profilePhoto = result.publicUrl; match.profile.profilePhotoKey = result.key; uploaded += 1;
+                } catch (error) { failures.push(`${match.file.name}: ${error.message || 'Upload failed.'}`); }
+            }
+            renderPhotoMatches(); status.textContent = `Uploaded ${uploaded} photos; ${failures.length} failed.`;
+            if (failures.length) notify(failures.slice(0, 5).join(' '), 'warning'); else if (uploaded) notify(`Uploaded ${uploaded} profile photos.`, 'success');
+            uploadButton.disabled = !matches.some(match => match.profile);
+        });
+        item.querySelector('a').addEventListener('click', event => { event.preventDefault(); switchSection('owner-bulk-profile-photos'); renderPhotoSchools(); });
+    }
+
     function install() {
-        addPricingPanel(); addAdminProfileRequestsPanel(); addSubscriptionResubscribeRequestsPanel(); addCustomMailPanel(); installSchoolEditModal();
+        addPricingPanel(); addAdminProfileRequestsPanel(); addSubscriptionResubscribeRequestsPanel(); addCustomMailPanel(); addBulkRegistrationsPanel(); addBulkProfilePhotosPanel(); installSchoolEditModal();
         document.querySelectorAll('.nav-links .nav-link').forEach(link => link.addEventListener('click', event => { event.preventDefault(); event.stopImmediatePropagation(); switchSection(link.hash.slice(1)); }, true));
         document.getElementById('schoolSearch')?.addEventListener('input', loadSchoolsTable);
         document.getElementById('previewRegistrationBtn')?.addEventListener('click', event => { event.preventDefault(); if (typeof previewRegistration === 'function') previewRegistration(); });
