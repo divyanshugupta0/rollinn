@@ -279,6 +279,24 @@ async function updateDatabaseWithAccessToken(env, updates, accessToken) {
     }
 }
 
+async function updateDatabaseWithIdToken(env, updates, idToken) {
+    const baseUrl = String(env.FIREBASE_DATABASE_URL || '').replace(/\/+$/, '');
+    if (!baseUrl) throw new Error('Firebase database URL is not configured.');
+    const url = new URL(`${baseUrl}/.json`);
+    url.searchParams.set('auth', idToken);
+    url.searchParams.set('print', 'silent');
+    const response = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+    });
+    if (!response.ok) {
+        const details = await response.text().catch(() => '');
+        console.error('Firebase student cleanup write failed:', response.status, details.slice(0, 500));
+        throw new Error(`Student data cleanup failed (Firebase ${response.status}). Check the admin write rules and retry.`);
+    }
+}
+
 async function lookupFirebaseAccount(projectId, uid, accessToken) {
     const response = await fetch(
         `https://identitytoolkit.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/accounts:lookup`,
@@ -517,11 +535,11 @@ async function deleteStudent(request, env, origin) {
             return uploadResponse({ error: 'Profile-photo storage is not configured; no data was deleted.' }, 503, origin);
         }
 
-        await updateDatabaseWithAccessToken(env, {
+        await updateDatabaseWithIdToken(env, {
             [`users/${safeDatabaseChildKey(targetUid)}/accountStatus`]: 'deleting',
             [`users/${safeDatabaseChildKey(targetUid)}/deleteRequestedAt`]: Date.now(),
             [`users/${safeDatabaseChildKey(targetUid)}/deleteRequestedBy`]: caller.uid
-        }, accessToken);
+        }, tokenMatch[1]);
 
         if (account) await deleteFirebaseAccount(env.FIREBASE_PROJECT_ID, targetUid, accessToken);
         if (photoKey) {
@@ -533,11 +551,11 @@ async function deleteStudent(request, env, origin) {
             }
         }
 
-        await updateDatabaseWithAccessToken(env, {
+        await updateDatabaseWithIdToken(env, {
             [`users/${safeDatabaseChildKey(targetUid)}`]: null,
             [`schoolUsers/${safeDatabaseChildKey(studentProfile.schoolId)}/${safeDatabaseChildKey(targetUid)}`]: null,
             [`notifications/${safeDatabaseChildKey(targetUid)}`]: null
-        }, accessToken);
+        }, tokenMatch[1]);
         return uploadResponse({
             ok: true,
             message: 'Student authentication account, profile, notifications, and profile photo deleted. Attendance history was retained.'
