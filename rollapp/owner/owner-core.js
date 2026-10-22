@@ -1575,6 +1575,25 @@
         });
     }
 
+    function normalizeOwnerDateOfBirth(value) {
+        const input = String(value || '').trim();
+        let year, month, day;
+        let match = input.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (match) [, year, month, day] = match;
+        else {
+            match = input.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+            if (!match) return '';
+            [, day, month, year] = match;
+        }
+        year = Number(year); month = Number(month); day = Number(day);
+        if (year < 1 || month < 1 || month > 12) return '';
+        const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+        const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+        if (day < 1 || day > daysInMonth) return '';
+        const normalized = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        return normalized <= new Date().toISOString().slice(0, 10) ? normalized : '';
+    }
+
     function parseOwnerCsv(text) {
         const rows = [];
         let row = [], field = '', quoted = false;
@@ -1614,14 +1633,15 @@
           <div class="row g-3"><div class="col-md-6"><label class="form-label" for="ownerBulkSchool">School</label><select id="ownerBulkSchool" class="form-select"><option value="">Select school</option></select><div id="ownerBulkSchoolCode" class="form-text">School code: —</div></div>
           <div class="col-md-6"><label class="form-label" for="ownerBulkType">Account type</label><select id="ownerBulkType" class="form-select"><option value="student">Student</option><option value="teacher">Teacher</option></select></div>
           <div class="col-md-6" id="ownerBulkClassField"><label class="form-label" for="ownerBulkClass">Student class</label><select id="ownerBulkClass" class="form-select" disabled><option value="">Select a school first</option></select></div>
+          <div class="col-md-6" id="ownerBulkSectionField"><label class="form-label" for="ownerBulkSection">Student section</label><select id="ownerBulkSection" class="form-select" disabled><option value="">Select a class first</option></select></div>
           <div class="col-md-6 d-flex align-items-end"><button id="ownerBulkTemplate" type="button" class="btn btn-outline-primary"><i class="fas fa-download"></i> Download CSV template</button></div>
           <div class="col-12"><label class="form-label" for="ownerBulkCsv">CSV file</label><input id="ownerBulkCsv" type="file" class="form-control" accept=".csv,text/csv"><div id="ownerBulkCsvHelp" class="form-text">Required CSV columns are listed below. Student email is required; password defaults to that student's mobile number.</div><div id="ownerBulkRequiredColumns" class="mt-2 p-3 border rounded bg-light" aria-live="polite"></div></div>
-          <div class="col-12"><div id="ownerBulkPreview"><p class="text-muted mb-0">Choose a school, account type, class, and CSV file to preview accounts.</p></div></div>
+          <div class="col-12"><div id="ownerBulkPreview"><p class="text-muted mb-0">Choose a school, account type, class, section, and CSV file to preview accounts.</p></div></div>
           <div class="col-12"><div id="ownerBulkProgressWrap" hidden><div class="d-flex justify-content-between small mb-1"><span id="ownerBulkProgressLabel">Registration progress</span><span id="ownerBulkProgressCount">0 / 0</span></div><div class="progress" role="progressbar" aria-label="Registration progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="ownerBulkProgressBar" class="progress-bar" style="width:0%"></div></div></div></div>
           <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2"><span id="ownerBulkStatus" class="small text-muted" role="status">No CSV loaded.</span><button id="ownerBulkImport" type="button" class="btn btn-primary" disabled><i class="fas fa-user-plus"></i> Create accounts one by one</button></div></div></div>`;
         main.appendChild(section);
         const schoolSelect = section.querySelector('#ownerBulkSchool'); const typeSelect = section.querySelector('#ownerBulkType');
-        const classSelect = section.querySelector('#ownerBulkClass'); const csvInput = section.querySelector('#ownerBulkCsv'); const importButton = section.querySelector('#ownerBulkImport');
+        const classSelect = section.querySelector('#ownerBulkClass'); const sectionSelect = section.querySelector('#ownerBulkSection'); const csvInput = section.querySelector('#ownerBulkCsv'); const importButton = section.querySelector('#ownerBulkImport');
         let rows = []; let classes = []; let rowsContext = ''; const mailRetryQueue = new Map();
         function renderSchools() {
             const selected = schoolSelect.value; schoolSelect.replaceChildren(new Option('Select school', ''));
@@ -1634,32 +1654,70 @@
             const schoolType = String(school?.type || school?.institutionType || '').trim().toLowerCase();
             return schoolType.includes('college') || schoolType.includes('university');
         }
-        function registrationContext() { return `${schoolSelect.value}|${typeSelect.value}|${classSelect.value}|${isCollegeSchool() ? 'college' : 'school'}`; }
+        function registrationContext() { return `${schoolSelect.value}|${typeSelect.value}|${classSelect.value}|${sectionSelect.value}|${isCollegeSchool() ? 'college' : 'school'}`; }
         function clearRowsForContextChange() {
             if (!rows.length || rowsContext === registrationContext()) return;
-            rows = []; rowsContext = ''; section.querySelector('#ownerBulkStatus').textContent = 'CSV table cleared because the school, account type, or class changed.'; previewRows();
+            rows = []; rowsContext = ''; section.querySelector('#ownerBulkStatus').textContent = 'CSV table cleared because the school, account type, class, or section changed.'; previewRows();
+        }
+        function loadClassSections() {
+            const selectedClass = classes.find(record => String(record.id) === String(classSelect.value));
+            const sectionNames = [];
+            const addSection = value => {
+                if (typeof value === 'string' && value.trim()) sectionNames.push(value.trim());
+            };
+            Object.values(selectedClass?.sectionsByYear || {}).forEach(values => {
+                if (Array.isArray(values)) values.forEach(addSection);
+                else if (values && typeof values === 'object') Object.values(values).forEach(addSection);
+            });
+            if (Array.isArray(selectedClass?.sections)) selectedClass.sections.forEach(addSection);
+            if (Array.isArray(selectedClass?.sectionNames)) selectedClass.sectionNames.forEach(addSection);
+            const uniqueSections = [...new Map(sectionNames.map(value => [value.toLowerCase(), value])).values()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+            sectionSelect.replaceChildren(new Option(uniqueSections.length ? 'Select section' : 'No sections configured for this class', ''));
+            uniqueSections.forEach(name => sectionSelect.add(new Option(name, name)));
+            sectionSelect.disabled = uniqueSections.length === 0;
         }
         function updateCsvHelp() {
             const student = typeSelect.value === 'student';
             const schoolSelected = (schools || []).find(record => String(record.id) === schoolSelect.value);
+            const selectedClass = classes.find(record => String(record.id) === classSelect.value);
+            const selectedSection = sectionSelect.value;
+            const college = isCollegeSchool(schoolSelected);
+            const schoolClassNumber = selectedClass?.name.match(/\d+/)?.[0] || (/^\d+$/.test(String(selectedClass?.id || '')) ? String(selectedClass.id) : '10');
+            const classColumnFormat = college ? 'Selected course/class name or class ID; rows for other classes are skipped.' : 'Enter digits only. The importer adds the Class label and matches the selected class.';
+            const classColumnExample = college ? (selectedClass?.name || selectedClass?.id || 'Grade 1') : schoolClassNumber;
             const columns = section.querySelector('#ownerBulkRequiredColumns');
-            const showColumns = (required, optional, note) => {
-                columns.innerHTML = `<strong>CSV columns to include</strong><div class="mt-2"><span class="fw-semibold text-danger">Required:</span> ${required.map(value => `<code>${value}</code>`).join(', ')}</div>${optional.length ? `<div class="mt-1"><span class="fw-semibold">Optional:</span> ${optional.map(value => `<code>${value}</code>`).join(', ')}</div>` : ''}<div class="small text-muted mt-2">${note}</div>`;
-            };
-            if (!student) {
-                section.querySelector('#ownerBulkCsvHelp').textContent = 'Teacher columns: name,email,password,dateOfBirth,phone,designation,subjectsTaught. Teacher email and password are required; separate subjects with |.';
-                showColumns(['name', 'email', 'password', 'dateOfBirth', 'phone', 'designation', 'subjectsTaught'], [], 'Separate multiple subjects with |. Each row is registered and emailed individually.');
-                return;
-            }
-            if (!schoolSelected || !classSelect.value) {
-                section.querySelector('#ownerBulkCsvHelp').textContent = 'Select a school and class to see the correct student CSV columns. Email is required; password defaults to the student mobile number.';
-                showColumns(['name', 'email', 'dateOfBirth', 'mobile', 'class', 'classRoll', 'section'], ['fatherName', 'univRoll', 'academicYear'], 'College/university schools also require univRoll and academicYear. Student password is the mobile number.');
-                return;
-            }
-            section.querySelector('#ownerBulkCsvHelp').textContent = isCollegeSchool(schoolSelected)
-                ? 'College student columns: name,email,dateOfBirth,mobile,class,classRoll,section,univRoll,academicYear; optional: fatherName. Only rows matching the selected class are added. Password defaults to mobile.'
-                : 'School student columns: name,email,dateOfBirth,mobile,class,classRoll,section; optional: fatherName. Only rows matching the selected class are added. Password defaults to mobile.';
-            showColumns(['name', 'email', 'dateOfBirth', 'mobile', 'class', 'classRoll', 'section', ...(isCollegeSchool(schoolSelected) ? ['univRoll', 'academicYear'] : [])], ['fatherName'], `Only rows for the selected class are appended. Password defaults to mobile (${isCollegeSchool(schoolSelected) ? 'at least 8 digits' : '10 digits'}). Each created account receives its credentials by email.`);
+            const teacherColumns = [
+                ['name', 'Required', 'Full name; max 120 characters.', 'Aarav Sharma'],
+                ['email', 'Required', 'Valid email address; must not already be registered.', 'aarav@example.com'],
+                ['password', 'Required', 'At least 8 characters.', 'ChangeMe123!'],
+                ['dateOfBirth', 'Required', 'DD-MM-YYYY or YYYY-MM-DD; real date, not in the future.', '15-05-2000'],
+                ['phone', 'Required', 'Exactly 10 digits.', '9876543210'],
+                ['designation', 'Required', 'Job title or role.', 'Mathematics Teacher'],
+                ['subjectsTaught', 'Required', 'Subject names separated with |.', 'Math|Science']
+            ];
+            const studentColumns = [
+                ['name', 'Required', 'Full name; max 120 characters.', 'Aarav Sharma'],
+                ['email', 'Required', 'Valid email address; must not already be registered.', 'aarav@example.com'],
+                ['dateOfBirth', 'Required', 'DD-MM-YYYY or YYYY-MM-DD; real date, not in the future.', '15-05-2010'],
+                ['mobile', 'Required', 'Exactly 10 digits; also used as the default password.', '9876543210'],
+                ['class', 'Required', classColumnFormat, classColumnExample],
+                ['classRoll', 'Required', 'Exactly 2 digits.', '01'],
+                ['section', 'Required', `Must match the selected section (${selectedSection || 'choose a section above'}).`, selectedSection || 'A'],
+                ...(college ? [
+                    ['univRoll', 'Required', 'Exactly 10 digits.', '1234567890'],
+                    ['academicYear', 'Required', 'Whole number from 1 to 10.', '1']
+                ] : []),
+                ['fatherName', 'Optional', 'Father or guardian name.', 'Ramesh Sharma']
+            ];
+            const fields = student ? studentColumns : teacherColumns;
+            const csvEscape = value => `"${String(value).replace(/"/g, '""')}"`;
+            const exampleCsv = [fields.map(([name]) => name), fields.map(([, , , example]) => example)]
+                .map(row => row.map(csvEscape).join(','))
+                .join('\n');
+            columns.innerHTML = `<strong>CSV columns and required formats</strong><div class="table-responsive mt-2"><table class="table table-sm table-bordered align-middle mb-2"><thead><tr><th>Column</th><th>Required</th><th>Format</th><th>Example</th></tr></thead><tbody>${fields.map(([name, required, format, example]) => `<tr><td><code>${escapeHtml(name)}</code></td><td>${required}</td><td>${escapeHtml(format)}</td><td>${escapeHtml(example)}</td></tr>`).join('')}</tbody></table></div><div class="small"><strong>Example CSV</strong><pre class="bg-white border rounded p-2 mt-1 mb-0" style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(exampleCsv)}</pre></div><div class="small text-muted mt-2">Use one account per row. Column names are case-insensitive. Quote any cell containing a comma. ${student ? `Student password is automatically set to the mobile number. ${college ? '' : schoolSelected ? '' : 'College or university students also need univRoll and academicYear.'} ${schoolSelected && classSelect.value && selectedSection ? 'Only rows matching the selected class and section are added. School class numbers are converted to Class N.' : 'Select a school, class, and section before uploading student rows.'} Each account is created separately and credentials are emailed.` : 'Each account is created separately and credentials are emailed.'}</div>`;
+            section.querySelector('#ownerBulkCsvHelp').textContent = student
+                ? 'Include every required column shown below. Student password is set automatically to the mobile number.'
+                : 'Include every required column shown below. Separate multiple subjects with |.';
         }
         async function sendRegistrationCredentialsEmail({ uid, name, email, password, profile, school, accountType }) {
             const ownerUser = ownerAuth?.auth().currentUser;
@@ -1675,7 +1733,7 @@
             if (!result.ok) throw new Error(data.error || 'Credentials email could not be delivered.');
         }
         function previewRows() {
-            importButton.disabled = !rows.length || !schoolSelect.value || (typeSelect.value === 'student' && !classSelect.value);
+            importButton.disabled = !rows.length || !schoolSelect.value || (typeSelect.value === 'student' && (!classSelect.value || !sectionSelect.value));
             const preview = section.querySelector('#ownerBulkPreview'); preview.replaceChildren();
             if (!rows.length) { preview.textContent = 'Choose a CSV file to preview accounts.'; preview.className = 'text-muted'; return; }
             preview.className = 'table-responsive';
@@ -1700,11 +1758,13 @@
         function downloadTemplate() {
             const teacher = typeSelect.value === 'teacher';
             const selectedSchool = (schools || []).find(record => String(record.id) === schoolSelect.value);
-            if (!teacher && (!selectedSchool || !classSelect.value)) return notify('Select the school and class before downloading a student template.', 'warning');
+            if (!teacher && (!selectedSchool || !classSelect.value || !sectionSelect.value)) return notify('Select the school, class, and section before downloading a student template.', 'warning');
             const selectedClass = classes.find(record => record.id === classSelect.value);
             const college = isCollegeSchool(selectedSchool);
             const header = teacher ? ['name', 'email', 'password', 'dateOfBirth', 'phone', 'designation', 'subjectsTaught'] : ['name', 'email', 'dateOfBirth', 'mobile', 'class', 'classRoll', 'section', ...(college ? ['univRoll', 'academicYear'] : []), 'fatherName'];
-            const sample = teacher ? ['Aarav Sharma', 'aarav@example.com', 'ChangeMe123!', '2000-05-15', '9876543210', 'Mathematics Teacher', 'Math|Science'] : ['Aarav Sharma', 'aarav@example.com', '2010-05-15', '9876543210', selectedClass?.name || '', '01', 'A', ...(college ? ['1234567890', '1'] : []), 'Ramesh Sharma'];
+            const schoolClassNumber = selectedClass?.name.match(/\d+/)?.[0] || (/^\d+$/.test(String(selectedClass?.id || '')) ? String(selectedClass.id) : '10');
+            const classExample = college ? (selectedClass?.name || selectedClass?.id || '') : schoolClassNumber;
+            const sample = teacher ? ['Aarav Sharma', 'aarav@example.com', 'ChangeMe123!', '15-05-2000', '9876543210', 'Mathematics Teacher', 'Math|Science'] : ['Aarav Sharma', 'aarav@example.com', '15-05-2010', '9876543210', classExample, '01', sectionSelect.value || 'A', ...(college ? ['1234567890', '1'] : []), 'Ramesh Sharma'];
             const csv = [header, sample].map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\r\n') + '\r\n';
             const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${teacher ? 'teacher' : `${college ? 'college' : 'school'}-student`}-registration-template.csv`; anchor.click(); URL.revokeObjectURL(url);
         }
@@ -1721,27 +1781,41 @@
                 }
             }
         };
-        schoolSelect.addEventListener('change', async () => { clearRowsForContextChange(); renderSchools(); updateCsvHelp(); try { await loadClasses(); } catch (error) { notify(`Could not load classes: ${error.message}`, 'danger'); } updateCsvHelp(); previewRows(); });
-        classSelect.addEventListener('change', () => { clearRowsForContextChange(); updateCsvHelp(); previewRows(); });
-        typeSelect.addEventListener('change', () => { section.querySelector('#ownerBulkClassField').hidden = typeSelect.value !== 'student'; clearRowsForContextChange(); updateCsvHelp(); previewRows(); });
+        schoolSelect.addEventListener('change', async () => { clearRowsForContextChange(); renderSchools(); updateCsvHelp(); try { await loadClasses(); loadClassSections(); } catch (error) { notify(`Could not load classes: ${error.message}`, 'danger'); } updateCsvHelp(); previewRows(); });
+        classSelect.addEventListener('change', () => { clearRowsForContextChange(); loadClassSections(); updateCsvHelp(); previewRows(); });
+        typeSelect.addEventListener('change', () => { section.querySelector('#ownerBulkClassField').hidden = typeSelect.value !== 'student'; section.querySelector('#ownerBulkSectionField').hidden = typeSelect.value !== 'student'; clearRowsForContextChange(); updateCsvHelp(); previewRows(); });
+        section.querySelector('#ownerBulkSectionField').hidden = typeSelect.value !== 'student';
         updateCsvHelp();
         section.querySelector('#ownerBulkTemplate').addEventListener('click', downloadTemplate);
+        sectionSelect.addEventListener('change', () => { clearRowsForContextChange(); updateCsvHelp(); previewRows(); });
         csvInput.addEventListener('change', async () => {
             importButton.disabled = true; const file = csvInput.files?.[0]; if (!file) return previewRows();
             try {
                 if (file.size > 2 * 1024 * 1024) throw new Error('CSV files must be smaller than 2 MB.');
                 const context = registrationContext();
-                if (typeSelect.value === 'student' && (!schoolSelect.value || !classSelect.value)) throw new Error('Select the school and class before adding student CSV rows.');
+                if (typeSelect.value === 'student' && (!schoolSelect.value || !classSelect.value || !sectionSelect.value)) throw new Error('Select the school, class, and section before adding student CSV rows.');
                 if (rows.length && rowsContext !== context) { rows = []; rowsContext = ''; }
                 const parsed = parseOwnerCsv(await file.text()); const emailSet = new Set(rows.map(row => String(row.data.email || '').trim().toLowerCase()).filter(Boolean));
-                let missingEmail = 0; let differentClass = 0; let duplicateEmail = 0; let appended = 0;
+                let missingEmail = 0; let differentClass = 0; let differentSection = 0; let duplicateEmail = 0; let appended = 0;
                 const selectedClass = classes.find(record => record.id === classSelect.value);
                 for (const row of parsed) {
                     const email = String(row.data.email || '').trim().toLowerCase();
                     if (!email) { missingEmail += 1; continue; }
                     if (typeSelect.value === 'student') {
-                        const classValues = [row.data.class, row.data.classname, row.data.classid, row.data.course, row.data.coursename, row.data.courseid].map(value => String(value || '').trim().toLowerCase()).filter(Boolean);
-                        if (!selectedClass || !classValues.some(value => value === selectedClass.id.toLowerCase() || value === selectedClass.name.trim().toLowerCase())) { differentClass += 1; continue; }
+                        const classValues = [row.data.class, row.data.classname, row.data.classid, row.data.course, row.data.coursename, row.data.courseid].map(value => String(value || '').trim()).filter(Boolean);
+                        if (!selectedClass) { differentClass += 1; continue; }
+                        if (isCollegeSchool()) {
+                            const collegeValues = classValues.map(value => value.toLowerCase());
+                            if (!collegeValues.some(value => value === selectedClass.id.toLowerCase() || value === selectedClass.name.trim().toLowerCase())) { differentClass += 1; continue; }
+                        } else {
+                            const numericClass = String(row.data.class || '').trim();
+                            const selectedNumber = selectedClass.name.match(/\d+/)?.[0] || (/^\d+$/.test(String(selectedClass.id)) ? String(selectedClass.id) : '');
+                            if (!numericClass || !/^\d+$/.test(numericClass) || !selectedNumber || Number(numericClass) !== Number(selectedNumber)) { differentClass += 1; continue; }
+                            row.data.class = `Class ${Number(numericClass)}`;
+                        }
+                        const csvSection = String(row.data.section || '').trim();
+                        if (!csvSection || csvSection.toLowerCase() !== sectionSelect.value.trim().toLowerCase()) { differentSection += 1; continue; }
+                        row.data.section = sectionSelect.value;
                     }
                     if (emailSet.has(email)) { duplicateEmail += 1; continue; }
                     emailSet.add(email);
@@ -1750,14 +1824,14 @@
                     row.fileName = file.name; rows.push(row); appended += 1;
                 }
                 if (appended) rowsContext = context;
-                section.querySelector('#ownerBulkStatus').textContent = `Added ${appended}; skipped ${missingEmail} without email, ${differentClass} for another class, ${duplicateEmail} duplicate email${duplicateEmail === 1 ? '' : 's'}. ${rows.length} rows now in the table.`;
+                section.querySelector('#ownerBulkStatus').textContent = `Added ${appended}; skipped ${missingEmail} without email, ${differentClass} with an invalid or different class, ${differentSection} for another section, ${duplicateEmail} duplicate email${duplicateEmail === 1 ? '' : 's'}. ${rows.length} rows now in the table.`;
                 previewRows();
             } catch (error) { section.querySelector('#ownerBulkStatus').textContent = error.message; notify(error.message, 'warning'); }
             finally { csvInput.value = ''; }
         });
         importButton.addEventListener('click', async () => {
             const school = (schools || []).find(record => String(record.id) === schoolSelect.value); const accountType = typeSelect.value; const cls = classes.find(record => record.id === classSelect.value);
-            if (!database || !currentUser || !school || (accountType === 'student' && !cls)) return notify('Select a connected school and, for students, a class.', 'warning');
+            if (!database || !currentUser || !school || (accountType === 'student' && (!cls || !sectionSelect.value))) return notify('Select a connected school and, for students, a class and section.', 'warning');
             importButton.disabled = true; const status = section.querySelector('#ownerBulkStatus'); const failures = []; let created = 0; let emailsSent = 0; let temporaryApp = null;
             const progressWrap = section.querySelector('#ownerBulkProgressWrap'); const progressBar = section.querySelector('#ownerBulkProgressBar'); const progressCount = section.querySelector('#ownerBulkProgressCount'); const progressLabel = section.querySelector('#ownerBulkProgressLabel');
             progressWrap.hidden = false; progressBar.style.width = '0%'; progressBar.parentElement.setAttribute('aria-valuenow', '0'); progressCount.textContent = `0 / ${rows.length}`;
@@ -1775,9 +1849,10 @@
                 for (let index = 0; index < rows.length; index += 1) {
                     const { rowNumber, data } = rows[index]; status.textContent = `Creating ${index + 1} of ${rows.length}…`; let account = null; let profileSaved = false; let accountCreated = false;
                     try {
-                        const name = String(data.name || '').trim(); const email = String(data.email || '').trim().toLowerCase(); const dob = String(data.dateofbirth || data.dob || '').trim();
+                        const name = String(data.name || '').trim(); const email = String(data.email || '').trim().toLowerCase(); const dob = normalizeOwnerDateOfBirth(data.dateofbirth || data.dob);
                         const mobileValue = String(data.mobile || '').trim(); const password = accountType === 'student' ? mobileValue : String(data.password || '');
-                        if (!name || name.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || password.length < 8 || !/^\d{4}-\d{2}-\d{2}$/.test(dob) || dob > new Date().toISOString().slice(0, 10)) throw new Error('Provide a name, valid email, password of 8+ characters, and valid non-future dateOfBirth (YYYY-MM-DD).');
+                        if (!name || name.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || password.length < 8) throw new Error('Provide a name, valid email, and password of 8+ characters.');
+                        if (!dob) throw new Error('dateOfBirth must be a real, non-future date in DD-MM-YYYY or YYYY-MM-DD format.');
                         if (existingEmails.has(email) || emails.has(email)) throw new Error('This email is already registered or duplicated in the CSV.'); emails.add(email);
                         const profile = { uid: '', email, name, role: accountType, dateOfBirth: dob, schoolId: school.id, schoolCode: school.code || '', schoolName: school.schoolName || school.name || '', createdAt: new Date().toISOString(), createdBy: currentUser.uid };
                         if (accountType === 'student') {
