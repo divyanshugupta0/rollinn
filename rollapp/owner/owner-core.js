@@ -1643,6 +1643,10 @@
         const schoolSelect = section.querySelector('#ownerBulkSchool'); const typeSelect = section.querySelector('#ownerBulkType');
         const classSelect = section.querySelector('#ownerBulkClass'); const sectionSelect = section.querySelector('#ownerBulkSection'); const csvInput = section.querySelector('#ownerBulkCsv'); const importButton = section.querySelector('#ownerBulkImport');
         let rows = []; let classes = []; let rowsContext = ''; const mailRetryQueue = new Map();
+        function restoreNumericLeadingZeros(value, width) {
+            const digits = String(value || '').trim();
+            return /^\d+$/.test(digits) && digits.length <= width ? digits.padStart(width, '0') : digits;
+        }
         function renderSchools() {
             const selected = schoolSelect.value; schoolSelect.replaceChildren(new Option('Select school', ''));
             (schools || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).forEach(school => schoolSelect.add(new Option(`${school.name || 'Unnamed school'} · ${school.code || 'No code'}`, school.id)));
@@ -1691,7 +1695,7 @@
                 ['email', 'Required', 'Valid email address; must not already be registered.', 'aarav@example.com'],
                 ['password', 'Required', 'At least 8 characters.', 'ChangeMe123!'],
                 ['dateOfBirth', 'Required', 'DD-MM-YYYY or YYYY-MM-DD; real date, not in the future.', '15-05-2000'],
-                ['phone', 'Required', 'Exactly 10 digits.', '9876543210'],
+                ['phone', 'Required', '10 digits; Excel-stripped leading zeros are restored.', '0987654321'],
                 ['designation', 'Required', 'Job title or role.', 'Mathematics Teacher'],
                 ['subjectsTaught', 'Required', 'Subject names separated with |.', 'Math|Science']
             ];
@@ -1699,12 +1703,12 @@
                 ['name', 'Required', 'Full name; max 120 characters.', 'Aarav Sharma'],
                 ['email', 'Required', 'Valid email address; must not already be registered.', 'aarav@example.com'],
                 ['dateOfBirth', 'Required', 'DD-MM-YYYY or YYYY-MM-DD; real date, not in the future.', '15-05-2010'],
-                ['mobile', 'Required', 'Exactly 10 digits; also used as the default password.', '9876543210'],
+                ['mobile', 'Required', '10 digits; Excel-stripped leading zeros are restored and this becomes the password.', '0987654321'],
                 ['class', 'Required', classColumnFormat, classColumnExample],
-                ['classRoll', 'Required', 'Exactly 2 digits.', '01'],
+                ['classRoll', 'Required', '2 digits; Excel-stripped leading zeros are restored.', '01'],
                 ['section', 'Required', `Must match the selected section (${selectedSection || 'choose a section above'}).`, selectedSection || 'A'],
                 ...(college ? [
-                    ['univRoll', 'Required', 'Exactly 10 digits.', '1234567890'],
+                    ['univRoll', 'Required', '10 digits; Excel-stripped leading zeros are restored.', '0123456789'],
                     ['academicYear', 'Required', 'Whole number from 1 to 10.', '1']
                 ] : []),
                 ['fatherName', 'Optional', 'Father or guardian name.', 'Ramesh Sharma']
@@ -1716,8 +1720,8 @@
                 .join('\n');
             columns.innerHTML = `<strong>CSV columns and required formats</strong><div class="table-responsive mt-2"><table class="table table-sm table-bordered align-middle mb-2"><thead><tr><th>Column</th><th>Required</th><th>Format</th><th>Example</th></tr></thead><tbody>${fields.map(([name, required, format, example]) => `<tr><td><code>${escapeHtml(name)}</code></td><td>${required}</td><td>${escapeHtml(format)}</td><td>${escapeHtml(example)}</td></tr>`).join('')}</tbody></table></div><div class="small"><strong>Example CSV</strong><pre class="bg-white border rounded p-2 mt-1 mb-0" style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(exampleCsv)}</pre></div><div class="small text-muted mt-2">Use one account per row. Column names are case-insensitive. Quote any cell containing a comma. ${student ? `Student password is automatically set to the mobile number. ${college ? '' : schoolSelected ? '' : 'College or university students also need univRoll and academicYear.'} ${schoolSelected && classSelect.value && selectedSection ? 'Only rows matching the selected class and section are added. School class numbers are converted to Class N.' : 'Select a school, class, and section before uploading student rows.'} Each account is created separately and credentials are emailed.` : 'Each account is created separately and credentials are emailed.'}</div>`;
             section.querySelector('#ownerBulkCsvHelp').textContent = student
-                ? 'Include every required column shown below. Student password is set automatically to the mobile number.'
-                : 'Include every required column shown below. Separate multiple subjects with |.';
+                ? 'Include every required column shown below. Excel-stripped leading zeros are restored for fixed-width numeric fields; the padded mobile number becomes the student password.'
+                : 'Include every required column shown below. Separate multiple subjects with |. Excel-stripped leading zeros are restored to the 10-digit phone number.';
         }
         async function sendRegistrationCredentialsEmail({ uid, name, email, password, profile, school, accountType }) {
             const ownerUser = ownerAuth?.auth().currentUser;
@@ -1820,7 +1824,14 @@
                     if (emailSet.has(email)) { duplicateEmail += 1; continue; }
                     emailSet.add(email);
                     row.data.email = email;
-                    if (typeSelect.value === 'student') row.data.password = String(row.data.mobile || '').trim();
+                    if (typeSelect.value === 'student') {
+                        row.data.mobile = restoreNumericLeadingZeros(row.data.mobile, 10);
+                        row.data.classRoll = restoreNumericLeadingZeros(row.data.classRoll, 2);
+                        if (isCollegeSchool()) row.data.univroll = restoreNumericLeadingZeros(row.data.univroll, 10);
+                        row.data.password = row.data.mobile;
+                    } else {
+                        row.data.phone = restoreNumericLeadingZeros(row.data.phone || row.data.mobile, 10);
+                    }
                     row.fileName = file.name; rows.push(row); appended += 1;
                 }
                 if (appended) rowsContext = context;
