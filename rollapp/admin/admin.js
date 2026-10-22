@@ -2136,6 +2136,34 @@ document.addEventListener('DOMContentLoaded', function () {
 // Redesigned Broadcast & Notification Section supporting Campus Announcements and Direct Alerts
 let currentBroadcastTab = 'announcements';
 
+async function getCurrentAdminNotificationContext() {
+    const user = firebase.auth().currentUser;
+    if (!user) throw new Error('Sign in to view school notifications.');
+    const snapshot = await firebase.database().ref(`users/${user.uid}`).once('value');
+    const profile = snapshot.val() || {};
+    const schoolId = String(profile.schoolId || '').trim();
+    if (String(profile.role || '').toLowerCase() !== 'admin' || !schoolId) throw new Error('This administrator account is not linked to a school or college.');
+    return { user, profile, schoolId };
+}
+
+async function getSchoolNotificationMemberIds(schoolId, adminUid) {
+    const snapshot = await firebase.database().ref('users').orderByChild('schoolId').equalTo(schoolId).once('value');
+    const memberIds = new Set();
+    snapshot.forEach(child => memberIds.add(child.key));
+    if (adminUid) memberIds.add(adminUid);
+    return memberIds;
+}
+
+function isNotificationForSchool(notification, schoolId, memberIds) {
+    if (String(notification.schoolId || '') === String(schoolId)) return true;
+    const pathParts = String(notification.id || '').split('/');
+    if (pathParts.length > 1 && memberIds.has(pathParts[0])) return true;
+    const senderIds = [notification.sentBy, notification.senderId, notification.reviewedBy, notification.approvedBy].map(value => String(value || ''));
+    if (senderIds.some(uid => memberIds.has(uid))) return true;
+    const recipients = Array.isArray(notification.recipients) ? notification.recipients : [];
+    return recipients.some(recipient => memberIds.has(String(typeof recipient === 'object' ? recipient.id || recipient.uid : recipient)));
+}
+
 function initNotificationsSection() {
     const notificationsList = document.getElementById('notifications-list');
     if (!notificationsList) return;
@@ -2181,24 +2209,30 @@ function initNotificationsSection() {
     const countBadge = document.getElementById('notification-count');
 
     if (currentBroadcastTab === 'announcements') {
-        readRecent('announcements')
-            .then(snapshot => {
+        Promise.all([getCurrentAdminNotificationContext(), readRecent('announcements')])
+            .then(async ([adminContext, snapshot]) => {
+                const schoolMemberIds = await getSchoolNotificationMemberIds(adminContext.schoolId, adminContext.user.uid);
                 const items = [];
                 if (snapshot.exists()) {
                     snapshot.forEach(child => {
                         items.push({ id: child.key, ...child.val() });
                     });
                 }
-                items.sort((a, b) => (b.timestamp || b.createdAt || 0) - (a.timestamp || a.createdAt || 0));
-                if (countBadge) countBadge.textContent = items.length;
-                displayAnnouncements(items);
+                const schoolItems = items.filter(item => isNotificationForSchool(item, adminContext.schoolId, schoolMemberIds));
+                schoolItems.sort((a, b) => (b.timestamp || b.createdAt || 0) - (a.timestamp || a.createdAt || 0));
+                if (countBadge) countBadge.textContent = schoolItems.length;
+                displayAnnouncements(schoolItems);
             })
             .catch(error => {
-                notificationsList.innerHTML = '<div class="error"><i class="fas fa-exclamation-triangle"></i> Error loading announcements</div>';
+                console.error('Could not load campus announcements:', error);
+                notificationsList.textContent = error.message || 'Error loading campus announcements';
             });
     } else {
-        readRecent('notifications')
-            .then(snapshot => {
+        Promise.all([
+            getCurrentAdminNotificationContext(),
+            readRecent('notifications')
+        ]).then(async ([adminContext, snapshot]) => {
+                const schoolMemberIds = await getSchoolNotificationMemberIds(adminContext.schoolId, adminContext.user.uid);
                 const notifications = [];
                 const collectNotifications = (value, path) => {
                     if (!value || typeof value !== 'object' || Array.isArray(value)) return;
@@ -2216,12 +2250,14 @@ function initNotificationsSection() {
                         collectNotifications(child.val(), [child.key]);
                     });
                 }
-                notifications.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-                if (countBadge) countBadge.textContent = notifications.length;
-                displayNotifications(notifications);
+                const schoolNotifications = notifications.filter(notification => isNotificationForSchool(notification, adminContext.schoolId, schoolMemberIds));
+                schoolNotifications.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                if (countBadge) countBadge.textContent = schoolNotifications.length;
+                displayNotifications(schoolNotifications);
             })
             .catch(error => {
-                notificationsList.innerHTML = '<div class="error"><i class="fas fa-exclamation-triangle"></i> Error loading notifications</div>';
+                console.error('Could not load school notifications:', error);
+                notificationsList.textContent = error.message || 'Error loading school notifications';
             });
     }
 
@@ -2338,7 +2374,7 @@ function viewBroadcastItem(id, channel) {
                         ${data.recipientType === 'specific' && data.recipients ? `
                             <div class="recipients-info">
                                 <h4><i class="fas fa-users"></i> Recipients (${data.recipients.length}):</h4>
-                                <div class="recipients-list">${data.recipients.map(r => r.name || r.email).join(', ')}</div>
+                        <div class="recipients-list">${(data.recipientNames || data.recipients).map(r => typeof r === 'string' ? r : (r.name || r.email || r.id || 'Student')).join(', ')}</div>
                             </div>
                         ` : ''}
                     </div>
@@ -2518,25 +2554,24 @@ function sendNotification() {
     sendBtn.disabled = true;
     sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
 
-    const currentUser = firebase.auth().currentUser;
-
     if (channel === 'announcements') {
-        const announcement = {
-            title: header,
-            subject: header,
-            content: body,
-            message: body,
-            category: category,
-            type: type,
-            priority: type === 'urgent' ? 'high' : 'normal',
-            timestamp: Date.now(),
-            createdAt: Date.now(),
-            author: 'Administration',
-            sentBy: currentUser ? currentUser.uid : 'admin',
-            sentByEmail: currentUser ? currentUser.email : 'admin@system.com'
-        };
-
-        firebase.database().ref('announcements').push(announcement)
+        getCurrentAdminNotificationContext()
+            .then(({ user, profile, schoolId }) => firebase.database().ref('announcements').push({
+                title: header,
+                subject: header,
+                content: body,
+                message: body,
+                category,
+                type,
+                priority: type === 'urgent' ? 'high' : 'normal',
+                timestamp: Date.now(),
+                createdAt: Date.now(),
+                author: 'Administration',
+                sentBy: user.uid,
+                sentByEmail: user.email || '',
+                schoolId,
+                schoolName: profile.schoolName || profile.institutionName || ''
+            }))
             .then(() => {
                 const popup = document.querySelector('.popup-overlay');
                 if (popup) popup.remove();
@@ -2554,21 +2589,35 @@ function sendNotification() {
                 }
             });
     } else {
-        const notification = {
-            header,
-            body,
-            type,
-            timestamp: Date.now(),
-            sentBy: currentUser ? currentUser.uid : 'admin',
-            sentByEmail: currentUser ? currentUser.email : 'admin@system.com',
-            recipientType
-        };
-
-        if (recipientType === 'specific' && window.selectedStudentsList) {
-            notification.recipients = window.selectedStudentsList;
-        }
-
-        firebase.database().ref('notifications').push(notification)
+        getCurrentAdminNotificationContext()
+            .then(async ({ user, profile, schoolId }) => {
+                const studentsSnapshot = await firebase.database().ref('users').orderByChild('schoolId').equalTo(schoolId).once('value');
+                const schoolStudents = [];
+                studentsSnapshot.forEach(child => {
+                    const student = child.val() || {};
+                    if (String(student.role || '').toLowerCase() === 'student') schoolStudents.push({ id: child.key, name: student.name || student.email || child.key });
+                });
+                const schoolStudentIds = new Set(schoolStudents.map(student => student.id));
+                const selectedIds = recipientType === 'specific' ? (window.selectedStudentsList || []).map(student => String(student.id)) : schoolStudents.map(student => student.id);
+                if (!selectedIds.length) throw new Error('No students are available in this school or college.');
+                if (selectedIds.some(id => !schoolStudentIds.has(id))) throw new Error('The selection includes a student outside this school or college. Refresh the student list and try again.');
+                const notification = {
+                    header,
+                    body,
+                    type,
+                    timestamp: Date.now(),
+                    sentBy: user.uid,
+                    sentByEmail: user.email || '',
+                    schoolId,
+                    schoolName: profile.schoolName || profile.institutionName || '',
+                    recipientType,
+                    recipients: selectedIds
+                };
+                if (recipientType === 'specific') {
+                    notification.recipientNames = window.selectedStudentsList.map(student => student.name || student.email || student.id);
+                }
+                return firebase.database().ref('notifications').push(notification);
+            })
             .then(() => {
                 const popup = document.querySelector('.popup-overlay');
                 if (popup) popup.remove();
@@ -2663,12 +2712,14 @@ function loadStudentsInline() {
 
     studentsContainer.innerHTML = 'Loading...';
 
-    firebase.database().ref('users').orderByChild('role').equalTo('student').once('value')
+    getCurrentAdminNotificationContext()
+        .then(({ schoolId }) => firebase.database().ref('users').orderByChild('schoolId').equalTo(schoolId).once('value'))
         .then(snapshot => {
             let html = '';
             if (snapshot.exists()) {
                 snapshot.forEach(child => {
                     const user = child.val();
+                    if (String(user?.role || '').toLowerCase() !== 'student') return;
                     const id = child.key;
                     const selected = window.selectedStudentsList.some(s => s.id === id);
                     html += `<div style="padding:8px;border-bottom:1px solid #eee;cursor:pointer" onclick="toggleStudentInline('${id}','${user.name}','${user.email}')">

@@ -1693,7 +1693,7 @@
             const schoolId = schoolSelect.value; classes = []; classSelect.disabled = true; classSelect.replaceChildren(new Option(schoolId ? 'Loading classes…' : 'Select a school first', ''));
             if (!schoolId) return;
             const [courseSnapshot, classSnapshot] = await Promise.all([database.ref(`schoolCourses/${schoolId}`).once('value'), database.ref(`schoolClasses/${schoolId}`).once('value')]);
-            const map = new Map(); [courseSnapshot.val(), classSnapshot.val()].forEach(records => Object.entries(records || {}).forEach(([id, record]) => { if (record && typeof record === 'object') map.set(id, { id, name: record.courseName || record.className || record.name || record.title || 'Class' }); }));
+            const map = new Map(); [courseSnapshot.val(), classSnapshot.val()].forEach(records => Object.entries(records || {}).forEach(([id, record]) => { if (record && typeof record === 'object') { const previous = map.get(id) || {}; map.set(id, { ...previous, ...record, id, name: record.courseName || record.className || record.name || record.title || previous.name || 'Class' }); } }));
             classes = [...map.values()].sort((a, b) => a.name.localeCompare(b.name)); classSelect.replaceChildren(new Option(classes.length ? 'Select class' : 'No classes found', ''));
             classes.forEach(record => classSelect.add(new Option(record.name, record.id))); classSelect.disabled = !classes.length;
         }
@@ -1763,17 +1763,23 @@
             progressWrap.hidden = false; progressBar.style.width = '0%'; progressBar.parentElement.setAttribute('aria-valuenow', '0'); progressCount.textContent = `0 / ${rows.length}`;
             try {
                 status.textContent = 'Checking existing accounts and roll numbers…';
-                const snapshot = await database.ref('users').once('value'); const existingUsers = snapshot.val() || {};
-                const rolls = new Set(Object.values(existingUsers).filter(user => user && String(user.schoolId) === String(school.id)).map(user => `${String(user.courseId || user.classId || user.className || user.courseName || '').toLowerCase()}|${String(user.section || '').toLowerCase()}|${String(user.classRoll || '')}`));
-                const emails = new Set(); temporaryApp = firebase.initializeApp(ownerAuth.options, `ownerBulk-${Date.now()}`);
+                const snapshot = await database.ref('users').once('value'); const existingUsers = snapshot.val() || {}; const existingUserList = Object.values(existingUsers).filter(user => user && typeof user === 'object');
+                const existingEmails = new Set(existingUserList.map(user => String(user.email || '').trim().toLowerCase()).filter(Boolean));
+                const existingUnivRolls = new Set(existingUserList.map(user => String(user.univRoll || '').trim()).filter(Boolean));
+                const schoolType = String(school.type || school.institutionType || '').trim().toLowerCase(); const schoolRegistration = !schoolType.includes('college') && !schoolType.includes('university');
+                const rolls = new Set(existingUserList.filter(user => String(user.schoolId) === String(school.id) && user.classRoll).map(user => {
+                    const courseKey = String(user.courseId || user.classId || user.className || user.courseName || '').toLowerCase(); const year = Number(user.academicYear || user.year || 0);
+                    return `${courseKey}|${String(user.section || '').toLowerCase()}|${String(user.classRoll)}|${schoolRegistration ? 'school' : (year || '*')}`;
+                }));
+                const emails = new Set(); const univRolls = new Set(); temporaryApp = firebase.initializeApp(ownerAuth.options, `ownerBulk-${Date.now()}`);
                 for (let index = 0; index < rows.length; index += 1) {
-                    const { rowNumber, data } = rows[index]; status.textContent = `Creating ${index + 1} of ${rows.length}…`; let account = null;
+                    const { rowNumber, data } = rows[index]; status.textContent = `Creating ${index + 1} of ${rows.length}…`; let account = null; let profileSaved = false; let accountCreated = false;
                     try {
                         const name = String(data.name || '').trim(); const email = String(data.email || '').trim().toLowerCase(); const dob = String(data.dateofbirth || data.dob || '').trim();
                         const mobileValue = String(data.mobile || '').trim(); const password = accountType === 'student' ? mobileValue : String(data.password || '');
                         if (!name || name.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || password.length < 8 || !/^\d{4}-\d{2}-\d{2}$/.test(dob) || dob > new Date().toISOString().slice(0, 10)) throw new Error('Provide a name, valid email, password of 8+ characters, and valid non-future dateOfBirth (YYYY-MM-DD).');
-                        if (emails.has(email)) throw new Error('This email is duplicated in the CSV.'); emails.add(email);
-                        const profile = { uid: '', name, email, username: email.split('@')[0], dob, dateOfBirth: dob, role: accountType, schoolId: school.id, schoolCode: school.code || '', schoolName: school.name || '', createdAt: new Date().toISOString(), createdBy: currentUser.uid };
+                        if (existingEmails.has(email) || emails.has(email)) throw new Error('This email is already registered or duplicated in the CSV.'); emails.add(email);
+                        const profile = { uid: '', email, name, role: accountType, dateOfBirth: dob, schoolId: school.id, schoolCode: school.code || '', schoolName: school.schoolName || school.name || '', createdAt: new Date().toISOString(), createdBy: currentUser.uid };
                         if (accountType === 'student') {
                             const mobile = mobileValue; const classRoll = String(data.classroll || '').trim(); const sectionName = String(data.section || '').trim();
                             if (!/^\d{10}$/.test(mobile) || !/^\d{2}$/.test(classRoll) || !sectionName) throw new Error('Student rows need a 10-digit mobile, 2-digit classRoll, and section.');
@@ -1781,8 +1787,15 @@
                             const isSchool = !schoolType.includes('college') && !schoolType.includes('university');
                             const univRoll = String(data.univroll || '').trim(); const academicYearValue = String(data.academicyear || '').trim(); const academicYear = Number(academicYearValue);
                             if (!isSchool && (!/^\d{10}$/.test(univRoll) || !academicYearValue || !Number.isInteger(academicYear) || academicYear < 1 || academicYear > 10)) throw new Error('College/university students need a 10-digit univRoll and academicYear from 1 to 10.');
-                            const rollKey = `${cls.id.toLowerCase()}|${sectionName.toLowerCase()}|${classRoll}`; if (rolls.has(rollKey) || rolls.has(`${cls.name.toLowerCase()}|${sectionName.toLowerCase()}|${classRoll}`)) throw new Error('This class roll already exists for this class and section.');
-                            Object.assign(profile, { registrationType: isSchool ? 'school' : 'university', mobile, classRoll, univRoll, courseId: cls.id, classId: cls.id, course: cls.name, courseName: cls.name, className: cls.name, section: sectionName, ...(String(data.fathername || '').trim() ? { fatherName: String(data.fathername).trim() } : {}), ...(!isSchool ? { academicYear, year: academicYear } : {}) });
+                            if (cls.active === false) throw new Error('The selected class or course is inactive.');
+                            const validSections = cls.sectionsByYear?.[String(isSchool ? 1 : academicYear)];
+                            if (Array.isArray(validSections) && !validSections.includes(sectionName)) throw new Error('The student section is not active for the selected class and academic year.');
+                            if (!isSchool && (existingUnivRolls.has(univRoll) || univRolls.has(univRoll))) throw new Error('This university roll number is already registered or duplicated in the CSV.');
+                            if (!isSchool) univRolls.add(univRoll);
+                            const yearKey = isSchool ? 'school' : String(academicYear); const rollKeys = [`${cls.id.toLowerCase()}|${sectionName.toLowerCase()}|${classRoll}|${yearKey}`, `${cls.name.toLowerCase()}|${sectionName.toLowerCase()}|${classRoll}|${yearKey}`]; const wildcardRollKeys = isSchool ? [] : rollKeys.map(key => key.replace(/\|[^|]+$/, '|*'));
+                            if (rollKeys.some(key => rolls.has(key)) || wildcardRollKeys.some(key => rolls.has(key))) throw new Error('This class roll already exists for this class, year, and section.');
+                            rollKeys.forEach(key => rolls.add(key));
+                            Object.assign(profile, { registrationType: isSchool ? 'school' : 'university', classRoll, univRoll, mobile, dateOfBirth: dob, schoolName: school.schoolName || school.name || '', courseId: cls.id, course: cls.name, courseName: cls.name, courseNickname: cls.courseNickname || '', batch: cls.batch || '', section: sectionName, ...(isSchool ? { className: cls.name } : { academicYear, year: academicYear }), ...(String(data.fathername || '').trim() ? { fatherName: String(data.fathername).trim() } : {}) });
                         } else {
                             const phone = String(data.phone || data.mobile || '').trim(); const designation = String(data.designation || '').trim(); const subjectsTaught = String(data.subjectstaught || '').split('|').map(value => value.trim()).filter(Boolean);
                             if (!/^\d{10}$/.test(phone) || !designation || !subjectsTaught.length) throw new Error('Teacher rows need a 10-digit phone, designation, and at least one subject (separate subjects with |).');
@@ -1791,10 +1804,6 @@
                         account = (await temporaryApp.auth().createUserWithEmailAndPassword(email, password)).user; profile.uid = account.uid; await account.updateProfile({ displayName: name });
                         await database.ref().update({ [`users/${account.uid}`]: profile, [`schoolUsers/${school.id}/${account.uid}`]: profile });
                         profileSaved = true; accountCreated = true; created += 1;
-                        if (accountType === 'student') {
-                            rolls.add(`${cls.id.toLowerCase()}|${String(profile.section).toLowerCase()}|${profile.classRoll}`);
-                            rolls.add(`${cls.name.toLowerCase()}|${String(profile.section).toLowerCase()}|${profile.classRoll}`);
-                        }
                         progressLabel.textContent = `CSV row ${rowNumber}: sending credentials email`;
                         try {
                             await sendRegistrationCredentialsEmail({ uid: account.uid, name, email, password, profile, school, accountType });
