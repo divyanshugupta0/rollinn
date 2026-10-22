@@ -12355,7 +12355,7 @@
             const directory = teacherSectionField('taTeacherDirectory');
             if (!directory) return;
             if (!taTeacherDirectory.length) {
-                directory.innerHTML = '<div style="padding:14px;border:1px dashed #d5e2d8;border-radius:10px;color:#718178">No teacher accounts are linked to this school yet. Check the accountÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s school assignment or register a teacher first.</div>';
+                directory.innerHTML = '<div style="padding:14px;border:1px dashed #d5e2d8;border-radius:10px;color:#718178">No teacher accounts are linked to this school yet. Check the account\'s school assignment or register a teacher first.</div>';
                 return;
             }
             directory.innerHTML = `<div class="ta-school-list-head"><span>Teachers in this school <span class="ta-count">${taTeacherDirectory.length}</span></span><button type="button" id="taRefreshTeachers" class="secondary-btn"><i class="fas fa-rotate-right"></i> Refresh</button></div><div class="ta-directory-list">${taTeacherDirectory.map(teacher => `<article style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid #e0e9e2;border-radius:11px;background:#fff"><div style="min-width:0"><strong style="display:block;color:#283c30;overflow:hidden;text-overflow:ellipsis">${teacher.name || teacher.email || 'Teacher'}</strong><small style="display:block;margin-top:3px;color:#718178;overflow:hidden;text-overflow:ellipsis">${teacher.email || 'No email on profile'}</small></div><button type="button" class="primary-btn ta-select-teacher" data-teacher-id="${teacher.id}" style="flex:0 0 auto;padding:7px 11px"><i class="fas fa-sliders"></i> Manage</button></article>`).join('')}</div>`;
@@ -12363,7 +12363,7 @@
         async function loadTeacherSectionDirectory() {
             const directory = teacherSectionField('taTeacherDirectory');
             if (!directory) return;
-            directory.innerHTML = '<div style="padding:12px;color:#64748b"><i class="fas fa-spinner fa-spin"></i> Loading this schoolÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s teachersÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</div>';
+            directory.innerHTML = '<div style="padding:12px;color:#64748b"><i class="fas fa-spinner fa-spin"></i> Loading this school\'s teachers...</div>';
             try {
                 const adminAuth = auth.currentUser;
                 if (!adminAuth) throw new Error('Sign in as an administrator to view teachers.');
@@ -12485,7 +12485,7 @@
             if (!email && !selectedTeacherId) { status.textContent = 'Enter a teacher email or select a teacher from the school list.'; return; }
             const adminAuth = auth.currentUser;
             if (!adminAuth) { status.textContent = 'Sign in as an administrator to manage teacher sections.'; return; }
-            status.textContent = 'Verifying teacher and loading this schoolÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s sectionsÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦';
+            status.textContent = 'Verifying teacher and loading this school\'s sections...';
             try {
                 const adminSnap = await get(ref(database, `users/${adminAuth.uid}`));
                 const adminProfile = adminSnap.val() || {};
@@ -12702,7 +12702,7 @@
             if (isClassTeacher && !sections.length) { status.textContent = 'Assign at least one section before assigning a class teacher.'; return; }
             if (isClassTeacher && !classTeacherSections.length) { status.textContent = 'Choose at least one assigned section for this teacher to lead.'; teacherSectionField('taClassTeacherSectionToggle')?.focus(); return; }
             if (isClassTeacher && classTeacherSections.some(classSection => !sections.some(section => section.toLowerCase() === classSection.toLowerCase()))) { status.textContent = 'Each class-teacher section must also be selected in Assigned sections.'; return; }
-            status.textContent = 'Saving section assignmentsÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦';
+            status.textContent = 'Saving section assignments...';
             try {
                 const adminSnap = await get(ref(database, `users/${adminAuth.uid}`));
                 const adminProfile = adminSnap.val() || {};
@@ -12802,7 +12802,7 @@
                 return;
             }
             try {
-                status.textContent = 'Checking subject teacher availabilityÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦';
+                status.textContent = 'Checking subject teacher availability...';
                 const adminSnap = await get(ref(database, `users/${adminAuth.uid}`));
                 const adminProfile = adminSnap.val() || {};
                 if (adminProfile.role !== 'admin' || String(adminProfile.schoolId || adminAuth.uid) !== String(taTeacherSchoolId)) {

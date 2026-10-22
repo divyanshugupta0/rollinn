@@ -5409,10 +5409,6 @@ body.high-contrast :is(input, select, textarea) { border-color: #94a3b8 !importa
 body.high-contrast :is(.toggle-label, .toggle-input:checked + .toggle-label) { background-color: #4338ca !important; }
 body.mobile-optimized :is(#accessibility-section, #accessibility-section-active) .ac-setting-grid { grid-template-columns: 1fr !important; }
 body.mobile-optimized :is(button, .btn, input:not([type="checkbox"]):not([type="radio"]), select, textarea) { min-height: 44px !important; }
-body.privacy-mode :is(.user-email:not(#sidebar-admin-email), .request-user-email, .mt-email-cell, .bu-user-copy > span) {
-    filter: blur(5px) !important;
-    user-select: none !important;
-}
 
 /* Database storage: institution scoped inventory and guarded attendance cleanup. */
 .db-workspace { width: min(100%, 1600px); margin: 0 auto; padding: 26px clamp(16px, 2.4vw, 36px) 36px; color: #172033; }
