@@ -1341,6 +1341,7 @@
         if (activeSection === 'owner-custom-mail') document.getElementById('owner-custom-mail')?._onCustomMailOpen?.();
         if (activeSection === 'owner-bulk-registrations') document.getElementById('owner-bulk-registrations')?._onBulkRegistrationsOpen?.();
         if (activeSection === 'owner-bulk-profile-photos') document.getElementById('owner-bulk-profile-photos')?._onBulkPhotosOpen?.();
+        else document.getElementById('owner-bulk-profile-photos')?._onBulkPhotosClose?.();
         if (activeSection === 'schools') refreshSchoolData();
         if (activeSection === 'analytics' && typeof initializeAnalyticsCharts === 'function') initializeAnalyticsCharts();
         if (window.innerWidth <= 768) document.querySelector('.sidebar')?.classList.remove('show');
@@ -1614,13 +1615,14 @@
           <div class="col-md-6"><label class="form-label" for="ownerBulkType">Account type</label><select id="ownerBulkType" class="form-select"><option value="student">Student</option><option value="teacher">Teacher</option></select></div>
           <div class="col-md-6" id="ownerBulkClassField"><label class="form-label" for="ownerBulkClass">Student class</label><select id="ownerBulkClass" class="form-select" disabled><option value="">Select a school first</option></select></div>
           <div class="col-md-6 d-flex align-items-end"><button id="ownerBulkTemplate" type="button" class="btn btn-outline-primary"><i class="fas fa-download"></i> Download CSV template</button></div>
-          <div class="col-12"><label class="form-label" for="ownerBulkCsv">CSV file</label><input id="ownerBulkCsv" type="file" class="form-control" accept=".csv,text/csv"><div id="ownerBulkCsvHelp" class="form-text">Student columns: name,email,password,dateOfBirth,mobile,classRoll,section; optional: univRoll. School and class are selected above.</div></div>
+          <div class="col-12"><label class="form-label" for="ownerBulkCsv">CSV file</label><input id="ownerBulkCsv" type="file" class="form-control" accept=".csv,text/csv"><div id="ownerBulkCsvHelp" class="form-text">Required CSV columns are listed below. Student email is required; password defaults to that student's mobile number.</div><div id="ownerBulkRequiredColumns" class="mt-2 p-3 border rounded bg-light" aria-live="polite"></div></div>
           <div class="col-12"><div id="ownerBulkPreview"><p class="text-muted mb-0">Choose a school, account type, class, and CSV file to preview accounts.</p></div></div>
-          <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2"><span id="ownerBulkStatus" class="small text-muted" role="status">No CSV loaded.</span><button id="ownerBulkImport" type="button" class="btn btn-primary" disabled><i class="fas fa-user-plus"></i> Create accounts</button></div></div></div>`;
+          <div class="col-12"><div id="ownerBulkProgressWrap" hidden><div class="d-flex justify-content-between small mb-1"><span id="ownerBulkProgressLabel">Registration progress</span><span id="ownerBulkProgressCount">0 / 0</span></div><div class="progress" role="progressbar" aria-label="Registration progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="ownerBulkProgressBar" class="progress-bar" style="width:0%"></div></div></div></div>
+          <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2"><span id="ownerBulkStatus" class="small text-muted" role="status">No CSV loaded.</span><button id="ownerBulkImport" type="button" class="btn btn-primary" disabled><i class="fas fa-user-plus"></i> Create accounts one by one</button></div></div></div>`;
         main.appendChild(section);
         const schoolSelect = section.querySelector('#ownerBulkSchool'); const typeSelect = section.querySelector('#ownerBulkType');
         const classSelect = section.querySelector('#ownerBulkClass'); const csvInput = section.querySelector('#ownerBulkCsv'); const importButton = section.querySelector('#ownerBulkImport');
-        let rows = []; let classes = [];
+        let rows = []; let classes = []; let rowsContext = ''; const mailRetryQueue = new Map();
         function renderSchools() {
             const selected = schoolSelect.value; schoolSelect.replaceChildren(new Option('Select school', ''));
             (schools || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).forEach(school => schoolSelect.add(new Option(`${school.name || 'Unnamed school'} · ${school.code || 'No code'}`, school.id)));
@@ -1628,17 +1630,64 @@
             const school = (schools || []).find(record => String(record.id) === schoolSelect.value);
             section.querySelector('#ownerBulkSchoolCode').textContent = `School code: ${school?.code || '—'}`;
         }
+        function isCollegeSchool(school = (schools || []).find(record => String(record.id) === schoolSelect.value)) {
+            const schoolType = String(school?.type || school?.institutionType || '').trim().toLowerCase();
+            return schoolType.includes('college') || schoolType.includes('university');
+        }
+        function registrationContext() { return `${schoolSelect.value}|${typeSelect.value}|${classSelect.value}|${isCollegeSchool() ? 'college' : 'school'}`; }
+        function clearRowsForContextChange() {
+            if (!rows.length || rowsContext === registrationContext()) return;
+            rows = []; rowsContext = ''; section.querySelector('#ownerBulkStatus').textContent = 'CSV table cleared because the school, account type, or class changed.'; previewRows();
+        }
+        function updateCsvHelp() {
+            const student = typeSelect.value === 'student';
+            const schoolSelected = (schools || []).find(record => String(record.id) === schoolSelect.value);
+            const columns = section.querySelector('#ownerBulkRequiredColumns');
+            const showColumns = (required, optional, note) => {
+                columns.innerHTML = `<strong>CSV columns to include</strong><div class="mt-2"><span class="fw-semibold text-danger">Required:</span> ${required.map(value => `<code>${value}</code>`).join(', ')}</div>${optional.length ? `<div class="mt-1"><span class="fw-semibold">Optional:</span> ${optional.map(value => `<code>${value}</code>`).join(', ')}</div>` : ''}<div class="small text-muted mt-2">${note}</div>`;
+            };
+            if (!student) {
+                section.querySelector('#ownerBulkCsvHelp').textContent = 'Teacher columns: name,email,password,dateOfBirth,phone,designation,subjectsTaught. Teacher email and password are required; separate subjects with |.';
+                showColumns(['name', 'email', 'password', 'dateOfBirth', 'phone', 'designation', 'subjectsTaught'], [], 'Separate multiple subjects with |. Each row is registered and emailed individually.');
+                return;
+            }
+            if (!schoolSelected || !classSelect.value) {
+                section.querySelector('#ownerBulkCsvHelp').textContent = 'Select a school and class to see the correct student CSV columns. Email is required; password defaults to the student mobile number.';
+                showColumns(['name', 'email', 'dateOfBirth', 'mobile', 'class', 'classRoll', 'section'], ['fatherName', 'univRoll', 'academicYear'], 'College/university schools also require univRoll and academicYear. Student password is the mobile number.');
+                return;
+            }
+            section.querySelector('#ownerBulkCsvHelp').textContent = isCollegeSchool(schoolSelected)
+                ? 'College student columns: name,email,dateOfBirth,mobile,class,classRoll,section,univRoll,academicYear; optional: fatherName. Only rows matching the selected class are added. Password defaults to mobile.'
+                : 'School student columns: name,email,dateOfBirth,mobile,class,classRoll,section; optional: fatherName. Only rows matching the selected class are added. Password defaults to mobile.';
+            showColumns(['name', 'email', 'dateOfBirth', 'mobile', 'class', 'classRoll', 'section', ...(isCollegeSchool(schoolSelected) ? ['univRoll', 'academicYear'] : [])], ['fatherName'], `Only rows for the selected class are appended. Password defaults to mobile (${isCollegeSchool(schoolSelected) ? 'at least 8 digits' : '10 digits'}). Each created account receives its credentials by email.`);
+        }
+        async function sendRegistrationCredentialsEmail({ uid, name, email, password, profile, school, accountType }) {
+            const ownerUser = ownerAuth?.auth().currentUser;
+            const workerUrl = String(window.ROLLCALL_FIREBASE_CONFIG?.profileUploadWorkerUrl || '').trim();
+            if (!ownerUser || !workerUrl) throw new Error('Owner sign-in or secure mail service is unavailable.');
+            const endpoint = new URL(workerUrl);
+            if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) throw new Error('Secure mail service URL is invalid.');
+            endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/custom-mail`;
+            const classLine = accountType === 'student' ? `Class: ${profile.className}\nSection: ${profile.section}\nRoll number: ${profile.classRoll}${profile.univRoll ? `\nUniversity roll: ${profile.univRoll}` : ''}` : `Designation: ${profile.designation}\nSubjects: ${profile.subjectsTaught.join(', ')}`;
+            const message = `Hello ${name},\n\nYour ${accountType} account for ${school.name || 'your school'} has been created.\n\nSign-in details\nEmail: ${email}\nPassword: ${password}\nSchool: ${school.name || 'your school'}${school.code ? ` (${school.code})` : ''}\n${classLine}\n\nPlease sign in and change your password after your first login.`;
+            const result = await fetch(endpoint.href, { method: 'POST', credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await ownerUser.getIdToken()}` }, body: JSON.stringify({ subject: 'Your RollCall account credentials', message, recipientUids: [uid] }) });
+            const data = await result.json().catch(() => ({}));
+            if (!result.ok) throw new Error(data.error || 'Credentials email could not be delivered.');
+        }
         function previewRows() {
             importButton.disabled = !rows.length || !schoolSelect.value || (typeSelect.value === 'student' && !classSelect.value);
             const preview = section.querySelector('#ownerBulkPreview'); preview.replaceChildren();
             if (!rows.length) { preview.textContent = 'Choose a CSV file to preview accounts.'; preview.className = 'text-muted'; return; }
             preview.className = 'table-responsive';
-            const fields = ['name', 'email', 'dateOfBirth', typeSelect.value === 'student' ? 'classRoll' : 'phone', typeSelect.value === 'student' ? 'section' : 'designation'];
+            const college = isCollegeSchool();
+            const fields = typeSelect.value === 'student'
+                ? ['class', 'name', 'email', 'password', 'dateOfBirth', 'mobile', 'classRoll', 'section', ...(college ? ['univRoll', 'academicYear'] : []), 'fatherName']
+                : ['name', 'email', 'password', 'dateOfBirth', 'phone', 'designation', 'subjectsTaught'];
             const table = document.createElement('table'); table.className = 'table table-sm table-striped align-middle';
             const head = document.createElement('thead'); const headerRow = document.createElement('tr');
             ['CSV row', ...fields].forEach(value => { const cell = document.createElement('th'); cell.textContent = value; headerRow.append(cell); }); head.append(headerRow); table.append(head);
-            const body = document.createElement('tbody'); rows.slice(0, 10).forEach(item => { const line = document.createElement('tr'); const n = document.createElement('td'); n.textContent = String(item.rowNumber); line.append(n); fields.forEach(key => { const cell = document.createElement('td'); cell.textContent = item.data[key.toLowerCase()] || '—'; line.append(cell); }); body.append(line); }); table.append(body); preview.append(table);
-            const count = document.createElement('p'); count.className = 'small text-muted mb-0'; count.textContent = `Previewing up to 10 of ${rows.length} rows. Passwords are hidden.`; preview.append(count);
+            const body = document.createElement('tbody'); rows.forEach((item, index) => { const line = document.createElement('tr'); const n = document.createElement('td'); n.textContent = `${item.fileName || 'CSV'} · ${item.rowNumber || index + 1}`; line.append(n); fields.forEach(key => { const cell = document.createElement('td'); const value = key.toLowerCase() === 'password' && typeSelect.value === 'student' ? String(item.data.mobile || '').trim() : item.data[key.toLowerCase()]; cell.textContent = value || '—'; line.append(cell); }); body.append(line); }); table.append(body); preview.append(table);
+            const count = document.createElement('p'); count.className = 'small text-muted mb-0'; count.textContent = `${rows.length} matching row${rows.length === 1 ? '' : 's'} in the table. Student passwords are each student's mobile number.`; preview.append(count);
         }
         async function loadClasses() {
             const schoolId = schoolSelect.value; classes = []; classSelect.disabled = true; classSelect.replaceChildren(new Option(schoolId ? 'Loading classes…' : 'Select a school first', ''));
@@ -1650,9 +1699,14 @@
         }
         function downloadTemplate() {
             const teacher = typeSelect.value === 'teacher';
-            const header = teacher ? 'name,email,password,dateOfBirth,phone,designation,subjectsTaught' : 'name,email,password,dateOfBirth,mobile,classRoll,section,univRoll,academicYear';
-            const sample = teacher ? 'Aarav Sharma,aarav@example.com,ChangeMe123!,2000-05-15,9876543210,Mathematics Teacher,Math|Science' : 'Aarav Sharma,aarav@example.com,ChangeMe123!,2010-05-15,9876543210,01,A,';
-            const url = URL.createObjectURL(new Blob([`${header}\r\n${sample}\r\n`], { type: 'text/csv;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${teacher ? 'teacher' : 'student'}-registration-template.csv`; anchor.click(); URL.revokeObjectURL(url);
+            const selectedSchool = (schools || []).find(record => String(record.id) === schoolSelect.value);
+            if (!teacher && (!selectedSchool || !classSelect.value)) return notify('Select the school and class before downloading a student template.', 'warning');
+            const selectedClass = classes.find(record => record.id === classSelect.value);
+            const college = isCollegeSchool(selectedSchool);
+            const header = teacher ? ['name', 'email', 'password', 'dateOfBirth', 'phone', 'designation', 'subjectsTaught'] : ['name', 'email', 'dateOfBirth', 'mobile', 'class', 'classRoll', 'section', ...(college ? ['univRoll', 'academicYear'] : []), 'fatherName'];
+            const sample = teacher ? ['Aarav Sharma', 'aarav@example.com', 'ChangeMe123!', '2000-05-15', '9876543210', 'Mathematics Teacher', 'Math|Science'] : ['Aarav Sharma', 'aarav@example.com', '2010-05-15', '9876543210', selectedClass?.name || '', '01', 'A', ...(college ? ['1234567890', '1'] : []), 'Ramesh Sharma'];
+            const csv = [header, sample].map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\r\n') + '\r\n';
+            const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${teacher ? 'teacher' : `${college ? 'college' : 'school'}-student`}-registration-template.csv`; anchor.click(); URL.revokeObjectURL(url);
         }
         section._onBulkRegistrationsOpen = async () => {
             const cached = await readSchoolsCache();
@@ -1667,15 +1721,46 @@
                 }
             }
         };
-        schoolSelect.addEventListener('change', async () => { renderSchools(); try { await loadClasses(); } catch (error) { notify(`Could not load classes: ${error.message}`, 'danger'); } previewRows(); });
-        classSelect.addEventListener('change', previewRows);
-        typeSelect.addEventListener('change', () => { const student = typeSelect.value === 'student'; section.querySelector('#ownerBulkClassField').hidden = !student; section.querySelector('#ownerBulkCsvHelp').textContent = student ? 'Student columns: name,email,password,dateOfBirth,mobile,classRoll,section; optional: univRoll. School and class are selected above.' : 'Teacher columns: name,email,password,dateOfBirth,phone,designation,subjectsTaught. Use | between subjects. School and teacher account type are selected above.'; rows = []; previewRows(); });
+        schoolSelect.addEventListener('change', async () => { clearRowsForContextChange(); renderSchools(); updateCsvHelp(); try { await loadClasses(); } catch (error) { notify(`Could not load classes: ${error.message}`, 'danger'); } updateCsvHelp(); previewRows(); });
+        classSelect.addEventListener('change', () => { clearRowsForContextChange(); updateCsvHelp(); previewRows(); });
+        typeSelect.addEventListener('change', () => { section.querySelector('#ownerBulkClassField').hidden = typeSelect.value !== 'student'; clearRowsForContextChange(); updateCsvHelp(); previewRows(); });
+        updateCsvHelp();
         section.querySelector('#ownerBulkTemplate').addEventListener('click', downloadTemplate);
-        csvInput.addEventListener('change', async () => { rows = []; importButton.disabled = true; const file = csvInput.files?.[0]; if (!file) return previewRows(); try { if (file.size > 2 * 1024 * 1024) throw new Error('CSV files must be smaller than 2 MB.'); rows = parseOwnerCsv(await file.text()); section.querySelector('#ownerBulkStatus').textContent = `${rows.length} CSV rows loaded.`; previewRows(); } catch (error) { section.querySelector('#ownerBulkStatus').textContent = error.message; notify(error.message, 'warning'); } });
+        csvInput.addEventListener('change', async () => {
+            importButton.disabled = true; const file = csvInput.files?.[0]; if (!file) return previewRows();
+            try {
+                if (file.size > 2 * 1024 * 1024) throw new Error('CSV files must be smaller than 2 MB.');
+                const context = registrationContext();
+                if (typeSelect.value === 'student' && (!schoolSelect.value || !classSelect.value)) throw new Error('Select the school and class before adding student CSV rows.');
+                if (rows.length && rowsContext !== context) { rows = []; rowsContext = ''; }
+                const parsed = parseOwnerCsv(await file.text()); const emailSet = new Set(rows.map(row => String(row.data.email || '').trim().toLowerCase()).filter(Boolean));
+                let missingEmail = 0; let differentClass = 0; let duplicateEmail = 0; let appended = 0;
+                const selectedClass = classes.find(record => record.id === classSelect.value);
+                for (const row of parsed) {
+                    const email = String(row.data.email || '').trim().toLowerCase();
+                    if (!email) { missingEmail += 1; continue; }
+                    if (typeSelect.value === 'student') {
+                        const classValues = [row.data.class, row.data.classname, row.data.classid, row.data.course, row.data.coursename, row.data.courseid].map(value => String(value || '').trim().toLowerCase()).filter(Boolean);
+                        if (!selectedClass || !classValues.some(value => value === selectedClass.id.toLowerCase() || value === selectedClass.name.trim().toLowerCase())) { differentClass += 1; continue; }
+                    }
+                    if (emailSet.has(email)) { duplicateEmail += 1; continue; }
+                    emailSet.add(email);
+                    row.data.email = email;
+                    if (typeSelect.value === 'student') row.data.password = String(row.data.mobile || '').trim();
+                    row.fileName = file.name; rows.push(row); appended += 1;
+                }
+                if (appended) rowsContext = context;
+                section.querySelector('#ownerBulkStatus').textContent = `Added ${appended}; skipped ${missingEmail} without email, ${differentClass} for another class, ${duplicateEmail} duplicate email${duplicateEmail === 1 ? '' : 's'}. ${rows.length} rows now in the table.`;
+                previewRows();
+            } catch (error) { section.querySelector('#ownerBulkStatus').textContent = error.message; notify(error.message, 'warning'); }
+            finally { csvInput.value = ''; }
+        });
         importButton.addEventListener('click', async () => {
             const school = (schools || []).find(record => String(record.id) === schoolSelect.value); const accountType = typeSelect.value; const cls = classes.find(record => record.id === classSelect.value);
             if (!database || !currentUser || !school || (accountType === 'student' && !cls)) return notify('Select a connected school and, for students, a class.', 'warning');
-            importButton.disabled = true; const status = section.querySelector('#ownerBulkStatus'); const failures = []; let created = 0; let temporaryApp = null;
+            importButton.disabled = true; const status = section.querySelector('#ownerBulkStatus'); const failures = []; let created = 0; let emailsSent = 0; let temporaryApp = null;
+            const progressWrap = section.querySelector('#ownerBulkProgressWrap'); const progressBar = section.querySelector('#ownerBulkProgressBar'); const progressCount = section.querySelector('#ownerBulkProgressCount'); const progressLabel = section.querySelector('#ownerBulkProgressLabel');
+            progressWrap.hidden = false; progressBar.style.width = '0%'; progressBar.parentElement.setAttribute('aria-valuenow', '0'); progressCount.textContent = `0 / ${rows.length}`;
             try {
                 status.textContent = 'Checking existing accounts and roll numbers…';
                 const snapshot = await database.ref('users').once('value'); const existingUsers = snapshot.val() || {};
@@ -1684,19 +1769,20 @@
                 for (let index = 0; index < rows.length; index += 1) {
                     const { rowNumber, data } = rows[index]; status.textContent = `Creating ${index + 1} of ${rows.length}…`; let account = null;
                     try {
-                        const name = String(data.name || '').trim(); const email = String(data.email || '').trim().toLowerCase(); const password = String(data.password || ''); const dob = String(data.dateofbirth || data.dob || '').trim();
+                        const name = String(data.name || '').trim(); const email = String(data.email || '').trim().toLowerCase(); const dob = String(data.dateofbirth || data.dob || '').trim();
+                        const mobileValue = String(data.mobile || '').trim(); const password = accountType === 'student' ? mobileValue : String(data.password || '');
                         if (!name || name.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || password.length < 8 || !/^\d{4}-\d{2}-\d{2}$/.test(dob) || dob > new Date().toISOString().slice(0, 10)) throw new Error('Provide a name, valid email, password of 8+ characters, and valid non-future dateOfBirth (YYYY-MM-DD).');
                         if (emails.has(email)) throw new Error('This email is duplicated in the CSV.'); emails.add(email);
                         const profile = { uid: '', name, email, username: email.split('@')[0], dob, dateOfBirth: dob, role: accountType, schoolId: school.id, schoolCode: school.code || '', schoolName: school.name || '', createdAt: new Date().toISOString(), createdBy: currentUser.uid };
                         if (accountType === 'student') {
-                            const mobile = String(data.mobile || '').trim(); const classRoll = String(data.classroll || '').trim(); const sectionName = String(data.section || '').trim();
+                            const mobile = mobileValue; const classRoll = String(data.classroll || '').trim(); const sectionName = String(data.section || '').trim();
                             if (!/^\d{10}$/.test(mobile) || !/^\d{2}$/.test(classRoll) || !sectionName) throw new Error('Student rows need a 10-digit mobile, 2-digit classRoll, and section.');
                             const schoolType = String(school.type || school.institutionType || '').trim().toLowerCase();
                             const isSchool = !schoolType.includes('college') && !schoolType.includes('university');
-                            const univRoll = String(data.univroll || '').trim(); const academicYear = Number(data.academicyear || 1);
-                            if (!isSchool && (!/^\d{10}$/.test(univRoll) || !Number.isInteger(academicYear) || academicYear < 1 || academicYear > 10)) throw new Error('College/university students need a 10-digit univRoll and academicYear from 1 to 10.');
+                            const univRoll = String(data.univroll || '').trim(); const academicYearValue = String(data.academicyear || '').trim(); const academicYear = Number(academicYearValue);
+                            if (!isSchool && (!/^\d{10}$/.test(univRoll) || !academicYearValue || !Number.isInteger(academicYear) || academicYear < 1 || academicYear > 10)) throw new Error('College/university students need a 10-digit univRoll and academicYear from 1 to 10.');
                             const rollKey = `${cls.id.toLowerCase()}|${sectionName.toLowerCase()}|${classRoll}`; if (rolls.has(rollKey) || rolls.has(`${cls.name.toLowerCase()}|${sectionName.toLowerCase()}|${classRoll}`)) throw new Error('This class roll already exists for this class and section.');
-                            Object.assign(profile, { registrationType: isSchool ? 'school' : 'university', mobile, classRoll, univRoll, courseId: cls.id, classId: cls.id, course: cls.name, courseName: cls.name, className: cls.name, section: sectionName, ...(!isSchool ? { academicYear, year: academicYear } : {}) });
+                            Object.assign(profile, { registrationType: isSchool ? 'school' : 'university', mobile, classRoll, univRoll, courseId: cls.id, classId: cls.id, course: cls.name, courseName: cls.name, className: cls.name, section: sectionName, ...(String(data.fathername || '').trim() ? { fatherName: String(data.fathername).trim() } : {}), ...(!isSchool ? { academicYear, year: academicYear } : {}) });
                         } else {
                             const phone = String(data.phone || data.mobile || '').trim(); const designation = String(data.designation || '').trim(); const subjectsTaught = String(data.subjectstaught || '').split('|').map(value => value.trim()).filter(Boolean);
                             if (!/^\d{10}$/.test(phone) || !designation || !subjectsTaught.length) throw new Error('Teacher rows need a 10-digit phone, designation, and at least one subject (separate subjects with |).');
@@ -1704,18 +1790,55 @@
                         }
                         account = (await temporaryApp.auth().createUserWithEmailAndPassword(email, password)).user; profile.uid = account.uid; await account.updateProfile({ displayName: name });
                         await database.ref().update({ [`users/${account.uid}`]: profile, [`schoolUsers/${school.id}/${account.uid}`]: profile });
+                        profileSaved = true; accountCreated = true; created += 1;
                         if (accountType === 'student') {
                             rolls.add(`${cls.id.toLowerCase()}|${String(profile.section).toLowerCase()}|${profile.classRoll}`);
                             rolls.add(`${cls.name.toLowerCase()}|${String(profile.section).toLowerCase()}|${profile.classRoll}`);
                         }
-                        created += 1;
-                    } catch (error) { if (account) await account.delete().catch(cleanup => console.warn('Could not remove incomplete import account.', cleanup)); failures.push({ rowNumber, message: error.message || 'Account creation failed.' }); }
-                    finally { await temporaryApp.auth().signOut().catch(() => {}); }
+                        progressLabel.textContent = `CSV row ${rowNumber}: sending credentials email`;
+                        try {
+                            await sendRegistrationCredentialsEmail({ uid: account.uid, name, email, password, profile, school, accountType });
+                            emailsSent += 1;
+                        } catch (mailError) {
+                            mailRetryQueue.set(account.uid, { uid: account.uid, rowNumber, name, email, password, profile, school, accountType });
+                            failures.push({ rowNumber, retryUid: account.uid, message: `Account created, but credentials email failed: ${mailError.message || 'delivery failed'}` });
+                        }
+                    } catch (error) {
+                        if (account && !profileSaved) await account.delete().catch(cleanup => console.warn('Could not remove incomplete import account.', cleanup));
+                        if (!accountCreated) failures.push({ rowNumber, message: error.message || 'Account creation failed.' });
+                    } finally {
+                        await temporaryApp.auth().signOut().catch(() => {});
+                        const completed = index + 1; const percent = Math.round(completed / rows.length * 100); progressBar.style.width = `${percent}%`; progressBar.parentElement.setAttribute('aria-valuenow', String(percent)); progressCount.textContent = `${completed} / ${rows.length}`;
+                    }
                 }
             } catch (error) { failures.push({ rowNumber: '—', message: error.message || 'Import stopped.' }); }
             finally { if (temporaryApp) await temporaryApp.delete().catch(error => console.warn('Bulk import Firebase app cleanup failed.', error)); importButton.disabled = false; }
-            status.textContent = `Created ${created} accounts; ${failures.length} rows failed.`;
-            if (failures.length) { const list = document.createElement('ul'); list.className = 'small text-danger mt-2'; failures.forEach(failure => { const line = document.createElement('li'); line.textContent = `CSV row ${failure.rowNumber}: ${failure.message}`; list.append(line); }); section.querySelector('#ownerBulkPreview').append(list); }
+            status.textContent = `Created ${created} accounts one by one; ${emailsSent} credentials emails sent; ${failures.length} account/email issues.`;
+            progressLabel.textContent = 'Registration finished';
+            if (failures.length) {
+                const list = document.createElement('ul'); list.className = 'small text-danger mt-2';
+                failures.forEach(failure => {
+                    const line = document.createElement('li'); const message = document.createElement('span'); message.textContent = `CSV row ${failure.rowNumber}: ${failure.message}`; line.append(message);
+                    if (failure.retryUid) {
+                        const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn btn-sm btn-outline-primary ms-2'; retry.textContent = 'Retry email'; retry.setAttribute('aria-label', `Retry credentials email for CSV row ${failure.rowNumber}`);
+                        retry.addEventListener('click', async () => {
+                            const retryData = mailRetryQueue.get(failure.retryUid); if (!retryData || retry.disabled) return;
+                            retry.disabled = true; retry.textContent = 'Sending?'; status.textContent = `Retrying credentials email for CSV row ${failure.rowNumber}?`;
+                            try {
+                                await sendRegistrationCredentialsEmail(retryData);
+                                mailRetryQueue.delete(failure.retryUid); emailsSent += 1; retry.remove(); message.textContent = `CSV row ${failure.rowNumber}: credentials email sent successfully.`; line.classList.remove('text-danger'); line.classList.add('text-success');
+                                status.textContent = `Created ${created} accounts; ${emailsSent} credentials emails sent; ${mailRetryQueue.size} email retries remaining.`;
+                            } catch (error) {
+                                retry.disabled = false; retry.textContent = 'Retry email'; message.textContent = `CSV row ${failure.rowNumber}: credentials email retry failed: ${error.message || 'delivery failed'}`;
+                                status.textContent = 'Email retry failed. You can try again.';
+                            }
+                        });
+                        line.append(retry);
+                    }
+                    list.append(line);
+                });
+                section.querySelector('#ownerBulkPreview').append(list);
+            }
             if (created) notify(`Created ${created} ${accountType} account${created === 1 ? '' : 's'} for ${school.name}.`, failures.length ? 'warning' : 'success');
         });
         item.querySelector('a').addEventListener('click', event => { event.preventDefault(); switchSection('owner-bulk-registrations'); renderSchools(); });
@@ -1727,78 +1850,186 @@
         const item = document.createElement('li'); item.className = 'nav-item';
         item.innerHTML = '<a class="nav-link" href="#owner-bulk-profile-photos"><i class="fas fa-images"></i>Bulk profile photos</a>'; nav.appendChild(item);
         const section = document.createElement('section'); section.id = 'owner-bulk-profile-photos'; section.className = 'animated-section'; section.style.display = 'none';
-        section.innerHTML = `<div class="section-card"><div class="mb-3"><h2><i class="fas fa-images"></i> Bulk profile photo upload</h2><p class="text-muted mb-0">Upload profile images to R2 and attach them to existing student or teacher accounts.</p></div>
-          <div class="alert alert-info">Select a school and optionally a class, then add multiple image files. Filenames must match a class roll number, email/local part, username, or Firebase UID. Class-roll matches are scoped to the selected class.</div>
-          <div class="row g-3"><div class="col-md-6"><label class="form-label" for="ownerPhotoSchool">School</label><select id="ownerPhotoSchool" class="form-select"><option value="">Select school</option></select></div>
-          <div class="col-md-6"><label class="form-label" for="ownerPhotoClass">Class filter</label><select id="ownerPhotoClass" class="form-select" disabled><option value="">Select school first</option></select></div>
-          <div class="col-12"><label class="form-label" for="ownerPhotoFiles">Profile pictures</label><input id="ownerPhotoFiles" class="form-control" type="file" accept="image/png,image/jpeg,image/webp" multiple><div class="form-text">Source images may be up to 10 MB; they are resized before R2 upload.</div></div>
-          <div class="col-12"><div id="ownerPhotoMatches"><p class="text-muted mb-0">Select a school and image files to preview matches.</p></div></div>
-          <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2"><span id="ownerPhotoStatus" class="small text-muted" role="status">No images selected.</span><button id="ownerPhotoUpload" type="button" class="btn btn-primary" disabled><i class="fas fa-cloud-upload-alt"></i> Upload matched photos</button></div></div></div>`;
+        section.innerHTML = `<div class="section-card"><div class="mb-3"><h2><i class="fas fa-camera"></i> Student profile photo capture</h2><p class="text-muted mb-0">Choose and lock a school, class, and section. The portal loads that school's student roster once, then filters it locally as you capture.</p></div>
+          <div class="alert alert-info">The roster is read from this school's schoolUsers record in one Firebase request and kept in memory while this page is open. Selecting a class and section does not download the roster again.</div>
+          <div class="row g-3"><div class="col-md-4"><label class="form-label" for="ownerPhotoSchool">School</label><select id="ownerPhotoSchool" class="form-select"><option value="">Select school</option></select></div>
+          <div class="col-md-4"><label class="form-label" for="ownerPhotoClass">Class</label><select id="ownerPhotoClass" class="form-select" disabled><option value="">Select school first</option></select></div>
+          <div class="col-md-4"><label class="form-label" for="ownerPhotoSection">Section</label><select id="ownerPhotoSection" class="form-select" disabled><option value="">Select class first</option></select></div>
+          <div class="col-12 d-flex align-items-center gap-3 flex-wrap"><button id="ownerPhotoLock" type="button" class="btn btn-primary" disabled><i class="fas fa-lock"></i> Lock selection &amp; open camera</button><span id="ownerPhotoStatus" class="small text-muted" role="status">Select a school, class, and section.</span></div>
+          <div class="col-12"><div id="ownerPhotoRoster" class="small text-muted">Student details will appear here after selecting a section.</div></div></div></div>
+          <div id="ownerPhotoCameraModal" hidden role="dialog" aria-modal="true" aria-labelledby="ownerPhotoModalTitle" style="position:fixed;inset:0;z-index:3000;background:rgba(15,23,42,.72);padding:16px;overflow:auto;">
+            <div style="max-width:760px;margin:4vh auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.3);">
+              <div class="d-flex justify-content-between align-items-center gap-2 mb-3"><div><h2 id="ownerPhotoModalTitle" class="h5 mb-1">Capture student profile photo</h2><div id="ownerPhotoProgress" class="small text-muted"></div></div><button id="ownerPhotoClose" type="button" class="btn btn-sm btn-outline-secondary"><i class="fas fa-unlock"></i> Unlock &amp; change details</button></div>
+              <div class="row g-3"><div class="col-md-7"><div id="ownerPhotoStudentDetails" class="row g-2 border rounded p-3 mb-3"></div>
+                <video id="ownerPhotoVideo" autoplay playsinline muted style="display:block;width:100%;max-height:48vh;object-fit:cover;background:#111827;border-radius:12px;"></video>
+                <div id="ownerPhotoCameraStatus" class="small text-muted mt-2" role="status">Allow camera access to begin capturing.</div>
+                <div class="d-flex justify-content-between align-items-center gap-2 mt-3"><button id="ownerPhotoSkip" type="button" class="btn btn-outline-secondary">Skip student</button><div class="d-flex gap-2"><button id="ownerPhotoCapture" type="button" class="btn btn-primary" disabled><i class="fas fa-camera"></i> Capture &amp; upload</button><button id="ownerPhotoFinish" type="button" class="btn btn-success" hidden>Finish</button></div></div>
+              </div><aside class="col-md-5"><h3 class="h6">Student sequence</h3><p class="small text-muted">Students with saved photos are marked complete. This list updates locally after each upload.</p><ol id="ownerPhotoPendingList" class="small ps-4 mb-0" style="max-height:60vh;overflow:auto;"></ol></aside></div>
+            </div>
+          </div>`;
         main.appendChild(section);
-        const schoolSelect = section.querySelector('#ownerPhotoSchool'); const classSelect = section.querySelector('#ownerPhotoClass');
-        const filesInput = section.querySelector('#ownerPhotoFiles'); const matchesElement = section.querySelector('#ownerPhotoMatches'); const uploadButton = section.querySelector('#ownerPhotoUpload');
-        let accounts = []; let classes = []; let matches = []; let accountLoad = null;
+        const schoolSelect = section.querySelector('#ownerPhotoSchool'); const classSelect = section.querySelector('#ownerPhotoClass'); const sectionSelect = section.querySelector('#ownerPhotoSection');
+        const lockButton = section.querySelector('#ownerPhotoLock'); const rosterElement = section.querySelector('#ownerPhotoRoster'); const modal = section.querySelector('#ownerPhotoCameraModal');
+        const video = section.querySelector('#ownerPhotoVideo'); const details = section.querySelector('#ownerPhotoStudentDetails'); const captureButton = section.querySelector('#ownerPhotoCapture'); const pendingList = section.querySelector('#ownerPhotoPendingList');
+        const skipButton = section.querySelector('#ownerPhotoSkip'); const finishButton = section.querySelector('#ownerPhotoFinish'); const cameraStatus = section.querySelector('#ownerPhotoCameraStatus');
+        const accountCacheBySchool = new Map(); const classCacheBySchool = new Map();
+        let accounts = []; let classes = []; let selectedStudents = []; let pendingStudents = []; let captureIndex = 0; let cameraStream = null; let selectionLocked = false;
         function renderPhotoSchools() {
             const previous = schoolSelect.value; schoolSelect.replaceChildren(new Option('Select school', ''));
             (schools || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).forEach(school => schoolSelect.add(new Option(`${school.name || 'Unnamed school'} · ${school.code || 'No code'}`, school.id)));
             if ((schools || []).some(school => String(school.id) === previous)) schoolSelect.value = previous;
         }
         async function loadPhotoClasses() {
-            const schoolId = schoolSelect.value; classes = []; classSelect.disabled = true;
+            const schoolId = schoolSelect.value; classSelect.disabled = true;
             classSelect.replaceChildren(new Option(schoolId ? 'Loading classes…' : 'Select school first', ''));
-            if (!schoolId) return;
+            if (!schoolId) return [];
+            if (classCacheBySchool.has(schoolId)) return classCacheBySchool.get(schoolId);
             const [courses, schoolClasses] = await Promise.all([database.ref(`schoolCourses/${schoolId}`).once('value'), database.ref(`schoolClasses/${schoolId}`).once('value')]);
             const map = new Map(); [courses.val(), schoolClasses.val()].forEach(records => Object.entries(records || {}).forEach(([id, record]) => { if (record && typeof record === 'object') map.set(id, { id, name: record.courseName || record.className || record.name || record.title || 'Class' }); }));
-            classes = [...map.values()].sort((a, b) => a.name.localeCompare(b.name)); classSelect.replaceChildren(new Option('All users in school', ''));
-            classes.forEach(record => classSelect.add(new Option(record.name, record.id))); classSelect.disabled = false;
+            const loadedClasses = [...map.values()].sort((a, b) => a.name.localeCompare(b.name)); classCacheBySchool.set(schoolId, loadedClasses); return loadedClasses;
         }
-        async function loadPhotoAccounts() {
-            if (accounts.length) return;
+        function renderClassOptions() {
+            classSelect.replaceChildren(new Option(classes.length ? 'Select class' : 'No classes found', ''));
+            classes.forEach(record => classSelect.add(new Option(record.name, record.id)));
+            classSelect.disabled = !classes.length || selectionLocked;
+        }
+        async function loadPhotoAccounts(schoolId = schoolSelect.value) {
+            if (accountCacheBySchool.has(schoolId)) return accountCacheBySchool.get(schoolId);
             if (!database) throw new Error('The owner database is not connected.');
-            if (!accountLoad) accountLoad = database.ref('users').once('value').then(snapshot => { accounts = Object.entries(snapshot.val() || {}).map(([uid, profile]) => ({ uid, ...(profile || {}) })); }).finally(() => { accountLoad = null; });
-            await accountLoad;
+            const snapshot = await database.ref(`schoolUsers/${schoolId}`).once('value');
+            const loadedAccounts = Object.entries(snapshot.val() || {}).map(([uid, profile]) => ({ uid, ...(profile || {}), schoolId, _schoolUserLinked: true }));
+            accountCacheBySchool.set(schoolId, loadedAccounts); return loadedAccounts;
         }
         const normalizedRoll = value => String(value || '').trim().toLowerCase().replace(/^0+(?=\d)/, '');
-        function matchPhotoFiles(files) {
-            const schoolId = schoolSelect.value; const selectedClass = classes.find(record => record.id === classSelect.value);
-            const schoolAccounts = accounts.filter(profile => {
-                if (String(profile.schoolId || '') !== schoolId || !['student', 'teacher'].includes(String(profile.role || '').toLowerCase())) return false;
-                if (!selectedClass) return true;
+        const profilePhotoValue = profile => profile?.profilePhoto || profile?.profilePhotoKey || profile?.profilePic || profile?.profileImage || profile?.photoURL || profile?.profile_photo || '';
+        const profileClassMatches = (profile, selectedClass) => {
                 const ids = [profile.courseId, profile.classId, profile.enrolledClassId].filter(Boolean).map(String);
                 const nameMatch = String(profile.className || profile.courseName || profile.course || '').trim().toLowerCase() === selectedClass.name.toLowerCase();
                 return ids.includes(selectedClass.id) || nameMatch;
+        };
+        function filteredStudents() {
+            const selectedClass = classes.find(record => record.id === classSelect.value);
+            if (!selectedClass || !sectionSelect.value) return [];
+            return accounts.filter(profile => {
+                const role = String(profile.role || profile.accountType || '').trim().toLowerCase();
+                const isStudent = role === 'student' || (!role && !!profile.classRoll);
+                return isStudent && profileClassMatches(profile, selectedClass) && String(profile.section || '').trim().toLowerCase() === sectionSelect.value.toLowerCase();
+            }).sort((a, b) => Number(a.classRoll || 0) - Number(b.classRoll || 0) || String(a.name || '').localeCompare(String(b.name || '')));
+        }
+        function refreshRoster() {
+            const students = filteredStudents();
+            lockButton.disabled = selectionLocked || !schoolSelect.value || !classSelect.value || !sectionSelect.value || !students.length;
+            if (!schoolSelect.value || !classSelect.value || !sectionSelect.value) {
+                rosterElement.textContent = 'Select a school, class, and section to view the student count.';
+                return;
+            }
+            const alreadyHasPhoto = students.filter(profilePhotoValue).length;
+            rosterElement.textContent = students.length ? `${students.length} students loaded; ${students.length - alreadyHasPhoto} need a photo and ${alreadyHasPhoto} already have one. Roster and photo status are cached in memory; no per-student fetch is needed.` : 'No students with matching class and section details were found.';
+        }
+        function renderPendingStudents() {
+            pendingList.replaceChildren();
+            selectedStudents.forEach((student, index) => {
+                const item = document.createElement('li'); item.className = 'mb-2';
+                const name = document.createElement('span'); name.textContent = `${student.name || student.email || 'Unnamed student'}${student.classRoll ? ` · Roll ${student.classRoll}` : ''}`;
+                const status = document.createElement('span'); status.className = 'd-block text-muted';
+                status.textContent = profilePhotoValue(student) ? 'Photo already set' : student._photoCaptureStatus || 'Pending photo';
+                if (pendingStudents[captureIndex]?.uid === student.uid) { item.classList.add('fw-bold'); item.setAttribute('aria-current', 'step'); }
+                const sequence = document.createElement('span'); sequence.className = 'me-1'; sequence.textContent = `${index + 1}.`;
+                item.append(sequence, name, status); pendingList.append(item);
             });
-            const claimed = new Set();
-            matches = Array.from(files).map(file => {
-                const base = file.name.replace(/\.[^.]+$/, '').trim().toLowerCase();
-                const candidates = schoolAccounts.filter(profile => {
-                    const values = [profile.uid, profile.username, profile.email, String(profile.email || '').split('@')[0]].filter(Boolean).map(value => String(value).trim().toLowerCase());
-                    return values.includes(base) || Boolean(selectedClass && profile.classRoll && normalizedRoll(profile.classRoll) === normalizedRoll(base));
+        }
+        function populateSections() {
+            const selectedClass = classes.find(record => record.id === classSelect.value);
+            const sectionNames = new Map();
+            if (selectedClass) {
+                accounts.filter(profile => profileClassMatches(profile, selectedClass)).forEach(profile => {
+                    const value = String(profile.section || '').trim();
+                    if (value) sectionNames.set(value.toLowerCase(), value);
                 });
-                const profile = candidates.length === 1 && !claimed.has(candidates[0].uid) ? candidates[0] : null;
-                if (profile) claimed.add(profile.uid);
-                return { file, profile, status: profile ? 'Ready' : candidates.length > 1 ? 'Filename matches multiple accounts' : 'No matching account' };
+            }
+            sectionSelect.replaceChildren(new Option(sectionNames.size ? 'Select section' : 'No sections found', ''));
+            [...sectionNames.values()].sort((a, b) => a.localeCompare(b)).forEach(value => sectionSelect.add(new Option(value, value)));
+            sectionSelect.disabled = !sectionNames.size || selectionLocked;
+            refreshRoster();
+        }
+        function stopCamera() {
+            if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null; video.srcObject = null; captureButton.disabled = true;
+        }
+        function unlockSelection() {
+            selectionLocked = false; stopCamera(); modal.hidden = true;
+            schoolSelect.disabled = false; classSelect.disabled = !schoolSelect.value || !classes.length; sectionSelect.disabled = !classSelect.value || !sectionSelect.value;
+            lockButton.innerHTML = '<i class="fas fa-lock"></i> Lock selection &amp; open camera';
+            lockButton.classList.remove('btn-outline-secondary'); lockButton.classList.add('btn-primary'); refreshRoster();
+        }
+        function renderCurrentStudent() {
+            const student = pendingStudents[captureIndex];
+            details.replaceChildren();
+            if (!student) {
+                section.querySelector('#ownerPhotoProgress').textContent = pendingStudents.length ? `Complete: ${pendingStudents.length} pending photos processed.` : `${selectedStudents.length} students selected; no photos are pending.`;
+                cameraStatus.textContent = pendingStudents.length ? 'All pending students have been processed.' : 'Every student in this section already has a profile photo.';
+                captureButton.hidden = true; skipButton.hidden = true; finishButton.hidden = false;
+                renderPendingStudents();
+                return;
+            }
+            const rosterIndex = selectedStudents.findIndex(record => record.uid === student.uid);
+            section.querySelector('#ownerPhotoProgress').textContent = `Pending photo ${captureIndex + 1} of ${pendingStudents.length} · Class sequence ${rosterIndex + 1} of ${selectedStudents.length}`;
+            const fatherName = student.fatherName || student.father_name || student.fathersName || student.father || student.guardianName || student.parentName || student.parent_name || 'Not provided';
+            const fatherMobile = student.fatherMobile || student.fatherMobileNumber || student.fatherPhone || student.guardianMobile || student.guardianPhone || student.parentMobile || student.parentPhone || student.emergencyContact || 'Not provided';
+            const values = [
+                ['Student name', student.name || 'Not provided'], ['Father / guardian name', fatherName],
+                ['Student mobile', student.mobile || student.phone || 'Not provided'], ['Father / guardian mobile', fatherMobile],
+                ['Class / section', `${classes.find(record => record.id === classSelect.value)?.name || ''} / ${student.section || ''}`],
+                ['Roll number', student.classRoll || 'Not provided']
+            ];
+            values.forEach(([label, value]) => {
+                const cell = document.createElement('div'); cell.className = 'col-sm-6 small';
+                const strong = document.createElement('strong'); strong.textContent = `${label}: `; cell.append(strong, document.createTextNode(String(value))); details.append(cell);
             });
-            renderPhotoMatches();
+            cameraStatus.textContent = 'Check the student details, position the student in frame, then capture and upload.';
+            captureButton.hidden = false; skipButton.hidden = false; finishButton.hidden = true;
+            renderPendingStudents();
         }
-        function renderPhotoMatches() {
-            matchesElement.replaceChildren();
-            if (!matches.length) { const empty = document.createElement('p'); empty.className = 'text-muted mb-0'; empty.textContent = 'Select a school and image files to preview matches.'; matchesElement.append(empty); uploadButton.disabled = true; return; }
-            const table = document.createElement('table'); table.className = 'table table-sm table-striped align-middle';
-            const head = document.createElement('thead'); const header = document.createElement('tr'); ['Image', 'Matched account', 'Account type', 'Status'].forEach(value => { const cell = document.createElement('th'); cell.textContent = value; header.append(cell); }); head.append(header); table.append(head);
-            const body = document.createElement('tbody'); matches.forEach(match => { const row = document.createElement('tr'); [match.file.name, match.profile?.name || match.profile?.email || '—', match.profile?.role || '—', match.status].forEach(value => { const cell = document.createElement('td'); cell.textContent = value; row.append(cell); }); body.append(row); }); table.append(body); matchesElement.append(table);
-            uploadButton.disabled = !matches.some(match => match.profile); section.querySelector('#ownerPhotoStatus').textContent = `${matches.filter(match => match.profile).length} matched of ${matches.length} images.`;
+        async function startCamera() {
+            if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access is not supported here. Open the owner portal over HTTPS in a supported browser.');
+            cameraStatus.textContent = 'Waiting for camera permission…';
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+            video.srcObject = cameraStream;
+            await video.play(); captureButton.disabled = false; cameraStatus.textContent = 'Camera is ready.';
         }
-        async function compressPhoto(file) {
-            if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) throw new Error(`${file.name}: choose an image smaller than 10 MB.`);
-            const objectUrl = URL.createObjectURL(file); let image;
-            try { image = await new Promise((resolve, reject) => { const element = new Image(); element.onload = () => resolve(element); element.onerror = () => reject(new Error(`${file.name}: could not decode image.`)); element.src = objectUrl; }); }
-            finally { URL.revokeObjectURL(objectUrl); }
-            const scale = Math.min(1, 640 / Math.max(image.width, image.height)); const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(image.width * scale)); canvas.height = Math.max(1, Math.round(image.height * scale));
-            const context = canvas.getContext('2d'); if (!context) throw new Error('Could not prepare the selected images.'); context.drawImage(image, 0, 0, canvas.width, canvas.height);
-            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
-            if (!blob || blob.size > 2 * 1024 * 1024) throw new Error(`${file.name}: prepared image exceeds the 2 MB upload limit.`);
-            return blob;
+        async function captureAndUpload() {
+            const student = selectedStudents[captureIndex]; const owner = ownerAuth?.auth().currentUser;
+            if (!student || !owner || !window.RollCallProfileUpload || !video.videoWidth) return notify('The camera or secure photo upload service is not ready.', 'warning');
+            captureButton.disabled = true; skipButton.disabled = true; cameraStatus.textContent = 'Preparing and uploading the photo to R2…';
+            try {
+                const scale = Math.min(1, 640 / Math.max(video.videoWidth, video.videoHeight));
+                const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(video.videoWidth * scale)); canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+                const context = canvas.getContext('2d'); if (!context) throw new Error('Could not prepare the captured photo.');
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
+                if (!blob || blob.size > 2 * 1024 * 1024) throw new Error('The captured photo could not be compressed under the 2 MB upload limit.');
+                const result = await window.RollCallProfileUpload.upload(blob, { uid: student.uid, getIdToken: () => owner.getIdToken() });
+                const timestamp = Date.now(); const updates = {
+                    [`users/${student.uid}/profilePhoto`]: result.publicUrl,
+                    [`users/${student.uid}/profilePhotoKey`]: result.key,
+                    [`users/${student.uid}/profilePhotoUpdatedAt`]: timestamp
+                };
+                if (student._schoolUserLinked) {
+                    updates[`schoolUsers/${student.schoolId}/${student.uid}/profilePhoto`] = result.publicUrl;
+                    updates[`schoolUsers/${student.schoolId}/${student.uid}/profilePhotoKey`] = result.key;
+                    updates[`schoolUsers/${student.schoolId}/${student.uid}/profilePhotoUpdatedAt`] = timestamp;
+                }
+                await database.ref().update(updates);
+                student.profilePhoto = result.publicUrl; student.profilePhotoKey = result.key; student.profilePhotoUpdatedAt = timestamp; student._photoCaptureStatus = 'Uploaded';
+                cameraIndexNext('Photo uploaded.');
+            } catch (error) {
+                cameraStatus.textContent = error.message || 'Photo upload failed. You can try again.';
+                captureButton.disabled = false;
+            } finally { skipButton.disabled = false; }
+        }
+        function cameraIndexNext(message) {
+            captureIndex += 1; cameraStatus.textContent = message; renderCurrentStudent();
+            if (pendingStudents[captureIndex]) captureButton.disabled = !cameraStream;
         }
         section._onBulkPhotosOpen = async () => {
             const cached = await readSchoolsCache();
@@ -1808,30 +2039,43 @@
                 try { const snapshot = await database.ref('schools').once('value'); schools = Object.entries(snapshot.val() || {}).map(([id, school]) => ({ id, ...(school || {}) })); await writeSchoolsCache(); renderPhotoSchools(); }
                 catch (error) { if (!Array.isArray(cached)) notify(`Could not load schools for profile photos: ${error.message}`, 'danger'); }
             }
-            try { await loadPhotoAccounts(); } catch (error) { notify(`Could not load accounts for photo matching: ${error.message}`, 'danger'); }
         };
-        schoolSelect.addEventListener('change', async () => { filesInput.value = ''; matches = []; renderPhotoMatches(); try { await loadPhotoAccounts(); await loadPhotoClasses(); } catch (error) { notify(`Could not load school accounts or classes: ${error.message}`, 'danger'); } });
-        classSelect.addEventListener('change', () => { if (filesInput.files?.length) matchPhotoFiles(filesInput.files); });
-        filesInput.addEventListener('change', async () => { matches = []; uploadButton.disabled = true; if (!schoolSelect.value) { notify('Select a school before choosing profile photos.', 'warning'); filesInput.value = ''; return; } try { await loadPhotoAccounts(); matchPhotoFiles(filesInput.files || []); } catch (error) { notify(error.message, 'danger'); } });
-        uploadButton.addEventListener('click', async () => {
-            const ready = matches.filter(match => match.profile); const owner = ownerAuth?.auth().currentUser;
-            if (!ready.length || !owner || !window.RollCallProfileUpload) return notify('Select matched photos and ensure the secure upload service is ready.', 'warning');
-            uploadButton.disabled = true; let uploaded = 0; const failures = []; const status = section.querySelector('#ownerPhotoStatus');
-            for (let index = 0; index < ready.length; index += 1) {
-                const match = ready[index]; status.textContent = `Uploading ${index + 1} of ${ready.length}: ${match.file.name}`;
-                try {
-                    const blob = await compressPhoto(match.file);
-                    const result = await window.RollCallProfileUpload.upload(blob, { uid: match.profile.uid, getIdToken: () => owner.getIdToken() });
-                    const updates = { [`users/${match.profile.uid}/profilePhoto`]: result.publicUrl, [`users/${match.profile.uid}/profilePhotoKey`]: result.key, [`users/${match.profile.uid}/profilePhotoUpdatedAt`]: Date.now() };
-                    const linked = await database.ref(`schoolUsers/${match.profile.schoolId}/${match.profile.uid}`).once('value');
-                    if (linked.exists()) { updates[`schoolUsers/${match.profile.schoolId}/${match.profile.uid}/profilePhoto`] = result.publicUrl; updates[`schoolUsers/${match.profile.schoolId}/${match.profile.uid}/profilePhotoKey`] = result.key; updates[`schoolUsers/${match.profile.schoolId}/${match.profile.uid}/profilePhotoUpdatedAt`] = Date.now(); }
-                    await database.ref().update(updates); match.profile.profilePhoto = result.publicUrl; match.profile.profilePhotoKey = result.key; uploaded += 1;
-                } catch (error) { failures.push(`${match.file.name}: ${error.message || 'Upload failed.'}`); }
+        schoolSelect.addEventListener('change', async () => {
+            classes = []; accounts = []; classSelect.replaceChildren(new Option('Loading…', '')); classSelect.disabled = true;
+            sectionSelect.replaceChildren(new Option('Select class first', '')); sectionSelect.disabled = true; refreshRoster();
+            if (!schoolSelect.value) return;
+            const selectedSchoolId = schoolSelect.value;
+            try {
+                const [loadedAccounts, loadedClasses] = await Promise.all([loadPhotoAccounts(selectedSchoolId), loadPhotoClasses()]);
+                if (schoolSelect.value !== selectedSchoolId) return;
+                accounts = loadedAccounts; classes = loadedClasses; renderClassOptions(); populateSections();
             }
-            renderPhotoMatches(); status.textContent = `Uploaded ${uploaded} photos; ${failures.length} failed.`;
-            if (failures.length) notify(failures.slice(0, 5).join(' '), 'warning'); else if (uploaded) notify(`Uploaded ${uploaded} profile photos.`, 'success');
-            uploadButton.disabled = !matches.some(match => match.profile);
+            catch (error) { notify(`Could not load this school's roster or classes: ${error.message}`, 'danger'); }
         });
+        classSelect.addEventListener('change', populateSections);
+        sectionSelect.addEventListener('change', refreshRoster);
+        lockButton.addEventListener('click', async () => {
+            if (selectionLocked) { unlockSelection(); return; }
+            selectedStudents = filteredStudents();
+            if (!schoolSelect.value || !classSelect.value || !sectionSelect.value || !selectedStudents.length) return notify('Select a school, class, and section with students before locking.', 'warning');
+            selectedStudents.forEach(student => { if (!profilePhotoValue(student)) delete student._photoCaptureStatus; });
+            pendingStudents = selectedStudents.filter(student => !profilePhotoValue(student));
+            selectionLocked = true; captureIndex = 0; schoolSelect.disabled = true; classSelect.disabled = true; sectionSelect.disabled = true;
+            lockButton.innerHTML = '<i class="fas fa-unlock"></i> Unlock to change selection'; lockButton.classList.remove('btn-primary'); lockButton.classList.add('btn-outline-secondary');
+            modal.hidden = false; renderCurrentStudent();
+            if (!pendingStudents.length) return;
+            try { await startCamera(); }
+            catch (error) { stopCamera(); cameraStatus.textContent = error.message; captureButton.disabled = true; notify(error.message, 'warning'); }
+        });
+        captureButton.addEventListener('click', captureAndUpload);
+        skipButton.addEventListener('click', () => {
+            skipButton.disabled = true;
+            if (pendingStudents[captureIndex]) pendingStudents[captureIndex]._photoCaptureStatus = 'Skipped';
+            cameraIndexNext('Student skipped. No photo was uploaded.'); skipButton.disabled = !pendingStudents[captureIndex];
+        });
+        finishButton.addEventListener('click', unlockSelection);
+        section.querySelector('#ownerPhotoClose').addEventListener('click', unlockSelection);
+        section._onBulkPhotosClose = () => { if (selectionLocked) unlockSelection(); };
         item.querySelector('a').addEventListener('click', event => { event.preventDefault(); switchSection('owner-bulk-profile-photos'); renderPhotoSchools(); });
     }
 
