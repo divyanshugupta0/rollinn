@@ -457,9 +457,8 @@ async function sendCustomMail(request, env, origin) {
         if (isKnownNonOwner || (!hasOwnerRecord && !hasExplicitOwnerRole)) {
             return response({ error: 'Platform owner access is required.' }, 403, origin);
         }
-        const accessToken = await getFirebaseAccessToken(env);
         const profiles = await Promise.all(recipientUids.map(async uid => {
-            const profile = await readDatabaseWithAccessToken(env, `users/${uid}`, accessToken);
+            const profile = await readDatabaseProfile(env, `users/${uid}`, tokenMatch[1]);
             return profile && typeof profile === 'object' ? { uid, ...profile } : null;
         }));
         const recipients = [...new Map(profiles
@@ -820,15 +819,15 @@ async function handlePasswordReset(request, env, origin) {
         }
 
         try {
-            const accessToken = await getFirebaseAccessToken(env);
             const baseUrl = String(env.FIREBASE_DATABASE_URL || '').replace(/\/+$/, '');
             if (!baseUrl) throw new Error('Firebase database URL is not configured.');
 
-            // Query user by email using service account authorization
+            // User records are readable by this public password-reset lookup under the deployed
+            // RTDB rules. Avoid service-account authorization here so verification does not
+            // depend on Worker IAM permissions for a read-only account lookup.
             const query = new URLSearchParams({
                 orderBy: '"email"',
-                equalTo: JSON.stringify(email),
-                access_token: accessToken
+                equalTo: JSON.stringify(email)
             });
             const searchResponse = await fetch(`${baseUrl}/users.json?${query.toString()}`);
             if (!searchResponse.ok) {
@@ -874,6 +873,7 @@ async function handlePasswordReset(request, env, origin) {
 
             // Record request in passwordResetRequests
             try {
+                const accessToken = await getFirebaseAccessToken(env);
                 const reqUrl = new URL(`${baseUrl}/passwordResetRequests.json`);
                 reqUrl.searchParams.set('access_token', accessToken);
                 await fetch(reqUrl, {

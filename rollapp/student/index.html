@@ -3290,7 +3290,7 @@
                     </button>
 
                     <div style="text-align:center;">
-                        <a href="#" id="back-to-login-link" class="login-forgot-link">â† Back to Sign In</a>
+                        <a href="#" id="back-to-login-link" class="login-forgot-link">&larr; Back to Sign In</a>
                     </div>
                 </div>
             </div>
@@ -12178,7 +12178,7 @@
                 const originalBtnHtml = submitResetBtn.innerHTML;
                 submitResetBtn.disabled = true;
                 submitResetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying & Sending...';
-                showResetStatus('Verifying student records with serverâ€¦', 'warning');
+                showResetStatus('Verifying student records with server…', 'warning');
 
                 try {
                     if (!window.RollCallPasswordReset || typeof window.RollCallPasswordReset.send !== 'function') {
