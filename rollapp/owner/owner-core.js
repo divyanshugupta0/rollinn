@@ -1860,6 +1860,13 @@
                 for (let index = 0; index < rows.length; index += 1) {
                     const { rowNumber, data } = rows[index]; status.textContent = `Creating ${index + 1} of ${rows.length}…`; let account = null; let profileSaved = false; let accountCreated = false;
                     try {
+                        if (accountType === 'student') {
+                            data.mobile = restoreNumericLeadingZeros(data.mobile, 10);
+                            data.classroll = restoreNumericLeadingZeros(data.classroll, 2);
+                            if (!schoolRegistration) data.univroll = restoreNumericLeadingZeros(data.univroll, 10);
+                        } else {
+                            data.phone = restoreNumericLeadingZeros(data.phone || data.mobile, 10);
+                        }
                         const name = String(data.name || '').trim(); const email = String(data.email || '').trim().toLowerCase(); const dob = normalizeOwnerDateOfBirth(data.dateofbirth || data.dob);
                         const mobileValue = String(data.mobile || '').trim(); const password = accountType === 'student' ? mobileValue : String(data.password || '');
                         if (!name || name.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || password.length < 8) throw new Error('Provide a name, valid email, and password of 8+ characters.');
