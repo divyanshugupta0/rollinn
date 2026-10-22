@@ -11737,11 +11737,11 @@
                 try {
                     const signedInUser = firebase.auth().currentUser;
                     const endpointValue = String(window.ROLLCALL_FIREBASE_CONFIG?.profileUploadWorkerUrl || '').trim();
-                    const endpoint = new URL(endpointValue);
-                    if (!signedInUser || endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
+                    const configuredEndpoint = new URL(endpointValue);
+                    if (!signedInUser || configuredEndpoint.protocol !== 'https:' || configuredEndpoint.username || configuredEndpoint.password || configuredEndpoint.search || configuredEndpoint.hash) {
                         throw new Error('The secure student deletion service is unavailable.');
                     }
-                    endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/delete-student`;
+                    const endpoint = new URL('/delete-student', configuredEndpoint.origin);
                     const response = await fetch(endpoint.href, {
                         method: 'POST',
                         headers: {

@@ -1259,7 +1259,8 @@ export default {
         const origins = allowedOrigins(env);
         const allowedOrigin = origin && origins.has(origin) ? origin : '';
         const url = new URL(request.url);
-        if (url.pathname === '/firebase-config') {
+        const routePath = url.pathname.replace(/\/+$/, '') || '/';
+        if (routePath === '/firebase-config') {
             if (request.method !== 'GET') return new Response('Method not allowed.', { status: 405 });
             return firebaseConfigScript(request, env);
         }
@@ -1268,36 +1269,36 @@ export default {
             return new Response(null, { status: 204, headers: corsHeaders(allowedOrigin) });
         }
 
-        if (url.pathname.endsWith('/password-reset')) {
+        if (routePath.endsWith('/password-reset')) {
             if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);
             if (request.method !== 'POST') return response({ error: 'Method not allowed.' }, 405, allowedOrigin);
             return handlePasswordReset(request, env, allowedOrigin);
         }
-        if (url.pathname.endsWith('/delete-teacher')) {
+        if (routePath.endsWith('/delete-teacher')) {
             if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
             if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
             return deleteTeacher(request, env, allowedOrigin);
         }
-        if (url.pathname.endsWith('/delete-student')) {
+        if (routePath.endsWith('/delete-student')) {
             if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
             if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
             return deleteStudent(request, env, allowedOrigin);
         }
-        if (url.pathname.endsWith('/custom-mail')) {
+        if (routePath.endsWith('/custom-mail')) {
             if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);
             if (request.method !== 'POST') return response({ error: 'Method not allowed.' }, 405, allowedOrigin);
             return sendCustomMail(request, env, allowedOrigin);
         }
-        if (url.pathname.endsWith('/school-admin-credentials')) {
+        if (routePath.endsWith('/school-admin-credentials')) {
             if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);
             if (request.method !== 'POST') return response({ error: 'Method not allowed.' }, 405, allowedOrigin);
             return sendSchoolAdminCredentials(request, env, allowedOrigin);
         }
-        if (request.method === 'GET' && (url.pathname.startsWith('/file/') || url.searchParams.has('key'))) {
+        if (request.method === 'GET' && (routePath.startsWith('/file/') || url.searchParams.has('key'))) {
             return getProfilePhoto(allowedOrigin, env, url);
         }
         if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);
-        if (request.method === 'POST' && url.searchParams.get('action') !== 'upload') {
+        if (request.method === 'POST' && routePath === '/' && url.searchParams.get('action') !== 'upload') {
             return createProfileUpload(request, env, allowedOrigin);
         }
         if (request.method === 'PUT' && url.searchParams.get('action') === 'upload') {
