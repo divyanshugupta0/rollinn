@@ -322,6 +322,55 @@ function safeDatabaseChildKey(value) {
     return String(value).replace(/[.#$\[\]/]/g, character => encodeURIComponent(character));
 }
 
+function getOwnedProfilePhotoKey(env, value, targetUid) {
+    const reference = String(value || '').trim();
+    if (!reference) return '';
+
+    let key = reference;
+    if (/^https:\/\//i.test(reference)) {
+        let photoUrl;
+        let publicBase;
+        try {
+            photoUrl = new URL(reference);
+            publicBase = new URL(env.PUBLIC_BASE_URL);
+        } catch (error) {
+            return '';
+        }
+        const basePath = publicBase.pathname.replace(/\/$/, '');
+        if (photoUrl.origin !== publicBase.origin) return '';
+        if ((photoUrl.pathname !== basePath && !photoUrl.pathname.startsWith(`${basePath}/`)) ||
+            photoUrl.search || photoUrl.hash || photoUrl.username || photoUrl.password) return '';
+        key = photoUrl.pathname.slice(`${basePath}/`.length);
+    } else if (reference.startsWith('/')) {
+        let photoUrl;
+        let publicBase;
+        try {
+            publicBase = new URL(env.PUBLIC_BASE_URL);
+            photoUrl = new URL(reference, publicBase.origin);
+        } catch (error) {
+            throw new Error('The profile photo URL is invalid; no data was deleted.');
+        }
+        const basePath = publicBase.pathname.replace(/\/$/, '');
+        if (photoUrl.origin !== publicBase.origin || !photoUrl.pathname.startsWith(`${basePath}/`) || photoUrl.search || photoUrl.hash) {
+            throw new Error('The profile photo URL is outside the configured R2 domain; no data was deleted.');
+        }
+        key = photoUrl.pathname.slice(`${basePath}/`.length);
+    }
+
+    try {
+        key = key.split('/').map(part => decodeURIComponent(part)).join('/');
+    } catch (error) {
+        throw new Error('The profile photo reference is malformed; no data was deleted.');
+    }
+
+    const safeUid = String(targetUid).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (!new RegExp(`^profile-photos/${safeUid}/[0-9a-f-]{36}\\.(?:webp|jpg|png)$`, 'i').test(key) ||
+        key.split('/').some(part => part === '.' || part === '..')) {
+        throw new Error('The profile photo reference is invalid; no data was deleted.');
+    }
+    return key;
+}
+
 async function deleteTeacher(request, env, origin) {
     const authorization = request.headers.get('Authorization') || '';
     const tokenMatch = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]+)$/);
@@ -446,7 +495,7 @@ async function deleteStudent(request, env, origin) {
         const callerSchoolId = String(callerProfile.schoolId || caller.uid).trim();
         const accessToken = await getFirebaseAccessToken(env);
         const [studentProfile, account] = await Promise.all([
-            readDatabaseWithAccessToken(env, `users/${targetUid}`, accessToken),
+            readDatabaseProfile(env, `users/${targetUid}`, tokenMatch[1]),
             lookupFirebaseAccount(env.FIREBASE_PROJECT_ID, targetUid, accessToken)
         ]);
         if (!studentProfile || String(studentProfile.role || '').toLowerCase() !== 'student' ||
@@ -458,10 +507,11 @@ async function deleteStudent(request, env, origin) {
             return uploadResponse({ error: 'The student profile does not match its authentication account.' }, 409, origin);
         }
 
-        const photoKey = String(studentProfile.profilePhotoKey || '');
-        if (photoKey && (!photoKey.startsWith(`profile-photos/${targetUid}/`) ||
-            photoKey.split('/').some(part => part === '.' || part === '..'))) {
-            return uploadResponse({ error: 'The student profile photo reference is invalid; no data was deleted.' }, 409, origin);
+        let photoKey;
+        try {
+            photoKey = getOwnedProfilePhotoKey(env, studentProfile.profilePhotoKey || studentProfile.profilePhoto || '', targetUid);
+        } catch (error) {
+            return uploadResponse({ error: error.message }, 409, origin);
         }
         if (photoKey && !env.PROFILE_PHOTOS) {
             return uploadResponse({ error: 'Profile-photo storage is not configured; no data was deleted.' }, 503, origin);
