@@ -418,6 +418,86 @@ async function deleteTeacher(request, env, origin) {
     }
 }
 
+async function deleteStudent(request, env, origin) {
+    const authorization = request.headers.get('Authorization') || '';
+    const tokenMatch = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]+)$/);
+    if (!tokenMatch) return uploadResponse({ error: 'Administrator authentication is required.' }, 401, origin);
+
+    let caller;
+    try {
+        caller = await verifyFirebaseToken(tokenMatch[1], env.FIREBASE_PROJECT_ID);
+    } catch (error) {
+        console.error('Student deletion requester verification failed:', error);
+        return uploadResponse({ error: 'Authentication could not be verified. Try again shortly.' }, 503, origin);
+    }
+    if (!caller) return uploadResponse({ error: 'Authentication token is invalid or expired.' }, 401, origin);
+
+    const payload = await readJsonWithinLimit(request, 4096);
+    const targetUid = String(payload?.targetUid || '').trim();
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(targetUid) || targetUid === caller.uid) {
+        return uploadResponse({ error: 'A valid student account must be selected.' }, 400, origin);
+    }
+
+    try {
+        const callerProfile = await readDatabaseProfile(env, `users/${caller.uid}`, tokenMatch[1]);
+        if (!callerProfile || String(callerProfile.role || '').toLowerCase() !== 'admin') {
+            return uploadResponse({ error: 'Administrator access is required.' }, 403, origin);
+        }
+        const callerSchoolId = String(callerProfile.schoolId || caller.uid).trim();
+        const accessToken = await getFirebaseAccessToken(env);
+        const [studentProfile, account] = await Promise.all([
+            readDatabaseWithAccessToken(env, `users/${targetUid}`, accessToken),
+            lookupFirebaseAccount(env.FIREBASE_PROJECT_ID, targetUid, accessToken)
+        ]);
+        if (!studentProfile || String(studentProfile.role || '').toLowerCase() !== 'student' ||
+            String(studentProfile.schoolId || '').trim() !== callerSchoolId) {
+            return uploadResponse({ error: 'You can delete only student accounts belonging to your school.' }, 403, origin);
+        }
+        if (account && studentProfile.email &&
+            String(account.email || '').toLowerCase() !== String(studentProfile.email).toLowerCase()) {
+            return uploadResponse({ error: 'The student profile does not match its authentication account.' }, 409, origin);
+        }
+
+        const photoKey = String(studentProfile.profilePhotoKey || '');
+        if (photoKey && (!photoKey.startsWith(`profile-photos/${targetUid}/`) ||
+            photoKey.split('/').some(part => part === '.' || part === '..'))) {
+            return uploadResponse({ error: 'The student profile photo reference is invalid; no data was deleted.' }, 409, origin);
+        }
+        if (photoKey && !env.PROFILE_PHOTOS) {
+            return uploadResponse({ error: 'Profile-photo storage is not configured; no data was deleted.' }, 503, origin);
+        }
+
+        await updateDatabaseWithAccessToken(env, {
+            [`users/${safeDatabaseChildKey(targetUid)}/accountStatus`]: 'deleting',
+            [`users/${safeDatabaseChildKey(targetUid)}/deleteRequestedAt`]: Date.now(),
+            [`users/${safeDatabaseChildKey(targetUid)}/deleteRequestedBy`]: caller.uid
+        }, accessToken);
+
+        if (account) await deleteFirebaseAccount(env.FIREBASE_PROJECT_ID, targetUid, accessToken);
+        if (photoKey) {
+            try {
+                await env.PROFILE_PHOTOS.delete(photoKey);
+            } catch (error) {
+                console.error('Student profile photo cleanup failed:', error);
+                return uploadResponse({ error: 'The student authentication account was removed, but profile photo cleanup failed. Retry deletion to finish cleanup.' }, 503, origin);
+            }
+        }
+
+        await updateDatabaseWithAccessToken(env, {
+            [`users/${safeDatabaseChildKey(targetUid)}`]: null,
+            [`schoolUsers/${safeDatabaseChildKey(studentProfile.schoolId)}/${safeDatabaseChildKey(targetUid)}`]: null,
+            [`notifications/${safeDatabaseChildKey(targetUid)}`]: null
+        }, accessToken);
+        return uploadResponse({
+            ok: true,
+            message: 'Student authentication account, profile, notifications, and profile photo deleted. Attendance history was retained.'
+        }, 200, origin);
+    } catch (error) {
+        console.error('Student deletion failed:', error);
+        return uploadResponse({ error: error.message || 'Student deletion failed.' }, 503, origin);
+    }
+}
+
 async function sendCustomMail(request, env, origin) {
     const authorization = request.headers.get('Authorization') || '';
     const tokenMatch = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]+)$/);
@@ -1197,6 +1277,11 @@ export default {
             if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
             if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
             return deleteTeacher(request, env, allowedOrigin);
+        }
+        if (url.pathname.endsWith('/delete-student')) {
+            if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
+            if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            return deleteStudent(request, env, allowedOrigin);
         }
         if (url.pathname.endsWith('/custom-mail')) {
             if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);

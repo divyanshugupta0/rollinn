@@ -6,6 +6,7 @@
 <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RollCall - Admin Panel</title>
+    <link rel="icon" type="image/svg+xml" href="../shared/rollcall-icon.svg">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://rollcall-worker.divyanshugupta415.workers.dev/firebase-config"></script>
     <script src="../shared/profile-upload.js"></script>
@@ -11724,17 +11725,43 @@
         };
 
         window.deleteUser = function (userId) {
-            if (confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
-                remove(ref(database, `users/${userId}`))
-                    .then(() => {
-                        loadUsers(true);
-                        loadDashboardStats();
-                        showAlert("User deleted successfully!", "success");
-                    })
-                    .catch((error) => {
-                        showAlert(`Error deleting user: ${error.message}`, "error");
-                    });
+            const student = allUserRecordsCache?.[userId];
+            if (!student || String(student.role || '').toLowerCase() !== 'student') {
+                showAlert('Student account could not be verified. Reload the list and try again.', 'error');
+                return;
             }
+            const studentName = student.name || student.email || 'this student';
+            if (!confirm(`Permanently delete ${studentName}? This removes the Firebase sign-in account, student profile, notifications, and profile photo. Attendance history will be retained.`)) return;
+
+            (async () => {
+                try {
+                    const signedInUser = firebase.auth().currentUser;
+                    const endpointValue = String(window.ROLLCALL_FIREBASE_CONFIG?.profileUploadWorkerUrl || '').trim();
+                    const endpoint = new URL(endpointValue);
+                    if (!signedInUser || endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) {
+                        throw new Error('The secure student deletion service is unavailable.');
+                    }
+                    endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/delete-student`;
+                    const response = await fetch(endpoint.href, {
+                        method: 'POST',
+                        headers: {
+                            Authorization: `Bearer ${await signedInUser.getIdToken()}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ targetUid: userId }),
+                        credentials: 'omit',
+                        redirect: 'error',
+                        referrerPolicy: 'no-referrer'
+                    });
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok) throw new Error(result.error || 'Could not delete the student account.');
+                    loadUsers(true);
+                    loadDashboardStats();
+                    showAlert(result.message || 'Student account and profile deleted.', 'success');
+                } catch (error) {
+                    showAlert(`Error deleting student: ${error.message || 'Deletion failed.'}`, 'error');
+                }
+            })();
         };
 
         window.viewAttendance = function (userId, userName) {
