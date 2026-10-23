@@ -62,16 +62,6 @@
         }
       }
     },
-    "ownerSupportClients": {
-      ".read": "auth != null && root.child('owners').child(auth.uid).exists()",
-      "$ownerUid": {
-        ".read": "auth != null && (auth.uid === $ownerUid || root.child('owners').child(auth.uid).exists())",
-        "$sessionId": {
-          ".write": "auth != null && auth.uid === $ownerUid",
-          ".validate": "!newData.exists() || (newData.child('uid').val() === $ownerUid && newData.child('portal').isString() && newData.child('page').isString() && newData.child('title').isString() && newData.child('online').isBoolean() && newData.child('viewport').isString() && newData.child('userAgent').isString() && newData.child('lastSeen').isNumber())"
-        }
-      }
-    },
     "users": {
       ".read": true,
       ".write": "auth != null",
