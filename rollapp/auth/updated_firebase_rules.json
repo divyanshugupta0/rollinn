@@ -474,7 +474,8 @@
     },
     "erpLicenseCodes": {
       ".read": false,
-      ".write": false
+      ".write": false,
+      ".indexOn": ["schoolId"]
     },
     "erpLicenseDevices": {
       ".read": false,

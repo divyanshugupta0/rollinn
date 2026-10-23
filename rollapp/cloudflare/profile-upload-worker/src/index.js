@@ -2048,7 +2048,11 @@ async function deleteSchoolAfterEmail(request, env, origin) {
         erpCodeIndexUrl.searchParams.set('orderBy', JSON.stringify('schoolId'));
         erpCodeIndexUrl.searchParams.set('equalTo', JSON.stringify(schoolId));
         const erpCodeIndexResponse = await fetch(erpCodeIndexUrl);
-        if (!erpCodeIndexResponse.ok) throw new Error('ERP license data could not be checked; no report was sent and no deletion was started.');
+        if (!erpCodeIndexResponse.ok) {
+            const responseDetails = (await erpCodeIndexResponse.text().catch(() => '')).slice(0, 500);
+            console.error('Firebase ERP license-code index lookup failed:', erpCodeIndexResponse.status, responseDetails);
+            throw new Error('ERP license data could not be checked; no report was sent and no deletion was started. Check the Worker service-account access and deploy the Firebase rules with the erpLicenseCodes schoolId index.');
+        }
         const erpCodeIndex = await erpCodeIndexResponse.json();
         Object.keys(erpCodeIndex || {}).forEach(codeHash => {
             schoolDataPathsToRemove.add(`erpLicenseCodes/${codeHash}`);
