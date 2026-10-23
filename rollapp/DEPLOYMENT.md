@@ -28,7 +28,7 @@ Set these on the Worker itself, not only on the Pages project. The Worker API ke
 - If an older `/firebase-config` response omits the profile-upload URLs, the browser derives them from that script's HTTPS Worker URL. This does not replace deploying the updated Worker with the authenticated, signed-upload `POST`/`PUT` routes and the required R2 configuration.
 - Profile images are uploaded through the authenticated Cloudflare Worker in `cloudflare/profile-upload-worker`; client-visible Firebase R2 endpoint, token, and access-key settings are no longer used by these upload flows.
 - Owner school registration creates the administrator in Firebase Authentication and links the account to `users/{uid}`, `schoolAdmins/{schoolId}`, and the school record. The administrator email must not already belong to another Firebase Authentication account.
-- Administrator security PINs and database-management verification are stored per school/college at `schoolSettings/{schoolId}/securityPinHash`; no global administrator PIN is used.
+- Administrator security PINs and database-management verification are stored per school/college at `schoolSettings/{schoolId}/securityPinHash`; no global administrator PIN is used. ERP institution admins skip the PIN setup at login and are restricted to Manage Account in the admin portal.
 
 ## Netlify
 

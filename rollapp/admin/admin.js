@@ -218,6 +218,15 @@ function setErpPortalMode(enabled) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('click', event => {
+        if (!erpPortalModeActive) return;
+        const item = event.target.closest('.sidebar-menu-item-modern[data-section], .sidebar-menu-item[data-section]');
+        if (!item || ['manage-account', 'logout'].includes(item.dataset.section || '')) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        document.querySelector('[data-section="manage-account"]')?.click();
+    }, true);
+
     if (typeof firebase === 'undefined' || !firebase.apps?.length) return;
     firebase.auth().onAuthStateChanged(async user => {
         erpModeInstitutionRef?.off();

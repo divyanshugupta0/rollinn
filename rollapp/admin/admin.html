@@ -63,6 +63,20 @@
             font-weight: 700;
             text-align: center;
         }
+        .content-wrapper.erp-mode-panel-locked:not(.erp-account-visible) > .container::before {
+            position: fixed;
+            inset: 0;
+            z-index: 10041;
+            display: grid;
+            place-items: center;
+            padding-bottom: 96px;
+            color: #fff;
+            content: "\f023";
+            font-family: "Font Awesome 6 Free";
+            font-size: 3rem;
+            font-weight: 900;
+            pointer-events: none;
+        }
         .account-erp-license {
             margin-top: 18px;
             padding: 18px;
@@ -7100,6 +7114,7 @@
                 isSchool: institutionType === 'school' || institutionType === 'erp',
                 schoolId: schoolId
             };
+            window.setErpPortalMode?.(institutionType === 'erp');
             applyAdminAcademicLabels(institutionType);
             applyReportMode();
             return institutionType;
@@ -7303,7 +7318,7 @@
                                     window.__schoolGateVerified = window.__schoolGateVerified || new Set();
                                     window.__schoolGateVerified.add(user.uid);
                                     applyAdminInstitutionMode(userData)
-                                        .then(() => ensureAdminSecurityPin(user, userData))
+                                        .then(institutionType => institutionType === 'erp' ? undefined : ensureAdminSecurityPin(user, userData))
                                         .then(() => ensureAdminDob(user, userData))
                                         .then(() => continueAdminLogin(user, userData, deviceId, currentTime))
                                         .catch((error) => showLoginStatus(`Security setup failed: ${error.message}`, 'error'));
@@ -7311,7 +7326,7 @@
                                 return;
                             }
                             applyAdminInstitutionMode(userData)
-                                .then(() => ensureAdminSecurityPin(user, userData))
+                                .then(institutionType => institutionType === 'erp' ? undefined : ensureAdminSecurityPin(user, userData))
                                 .then(() => ensureAdminDob(user, userData))
                                 .then(() => continueAdminLogin(user, userData, deviceId, currentTime))
                                 .catch((error) => showLoginStatus(`Security setup failed: ${error.message}`, 'error'));
@@ -7625,7 +7640,12 @@
 
             // Initialize from URL after admin panel is shown
             setTimeout(() => {
-                initializeFromURL();
+                if (window.rollCallErpModeActive) {
+                    window.location.hash = 'manage-account';
+                    document.querySelector('[data-section="manage-account"]')?.click();
+                } else {
+                    initializeFromURL();
+                }
             }, 100);
         }
         window.showAdminPanel = showAdminPanel;
@@ -12282,6 +12302,11 @@
 
         // Show section function with authentication guard
         function showSection(sectionId) {
+            if (window.rollCallErpModeActive && sectionId !== 'manage-account-section') {
+                window.location.hash = 'manage-account';
+                document.querySelector('[data-section="manage-account"]')?.click();
+                return;
+            }
             // SECURITY: Check authentication first
             if (!currentUser || !auth.currentUser) {
                 showLoginSection();
