@@ -1453,7 +1453,19 @@ async function readErpLicenseContext(env, schoolId, accessToken) {
     if (institutionType !== 'erp') {
         return { erpMode: false, school, ownerSchool, subscription };
     }
-    if (!subscription.planId) {
+    const schoolSubscription = school.subscription || {};
+    const planId = String(subscription.planId || '').trim();
+    const schoolPlanId = String(schoolSubscription.planId || '').trim();
+    const subscriptionStart = Date.parse(subscription.startDate || '');
+    const schoolSubscriptionStart = Date.parse(schoolSubscription.startDate || '');
+    const subscriptionEnd = Date.parse(subscription.endDate || '');
+    const schoolSubscriptionEnd = Date.parse(schoolSubscription.endDate || '');
+    if (!planId ||
+        planId !== schoolPlanId ||
+        !Number.isFinite(subscriptionStart) ||
+        subscriptionStart !== schoolSubscriptionStart ||
+        !Number.isFinite(subscriptionEnd) ||
+        subscriptionEnd !== schoolSubscriptionEnd) {
         return {
             erpMode: true,
             active: false,
@@ -1471,7 +1483,7 @@ async function readErpLicenseContext(env, schoolId, accessToken) {
         accessToken
     );
     const planProductType = String(plan?.productType || (plan?.erpPlan === true ? 'erp' : '')).trim().toLowerCase();
-    if (!plan || plan.type === 'topup' || planProductType !== 'erp') {
+    if (!plan || plan.active === false || plan.type === 'topup' || planProductType !== 'erp') {
         return {
             erpMode: true,
             active: false,
@@ -1486,7 +1498,9 @@ async function readErpLicenseContext(env, schoolId, accessToken) {
     return {
         erpMode: true,
         active: String(ownerSchool.status || '').toLowerCase() === 'active' &&
-            subscriptionIsActive(subscription),
+            String(school.status || '').toLowerCase() === 'active' &&
+            subscriptionIsActive(subscription) &&
+            subscriptionIsActive(schoolSubscription),
         school,
         ownerSchool,
         ownerId,
