@@ -493,6 +493,10 @@
       ".indexOn": ["expiresAt"]
     },
     "erpLicenseCodes": {},
+    "erpLicenseDevices": {
+      ".read": false,
+      ".write": false
+    },
     "subscriptionExpiryOverlayCounts": {
       "$schoolId": {
         "$uid": {
