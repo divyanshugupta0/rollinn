@@ -369,7 +369,7 @@
                     list.innerHTML = '<div class="alert alert-light">No pending re-subscription requests.</div>';
                     return;
                 }
-                const mainPlans = pricingPlans.filter(plan => plan.active !== false && plan.type !== 'topup' && (request.erpMode !== true || plan.erpPlan === true));
+                const mainPlans = pricingPlans.filter(plan => plan.active !== false && plan.type !== 'topup');
                 const topupPlans = pricingPlans.filter(plan => plan.active !== false && plan.type === 'topup');
                 list.innerHTML = requests.map((request, index) => {
                     const plan = request.requestedPlan;
@@ -457,7 +457,6 @@
             if (!request?.schoolId || !request?.requesterUid || !ownerUid) throw new Error('Request or owner session is missing. Refresh and try again.');
             const selectedPlan = pricingPlans.find(item => item.id === planId && item.active !== false && item.type !== 'topup');
             if (!selectedPlan) throw new Error('Select an active main plan.');
-            if (request.erpMode === true && selectedPlan.erpPlan !== true) throw new Error('Select an active ERP plan for this renewal request.');
             const startDate = new Date();
             let endDate = new Date(startDate);
             endDate.setMonth(endDate.getMonth() + Number(selectedPlan.durationMonths || 0));
@@ -501,7 +500,7 @@
             const allTopups = [...retainedTopups, ...topups];
             const priceBreakdown = { [selectedPlan.currency || 'INR']: Number(selectedPlan.price || 0) };
             allTopups.forEach(item => { const currency = item.currency || selectedPlan.currency || 'INR'; priceBreakdown[currency] = Number(priceBreakdown[currency] || 0) + Number(item.price || 0); });
-            const subscription = { ...oldSubscription, plan: selectedPlan.name || '', planId: selectedPlan.id, erpPlan: selectedPlan.erpPlan === true, price: Object.keys(priceBreakdown).length === 1 ? Object.values(priceBreakdown)[0] : Number(selectedPlan.price || 0), basePlanPrice: Number(selectedPlan.price || 0), priceBreakdown, currency: selectedPlan.currency || 'INR', durationMonths: Number(selectedPlan.durationMonths || 0), termExtensionMonths, autoRenew: Boolean(selectedPlan.autoRenew), studentCapacity: Number(selectedPlan.studentCapacity || 0), teacherCapacity: Number(selectedPlan.teacherCapacity || 0), topups: allTopups, usage: { students: usage.students, teachers: usage.teachers, updatedAt: Date.now() }, startDate: startDate.toISOString(), endDate: endDate.toISOString(), status: 'active', updatedAt: Date.now() };
+            const subscription = { ...oldSubscription, plan: selectedPlan.name || '', planId: selectedPlan.id, price: Object.keys(priceBreakdown).length === 1 ? Object.values(priceBreakdown)[0] : Number(selectedPlan.price || 0), basePlanPrice: Number(selectedPlan.price || 0), priceBreakdown, currency: selectedPlan.currency || 'INR', durationMonths: Number(selectedPlan.durationMonths || 0), termExtensionMonths, autoRenew: Boolean(selectedPlan.autoRenew), studentCapacity: Number(selectedPlan.studentCapacity || 0), teacherCapacity: Number(selectedPlan.teacherCapacity || 0), topups: allTopups, usage: { students: usage.students, teachers: usage.teachers, updatedAt: Date.now() }, startDate: startDate.toISOString(), endDate: endDate.toISOString(), status: 'active', updatedAt: Date.now() };
             const timestamp = Date.now();
             const updates = {
                 [`schools/${request.schoolId}/status`]: 'Active',
@@ -979,7 +978,7 @@
         const topupKind = type === 'topup' && document.getElementById('ownerPlanTopupKind').value === 'months' ? 'months' : 'capacity';
         const durationMonths = type === 'topup' && topupKind !== 'months' ? 1 : Number(document.getElementById('ownerPlanMonths').value);
         const productType = type === 'plan' ? document.getElementById('ownerPlanCategory').value : '';
-        const plan = { name: document.getElementById('ownerPlanName').value.trim(), type, productType, topupKind, price: Number(document.getElementById('ownerPlanPrice').value), currency: document.getElementById('ownerPlanCurrency').value, durationMonths, autoRenew: type === 'plan' && document.getElementById('ownerPlanAutoRenew').checked, erpPlan: type === 'plan' && productType === 'erp', studentCapacity: topupKind === 'months' ? 0 : Number(document.getElementById('ownerPlanStudentCapacity').value), teacherCapacity: topupKind === 'months' ? 0 : Number(document.getElementById('ownerPlanTeacherCapacity').value), bonus, bonusStudentCapacity: bonusStudentInput === '' ? null : Number(bonusStudentInput), bonusTeacherCapacity: bonusTeacherInput === '' ? null : Number(bonusTeacherInput), features: document.getElementById('ownerPlanFeatures').value.split(',').map(value => value.trim()).filter(Boolean), active: existing ? existing.active !== false : true, updatedAt: Date.now(), createdAt: existing?.createdAt || Date.now() };
+        const plan = { name: document.getElementById('ownerPlanName').value.trim(), type, productType, topupKind, price: Number(document.getElementById('ownerPlanPrice').value), currency: document.getElementById('ownerPlanCurrency').value, durationMonths, autoRenew: type === 'plan' && document.getElementById('ownerPlanAutoRenew').checked, studentCapacity: topupKind === 'months' ? 0 : Number(document.getElementById('ownerPlanStudentCapacity').value), teacherCapacity: topupKind === 'months' ? 0 : Number(document.getElementById('ownerPlanTeacherCapacity').value), bonus, bonusStudentCapacity: bonusStudentInput === '' ? null : Number(bonusStudentInput), bonusTeacherCapacity: bonusTeacherInput === '' ? null : Number(bonusTeacherInput), features: document.getElementById('ownerPlanFeatures').value.split(',').map(value => value.trim()).filter(Boolean), active: existing ? existing.active !== false : true, updatedAt: Date.now(), createdAt: existing?.createdAt || Date.now() };
         if (!plan.name || !Number.isFinite(plan.price) || plan.price < 0 || !Number.isInteger(plan.durationMonths) || plan.durationMonths < 1 || !Number.isInteger(plan.studentCapacity) || plan.studentCapacity < 0 || !Number.isInteger(plan.teacherCapacity) || plan.teacherCapacity < 0 || (plan.bonusStudentCapacity !== null && (!Number.isInteger(plan.bonusStudentCapacity) || plan.bonusStudentCapacity < 0)) || (plan.bonusTeacherCapacity !== null && (!Number.isInteger(plan.bonusTeacherCapacity) || plan.bonusTeacherCapacity < 0))) return notify('Enter a name, valid price, whole-number term, and non-negative whole-number capacities.', 'warning');
         try { await ownerPath(`pricingPlans/${id}`).set(plan); resetPricingForm(); await loadPricingPlans(); notify('Pricing plan saved.', 'success'); }
         catch (error) { notify(`Could not save pricing plan: ${error.message}`, 'danger'); }
@@ -1037,7 +1036,7 @@
         body.innerHTML = filtered.length ? '' : '<tr><td colspan="8" class="text-center text-muted py-4">No registered schools match this search.</td></tr>';
         filtered.forEach(school => {
             const planId = school.subscription?.planId || school.subscription?.plan || '';
-            const plans = pricingPlans.filter(plan => plan.active !== false && plan.type !== 'topup').map(plan => `<option value="${escapeAttr(plan.id)}" ${plan.id === planId || plan.name === planId ? 'selected' : ''}>${escapeHtml(plan.name)}${plan.erpPlan === true ? ' · ERP' : ''} · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}</option>`).join('');
+            const plans = pricingPlans.filter(plan => plan.active !== false && plan.type !== 'topup').map(plan => `<option value="${escapeAttr(plan.id)}" ${plan.id === planId || plan.name === planId ? 'selected' : ''}>${escapeHtml(plan.name)}${(plan.productType || (plan.erpPlan === true ? 'erp' : 'school')) === 'erp' ? ' · ERP' : ''} · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}</option>`).join('');
             const topups = pricingPlans.filter(plan => plan.active !== false && plan.type === 'topup').map(plan => `<option value="${escapeAttr(plan.id)}">${escapeHtml(plan.name)}${plan.topupKind === 'months' ? ` · +${Number(plan.durationMonths || 0)} months · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}` : plan.bonus ? ' · Bonus' : ` · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}`}</option>`).join('');
             const row = document.createElement('tr');
             const usage = schoolUserUsage[school.id] || { students: 0, teachers: 0 };
@@ -1142,7 +1141,7 @@
             const currency = item.currency || plan?.currency || 'INR';
             priceBreakdown[currency] = Number(priceBreakdown[currency] || 0) + Number(item.price || 0);
         });
-        const subscription = { ...current, plan: plan?.name || '', planId: plan?.id || '', erpPlan: plan?.type === 'plan' && plan.erpPlan === true, price: Object.keys(priceBreakdown).length === 1 ? Object.values(priceBreakdown)[0] : basePlanPrice, basePlanPrice, priceBreakdown, currency: plan?.currency || 'INR', durationMonths: plan?.durationMonths || 0, autoRenew: plan?.type === 'plan' && row.querySelector('.school-auto-renew').checked, studentCapacity: Number(plan?.studentCapacity || 0), teacherCapacity: Number(plan?.teacherCapacity || 0), topups, usage: { students: usage.students, teachers: usage.teachers, updatedAt: Date.now() }, startDate: startDate.toISOString(), endDate: endDate.toISOString(), status: active ? 'active' : 'inactive', updatedAt: Date.now() };
+        const subscription = { ...current, plan: plan?.name || '', planId: plan?.id || '', price: Object.keys(priceBreakdown).length === 1 ? Object.values(priceBreakdown)[0] : basePlanPrice, basePlanPrice, priceBreakdown, currency: plan?.currency || 'INR', durationMonths: plan?.durationMonths || 0, autoRenew: plan?.type === 'plan' && row.querySelector('.school-auto-renew').checked, studentCapacity: Number(plan?.studentCapacity || 0), teacherCapacity: Number(plan?.teacherCapacity || 0), topups, usage: { students: usage.students, teachers: usage.teachers, updatedAt: Date.now() }, startDate: startDate.toISOString(), endDate: endDate.toISOString(), status: active ? 'active' : 'inactive', updatedAt: Date.now() };
         try {
             const lastUpdated = new Date().toISOString();
             const timestamp = Date.now();

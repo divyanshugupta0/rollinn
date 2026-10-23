@@ -40,6 +40,7 @@ function editSchool(id) {
                                         <option value="Secondary" ${school.type === 'Secondary' ? 'selected' : ''}>Secondary School</option>
                                         <option value="High School" ${school.type === 'High School' ? 'selected' : ''}>High School</option>
                                         <option value="College" ${school.type === 'College' ? 'selected' : ''}>College</option>
+                                        <option value="ERP" ${school.type === 'ERP' ? 'selected' : ''}>RollCall ERP</option>
                                     </select>
                                 </div>
                             </div>

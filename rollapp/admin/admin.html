@@ -7015,7 +7015,7 @@
         }
 
         function applyAdminAcademicLabels(institutionType) {
-            const isSchool = institutionType === 'school';
+            const isSchool = institutionType === 'school' || institutionType === 'erp';
             const labels = {
                 menu: isSchool ? 'Manage Classes' : 'Manage Courses',
                 title: isSchool ? 'Class & Section Management' : 'Course & Section Management',
@@ -7093,11 +7093,11 @@
             if (!schoolId) throw new Error('This administrator is not linked to a school.');
             const schoolSnapshot = await get(ref(database, `schools/${schoolId}/type`));
             const institutionType = String(schoolSnapshot.val() || '').trim().toLowerCase();
-            document.body.classList.toggle('admin-school-mode', institutionType === 'school');
+            document.body.classList.toggle('admin-school-mode', institutionType === 'school' || institutionType === 'erp');
             document.documentElement.dataset.institutionType = institutionType || 'college';
             window.rollCallAdminMode = {
                 institutionType: institutionType || 'college',
-                isSchool: institutionType === 'school',
+                isSchool: institutionType === 'school' || institutionType === 'erp',
                 schoolId: schoolId
             };
             applyAdminAcademicLabels(institutionType);
@@ -12464,7 +12464,7 @@
             return Array.from(new TextEncoder().encode(String(value).trim()), byte => byte.toString(16).padStart(2, '0')).join('');
         }
         function isSchoolAcademicMode() {
-            return document.documentElement.dataset.institutionType === 'school';
+            return ['school', 'erp'].includes(document.documentElement.dataset.institutionType);
         }
         function academicEntityLabel(capitalized = false) {
             const label = isSchoolAcademicMode() ? 'class' : 'course';

@@ -183,7 +183,7 @@ function initSidebarBadges() {
 document.addEventListener('DOMContentLoaded', initSidebarBadges);
 
 let erpPortalModeActive = false;
-let erpModeSubscriptionRef = null;
+let erpModeInstitutionRef = null;
 let erpModeAuthUid = '';
 
 function setErpPortalMode(enabled) {
@@ -220,8 +220,8 @@ function setErpPortalMode(enabled) {
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof firebase === 'undefined' || !firebase.apps?.length) return;
     firebase.auth().onAuthStateChanged(async user => {
-        erpModeSubscriptionRef?.off();
-        erpModeSubscriptionRef = null;
+        erpModeInstitutionRef?.off();
+        erpModeInstitutionRef = null;
         erpModeAuthUid = user?.uid || '';
         if (!user) {
             setErpPortalMode(false);
@@ -236,10 +236,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 setErpPortalMode(false);
                 return;
             }
-            erpModeSubscriptionRef = firebase.database().ref(`schools/${schoolId}/subscription`);
-            erpModeSubscriptionRef.on('value', snapshot => {
+            erpModeInstitutionRef = firebase.database().ref(`schools/${schoolId}/type`);
+            erpModeInstitutionRef.on('value', snapshot => {
                 if (firebase.auth().currentUser?.uid !== erpModeAuthUid) return;
-                setErpPortalMode(snapshot.val()?.erpPlan === true);
+                setErpPortalMode(String(snapshot.val() || '').trim().toLowerCase() === 'erp');
             }, error => {
                 console.error('Could not monitor the ERP portal mode:', error);
             });
@@ -1538,7 +1538,7 @@ function initManageAccountSection() {
                     </dl>
                     <div class="account-plan-dates"><span><strong>Started:</strong> ${escape(startDate)}</span><span><strong>Renews / ends:</strong> ${escape(endDate)}</span></div>
                 `;
-                if (subscription.erpPlan === true && erpLicensePanel) {
+                if (String(school.type || school.institutionType || '').trim().toLowerCase() === 'erp' && erpLicensePanel) {
                     erpLicensePanel.hidden = false;
                     erpLicenseDescription.textContent = 'Checking the active ERP subscription and access code...';
                     erpLicenseStatus.textContent = '';
@@ -1624,7 +1624,6 @@ function initManageAccountSection() {
             requesterName: loadedUser?.name || currentUser.displayName || currentUser.email || 'Administrator',
             requesterEmail: loadedUser?.email || currentUser.email || '',
             requesterRole: String(loadedUser?.role || 'admin'),
-            erpMode: true,
             subscriptionEndDate: loadedSubscription.endDate || '',
             requestedPlan: {
                 id: String(loadedSubscription.planId || ''),

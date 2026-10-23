@@ -122,7 +122,7 @@
     }
 
     async function reserveCode(type) {
-        const prefix = type.toLowerCase() === 'college' ? 'COL' : 'SCH';
+        const prefix = type.toLowerCase() === 'college' ? 'COL' : type.toLowerCase() === 'erp' ? 'ERP' : 'SCH';
         const existing = await database.ref('schools').once('value');
         const used = new Set(Object.values(existing.val() || {}).map(item => String(item?.code || '').toUpperCase()));
         for (let attempt = 0; attempt < 30; attempt += 1) {
@@ -320,6 +320,7 @@
                     role: 'admin',
                     schoolId,
                     schoolName,
+                    institutionType: value('schoolType').toLowerCase(),
                     createdAt: new Date().toISOString(),
                     createdBy: currentUser.uid
                 }
@@ -330,10 +331,6 @@
                 await adminApp.delete().catch(error => console.warn('Temporary administrator Firebase app could not be deleted.', error));
             }
         }
-    }
-
-    function planIsErp(plan = selectedPlan()) {
-        return plan?.erpPlan === true || plan?.productType === 'erp';
     }
 
     async function register() {
@@ -427,7 +424,7 @@
                 contacts: { principal: { name: value('principalName'), email: value('principalEmail') }, admin: { uid: administrator.uid, name: value('adminName'), username: value('schoolAdminUsername'), email: adminEmail, dob: adminDob, dateOfBirth: adminDob, photoURL }, phone: value('schoolPhone'), alternatePhone: value('alternatePhone') },
                 details: { capacity: Number(value('studentCapacity')) || 0, currentStudents: Number(value('currentStudents')) || 0, teacherCount: Number(value('teacherCount')) || 0, accreditation: value('accreditation'), website: value('website') },
                 facilities: { library: document.getElementById('hasLibrary')?.checked === true, computerLab: document.getElementById('hasLab')?.checked === true, sports: document.getElementById('hasSports')?.checked === true, transportation: document.getElementById('hasTransport')?.checked === true },
-                subscription: { plan: plan.name, planId: plan.id, erpPlan: planIsErp(plan), price: (() => { const totals = selectedTopups.reduce((result, item) => { const currency = item.currency || plan.currency || 'INR'; result[currency] = Number(result[currency] || 0) + Number(item.price || 0); return result; }, { [plan.currency || 'INR']: Number(plan.price || 0) }); return Object.keys(totals).length === 1 ? Object.values(totals)[0] : Number(plan.price || 0); })(), basePlanPrice: Number(plan.price || 0), priceBreakdown: selectedTopups.reduce((totals, item) => { const currency = item.currency || plan.currency || 'INR'; totals[currency] = Number(totals[currency] || 0) + Number(item.price || 0); return totals; }, { [plan.currency || 'INR']: Number(plan.price || 0) }), currency: plan.currency || 'INR', durationMonths: Number(plan.durationMonths), termExtensionMonths, autoRenew: plan.autoRenew === true, studentCapacity: Number(plan.studentCapacity || value('studentCapacity')), teacherCapacity: Number(plan.teacherCapacity || 0), topups: selectedTopups, status: 'active', startDate: start.toISOString(), endDate: end.toISOString() },
+                subscription: { plan: plan.name, planId: plan.id, price: (() => { const totals = selectedTopups.reduce((result, item) => { const currency = item.currency || plan.currency || 'INR'; result[currency] = Number(result[currency] || 0) + Number(item.price || 0); return result; }, { [plan.currency || 'INR']: Number(plan.price || 0) }); return Object.keys(totals).length === 1 ? Object.values(totals)[0] : Number(plan.price || 0); })(), basePlanPrice: Number(plan.price || 0), priceBreakdown: selectedTopups.reduce((totals, item) => { const currency = item.currency || plan.currency || 'INR'; totals[currency] = Number(totals[currency] || 0) + Number(item.price || 0); return totals; }, { [plan.currency || 'INR']: Number(plan.price || 0) }), currency: plan.currency || 'INR', durationMonths: Number(plan.durationMonths), termExtensionMonths, autoRenew: plan.autoRenew === true, studentCapacity: Number(plan.studentCapacity || value('studentCapacity')), teacherCapacity: Number(plan.teacherCapacity || 0), topups: selectedTopups, status: 'active', startDate: start.toISOString(), endDate: end.toISOString() },
                 status: 'Active', ownerId: currentUser.uid, registrationDate: start.toISOString(), lastUpdated: start.toISOString()
             };
             stage = 'saving the school and administrator records';

@@ -1421,16 +1421,20 @@ async function readErpLicenseContext(env, schoolId, accessToken) {
         return { erpMode: false, school, ownerSchool: null, subscription: {} };
     }
     const subscription = ownerSchool.subscription || {};
-    if (subscription.erpPlan !== true || !subscription.planId) {
+    const institutionType = String(ownerSchool.institutionType || ownerSchool.type || '').trim().toLowerCase();
+    if (institutionType !== 'erp') {
         return { erpMode: false, school, ownerSchool, subscription };
+    }
+    if (!subscription.planId) {
+        return { erpMode: true, active: false, school, ownerSchool, ownerId, subscription, plan: null };
     }
     const plan = await readDatabaseWithAccessToken(
         env,
         `owners/${ownerId}/pricingPlans/${subscription.planId}`,
         accessToken
     );
-    if (!plan || plan.erpPlan !== true || plan.type === 'topup') {
-        return { erpMode: false, school, ownerSchool, subscription };
+    if (!plan || plan.type === 'topup') {
+        return { erpMode: true, active: false, school, ownerSchool, ownerId, subscription, plan: null };
     }
     return {
         erpMode: true,
@@ -1492,7 +1496,7 @@ async function issuePortalLicense(request, env, origin) {
                 expired: Number.isFinite(expiresAt) && expiresAt <= Date.now(),
                 schoolName: String(ownerSchool.name || school.name || ''),
                 schoolCode: String(ownerSchool.code || school.code || ''),
-                plan: String(subscription.plan || plan.name || ''),
+                plan: String(subscription.plan || plan?.name || ''),
                 planId: String(subscription.planId),
                 startDate: String(subscription.startDate || ''),
                 endDate: String(subscription.endDate || '')

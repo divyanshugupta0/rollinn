@@ -18,8 +18,8 @@
     }
 
     function subscriptionPlanCategory(school) {
-        if (school?.subscription?.erpPlan === true) return 'erp';
         const institutionType = String(school?.institutionType || school?.type || '').trim().toLowerCase();
+        if (institutionType === 'erp') return 'erp';
         return institutionType === 'college' || institutionType === 'university' ? 'college' : 'school';
     }
 
@@ -278,7 +278,6 @@
                     requesterName: profile.name || user.displayName || user.email || 'Staff member',
                     requesterEmail: profile.email || user.email || '',
                     requesterRole: role,
-                    erpMode: school.subscription?.erpPlan === true,
                     subscriptionEndDate: school.subscription?.endDate || '',
                     requestedPlan: {
                         id: selectedPlan.id,
