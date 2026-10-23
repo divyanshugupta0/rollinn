@@ -5678,6 +5678,28 @@ body.login-view .content-wrapper > .container { display: grid !important; flex: 
 @media (max-width: 960px) { #login-section.login-card { grid-template-columns: minmax(0, .95fr) minmax(360px, 1.05fr) !important; min-height: 520px !important; } #login-section .login-hero { min-height: 520px !important; padding: 36px !important; } #login-section .login-form-panel { padding: 36px !important; } }
 @media (max-width: 720px) { body.login-view .content-wrapper > .container { padding: 20px 14px !important; } #login-section.login-card { grid-template-columns: 1fr !important; width: min(100%, 500px) !important; min-height: 0 !important; border-radius: 20px !important; } #login-section .login-hero { min-height: 0 !important; gap: 22px !important; padding: 26px !important; } #login-section .login-tagline { margin-top: 8px !important; font-size: 25px !important; } #login-section .login-security-list { grid-template-columns: 1fr !important; } #login-section .login-security-list li { min-height: 40px !important; font-size: 11px !important; } #login-section .security-badge { margin-top: -8px !important; } #login-section .login-form-panel { padding: 28px 24px !important; } }
 @media (max-width: 420px) { #login-section .login-actions { align-items: flex-start !important; flex-direction: column !important; gap: 7px !important; } #login-section .login-form-header h3 { font-size: 22px !important; } }
+@media (max-width: 720px) {
+    #login-section.login-card,
+    #login-section .login-form-panel,
+    #login-section .login-form,
+    #login-section .form-group,
+    #login-section .input-wrap {
+        box-sizing: border-box !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+    #login-section .login-form-panel,
+    #login-section .login-form,
+    #login-section .form-group,
+    #login-section .input-wrap,
+    #login-section .input-wrap input {
+        width: 100% !important;
+    }
+    #login-section .input-wrap input {
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+}
 
 /* Admin dashboard mobile layout */
 @media (max-width: 700px) {
