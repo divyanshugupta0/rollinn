@@ -3001,12 +3001,28 @@ table.attendance-list tr:hover td {
         left: 0 !important;
         top: 0 !important;
         height: 100vh !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        box-sizing: border-box !important;
         z-index: 9999 !important;
         visibility: visible !important;
         opacity: 1 !important;
         pointer-events: auto !important;
         transform: translateX(-100%) !important;
         transition: transform 0.25s var(--ease-spring) !important;
+    }
+    .sidebar-menu-modern {
+        flex: 1 1 0 !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overscroll-behavior: contain;
+    }
+    .sidebar-footer-modern {
+        flex: 0 0 auto !important;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+    .menu-toggle {
+        top: calc(12px + env(safe-area-inset-top, 0px)) !important;
     }
     #sidebar.sidebar.active,
     #sidebar.sidebar-modern.active,
