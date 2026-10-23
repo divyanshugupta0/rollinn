@@ -63,10 +63,11 @@ The same Worker handles `/password-reset`. It asks Firebase Authentication to cr
    npx wrangler secret put BREVO_API_KEY
    npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON
    npx wrangler secret put R2_UPLOAD_SIGNING_SECRET
-   ERP_LICENSE_ENCRYPTION_KEY
+   npx wrangler secret put ERP_LICENSE_ENCRYPTION_KEY
    ```
 
    `FIREBASE_SERVICE_ACCOUNT_JSON` is the complete JSON key for a service account from the same Firebase project. Grant the service account the Firebase Authentication Admin permission required to generate action links. `R2_UPLOAD_SIGNING_SECRET` should be a long, randomly generated value. `ERP_LICENSE_ENCRYPTION_KEY` must be a randomly generated 32-byte key represented as exactly 64 hexadecimal characters; keep the same value for as long as encrypted license codes exist, or invalidate/reissue those codes before rotating it. Keep and rotate these secrets only through Cloudflare's secret manager.
+   Generate the ERP key locally with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`, then paste its 64-character output when Wrangler prompts for the value. Run the Wrangler command from `rollapp/cloudflare/profile-upload-worker` so it targets the configured `rollcall-worker`. Do not put the generated value in source files, Firebase web configuration, or chat. After setting it, verify the secret name with `npx wrangler secret list`; the value is intentionally not displayed.
 3. Deploy the updated source to the existing `rollcall-worker` Worker. The browser helper calls `https://rollcall-worker.divyanshugupta415.workers.dev/password-reset` on the same host already used for photos.
 4. Add a Cloudflare rate-limiting rule for the Worker's `/password-reset` route (for example, a small per-IP limit) to reduce abuse of the unauthenticated “forgot password” form. The Worker returns the same generic success message whether or not an account exists.
 
