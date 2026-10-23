@@ -2827,7 +2827,7 @@
 
         #register-section #register-btn {
             min-height: 52px;
-            margin-top: 2px;
+            margin-top: -6px;
             border-radius: 12px;
             background: linear-gradient(120deg, #3156a5, #456fca);
             box-shadow: 0 8px 20px rgba(49, 86, 165, 0.2);
@@ -6026,20 +6026,34 @@
                 if (nameDisplay) nameDisplay.remove();
                 return;
             }
+            const nameParts = String(name).trim().split(/\s+/).filter(Boolean);
+            const displayName = nameParts.length > 2
+                ? `${nameParts[0]} ${nameParts[nameParts.length - 1]}`
+                : nameParts.join(' ');
             if (!nameDisplay) {
                 nameDisplay = document.createElement('div');
                 nameDisplay.className = 'device-lock-name';
                 nameDisplay.style.cssText = `
+                    position: absolute;
+                    top: 72px;
+                    left: 50%;
                     text-align: center;
-                    margin-top: 10px;
+                    margin-top: 0;
                     font-size: 0.9rem;
                     font-weight: 600;
                     color: var(--primary-color);
                     opacity: 0.8;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    width: max-content;
+                    max-width: min(260px, calc(100vw - 48px));
+                    box-sizing: border-box;
+                    transform: translateX(-50%);
                 `;
                 loginAvatarContainer.appendChild(nameDisplay);
             }
-            nameDisplay.textContent = name;
+            nameDisplay.textContent = displayName;
         }
 
         async function renderDeviceLockProfile(lockProfile) {
