@@ -147,8 +147,9 @@ document.addEventListener('DOMContentLoaded', () => {
         grid.innerHTML = '<div class="teacher-schedule-empty"><i class="fas fa-spinner fa-spin"></i> Loading timetable</div>';
         try {
             const db = firebase.database();
-            const profileSnap = await db.ref(`users/${user.uid}`).once('value');
-            const profile = profileSnap.val() || {};
+            const profile = window.waitForTeacherPortalProfile
+                ? await window.waitForTeacherPortalProfile(user)
+                : (await db.ref(`users/${user.uid}`).once('value')).val() || {};
             if (profile.role !== 'teacher' || !profile.schoolId) throw new Error('This teacher account is not assigned to a school.');
             currentSchoolId = profile.schoolId;
 

@@ -63,8 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!user) { hintEl.textContent = 'Sign in with your teacher account to continue.'; return; }
         try {
             const db = firebase.database();
-            const snap = await db.ref(`users/${user.uid}`).once('value');
-            const data = snap.val() || {};
+            const data = window.waitForTeacherPortalProfile
+                ? await window.waitForTeacherPortalProfile(user)
+                : (await db.ref(`users/${user.uid}`).once('value')).val() || {};
             if (data.role !== 'teacher') throw new Error('A teacher account is required.');
             if (!data.schoolId) throw new Error('Your teacher profile is not linked to a school.');
             profile = {...data, id:user.uid, email:data.email || user.email || ''};

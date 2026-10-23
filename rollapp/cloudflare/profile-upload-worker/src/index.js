@@ -12,7 +12,7 @@ const allowOrigins = new Set([
     'https://rollcall.codesynq.me'
 ]);
 const FIREBASE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const FIREBASE_AUTH_SCOPE = 'https://www.googleapis.com/auth/identitytoolkit https://www.googleapis.com/auth/firebase.database';
+const FIREBASE_AUTH_SCOPE = 'https://www.googleapis.com/auth/identitytoolkit https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email';
 const RESET_MESSAGE = 'If an account exists for that email, password reset instructions will be sent.';
 let firebaseAccessToken = null;
 let firebaseAccessTokenExpiresAt = 0;
@@ -258,7 +258,11 @@ async function readDatabaseWithAccessToken(env, path, accessToken) {
     const url = new URL(`${baseUrl}/${encodedPath}`);
     url.searchParams.set('access_token', accessToken);
     const response = await fetch(url);
-    if (!response.ok) throw new Error('Firebase teacher data could not be verified.');
+    if (!response.ok) {
+        const details = (await response.text().catch(() => '')).slice(0, 500);
+        console.error('Firebase service-account database read failed:', response.status, details);
+        throw new Error(`Firebase teacher data could not be verified (database HTTP ${response.status}).`);
+    }
     return response.json();
 }
 

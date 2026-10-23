@@ -343,8 +343,9 @@
             status.classList.remove('tb-error');
             status.textContent = 'Checking your school assignments…';
             try {
-                const profileSnap = await firebase.database().ref(`users/${user.uid}`).once('value');
-                const profile = profileSnap.val() || {};
+                const profile = window.waitForTeacherPortalProfile
+                    ? await window.waitForTeacherPortalProfile(user)
+                    : (await firebase.database().ref(`users/${user.uid}`).once('value')).val() || {};
                 if (String(profile.role || '').toLowerCase() !== 'teacher') throw new Error('Teacher account required.');
                 const schoolId = String(profile.schoolId || '').trim();
                 if (!schoolId) throw new Error('Your teacher account is not assigned to a school.');

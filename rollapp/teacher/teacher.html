@@ -5953,6 +5953,32 @@
         let activeClasses = [];
         let currentClassData = null;
         let submittedAttendances = {};
+
+        window.__teacherPortalProfileState = { uid: '', profile: null };
+        window.waitForTeacherPortalProfile = function (user) {
+            if (!user?.uid) return Promise.reject(new Error('Sign in with your teacher account to continue.'));
+            const state = window.__teacherPortalProfileState;
+            if (state?.uid === user.uid && state.profile) return Promise.resolve(state.profile);
+            return new Promise((resolve, reject) => {
+                const onProfile = event => {
+                    if (event.detail?.uid !== user.uid) return;
+                    window.removeEventListener('teacher-portal-profile', onProfile);
+                    if (event.detail.profile) resolve(event.detail.profile);
+                    else reject(new Error(event.detail.error || 'Teacher account verification failed.'));
+                };
+                window.addEventListener('teacher-portal-profile', onProfile);
+                const latest = window.__teacherPortalProfileState;
+                if (latest?.uid === user.uid && latest.profile) {
+                    window.removeEventListener('teacher-portal-profile', onProfile);
+                    resolve(latest.profile);
+                }
+            });
+        };
+        window.publishTeacherPortalProfile = function (user, profile, error = '') {
+            const uid = user?.uid || '';
+            window.__teacherPortalProfileState = { uid, profile: profile || null };
+            window.dispatchEvent(new CustomEvent('teacher-portal-profile', { detail: { uid, profile: profile || null, error } }));
+        };
         
         // Comprehensive date formatting function
         function formatDateForDatabase(date) {
@@ -6056,6 +6082,7 @@
         // Check authentication state on page load
         firebase.auth().onAuthStateChanged((user) => {
             if (user) {
+                window.__teacherPortalProfileState = { uid: user.uid, profile: null };
                 // Do not reveal teacher data until the authenticated account's role is verified.
                 Promise.all([
                     firebase.database().ref('users/' + user.uid).once('value'),
@@ -6119,6 +6146,7 @@
 
                         currentTeacher = profile;
                         currentTeacher.id = user.uid;
+                        window.publishTeacherPortalProfile(user, currentTeacher);
 
                         // Revoke active access immediately if an administrator blocks this teacher.
                         if (window.__teacherBlockedWatchUid !== user.uid) {
@@ -6233,12 +6261,16 @@
                     })
                     .catch((error) => {
                         console.error('Error fetching teacher data:', error);
+                        window.publishTeacherPortalProfile(user, null, error.message || 'Unable to verify your teacher account.');
                         loginContainer.style.display = 'block';
                         document.querySelector('.sidebar').style.display = 'none';
                         showAlert(loginAlert, 'Unable to verify your teacher account. Please try again or contact your administrator.', 'error');
                     });
             } else {
                 // User is signed out
+                const previousTeacherUid = currentTeacher?.id || window.__teacherPortalProfileState?.uid || '';
+                window.__teacherPortalProfileState = { uid: '', profile: null };
+                if (previousTeacherUid) window.dispatchEvent(new CustomEvent('teacher-portal-profile', { detail: { uid: previousTeacherUid, profile: null, error: 'Sign in with your teacher account to continue.' } }));
                 window.__teacherBlockedWatchRefs?.forEach(({ ref, callback }) => ref.off('value', callback));
                 window.__teacherBlockedWatchRefs = null;
                 window.__teacherBlockedWatchUid = null;

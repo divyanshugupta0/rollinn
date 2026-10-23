@@ -236,8 +236,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.loading = true; state.students = []; state.sections = []; state.photosReady = false; state.page = 1;
         assignment.classList.remove('sr-error'); assignment.textContent = 'Verifying teacher and assigned sections…'; render();
         try {
-            const profileSnapshot = await firebase.database().ref(`users/${user.uid}`).once('value');
-            const profile = profileSnapshot.val() || {};
+            const profile = window.waitForTeacherPortalProfile
+                ? await window.waitForTeacherPortalProfile(user)
+                : (await firebase.database().ref(`users/${user.uid}`).once('value')).val() || {};
             if (String(profile.role || '').toLowerCase() !== 'teacher') throw new Error('Teacher account required.');
             profile.id = user.uid; profile.email = profile.email || user.email || '';
             if (!profile.schoolId) throw new Error('Your teacher account is not assigned to a school.');
