@@ -1567,30 +1567,11 @@ async function issuePortalLicense(request, env, origin) {
                 record.active === true &&
                 Number(record.expiresAt) > Date.now();
             if (matchesSubscription) {
-                const currentRecord = {
-                    ...record,
-                    planId: subscription.planId,
-                    startDate: String(subscription.startDate || ''),
-                    endDate: String(subscription.endDate || ''),
-                    expiresAt
-                };
-                if (
-                    record.planId !== currentRecord.planId ||
-                    record.startDate !== currentRecord.startDate ||
-                    record.endDate !== currentRecord.endDate ||
-                    Number(record.expiresAt) !== expiresAt
-                ) {
-                    if (!await writeLicenseRecord(env, schoolId, currentRecord, etag, accessToken)) continue;
-                }
+                const licenseExpiresAt = Math.min(Number(record.expiresAt), expiresAt);
+                const licenseEndDate = licenseExpiresAt < Number(record.expiresAt)
+                    ? String(subscription.endDate || new Date(licenseExpiresAt).toISOString())
+                    : String(record.endDate || new Date(licenseExpiresAt).toISOString());
                 const code = await decryptLicenseCode(env, record);
-                await updateErpLicenseDatabase(env, {
-                    [`erpLicenseCodes/${record.codeHash}`]: {
-                        schoolId,
-                        planId: subscription.planId,
-                        expiresAt,
-                        active: true
-                    }
-                }, accessToken);
                 return uploadResponse({
                     erpMode: true,
                     active: true,
@@ -1601,8 +1582,8 @@ async function issuePortalLicense(request, env, origin) {
                     planId: String(subscription.planId),
                     price: Number(subscription.price || plan.price || 0),
                     currency: String(subscription.currency || plan.currency || 'INR'),
-                    startDate: String(subscription.startDate || ''),
-                    endDate: String(subscription.endDate || ''),
+                    startDate: String(record.startDate || ''),
+                    endDate: licenseEndDate,
                     devices: Object.values(devices || {})
                         .filter(device => device && typeof device === 'object')
                         .sort((a, b) => Number(b.lastVerifiedAt || 0) - Number(a.lastVerifiedAt || 0))
@@ -1624,7 +1605,16 @@ async function issuePortalLicense(request, env, origin) {
                 active: true
             };
             if (!await writeLicenseRecord(env, schoolId, recordToSave, etag, accessToken)) continue;
-            const indexUpdates = { [`erpLicenseCodes/${codeHash}`]: { schoolId, planId: subscription.planId, expiresAt, active: true } };
+            const indexUpdates = {
+                [`erpLicenseCodes/${codeHash}`]: {
+                    schoolId,
+                    planId: subscription.planId,
+                    startDate: String(subscription.startDate || ''),
+                    endDate: String(subscription.endDate || ''),
+                    expiresAt,
+                    active: true
+                }
+            };
             if (record?.codeHash) indexUpdates[`erpLicenseCodes/${record.codeHash}`] = null;
             await updateErpLicenseDatabase(env, indexUpdates, accessToken);
             return uploadResponse({
@@ -1690,22 +1680,14 @@ async function verifyErpLicense(request, env, origin) {
             !context.active) {
             return uploadResponse({ valid: false, error: 'This ERP license has expired or is inactive.' }, 200, origin);
         }
-        const currentExpiresAt = Date.parse(context.subscription.endDate || '');
-        if (
-            codeRecord.planId !== context.subscription.planId ||
-            Number(codeRecord.expiresAt) !== currentExpiresAt
-        ) {
-            await updateErpLicenseDatabase(env, {
-                [`erpLicenseCodes/${codeHash}`]: {
-                    schoolId,
-                    planId: context.subscription.planId,
-                    expiresAt: currentExpiresAt,
-                    active: true
-                }
-            }, accessToken);
-        }
         const device = normalizeErpDevice(payload?.device);
         if (device) await recordErpDevice(env, schoolId, device, accessToken);
+        const recordedExpiresAt = Number(codeRecord.expiresAt);
+        const subscriptionExpiresAt = Date.parse(context.subscription.endDate || '');
+        const licenseExpiresAt = Math.min(recordedExpiresAt, subscriptionExpiresAt);
+        const licenseEndDate = licenseExpiresAt < recordedExpiresAt
+            ? String(context.subscription.endDate || new Date(licenseExpiresAt).toISOString())
+            : String(codeRecord.endDate || new Date(licenseExpiresAt).toISOString());
         return uploadResponse({
             valid: true,
             license: {
@@ -1713,11 +1695,11 @@ async function verifyErpLicense(request, env, origin) {
                 schoolId,
                 schoolCode: String(context.ownerSchool.code || ''),
                 schoolName: String(context.ownerSchool.name || school.name || ''),
-                planId: String(context.subscription.planId),
+                planId: String(codeRecord.planId || context.subscription.planId),
                 plan: String(context.subscription.plan || context.plan.name || ''),
-                startDate: String(context.subscription.startDate || ''),
-                endDate: String(context.subscription.endDate || ''),
-                expiresAt: currentExpiresAt
+                startDate: String(codeRecord.startDate || context.subscription.startDate || ''),
+                endDate: licenseEndDate,
+                expiresAt: licenseExpiresAt
             }
         }, 200, origin);
     } catch (error) {
