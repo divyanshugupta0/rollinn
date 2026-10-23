@@ -32,22 +32,52 @@
         body.erp-portal-mode .sidebar-menu-item-modern[data-erp-locked="true"],
         body.erp-portal-mode .sidebar-menu-item[data-erp-locked="true"] {
             position: relative;
-            overflow: hidden;
+            overflow: visible;
             cursor: not-allowed;
         }
         body.erp-portal-mode .sidebar-menu-item-modern[data-erp-locked="true"]::after,
         body.erp-portal-mode .sidebar-menu-item[data-erp-locked="true"]::after {
             position: absolute;
-            inset: 0;
+            top: 50%;
+            right: 12px;
             display: grid;
-            place-items: center end;
-            padding-right: 16px;
-            background: rgba(15, 23, 42, .62);
+            width: 28px;
+            height: 28px;
+            place-items: center;
+            transform: translateY(-50%);
+            border-radius: 50%;
+            background: #334155;
             color: #fff;
             content: "\f023";
             font-family: "Font Awesome 6 Free";
             font-weight: 900;
             pointer-events: none;
+        }
+        body.erp-portal-mode .sidebar-menu-item-modern[data-erp-locked="true"]::before,
+        body.erp-portal-mode .sidebar-menu-item[data-erp-locked="true"]::before {
+            position: absolute;
+            right: 0;
+            bottom: calc(100% + 6px);
+            z-index: 10050;
+            display: none;
+            width: max-content;
+            max-width: min(280px, 80vw);
+            padding: 8px 11px;
+            border-radius: 8px;
+            background: #0f172a;
+            color: #fff;
+            content: attr(data-erp-lock-reason);
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.4;
+            white-space: normal;
+            pointer-events: none;
+        }
+        body.erp-portal-mode .sidebar-menu-item-modern[data-erp-locked="true"]:hover::before,
+        body.erp-portal-mode .sidebar-menu-item-modern[data-erp-locked="true"]:focus-within::before,
+        body.erp-portal-mode .sidebar-menu-item[data-erp-locked="true"]:hover::before,
+        body.erp-portal-mode .sidebar-menu-item[data-erp-locked="true"]:focus-within::before {
+            display: block;
         }
         .content-wrapper.erp-mode-panel-locked:not(.erp-account-visible) > .container::after {
             position: fixed;

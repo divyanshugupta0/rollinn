@@ -203,12 +203,16 @@ function setErpPortalMode(enabled) {
             !['manage-account', 'logout'].includes(item.dataset.section || '');
         if (locked) {
             item.dataset.erpLocked = 'true';
+            item.dataset.erpLockReason = 'Locked in ERP mode. Only Manage Account is available.';
             item.setAttribute('aria-disabled', 'true');
-            item.title = 'Available in the active RollCall ERP plan only.';
+            item.title = item.dataset.erpLockReason;
+            item.setAttribute('aria-label', `${item.querySelector('.menu-item-text')?.textContent.trim() || item.textContent.trim()}. ${item.dataset.erpLockReason}`);
         } else {
             delete item.dataset.erpLocked;
+            delete item.dataset.erpLockReason;
             item.removeAttribute('aria-disabled');
-            if (item.title === 'Available in the active RollCall ERP plan only.') item.removeAttribute('title');
+            item.removeAttribute('aria-label');
+            if (item.title === 'Locked in ERP mode. Only Manage Account is available.') item.removeAttribute('title');
         }
     });
     if (erpPortalModeActive) {
