@@ -4810,6 +4810,10 @@ body.admin-school-mode :is(#manage-courses-section, #manage-courses-section-acti
 :is(#manage-account-section, #manage-account-section-active) .ac-institution-card { grid-area: institution !important; }
 :is(#manage-account-section, #manage-account-section-active) .ac-subscription-card { grid-area: subscription !important; }
 :is(#manage-account-section, #manage-account-section-active) .ac-security-card { grid-area: security !important; }
+:is(#manage-account-section, #manage-account-section-active) .ac-erp-download-card { grid-area: erp-download !important; }
+:is(#manage-account-section, #manage-account-section-active) .ac-grid.erp-mode {
+    grid-template-areas: "profile institution" "subscription security" "subscription erp-download" !important;
+}
 :is(#manage-account-section, #manage-account-section-active) .ac-card {
     border: 1px solid #e1e7f0 !important;
     border-radius: 14px !important;
@@ -4948,6 +4952,9 @@ body.admin-school-mode :is(#manage-courses-section, #manage-courses-section-acti
     :is(#manage-account-section, #manage-account-section-active) .ac-grid {
         grid-template-columns: minmax(0, 1fr) !important;
         grid-template-areas: "profile" "institution" "subscription" "security" !important;
+    }
+    :is(#manage-account-section, #manage-account-section-active) .ac-grid.erp-mode {
+        grid-template-areas: "profile" "institution" "subscription" "security" "erp-download" !important;
     }
 }
 @media (max-width: 640px) {

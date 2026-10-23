@@ -1369,6 +1369,7 @@ function initManageAccountSection() {
     const schoolValue = section.querySelector('#account-school-value');
     const subscriptionValue = section.querySelector('#account-subscription-value');
     const subscriptionDetails = section.querySelector('#account-subscription-details');
+    const accountGrid = section.querySelector('.ac-grid');
     const editButton = section.querySelector('#edit-account-profile-btn');
     const requestButton = section.querySelector('#request-account-profile-btn');
     const cancelButton = section.querySelector('#cancel-account-profile-btn');
@@ -1578,7 +1579,9 @@ function initManageAccountSection() {
                     </dl>
                     <div class="account-plan-dates"><span><strong>Started:</strong> ${escape(startDate)}</span><span><strong>Renews / ends:</strong> ${escape(endDate)}</span></div>
                 `;
-                if (String(school.type || school.institutionType || '').trim().toLowerCase() === 'erp' && erpLicensePanel) {
+                const isErpInstitution = String(school.type || school.institutionType || '').trim().toLowerCase() === 'erp';
+                accountGrid?.classList.toggle('erp-mode', isErpInstitution);
+                if (isErpInstitution && erpLicensePanel) {
                     erpLicensePanel.hidden = false;
                     if (erpDownloadPanel) erpDownloadPanel.hidden = false;
                     erpLicenseDescription.textContent = 'Checking the active ERP subscription and access code...';
