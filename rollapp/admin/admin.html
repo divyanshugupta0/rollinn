@@ -950,59 +950,6 @@
    RECORDS SECTION & POPUPS REDESIGNED STYLES
    ======================================================== */
 
-/* Live Stats & Pulse Animation */
-.mini-stat-card.live-sync-card {
-    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
-    border: 1px solid rgba(34, 197, 94, 0.35);
-    box-shadow: 0 4px 14px rgba(34, 197, 94, 0.1);
-}
-
-.mini-stat-icon.live {
-    background: rgba(34, 197, 94, 0.15) !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-}
-
-.live-pulse-dot {
-    width: 12px;
-    height: 12px;
-    background-color: #22c55e;
-    border-radius: 50%;
-    position: relative;
-    box-shadow: 0 0 10px #22c55e;
-    animation: livePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-.live-pulse-dot::after {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    border: 2px solid rgba(34, 197, 94, 0.6);
-    animation: liveRing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes livePulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(1.15); }
-}
-
-@keyframes liveRing {
-    0% { transform: scale(0.8); opacity: 1; }
-    100% { transform: scale(1.8); opacity: 0; }
-}
-
-.live-text {
-    color: #16a34a !important;
-    font-weight: 800 !important;
-    letter-spacing: 0.5px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
 .stat-number-bump {
     animation: statBump 0.4s ease-out;
 }
@@ -4585,16 +4532,7 @@
                         <div class="card-body">
                             <!-- Compact Dashboard Stats Strip -->
                             <div class="dashboard-stats-mini">
-                                <div class="mini-stat-card live-sync-card" id="dashboard-live-indicator" title="Connected to realtime attendance stream">
-                                    <div class="mini-stat-icon live">
-                                        <span class="live-pulse-dot"></span>
-                                    </div>
-                                    <div class="mini-stat-content">
-                                        <span class="mini-stat-value live-text">LIVE</span>
-                                        <span class="mini-stat-label">Realtime Sync</span>
-                                    </div>
-                                </div>
-                                <div class="mini-stat-card">
+                                <div class="mini-stat-card students">
                                     <div class="mini-stat-icon students">
                                         <i class="fas fa-users"></i>
                                     </div>
@@ -4603,7 +4541,7 @@
                                         <span class="mini-stat-label">Students</span>
                                     </div>
                                 </div>
-                                <div class="mini-stat-card">
+                                <div class="mini-stat-card present">
                                     <div class="mini-stat-icon present">
                                         <i class="fas fa-user-check"></i>
                                     </div>
@@ -4621,7 +4559,7 @@
                                         <span class="mini-stat-label" id="dashboard-location-stat-label">Locations</span>
                                     </div>
                                 </div>
-                                <div class="mini-stat-card">
+                                <div class="mini-stat-card rate">
                                     <div class="mini-stat-icon rate">
                                         <i class="fas fa-chart-line"></i>
                                     </div>
@@ -7823,12 +7761,6 @@
             const isSchoolMode = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
             const currentSchoolId = currentUser?.schoolId || window.rollCallAdminMode?.schoolId;
 
-            // Highlight live indicator
-            const liveIndicator = document.getElementById('dashboard-live-indicator');
-            if (liveIndicator) {
-                liveIndicator.style.display = 'flex';
-            }
-
             // Fetch users (and schoolUsers in school mode) once for counting and cache
             const userFetchers = [get(ref(database, 'users'))];
             if (isSchoolMode && currentSchoolId) {
@@ -8053,9 +7985,15 @@
         // Populate location dropdowns
         function populateLocationDropdowns() {
             const isSchoolMode = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
-            const currentSchoolId = currentUser?.schoolId || window.rollCallAdminMode?.schoolId;
+            const currentSchoolId = String(currentUser?.schoolId || window.rollCallAdminMode?.schoolId || '').trim();
 
-            if (isSchoolMode && currentSchoolId) {
+            if (!currentSchoolId) {
+                console.error('Cannot load report filters without an administrator school assignment.');
+                showAlert('Your administrator account is not linked to a school.', 'error');
+                return;
+            }
+
+            if (isSchoolMode) {
                 get(ref(database, `schoolClasses/${currentSchoolId}`))
                     .then((snapshot) => {
                         const filteredLocations = {};
@@ -8102,15 +8040,30 @@
                                 option2.textContent = filteredLocations[id].name;
                                 reportLocation.appendChild(option2);
                             });
+                    })
+                    .catch(error => {
+                        console.error('Could not load this school\'s classes:', error);
+                        showAlert(`Could not load this school's classes: ${error.message}`, 'error');
                     });
-            } else {
-                get(ref(database, 'locations'))
-                    .then((snapshot) => {
+            } else if (currentSchoolId) {
+                Promise.all([
+                    get(ref(database, 'locations')),
+                    get(query(ref(database, 'users'), orderByChild('schoolId'), equalTo(currentSchoolId)))
+                ])
+                    .then(([snapshot, schoolUsersSnapshot]) => {
+                        const schoolUsers = schoolUsersSnapshot.exists() ? schoolUsersSnapshot.val() : {};
+                        const schoolAdminIds = new Set(Object.keys(schoolUsers).filter(uid =>
+                            String(schoolUsers[uid]?.role || '').toLowerCase() === 'admin'
+                        ));
                         if (snapshot.exists()) {
                             const locations = snapshot.val();
                             const filteredLocations = {};
                             for (const id in locations) {
-                                if (!locations[id].createdBy || (currentUser && locations[id].createdBy === currentUser.uid)) {
+                                const locationSchoolId = String(locations[id].schoolId || '').trim();
+                                const belongsToSchool = locationSchoolId
+                                    ? locationSchoolId === currentSchoolId
+                                    : schoolAdminIds.has(String(locations[id].createdBy || ''));
+                                if (belongsToSchool) {
                                     filteredLocations[id] = locations[id];
                                 }
                             }
@@ -8142,6 +8095,10 @@
                                 reportLocation.appendChild(option2);
                             }
                         }
+                    })
+                    .catch(error => {
+                        console.error('Could not load school locations:', error);
+                        showAlert(`Could not load this school's locations: ${error.message}`, 'error');
                     });
             }
         }
@@ -9907,7 +9864,8 @@
                     classDuration: classDuration,
                     section: sectionValue,
                     updatedAt: now.toISOString(),
-                    expiresAt: expiresAt
+                    expiresAt: expiresAt,
+                    schoolId: String(currentUser?.schoolId || window.rollCallAdminMode?.schoolId || '').trim()
                 };
 
                 // If scheduled start is set, add it to the data
@@ -9972,6 +9930,7 @@
                     section: sectionValue,
                     createdAt: now.toISOString(),
                     createdBy: currentUser ? currentUser.uid : null, // Add creator ID
+                    schoolId: String(currentUser?.schoolId || window.rollCallAdminMode?.schoolId || '').trim(),
                     createdFromDevice: currentDeviceType, // Add device type info
                     expiresAt: expiresAt,
                     scheduledStart: scheduledStart ? new Date(scheduledStart).toISOString() : null
@@ -10231,7 +10190,7 @@
 
                         const showingStart = usersArray.length ? firstIndex + 1 : 0;
                         const showingEnd = Math.min(firstIndex + pageUsers.length, usersArray.length);
-                        html += `<div class="users-pagination"><span>Showing ${showingStart}ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“${showingEnd} of ${usersArray.length} students</span><div class="users-pagination-controls"><button type="button" class="users-page-button" id="users-page-prev" ${userCurrentPage <= 1 ? 'disabled' : ''}>Previous</button><span>Page ${userCurrentPage} of ${pageCount}</span><button type="button" class="users-page-button" id="users-page-next" ${userCurrentPage >= pageCount ? 'disabled' : ''}>Next</button></div></div>`;
+                        html += `<div class="users-pagination"><span>Showing ${showingStart}-${showingEnd} of ${usersArray.length} students</span><div class="users-pagination-controls"><button type="button" class="users-page-button" id="users-page-prev" ${userCurrentPage <= 1 ? 'disabled' : ''}>Previous</button><span>Page ${userCurrentPage} of ${pageCount}</span><button type="button" class="users-page-button" id="users-page-next" ${userCurrentPage >= pageCount ? 'disabled' : ''}>Next</button></div></div>`;
 
                         if (usersArray.length === 0) {
                             html = '<p>No users found matching the current filters.</p>';
@@ -10560,7 +10519,14 @@
 
             applyReportMode();
             const isSchoolMode = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
-            const schoolId = currentUser?.schoolId || window.rollCallAdminMode?.schoolId;
+            const schoolId = String(currentUser?.schoolId || window.rollCallAdminMode?.schoolId || '').trim();
+            if (!schoolId) {
+                const error = 'Your administrator account is not linked to a school.';
+                console.error(`Could not generate attendance report: ${error}`);
+                if (reportContainer) reportContainer.innerHTML = `<div class="status-indicator error"><p>${error}</p></div>`;
+                updateReportExportButtons(false);
+                return;
+            }
             const locationId = reportLocation.value;
             const sectionValue = reportSection ? reportSection.value : 'all';
             const statusValue = reportStatus ? reportStatus.value : 'all';
@@ -10577,24 +10543,45 @@
             updateReportExportButtons(false);
 
             Promise.all([
-                get(ref(database, `attendance_by_location`)),
-                get(ref(database, `users`)),
+                get(query(ref(database, 'users'), orderByChild('schoolId'), equalTo(schoolId))),
                 get(ref(database, isSchoolMode && schoolId ? `schoolClasses/${schoolId}` : `locations`))
             ])
-                .then(([attendanceSnapshot, usersSnapshot, locationsSnapshot]) => {
-                    const attendanceByLocationData = attendanceSnapshot.exists() ? attendanceSnapshot.val() : {};
+                .then(async ([usersSnapshot, locationsSnapshot]) => {
                     const usersData = usersSnapshot.exists() ? usersSnapshot.val() : {};
                     const rawLocations = locationsSnapshot.exists() ? locationsSnapshot.val() : {};
+                    const schoolAdminIds = new Set(Object.keys(usersData).filter(userId =>
+                        String(usersData[userId]?.role || '').toLowerCase() === 'admin'
+                    ));
 
                     const filteredLocations = {};
                     Object.keys(rawLocations).forEach(id => {
-                        if (isSchoolMode || !rawLocations[id].createdBy || (currentUser && rawLocations[id].createdBy === currentUser.uid)) {
-                            const location = rawLocations[id];
+                        const location = rawLocations[id] || {};
+                        const locationSchoolId = String(location.schoolId || '').trim();
+                        const belongsToSchool = isSchoolMode ||
+                            locationSchoolId === schoolId ||
+                            (!locationSchoolId && schoolAdminIds.has(String(location.createdBy || '')));
+                        if (belongsToSchool) {
                             filteredLocations[id] = {
                                 ...location,
                                 name: location.name || location.className || 'Class'
                             };
                         }
+                    });
+
+                    if (locationId !== 'all' && !filteredLocations[locationId]) {
+                        throw new Error('The selected class or location is not linked to your school.');
+                    }
+
+                    const reportLocationIds = Object.keys(filteredLocations)
+                        .filter(id => locationId === 'all' || id === locationId);
+                    const attendanceSnapshots = await Promise.all(reportLocationIds.map(id =>
+                        get(ref(database, `attendance_by_location/${id}`))
+                    ));
+                    const attendanceByLocationData = {};
+                    reportLocationIds.forEach((id, index) => {
+                        attendanceByLocationData[id] = attendanceSnapshots[index].exists()
+                            ? attendanceSnapshots[index].val()
+                            : {};
                     });
 
                     const locationName = locationId === 'all'
@@ -10603,10 +10590,7 @@
 
                     const reportMap = {};
 
-                    Object.keys(attendanceByLocationData).forEach(locId => {
-                        if (locationId !== 'all' && locId !== locationId) return;
-                        if (Object.keys(filteredLocations).length && !filteredLocations[locId]) return;
-
+                    reportLocationIds.forEach(locId => {
                         const locationLabel = filteredLocations[locId]?.name || rawLocations[locId]?.name || (isSchoolMode ? 'Unknown Class' : 'Unknown Location');
 
                         dateRange.forEach(date => {
@@ -10616,7 +10600,7 @@
                                 const user = usersData[userId] || {};
                                 const roleValue = (user.role || 'student').toLowerCase();
                                 if (roleValue !== 'student') return;
-                                if (isSchoolMode && schoolId && user.schoolId && user.schoolId !== schoolId) return;
+                                if (String(user.schoolId || '').trim() !== schoolId) return;
 
                                 const userSection = user.section || 'General';
                                 if (sectionValue !== 'all' &&
