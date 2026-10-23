@@ -56,7 +56,10 @@
     "owners": {
       "$ownerUid": {
         ".read": "auth != null && auth.uid === $ownerUid",
-        ".write": "auth != null && auth.uid === $ownerUid"
+        ".write": "auth != null && auth.uid === $ownerUid",
+        "pricingPlans": {
+          ".read": "auth != null && (auth.uid === $ownerUid || (root.child('users').child(auth.uid).child('schoolId').exists() && root.child('schools').child(root.child('users').child(auth.uid).child('schoolId').val()).child('ownerId').val() === $ownerUid))"
+        }
       }
     },
     "users": {

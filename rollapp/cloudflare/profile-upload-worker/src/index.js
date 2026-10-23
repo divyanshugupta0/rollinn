@@ -1396,12 +1396,6 @@ async function hashLicenseCode(code) {
     return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-async function deleteErpLicenseRecord(env, schoolId, record, accessToken) {
-    const updates = { [`erpLicenseKeys/${schoolId}`]: null };
-    if (record?.codeHash) updates[`erpLicenseCodes/${record.codeHash}`] = null;
-    await updateErpLicenseDatabase(env, updates, accessToken);
-}
-
 function subscriptionIsActive(subscription, now = Date.now()) {
     const startsAt = Date.parse(subscription?.startDate || '');
     const expiresAt = Date.parse(subscription?.endDate || '');
@@ -1481,15 +1475,14 @@ async function issuePortalLicense(request, env, origin) {
             }
         }
         if (!context.erpMode) {
-            const { record } = await readLicenseRecord(env, schoolId, accessToken);
-            if (record) await deleteErpLicenseRecord(env, schoolId, record, accessToken);
             return uploadResponse({ erpMode: false, active: false }, 200, origin);
         }
         const { school, ownerSchool, subscription, plan } = context;
         const expiresAt = Date.parse(subscription.endDate || '');
+        if (!Number.isFinite(expiresAt)) {
+            throw new Error('The ERP subscription has an invalid end date.');
+        }
         if (!context.active) {
-            const { record } = await readLicenseRecord(env, schoolId, accessToken);
-            if (record) await deleteErpLicenseRecord(env, schoolId, record, accessToken);
             return uploadResponse({
                 erpMode: true,
                 active: false,
@@ -1503,16 +1496,47 @@ async function issuePortalLicense(request, env, origin) {
             }, 200, origin);
         }
 
+        const previousLicense = await readLicenseRecord(env, schoolId, accessToken);
+        if (
+            previousLicense.record &&
+            Number(previousLicense.record.expiresAt) <= Date.now() &&
+            expiresAt <= Number(previousLicense.record.expiresAt)
+        ) {
+            return uploadResponse({
+                erpMode: true,
+                active: false,
+                renewalRequired: true,
+                schoolName: String(ownerSchool.name || school.name || ''),
+                schoolCode: String(ownerSchool.code || school.code || ''),
+                plan: String(subscription.plan || plan?.name || ''),
+                planId: String(subscription.planId),
+                startDate: String(subscription.startDate || ''),
+                endDate: String(subscription.endDate || '')
+            }, 200, origin);
+        }
+
         for (let attempt = 0; attempt < 3; attempt += 1) {
             const { record, etag } = await readLicenseRecord(env, schoolId, accessToken);
             const matchesSubscription = record &&
-                record.planId === subscription.planId &&
-                record.startDate === subscription.startDate &&
-                record.endDate === subscription.endDate &&
                 record.codeHash &&
                 record.active === true &&
-                Number(record.expiresAt) === expiresAt;
+                Number(record.expiresAt) > Date.now();
             if (matchesSubscription) {
+                const currentRecord = {
+                    ...record,
+                    planId: subscription.planId,
+                    startDate: String(subscription.startDate || ''),
+                    endDate: String(subscription.endDate || ''),
+                    expiresAt
+                };
+                if (
+                    record.planId !== currentRecord.planId ||
+                    record.startDate !== currentRecord.startDate ||
+                    record.endDate !== currentRecord.endDate ||
+                    Number(record.expiresAt) !== expiresAt
+                ) {
+                    if (!await writeLicenseRecord(env, schoolId, currentRecord, etag, accessToken)) continue;
+                }
                 const code = await decryptLicenseCode(env, record);
                 await updateErpLicenseDatabase(env, {
                     [`erpLicenseCodes/${record.codeHash}`]: {
@@ -1603,22 +1627,39 @@ async function verifyErpLicense(request, env, origin) {
         const [schoolId, school] = schoolEntry;
         const codeHash = await hashLicenseCode(code);
         const codeRecord = await readDatabaseWithAccessToken(env, `erpLicenseCodes/${codeHash}`, accessToken);
-        if (codeRecord?.schoolId !== schoolId || codeRecord.active !== true) {
+        if (
+            codeRecord?.schoolId !== schoolId ||
+            codeRecord.active !== true ||
+            !Number.isFinite(Number(codeRecord.expiresAt)) ||
+            Number(codeRecord.expiresAt) <= Date.now()
+        ) {
             return uploadResponse({ valid: false, error: 'School code or ERP access code is invalid.' }, 200, origin);
         }
 
         const context = await readErpLicenseContext(env, schoolId, accessToken);
         if (!context.erpMode ||
             String(context.ownerSchool?.code || '').trim().toUpperCase() !== schoolCode ||
-            !context.active || context.subscription.planId !== codeRecord.planId ||
-            Date.parse(context.subscription.endDate || '') !== Number(codeRecord.expiresAt)) {
-            const { record } = await readLicenseRecord(env, schoolId, accessToken);
-            if (record) await deleteErpLicenseRecord(env, schoolId, record, accessToken);
+            !context.active) {
             return uploadResponse({ valid: false, error: 'This ERP license has expired or is inactive.' }, 200, origin);
+        }
+        const currentExpiresAt = Date.parse(context.subscription.endDate || '');
+        if (
+            codeRecord.planId !== context.subscription.planId ||
+            Number(codeRecord.expiresAt) !== currentExpiresAt
+        ) {
+            await updateErpLicenseDatabase(env, {
+                [`erpLicenseCodes/${codeHash}`]: {
+                    schoolId,
+                    planId: context.subscription.planId,
+                    expiresAt: currentExpiresAt,
+                    active: true
+                }
+            }, accessToken);
         }
         return uploadResponse({
             valid: true,
             license: {
+                licenseNo: `RCERP-${codeHash.slice(0, 12).toUpperCase()}`,
                 schoolId,
                 schoolCode: String(context.ownerSchool.code || ''),
                 schoolName: String(context.ownerSchool.name || school.name || ''),
@@ -1626,7 +1667,7 @@ async function verifyErpLicense(request, env, origin) {
                 plan: String(context.subscription.plan || context.plan.name || ''),
                 startDate: String(context.subscription.startDate || ''),
                 endDate: String(context.subscription.endDate || ''),
-                expiresAt: Number(codeRecord.expiresAt)
+                expiresAt: currentExpiresAt
             }
         }, 200, origin);
     } catch (error) {
@@ -1649,8 +1690,11 @@ async function cleanupExpiredErpLicenses(env) {
     const records = await result.json();
     const updates = {};
     Object.entries(records || {}).forEach(([schoolId, record]) => {
-        if (Number(record?.expiresAt) <= now) {
-            updates[`erpLicenseKeys/${schoolId}`] = null;
+        if (record?.active === true && Number(record.expiresAt) <= now) {
+            updates[`erpLicenseKeys/${schoolId}/active`] = false;
+            updates[`erpLicenseKeys/${schoolId}/retiredAt`] = now;
+            updates[`erpLicenseKeys/${schoolId}/iv`] = null;
+            updates[`erpLicenseKeys/${schoolId}/encryptedCode`] = null;
             if (record.codeHash) updates[`erpLicenseCodes/${record.codeHash}`] = null;
         }
     });

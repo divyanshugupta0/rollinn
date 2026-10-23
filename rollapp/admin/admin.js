@@ -1595,6 +1595,9 @@ function initManageAccountSection() {
             if (result.expired === true) {
                 erpLicenseDescription.textContent = `${result.plan || loadedSubscription.plan || 'ERP plan'} expired on ${formatDate(result.endDate)}. The access code is inactive. Send a renewal request to the institution owner to receive a new code after renewal.`;
                 erpRenewButton.hidden = false;
+            } else if (result.renewalRequired === true) {
+                erpLicenseDescription.textContent = 'The previous ERP term has ended. A new access code is issued only after the institution owner renews the subscription.';
+                erpRenewButton.hidden = false;
             } else {
                 erpLicenseDescription.textContent = `${result.plan || loadedSubscription.plan || 'ERP plan'} is not currently active. Contact the institution owner for assistance.`;
             }
