@@ -22,7 +22,8 @@
         }
         endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/password-reset`;
 
-        const user = options.user || window.firebase?.auth?.()?.currentUser || window.auth?.currentUser || null;
+        const defaultApp = window.firebase?.apps?.find(app => app.name === '[DEFAULT]');
+        const user = options.user || defaultApp?.auth().currentUser || window.auth?.currentUser || null;
         const headers = { 'Content-Type': 'application/json' };
         if (user && typeof user.getIdToken === 'function') {
             headers.Authorization = `Bearer ${await user.getIdToken()}`;

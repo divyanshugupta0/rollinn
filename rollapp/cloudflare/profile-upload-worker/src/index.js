@@ -850,15 +850,11 @@ async function sendSchoolAdminCredentials(request, env, origin) {
 }
 
 async function generatePasswordResetLink(env, email) {
-    const accessToken = await getFirebaseAccessToken(env);
     if (!env.FIREBASE_API_KEY) throw new Error('Firebase Web API key is not configured.');
     const url = `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${encodeURIComponent(env.FIREBASE_API_KEY)}`;
     const response = await fetch(url, {
         method: 'POST',
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestType: 'PASSWORD_RESET', email, returnOobLink: true })
     });
     const result = await response.json().catch(() => ({}));
