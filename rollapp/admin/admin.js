@@ -1382,6 +1382,8 @@ function initManageAccountSection() {
     const erpAccessCode = section.querySelector('#account-erp-access-code');
     const erpCopyCodeButton = section.querySelector('#copy-account-erp-code-btn');
     const erpRenewButton = section.querySelector('#request-account-erp-renewal-btn');
+    const erpDevices = section.querySelector('#account-erp-devices');
+    const erpDevicesList = section.querySelector('#account-erp-devices-list');
     const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[character]));
@@ -1390,6 +1392,30 @@ function initManageAccountSection() {
         return date && Number.isFinite(date.getTime())
             ? date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
             : 'Not available';
+    };
+    const formatDeviceDate = value => {
+        const date = new Date(Number(value));
+        return Number.isFinite(date.getTime())
+            ? date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+            : 'Not available';
+    };
+    const renderErpDevices = devices => {
+        if (!erpDevices || !erpDevicesList) return;
+        const items = Array.isArray(devices) ? devices : [];
+        erpDevices.hidden = false;
+        if (!items.length) {
+            erpDevicesList.textContent = 'No ERP devices have verified this license yet.';
+            return;
+        }
+        erpDevicesList.innerHTML = `<div class="account-erp-device-grid">${items.map(device => `
+            <article class="account-erp-device">
+                <strong>${escape(device.deviceName || 'Unnamed device')}</strong>
+                <span>Operating system: ${escape(device.os || 'Not available')} ${escape(device.osVersion || '')}</span>
+                <span>ERP app version: ${escape(device.appVersion || 'Not available')}</span>
+                <span>CPU architecture: ${escape(device.architecture || 'Not available')}</span>
+                <span>First activated: ${escape(formatDeviceDate(device.firstActivatedAt))}</span>
+                <span>Last verified: ${escape(formatDeviceDate(device.lastVerifiedAt))}</span>
+            </article>`).join('')}</div>`;
     };
 
     let loadedUser = null;
@@ -1581,6 +1607,7 @@ function initManageAccountSection() {
             });
             const result = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(result.error || `ERP license service returned HTTP ${response.status}.`);
+            renderErpDevices(result.devices);
             if (result.erpMode !== true) {
                 erpLicenseDescription.textContent = 'This subscription is not currently configured as an ERP plan. Contact the institution owner.';
                 return;

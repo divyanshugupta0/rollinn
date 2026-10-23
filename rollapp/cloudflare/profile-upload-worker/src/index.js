@@ -1396,6 +1396,40 @@ async function hashLicenseCode(code) {
     return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function normalizeErpDevice(device) {
+    if (!device || typeof device !== 'object' || Array.isArray(device)) return null;
+    const fields = ['deviceName', 'os', 'osVersion', 'appVersion', 'architecture'];
+    const limits = { deviceName: 120, os: 32, osVersion: 120, appVersion: 32, architecture: 32 };
+    const normalized = {};
+    for (const field of fields) {
+        const value = device[field];
+        if (typeof value !== 'string' || !value.trim() || value.length > limits[field]) return null;
+        normalized[field] = value.trim().replace(/[\u0000-\u001f\u007f]/g, '');
+        if (!normalized[field]) return null;
+    }
+    return normalized;
+}
+
+async function recordErpDevice(env, schoolId, device, accessToken) {
+    const identity = JSON.stringify({
+        deviceName: device.deviceName.toLowerCase(),
+        os: device.os.toLowerCase(),
+        architecture: device.architecture.toLowerCase()
+    });
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(identity));
+    const deviceId = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    const path = `erpLicenseDevices/${schoolId}/${deviceId}`;
+    const previous = await readDatabaseWithAccessToken(env, path, accessToken);
+    const now = Date.now();
+    await updateErpLicenseDatabase(env, {
+        [path]: {
+            ...device,
+            firstActivatedAt: Number(previous?.firstActivatedAt) || now,
+            lastVerifiedAt: now
+        }
+    }, accessToken);
+}
+
 function subscriptionIsActive(subscription, now = Date.now()) {
     const startsAt = Date.parse(subscription?.startDate || '');
     const expiresAt = Date.parse(subscription?.endDate || '');
@@ -1477,6 +1511,11 @@ async function issuePortalLicense(request, env, origin) {
         if (!context.erpMode) {
             return uploadResponse({ erpMode: false, active: false }, 200, origin);
         }
+        const devices = await readDatabaseWithAccessToken(
+            env,
+            `erpLicenseDevices/${schoolId}`,
+            accessToken
+        );
         const { school, ownerSchool, subscription, plan } = context;
         const expiresAt = Date.parse(subscription.endDate || '');
         if (!Number.isFinite(expiresAt)) {
@@ -1492,7 +1531,10 @@ async function issuePortalLicense(request, env, origin) {
                 plan: String(subscription.plan || plan?.name || ''),
                 planId: String(subscription.planId),
                 startDate: String(subscription.startDate || ''),
-                endDate: String(subscription.endDate || '')
+                endDate: String(subscription.endDate || ''),
+                devices: Object.values(devices || {})
+                    .filter(device => device && typeof device === 'object')
+                    .sort((a, b) => Number(b.lastVerifiedAt || 0) - Number(a.lastVerifiedAt || 0))
             }, 200, origin);
         }
 
@@ -1511,7 +1553,10 @@ async function issuePortalLicense(request, env, origin) {
                 plan: String(subscription.plan || plan?.name || ''),
                 planId: String(subscription.planId),
                 startDate: String(subscription.startDate || ''),
-                endDate: String(subscription.endDate || '')
+                endDate: String(subscription.endDate || ''),
+                devices: Object.values(devices || {})
+                    .filter(device => device && typeof device === 'object')
+                    .sort((a, b) => Number(b.lastVerifiedAt || 0) - Number(a.lastVerifiedAt || 0))
             }, 200, origin);
         }
 
@@ -1557,7 +1602,10 @@ async function issuePortalLicense(request, env, origin) {
                     price: Number(subscription.price || plan.price || 0),
                     currency: String(subscription.currency || plan.currency || 'INR'),
                     startDate: String(subscription.startDate || ''),
-                    endDate: String(subscription.endDate || '')
+                    endDate: String(subscription.endDate || ''),
+                    devices: Object.values(devices || {})
+                        .filter(device => device && typeof device === 'object')
+                        .sort((a, b) => Number(b.lastVerifiedAt || 0) - Number(a.lastVerifiedAt || 0))
                 }, 200, origin);
             }
 
@@ -1656,6 +1704,8 @@ async function verifyErpLicense(request, env, origin) {
                 }
             }, accessToken);
         }
+        const device = normalizeErpDevice(payload?.device);
+        if (device) await recordErpDevice(env, schoolId, device, accessToken);
         return uploadResponse({
             valid: true,
             license: {

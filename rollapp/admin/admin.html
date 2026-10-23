@@ -130,6 +130,26 @@
             user-select: all;
         }
         .account-erp-license .account-erp-license-status { margin-top: 10px; }
+        .account-erp-devices {
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px solid #bfdbfe;
+        }
+        .account-erp-devices[hidden] { display: none; }
+        .account-erp-devices h5 { margin: 0 0 12px; color: #1e3a8a; }
+        .account-erp-device-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+        .account-erp-device {
+            display: grid;
+            gap: 6px;
+            padding: 14px;
+            border: 1px solid #dbeafe;
+            border-radius: 10px;
+            background: #fff;
+            color: #475569;
+            font-size: .88rem;
+            overflow-wrap: anywhere;
+        }
+        .account-erp-device strong { color: #0f172a; font-size: .98rem; }
     </style>
         <script src="admin.js"></script>
     <script src="manage-teachers.js"></script>
@@ -5592,6 +5612,10 @@
                             <button type="button" id="request-account-erp-renewal-btn" class="primary-btn" hidden>
                                 <i class="fas fa-paper-plane"></i> Request ERP renewal
                             </button>
+                            <div id="account-erp-devices" class="account-erp-devices" hidden>
+                                <h5><i class="fas fa-laptop"></i> Activated devices</h5>
+                                <div id="account-erp-devices-list"></div>
+                            </div>
                             <p id="account-erp-license-status" class="account-erp-license-status" role="status"></p>
                         </div>
                     </section>
