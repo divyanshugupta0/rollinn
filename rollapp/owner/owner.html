@@ -1771,7 +1771,7 @@
                                                             </div>
                                                             <div class="col-md-6">
                                                                 <div class="mb-3">
-                                                                    <label for="schoolType" class="form-label">School
+                                                                    <label for="schoolType" class="form-label">Institution
                                                                         Type *</label>
                                                                     <select class="form-select" id="schoolType"
                                                                         required>
@@ -3997,7 +3997,7 @@
                                     <section class="registration-preview-section"><h6><i class="fas fa-user-tie"></i> Primary contact</h6>${field('Principal', value('principalName'))}${field('Email', value('principalEmail'))}${field('Phone', value('schoolPhone'))}</section>
                                 </div>
                                 <section class="registration-preview-section"><h6><i class="fas fa-user-shield"></i> School administrator</h6>${field('Name', value('adminName'))}${field('Username', value('schoolAdminUsername'))}${field('Email', value('schoolAdminContactEmail'))}${field('Profile image', value('schoolAdminPhotoUrl') === 'Not provided' ? 'Not provided' : 'Included')}<div class="registration-preview-field"><span>Password</span><strong>Will be shared after registration</strong></div></section>
-                                <section class="registration-preview-section"><h6><i class="fas fa-crown"></i> Subscription</h6><div class="registration-preview-line"><span>${escape(plan?.name || 'No main plan selected')}</span><strong>${escape(plan ? `${planCurrency} ${Number(plan.price || 0).toLocaleString()} Â· ${plan.durationMonths || 1} months` : 'â€”')}</strong></div>${topupMarkup}<div class="registration-preview-total"><span>Total${topupCount ? ` Â· ${topupCount} top-up${topupCount === 1 ? '' : 's'}` : ''}</span><strong>${escape(priceSummary)}</strong></div></section>
+                                <section class="registration-preview-section"><h6><i class="fas fa-crown"></i> Subscription</h6><div class="registration-preview-line"><span>${escape(plan?.name || 'No main plan selected')}${plan?.erpPlan === true ? ' · RollCall ERP' : ''}</span><strong>${escape(plan ? `${planCurrency} ${Number(plan.price || 0).toLocaleString()} Â· ${plan.durationMonths || 1} months` : 'â€”')}</strong></div>${topupMarkup}<div class="registration-preview-total"><span>Total${topupCount ? ` Â· ${topupCount} top-up${topupCount === 1 ? '' : 's'}` : ''}</span><strong>${escape(priceSummary)}</strong></div></section>
                             </div>
                             <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Continue editing</button><button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="document.getElementById('registerSchoolBtn')?.focus()">Looks good</button></div>
                         </div>
@@ -4069,6 +4069,7 @@
                 school.name = document.getElementById('schoolName').value;
                 school.code = document.getElementById('schoolCode').value;
                 school.type = document.getElementById('schoolType').value;
+                school.institutionType = school.type.toLowerCase();
                 school.establishedYear = document.getElementById('establishedYear').value;
                 school.address.complete = document.getElementById('schoolAddress').value;
                 school.address.city = document.getElementById('city').value;

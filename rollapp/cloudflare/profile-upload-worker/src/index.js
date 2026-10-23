@@ -1323,6 +1323,336 @@ function uploadResponse(body, status, origin) {
     });
 }
 
+function databasePathUrl(env, path, accessToken) {
+    const baseUrl = String(env.FIREBASE_DATABASE_URL || '').replace(/\/+$/, '');
+    if (!baseUrl) throw new Error('Firebase database URL is not configured.');
+    const encodedPath = path ? `${path.split('/').map(encodeURIComponent).join('/')}.json` : '.json';
+    const url = new URL(`${baseUrl}/${encodedPath}`);
+    url.searchParams.set('access_token', accessToken);
+    return url;
+}
+
+async function readLicenseRecord(env, schoolId, accessToken) {
+    const url = databasePathUrl(env, `erpLicenseKeys/${schoolId}`, accessToken);
+    const result = await fetch(url, { headers: { 'X-Firebase-ETag': 'true' } });
+    if (!result.ok) throw new Error('ERP license data could not be loaded from Firebase.');
+    return { record: await result.json(), etag: result.headers.get('ETag') || 'null_etag' };
+}
+
+async function updateErpLicenseDatabase(env, updates, accessToken) {
+    const result = await fetch(databasePathUrl(env, '', accessToken), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+    });
+    if (!result.ok) {
+        console.error('ERP license Firebase update failed:', result.status);
+        throw new Error('ERP license data could not be updated.');
+    }
+}
+
+async function writeLicenseRecord(env, schoolId, record, etag, accessToken) {
+    const result = await fetch(databasePathUrl(env, `erpLicenseKeys/${schoolId}`, accessToken), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+        body: JSON.stringify(record)
+    });
+    if (result.status === 412) return false;
+    if (!result.ok) throw new Error('ERP license data could not be saved to Firebase.');
+    return true;
+}
+
+function getLicenseEncryptionKey(env) {
+    const value = String(env.ERP_LICENSE_ENCRYPTION_KEY || '').trim();
+    if (!/^[a-f0-9]{64}$/i.test(value)) {
+        throw new Error('ERP license encryption is not configured.');
+    }
+    return Uint8Array.from(value.match(/.{2}/g), byte => parseInt(byte, 16));
+}
+
+async function encryptLicenseCode(env, code) {
+    const key = await crypto.subtle.importKey('raw', getLicenseEncryptionKey(env), { name: 'AES-GCM' }, false, ['encrypt']);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        new TextEncoder().encode(code)
+    );
+    return { iv: encodeBase64Url(iv), ciphertext: encodeBase64Url(new Uint8Array(ciphertext)) };
+}
+
+async function decryptLicenseCode(env, record) {
+    const key = await crypto.subtle.importKey('raw', getLicenseEncryptionKey(env), { name: 'AES-GCM' }, false, ['decrypt']);
+    const plaintext = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: decodeBase64Url(record.iv) },
+        key,
+        decodeBase64Url(record.encryptedCode)
+    );
+    return new TextDecoder().decode(plaintext);
+}
+
+async function hashLicenseCode(code) {
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code));
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function deleteErpLicenseRecord(env, schoolId, record, accessToken) {
+    const updates = { [`erpLicenseKeys/${schoolId}`]: null };
+    if (record?.codeHash) updates[`erpLicenseCodes/${record.codeHash}`] = null;
+    await updateErpLicenseDatabase(env, updates, accessToken);
+}
+
+function subscriptionIsActive(subscription, now = Date.now()) {
+    const startsAt = Date.parse(subscription?.startDate || '');
+    const expiresAt = Date.parse(subscription?.endDate || '');
+    const status = String(subscription?.status || '').toLowerCase();
+    return ['active', 'trial', 'trialing'].includes(status) &&
+        Number.isFinite(startsAt) && startsAt <= now &&
+        Number.isFinite(expiresAt) && expiresAt > now;
+}
+
+async function readErpLicenseContext(env, schoolId, accessToken) {
+    const school = await readDatabaseWithAccessToken(env, `schools/${schoolId}`, accessToken);
+    if (!school || typeof school !== 'object') throw new Error('The linked institution could not be loaded.');
+    const ownerId = String(school.ownerId || '').trim();
+    if (!ownerId) return { erpMode: false, school, ownerSchool: null, subscription: {} };
+    const ownerSchool = await readDatabaseWithAccessToken(env, `owners/${ownerId}/schools/${schoolId}`, accessToken);
+    if (!ownerSchool || String(ownerSchool.ownerId || '') !== ownerId) {
+        return { erpMode: false, school, ownerSchool: null, subscription: {} };
+    }
+    const subscription = ownerSchool.subscription || {};
+    if (subscription.erpPlan !== true || !subscription.planId) {
+        return { erpMode: false, school, ownerSchool, subscription };
+    }
+    const plan = await readDatabaseWithAccessToken(
+        env,
+        `owners/${ownerId}/pricingPlans/${subscription.planId}`,
+        accessToken
+    );
+    if (!plan || plan.erpPlan !== true || plan.type === 'topup') {
+        return { erpMode: false, school, ownerSchool, subscription };
+    }
+    return {
+        erpMode: true,
+        active: String(ownerSchool.status || '').toLowerCase() === 'active' &&
+            subscriptionIsActive(subscription),
+        school,
+        ownerSchool,
+        ownerId,
+        subscription,
+        plan
+    };
+}
+
+async function issuePortalLicense(request, env, origin) {
+    const payload = await readJsonWithinLimit(request, 4096);
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        return uploadResponse({ error: 'Invalid ERP license request.' }, 400, origin);
+    }
+    const authorization = request.headers.get('Authorization') || '';
+    const tokenMatch = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]+)$/);
+    if (!tokenMatch) return uploadResponse({ error: 'Authentication is required.' }, 401, origin);
+
+    let caller;
+    try {
+        caller = await verifyFirebaseToken(tokenMatch[1], env.FIREBASE_PROJECT_ID);
+    } catch (error) {
+        console.error('ERP license-token verification failed:', error);
+        return uploadResponse({ error: 'Authentication could not be verified. Try again shortly.' }, 503, origin);
+    }
+    if (!caller) return uploadResponse({ error: 'Authentication token is invalid or expired.' }, 401, origin);
+
+    try {
+        const accessToken = await getFirebaseAccessToken(env);
+        const profile = await readDatabaseWithAccessToken(env, `users/${caller.uid}`, accessToken);
+        const schoolId = String(profile?.schoolId || '').trim();
+        if (!schoolId || String(profile?.role || '').toLowerCase() !== 'admin') {
+            return uploadResponse({ error: 'Only a school administrator can manage the ERP license.' }, 403, origin);
+        }
+        const context = await readErpLicenseContext(env, schoolId, accessToken);
+        if (context.ownerSchool) {
+            const registeredAdminUid = String(context.ownerSchool.contacts?.admin?.uid || context.ownerSchool.admin?.uid || '');
+            if (!registeredAdminUid || registeredAdminUid !== caller.uid) {
+                return uploadResponse({ error: 'Only the registered school administrator can view the ERP access code.' }, 403, origin);
+            }
+        }
+        if (!context.erpMode) {
+            const { record } = await readLicenseRecord(env, schoolId, accessToken);
+            if (record) await deleteErpLicenseRecord(env, schoolId, record, accessToken);
+            return uploadResponse({ erpMode: false, active: false }, 200, origin);
+        }
+        const { school, ownerSchool, subscription, plan } = context;
+        const expiresAt = Date.parse(subscription.endDate || '');
+        if (!context.active) {
+            const { record } = await readLicenseRecord(env, schoolId, accessToken);
+            if (record) await deleteErpLicenseRecord(env, schoolId, record, accessToken);
+            return uploadResponse({
+                erpMode: true,
+                active: false,
+                expired: Number.isFinite(expiresAt) && expiresAt <= Date.now(),
+                schoolName: String(ownerSchool.name || school.name || ''),
+                schoolCode: String(ownerSchool.code || school.code || ''),
+                plan: String(subscription.plan || plan.name || ''),
+                planId: String(subscription.planId),
+                startDate: String(subscription.startDate || ''),
+                endDate: String(subscription.endDate || '')
+            }, 200, origin);
+        }
+
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            const { record, etag } = await readLicenseRecord(env, schoolId, accessToken);
+            const matchesSubscription = record &&
+                record.planId === subscription.planId &&
+                record.startDate === subscription.startDate &&
+                record.endDate === subscription.endDate &&
+                record.codeHash &&
+                record.active === true &&
+                Number(record.expiresAt) === expiresAt;
+            if (matchesSubscription) {
+                const code = await decryptLicenseCode(env, record);
+                await updateErpLicenseDatabase(env, {
+                    [`erpLicenseCodes/${record.codeHash}`]: {
+                        schoolId,
+                        planId: subscription.planId,
+                        expiresAt,
+                        active: true
+                    }
+                }, accessToken);
+                return uploadResponse({
+                    erpMode: true,
+                    active: true,
+                    code,
+                    schoolName: String(ownerSchool.name || school.name || ''),
+                    schoolCode: String(ownerSchool.code || school.code || ''),
+                    plan: String(subscription.plan || plan.name || ''),
+                    planId: String(subscription.planId),
+                    price: Number(subscription.price || plan.price || 0),
+                    currency: String(subscription.currency || plan.currency || 'INR'),
+                    startDate: String(subscription.startDate || ''),
+                    endDate: String(subscription.endDate || '')
+                }, 200, origin);
+            }
+
+            const code = `RCERP-${encodeBase64Url(crypto.getRandomValues(new Uint8Array(32)))}`;
+            const [codeHash, encrypted] = await Promise.all([hashLicenseCode(code), encryptLicenseCode(env, code)]);
+            const recordToSave = {
+                schoolId,
+                planId: subscription.planId,
+                startDate: String(subscription.startDate || ''),
+                endDate: String(subscription.endDate || ''),
+                expiresAt,
+                codeHash,
+                iv: encrypted.iv,
+                encryptedCode: encrypted.ciphertext,
+                createdAt: Date.now(),
+                active: true
+            };
+            if (!await writeLicenseRecord(env, schoolId, recordToSave, etag, accessToken)) continue;
+            const indexUpdates = { [`erpLicenseCodes/${codeHash}`]: { schoolId, planId: subscription.planId, expiresAt, active: true } };
+            if (record?.codeHash) indexUpdates[`erpLicenseCodes/${record.codeHash}`] = null;
+            await updateErpLicenseDatabase(env, indexUpdates, accessToken);
+            return uploadResponse({
+                erpMode: true,
+                active: true,
+                code,
+                schoolName: String(ownerSchool.name || school.name || ''),
+                schoolCode: String(ownerSchool.code || school.code || ''),
+                plan: String(subscription.plan || plan.name || ''),
+                planId: String(subscription.planId),
+                price: Number(subscription.price || plan.price || 0),
+                currency: String(subscription.currency || plan.currency || 'INR'),
+                startDate: String(subscription.startDate || ''),
+                endDate: String(subscription.endDate || '')
+            }, 200, origin);
+        }
+        return uploadResponse({ error: 'The ERP access code is being updated. Refresh and try again.' }, 409, origin);
+    } catch (error) {
+        console.error('ERP portal license lookup failed:', error);
+        return uploadResponse({ error: error.message || 'The ERP access code could not be loaded.' }, 503, origin);
+    }
+}
+
+async function verifyErpLicense(request, env, origin) {
+    const payload = await readJsonWithinLimit(request, 4096);
+    const code = String(payload?.code || '').trim();
+    const schoolCode = String(payload?.schoolCode || '').trim().toUpperCase();
+    if (!/^RCERP-[A-Za-z0-9_-]{40,48}$/.test(code) || !/^[A-Z0-9_-]{2,32}$/.test(schoolCode)) {
+        return uploadResponse({ valid: false, error: 'Invalid school code or ERP access code.' }, 400, origin);
+    }
+
+    try {
+        const accessToken = await getFirebaseAccessToken(env);
+        const baseUrl = String(env.FIREBASE_DATABASE_URL || '').replace(/\/+$/, '');
+        const query = new URLSearchParams({
+            orderBy: JSON.stringify('code'),
+            equalTo: JSON.stringify(schoolCode),
+            access_token: accessToken
+        });
+        const schoolResponse = await fetch(`${baseUrl}/schools.json?${query}`);
+        if (!schoolResponse.ok) throw new Error('School registration could not be verified.');
+        const schools = await schoolResponse.json();
+        const schoolEntry = Object.entries(schools || {}).find(([, item]) =>
+            String(item?.code || '').trim().toUpperCase() === schoolCode
+        );
+        if (!schoolEntry) return uploadResponse({ valid: false, error: 'School code or ERP access code is invalid.' }, 200, origin);
+
+        const [schoolId, school] = schoolEntry;
+        const codeHash = await hashLicenseCode(code);
+        const codeRecord = await readDatabaseWithAccessToken(env, `erpLicenseCodes/${codeHash}`, accessToken);
+        if (codeRecord?.schoolId !== schoolId || codeRecord.active !== true) {
+            return uploadResponse({ valid: false, error: 'School code or ERP access code is invalid.' }, 200, origin);
+        }
+
+        const context = await readErpLicenseContext(env, schoolId, accessToken);
+        if (!context.erpMode ||
+            String(context.ownerSchool?.code || '').trim().toUpperCase() !== schoolCode ||
+            !context.active || context.subscription.planId !== codeRecord.planId ||
+            Date.parse(context.subscription.endDate || '') !== Number(codeRecord.expiresAt)) {
+            const { record } = await readLicenseRecord(env, schoolId, accessToken);
+            if (record) await deleteErpLicenseRecord(env, schoolId, record, accessToken);
+            return uploadResponse({ valid: false, error: 'This ERP license has expired or is inactive.' }, 200, origin);
+        }
+        return uploadResponse({
+            valid: true,
+            license: {
+                schoolId,
+                schoolCode: String(context.ownerSchool.code || ''),
+                schoolName: String(context.ownerSchool.name || school.name || ''),
+                planId: String(context.subscription.planId),
+                plan: String(context.subscription.plan || context.plan.name || ''),
+                startDate: String(context.subscription.startDate || ''),
+                endDate: String(context.subscription.endDate || ''),
+                expiresAt: Number(codeRecord.expiresAt)
+            }
+        }, 200, origin);
+    } catch (error) {
+        console.error('ERP license verification failed:', error);
+        return uploadResponse({ error: 'ERP license verification is temporarily unavailable.' }, 503, origin);
+    }
+}
+
+async function cleanupExpiredErpLicenses(env) {
+    const accessToken = await getFirebaseAccessToken(env);
+    const baseUrl = String(env.FIREBASE_DATABASE_URL || '').replace(/\/+$/, '');
+    const now = Date.now();
+    const query = new URLSearchParams({
+        orderBy: JSON.stringify('expiresAt'),
+        endAt: String(now),
+        access_token: accessToken
+    });
+    const result = await fetch(`${baseUrl}/erpLicenseKeys.json?${query}`);
+    if (!result.ok) throw new Error('Expired ERP licenses could not be loaded for cleanup.');
+    const records = await result.json();
+    const updates = {};
+    Object.entries(records || {}).forEach(([schoolId, record]) => {
+        if (Number(record?.expiresAt) <= now) {
+            updates[`erpLicenseKeys/${schoolId}`] = null;
+            if (record.codeHash) updates[`erpLicenseCodes/${record.codeHash}`] = null;
+        }
+    });
+    if (Object.keys(updates).length) await updateErpLicenseDatabase(env, updates, accessToken);
+}
+
 async function createProfileUpload(request, env, origin) {
     const authorization = request.headers.get('Authorization') || '';
     const tokenMatch = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]+)$/);
@@ -1458,10 +1788,21 @@ export default {
             return firebaseConfigScript(request, env);
         }
         if (request.method === 'OPTIONS') {
-            if (!allowedOrigin) return new Response(null, { status: 403 });
-            return new Response(null, { status: 204, headers: corsHeaders(allowedOrigin) });
+            const opaqueErpClient = routePath === '/erp-license/verify' && origin === 'null';
+            if (!allowedOrigin && !opaqueErpClient) return new Response(null, { status: 403 });
+            return new Response(null, { status: 204, headers: corsHeaders(opaqueErpClient ? 'null' : allowedOrigin) });
         }
 
+        if (routePath === '/erp-license/portal') {
+            if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
+            if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            return issuePortalLicense(request, env, allowedOrigin);
+        }
+        if (routePath === '/erp-license/verify') {
+            if (origin && !allowedOrigin && origin !== 'null') return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
+            if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            return verifyErpLicense(request, env, origin === 'null' ? 'null' : allowedOrigin);
+        }
         if (routePath.endsWith('/password-reset')) {
             if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);
             if (request.method !== 'POST') return response({ error: 'Method not allowed.' }, 405, allowedOrigin);
@@ -1503,5 +1844,10 @@ export default {
             return uploadProfilePhoto(request, env, allowedOrigin, url);
         }
         return response({ error: 'Not found.' }, 404, allowedOrigin);
+    },
+    async scheduled(_event, env, context) {
+        context.waitUntil(cleanupExpiredErpLicenses(env).catch(error => {
+            console.error('Scheduled ERP license cleanup failed:', error);
+        }));
     }
 };

@@ -17,6 +17,18 @@
         };
     }
 
+    function subscriptionPlanCategory(school) {
+        if (school?.subscription?.erpPlan === true) return 'erp';
+        const institutionType = String(school?.institutionType || school?.type || '').trim().toLowerCase();
+        return institutionType === 'college' || institutionType === 'university' ? 'college' : 'school';
+    }
+
+    function pricingPlanCategory(plan) {
+        const category = String(plan?.productType || '').trim().toLowerCase();
+        if (['school', 'college', 'erp'].includes(category)) return category;
+        return plan?.erpPlan === true ? 'erp' : 'school';
+    }
+
     function installStyles() {
         if (document.getElementById('rollcall-subscription-expiry-styles')) return;
         const style = document.createElement('style');
@@ -266,6 +278,7 @@
                     requesterName: profile.name || user.displayName || user.email || 'Staff member',
                     requesterEmail: profile.email || user.email || '',
                     requesterRole: role,
+                    erpMode: school.subscription?.erpPlan === true,
                     subscriptionEndDate: school.subscription?.endDate || '',
                     requestedPlan: {
                         id: selectedPlan.id,
@@ -340,9 +353,12 @@
             const ownerId = String(school.ownerId || '').trim();
             if (!ownerId) throw new Error('The institution owner could not be identified.');
             const plansSnapshot = await firebase.database().ref(`owners/${ownerId}/pricingPlans`).once('value');
+            const category = subscriptionPlanCategory(school);
             plans = Object.entries(plansSnapshot.val() || {})
                 .map(([id, plan]) => ({ id, ...plan }))
-                .filter(plan => plan.active !== false && plan.type !== 'topup' && String(plan.name || '').trim())
+                .filter(plan => plan.active !== false && plan.type !== 'topup' &&
+                    pricingPlanCategory(plan) === category &&
+                    String(plan.name || '').trim())
                 .map(plan => ({
                     id: plan.id,
                     name: String(plan.name).trim(),

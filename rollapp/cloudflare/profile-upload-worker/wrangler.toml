@@ -2,6 +2,9 @@ name = "rollcall-worker"
 main = "src/index.js"
 compatibility_date = "2026-10-20"
 
+[triggers]
+crons = ["*/15 * * * *"]
+
 [[r2_buckets]]
 binding = "PROFILE_PHOTOS"
 bucket_name = "rollcall-avatars"

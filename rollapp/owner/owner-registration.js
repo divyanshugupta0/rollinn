@@ -332,6 +332,10 @@
         }
     }
 
+    function planIsErp(plan = selectedPlan()) {
+        return plan?.erpPlan === true || plan?.productType === 'erp';
+    }
+
     async function register() {
         if (saving) return;
         const form = document.getElementById('schoolRegistrationForm');
@@ -417,22 +421,22 @@
                 dob: adminDob
             });
             const school = {
-                schoolId: reference.key, name: value('schoolName'), code, type: value('schoolType'),
+                schoolId: reference.key, name: value('schoolName'), code, type: value('schoolType'), institutionType: value('schoolType').toLowerCase(),
                 establishedYear: value('establishedYear'),
                 address: { complete: value('schoolAddress'), city: value('city'), state: value('state'), zipCode: value('zipCode') },
                 contacts: { principal: { name: value('principalName'), email: value('principalEmail') }, admin: { uid: administrator.uid, name: value('adminName'), username: value('schoolAdminUsername'), email: adminEmail, dob: adminDob, dateOfBirth: adminDob, photoURL }, phone: value('schoolPhone'), alternatePhone: value('alternatePhone') },
                 details: { capacity: Number(value('studentCapacity')) || 0, currentStudents: Number(value('currentStudents')) || 0, teacherCount: Number(value('teacherCount')) || 0, accreditation: value('accreditation'), website: value('website') },
                 facilities: { library: document.getElementById('hasLibrary')?.checked === true, computerLab: document.getElementById('hasLab')?.checked === true, sports: document.getElementById('hasSports')?.checked === true, transportation: document.getElementById('hasTransport')?.checked === true },
-                subscription: { plan: plan.name, planId: plan.id, price: (() => { const totals = selectedTopups.reduce((result, item) => { const currency = item.currency || plan.currency || 'INR'; result[currency] = Number(result[currency] || 0) + Number(item.price || 0); return result; }, { [plan.currency || 'INR']: Number(plan.price || 0) }); return Object.keys(totals).length === 1 ? Object.values(totals)[0] : Number(plan.price || 0); })(), basePlanPrice: Number(plan.price || 0), priceBreakdown: selectedTopups.reduce((totals, item) => { const currency = item.currency || plan.currency || 'INR'; totals[currency] = Number(totals[currency] || 0) + Number(item.price || 0); return totals; }, { [plan.currency || 'INR']: Number(plan.price || 0) }), currency: plan.currency || 'INR', durationMonths: Number(plan.durationMonths), termExtensionMonths, autoRenew: plan.autoRenew === true, studentCapacity: Number(plan.studentCapacity || value('studentCapacity')), teacherCapacity: Number(plan.teacherCapacity || 0), topups: selectedTopups, status: 'active', startDate: start.toISOString(), endDate: end.toISOString() },
+                subscription: { plan: plan.name, planId: plan.id, erpPlan: planIsErp(plan), price: (() => { const totals = selectedTopups.reduce((result, item) => { const currency = item.currency || plan.currency || 'INR'; result[currency] = Number(result[currency] || 0) + Number(item.price || 0); return result; }, { [plan.currency || 'INR']: Number(plan.price || 0) }); return Object.keys(totals).length === 1 ? Object.values(totals)[0] : Number(plan.price || 0); })(), basePlanPrice: Number(plan.price || 0), priceBreakdown: selectedTopups.reduce((totals, item) => { const currency = item.currency || plan.currency || 'INR'; totals[currency] = Number(totals[currency] || 0) + Number(item.price || 0); return totals; }, { [plan.currency || 'INR']: Number(plan.price || 0) }), currency: plan.currency || 'INR', durationMonths: Number(plan.durationMonths), termExtensionMonths, autoRenew: plan.autoRenew === true, studentCapacity: Number(plan.studentCapacity || value('studentCapacity')), teacherCapacity: Number(plan.teacherCapacity || 0), topups: selectedTopups, status: 'active', startDate: start.toISOString(), endDate: end.toISOString() },
                 status: 'Active', ownerId: currentUser.uid, registrationDate: start.toISOString(), lastUpdated: start.toISOString()
             };
             stage = 'saving the school and administrator records';
             button('Saving registration...', true);
             await database.ref().update({
                 [`schools/${reference.key}`]: school,
-                [`schoolAdmins/${reference.key}`]: { ...school.contacts.admin, authUid: administrator.uid, password: adminPassword, dob: adminDob, dateOfBirth: adminDob, schoolId: reference.key, createdAt: start.toISOString() },
+                [`schoolAdmins/${reference.key}`]: { ...school.contacts.admin, authUid: administrator.uid, password: adminPassword, dob: adminDob, dateOfBirth: adminDob, schoolId: reference.key, institutionType: value('schoolType').toLowerCase(), createdAt: start.toISOString() },
                 [`users/${administrator.uid}`]: { ...administrator.profile, profilePhoto: photoURL || null },
-                [`publicSchools/${reference.key}`]: { name: school.name, code: school.code, type: school.type, status: 'Active', subscriptionEndDate: end.toISOString(), updatedAt: Date.now() }
+                [`publicSchools/${reference.key}`]: { name: school.name, code: school.code, type: school.type, institutionType: school.institutionType, status: 'Active', subscriptionEndDate: end.toISOString(), updatedAt: Date.now() }
             });
             stage = 'saving the owner school record';
             await ownerAuth.database().ref(`owners/${currentUser.uid}/schools/${reference.key}`).set(school);

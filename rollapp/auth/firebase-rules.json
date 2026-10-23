@@ -486,6 +486,10 @@
         "teacherId"
       ]
     },
+    "erpLicenseKeys": {
+      ".indexOn": ["expiresAt"]
+    },
+    "erpLicenseCodes": {},
     "subscriptionExpiryOverlayCounts": {
       "$schoolId": {
         "$uid": {

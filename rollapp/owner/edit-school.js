@@ -117,6 +117,7 @@ function saveEditedSchool(ownerId, schoolId) {
     const updates = {
         name: name,
         type: type,
+        institutionType: type.toLowerCase(),
         status: status,
         'contacts/phone': phone,
         'admin/username': adminUsername,

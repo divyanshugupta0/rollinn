@@ -182,6 +182,74 @@ function initSidebarBadges() {
 
 document.addEventListener('DOMContentLoaded', initSidebarBadges);
 
+let erpPortalModeActive = false;
+let erpModeSubscriptionRef = null;
+let erpModeAuthUid = '';
+
+function setErpPortalMode(enabled) {
+    erpPortalModeActive = enabled === true;
+    window.rollCallErpModeActive = erpPortalModeActive;
+    document.body.classList.toggle('erp-portal-mode', erpPortalModeActive);
+    const contentWrapper = document.getElementById('content-wrapper');
+    if (contentWrapper) {
+        contentWrapper.classList.toggle('erp-mode-panel-locked', erpPortalModeActive);
+        contentWrapper.classList.toggle(
+            'erp-account-visible',
+            erpPortalModeActive && !!document.querySelector('[data-section="manage-account"].active')
+        );
+    }
+    document.querySelectorAll('.sidebar-menu-item-modern[data-section], .sidebar-menu-item[data-section]').forEach(item => {
+        const locked = erpPortalModeActive &&
+            !['manage-account', 'logout'].includes(item.dataset.section || '');
+        if (locked) {
+            item.dataset.erpLocked = 'true';
+            item.setAttribute('aria-disabled', 'true');
+            item.title = 'Available in the active RollCall ERP plan only.';
+        } else {
+            delete item.dataset.erpLocked;
+            item.removeAttribute('aria-disabled');
+            if (item.title === 'Available in the active RollCall ERP plan only.') item.removeAttribute('title');
+        }
+    });
+    if (erpPortalModeActive) {
+        const accountMenuItem = document.querySelector('[data-section="manage-account"]');
+        if (accountMenuItem && !accountMenuItem.classList.contains('active')) accountMenuItem.click();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof firebase === 'undefined' || !firebase.apps?.length) return;
+    firebase.auth().onAuthStateChanged(async user => {
+        erpModeSubscriptionRef?.off();
+        erpModeSubscriptionRef = null;
+        erpModeAuthUid = user?.uid || '';
+        if (!user) {
+            setErpPortalMode(false);
+            return;
+        }
+        try {
+            const profileSnapshot = await firebase.database().ref(`users/${user.uid}`).once('value');
+            if (firebase.auth().currentUser?.uid !== user.uid) return;
+            const profile = profileSnapshot.val() || {};
+            const schoolId = String(profile.schoolId || '').trim();
+            if (String(profile.role || '').toLowerCase() !== 'admin' || !schoolId) {
+                setErpPortalMode(false);
+                return;
+            }
+            erpModeSubscriptionRef = firebase.database().ref(`schools/${schoolId}/subscription`);
+            erpModeSubscriptionRef.on('value', snapshot => {
+                if (firebase.auth().currentUser?.uid !== erpModeAuthUid) return;
+                setErpPortalMode(snapshot.val()?.erpPlan === true);
+            }, error => {
+                console.error('Could not monitor the ERP portal mode:', error);
+            });
+        } catch (error) {
+            console.error('Could not determine the ERP portal mode:', error);
+            setErpPortalMode(false);
+        }
+    });
+});
+
 
 function initBlockedUsers(panelRoot = null) {
     if (typeof firebase === 'undefined' || !firebase.apps.length) {
@@ -1294,6 +1362,13 @@ function initManageAccountSection() {
     const securityResetButton = section.querySelector('#account-security-reset-btn');
     const copyCodeButton = section.querySelector('#copy-institution-code-btn');
     const exportButton = section.querySelector('#export-account-summary-btn');
+    const erpLicensePanel = section.querySelector('#account-erp-license');
+    const erpLicenseDescription = section.querySelector('#account-erp-license-description');
+    const erpLicenseStatus = section.querySelector('#account-erp-license-status');
+    const erpCodeRow = section.querySelector('#account-erp-code-row');
+    const erpAccessCode = section.querySelector('#account-erp-access-code');
+    const erpCopyCodeButton = section.querySelector('#copy-account-erp-code-btn');
+    const erpRenewButton = section.querySelector('#request-account-erp-renewal-btn');
     const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[character]));
@@ -1463,6 +1538,16 @@ function initManageAccountSection() {
                     </dl>
                     <div class="account-plan-dates"><span><strong>Started:</strong> ${escape(startDate)}</span><span><strong>Renews / ends:</strong> ${escape(endDate)}</span></div>
                 `;
+                if (subscription.erpPlan === true && erpLicensePanel) {
+                    erpLicensePanel.hidden = false;
+                    erpLicenseDescription.textContent = 'Checking the active ERP subscription and access code...';
+                    erpLicenseStatus.textContent = '';
+                    erpCodeRow.hidden = true;
+                    erpRenewButton.hidden = true;
+                    loadErpPortalLicense();
+                } else if (erpLicensePanel) {
+                    erpLicensePanel.hidden = true;
+                }
                 showStatus('success', 'Account and institution details are up to date.', 'fa-check-circle');
             })
             .catch(error => {
@@ -1471,6 +1556,100 @@ function initManageAccountSection() {
                 subscriptionDetails.innerHTML = '<p class="error-message">Unable to load subscription details.</p>';
             });
     };
+
+    async function loadErpPortalLicense() {
+        try {
+            const idToken = await currentUser.getIdToken();
+            const workerBase = String(window.ROLLCALL_FIREBASE_CONFIG?.profileUploadWorkerUrl || 'https://rollcall-worker.divyanshugupta415.workers.dev/').replace(/\/?$/, '/');
+            const response = await fetch(new URL('erp-license/portal', workerBase), {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.error || `ERP license service returned HTTP ${response.status}.`);
+            if (result.erpMode !== true) {
+                erpLicenseDescription.textContent = 'This subscription is not currently configured as an ERP plan. Contact the institution owner.';
+                return;
+            }
+            if (result.active === true && result.code) {
+                erpLicenseDescription.textContent = `${result.plan || loadedSubscription.plan || 'ERP plan'} · ${result.currency || loadedSubscription.currency || 'INR'} ${Number(result.price || 0).toLocaleString()} · Active until ${formatDate(result.endDate)}.`;
+                erpAccessCode.textContent = result.code;
+                erpCodeRow.hidden = false;
+                erpRenewButton.hidden = true;
+                return;
+            }
+            if (result.expired === true) {
+                erpLicenseDescription.textContent = `${result.plan || loadedSubscription.plan || 'ERP plan'} expired on ${formatDate(result.endDate)}. The access code is inactive. Send a renewal request to the institution owner to receive a new code after renewal.`;
+                erpRenewButton.hidden = false;
+            } else {
+                erpLicenseDescription.textContent = `${result.plan || loadedSubscription.plan || 'ERP plan'} is not currently active. Contact the institution owner for assistance.`;
+            }
+        } catch (error) {
+            console.error('Could not load the ERP access code:', error);
+            erpLicenseDescription.textContent = 'The ERP access code could not be loaded. Check your connection and refresh this panel.';
+            erpLicenseStatus.textContent = error.message || 'ERP license service is unavailable.';
+        }
+    }
+
+    erpCopyCodeButton?.addEventListener('click', async () => {
+        const code = String(erpAccessCode?.textContent || '').trim();
+        if (!code) {
+            erpLicenseStatus.textContent = 'There is no active ERP access code to copy.';
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(code);
+            erpLicenseStatus.textContent = 'ERP access code copied.';
+        } catch (error) {
+            console.error('Could not copy the ERP access code:', error);
+            erpLicenseStatus.textContent = 'Copy failed. Select and copy the code manually.';
+        }
+    });
+
+    erpRenewButton?.addEventListener('click', async () => {
+        if (!loadedSchoolId || !loadedSchool?.ownerId || !loadedSubscription) {
+            erpLicenseStatus.textContent = 'Institution owner or subscription details are unavailable.';
+            return;
+        }
+        erpRenewButton.disabled = true;
+        erpLicenseStatus.textContent = 'Sending renewal request...';
+        const requestRef = firebase.database().ref(`subscriptionResubscribeRequests/${loadedSchoolId}/${currentUser.uid}`);
+        const request = {
+            schoolId: loadedSchoolId,
+            schoolName: loadedSchool.name || '',
+            schoolCode: loadedSchool.code || '',
+            ownerId: String(loadedSchool.ownerId),
+            requestedBy: currentUser.uid,
+            requesterName: loadedUser?.name || currentUser.displayName || currentUser.email || 'Administrator',
+            requesterEmail: loadedUser?.email || currentUser.email || '',
+            requesterRole: String(loadedUser?.role || 'admin'),
+            erpMode: true,
+            subscriptionEndDate: loadedSubscription.endDate || '',
+            requestedPlan: {
+                id: String(loadedSubscription.planId || ''),
+                name: String(loadedSubscription.plan || ''),
+                price: Number(loadedSubscription.basePlanPrice ?? loadedSubscription.price ?? 0),
+                currency: String(loadedSubscription.currency || 'INR'),
+                durationMonths: Number(loadedSubscription.durationMonths || 0),
+                studentCapacity: Number(loadedSubscription.studentCapacity || 0),
+                teacherCapacity: Number(loadedSubscription.teacherCapacity || 0)
+            },
+            status: 'pending',
+            requestedAt: Date.now()
+        };
+        try {
+            const result = await requestRef.transaction(current => current?.status === 'pending' ? undefined : request);
+            erpLicenseStatus.textContent = result.committed
+                ? 'ERP renewal request sent to the institution owner.'
+                : 'A renewal request is already pending with the institution owner.';
+            erpRenewButton.textContent = result.committed ? 'Request sent' : 'Request already pending';
+        } catch (error) {
+            console.error('Could not send ERP renewal request:', error);
+            erpLicenseStatus.textContent = error.message || 'Could not send the renewal request. Try again.';
+            erpRenewButton.disabled = false;
+        }
+    });
 
     editButton.addEventListener('click', () => setEditing(true));
     cancelButton.addEventListener('click', () => {
@@ -5111,6 +5290,12 @@ document.addEventListener('DOMContentLoaded', function () {
     sidebarMenuItems.forEach(item => {
         item.addEventListener('click', function () {
             const section = this.getAttribute('data-section');
+
+            if (erpPortalModeActive && section !== 'manage-account' && section !== 'logout') {
+                document.querySelector('[data-section="manage-account"]')?.click();
+                return;
+            }
+            contentWrapper.classList.toggle('erp-account-visible', erpPortalModeActive && section === 'manage-account');
 
             if ((section === 'download-limit' || section === 'device-locks') &&
                 document.body.classList.contains('admin-school-mode')) {

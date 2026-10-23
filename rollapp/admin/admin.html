@@ -28,6 +28,65 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="admin.css">
     <link rel="stylesheet" href="../accessibility/accessibility-styles.css?v=large-text-scale-20261022-v2">
+    <style>
+        body.erp-portal-mode .sidebar-menu-item-modern[data-erp-locked="true"],
+        body.erp-portal-mode .sidebar-menu-item[data-erp-locked="true"] {
+            position: relative;
+            overflow: hidden;
+            cursor: not-allowed;
+        }
+        body.erp-portal-mode .sidebar-menu-item-modern[data-erp-locked="true"]::after,
+        body.erp-portal-mode .sidebar-menu-item[data-erp-locked="true"]::after {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center end;
+            padding-right: 16px;
+            background: rgba(15, 23, 42, .62);
+            color: #fff;
+            content: "\f023";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            pointer-events: none;
+        }
+        .content-wrapper.erp-mode-panel-locked:not(.erp-account-visible) > .container::after {
+            position: fixed;
+            inset: 0;
+            z-index: 10040;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background: rgba(15, 23, 42, .72);
+            color: #fff;
+            content: "RollCall ERP mode — manage your access code in Manage Account";
+            font-size: clamp(1rem, 2.5vw, 1.4rem);
+            font-weight: 700;
+            text-align: center;
+        }
+        .account-erp-license {
+            margin-top: 18px;
+            padding: 18px;
+            border: 1px solid #bfdbfe;
+            border-radius: 14px;
+            background: #eff6ff;
+        }
+        .account-erp-license[hidden] { display: none; }
+        .account-erp-license h4 { margin: 0 0 8px; color: #1e3a8a; }
+        .account-erp-license p { margin: 0 0 12px; color: #475569; }
+        .account-erp-code-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .account-erp-code-row code {
+            flex: 1 1 280px;
+            padding: 12px;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            background: #fff;
+            color: #0f172a;
+            font-size: .95rem;
+            overflow-wrap: anywhere;
+            user-select: all;
+        }
+        .account-erp-license .account-erp-license-status { margin-top: 10px; }
+    </style>
         <script src="admin.js"></script>
     <script src="manage-teachers.js"></script>
         <script src="timetable-management.js"></script>
@@ -5477,6 +5536,20 @@
                         <div class="card-body" id="account-subscription-details">
                             <p class="loading">Loading subscription...</p>
                         </div>
+                        <div id="account-erp-license" class="account-erp-license" hidden aria-live="polite">
+                            <h4><i class="fas fa-desktop"></i> RollCall ERP access</h4>
+                            <p id="account-erp-license-description">Checking the ERP plan...</p>
+                            <div id="account-erp-code-row" class="account-erp-code-row" hidden>
+                                <code id="account-erp-access-code" aria-label="ERP access code"></code>
+                                <button type="button" id="copy-account-erp-code-btn" class="secondary-btn">
+                                    <i class="fas fa-copy"></i> Copy code
+                                </button>
+                            </div>
+                            <button type="button" id="request-account-erp-renewal-btn" class="primary-btn" hidden>
+                                <i class="fas fa-paper-plane"></i> Request ERP renewal
+                            </button>
+                            <p id="account-erp-license-status" class="account-erp-license-status" role="status"></p>
+                        </div>
                     </section>
                     <section class="card account-card account-security-card ac-card ac-security-card">
                         <div class="card-header"><span class="ac-card-icon"><i class="fas fa-shield-halved"></i></span><div><span class="ac-card-kicker">SIGN-IN &amp; RECOVERY</span><h3>Account security</h3></div></div>
@@ -6401,6 +6474,11 @@
 
         // URL routing functions with authentication guard
         function navigateToSection(hash) {
+            if (window.rollCallErpModeActive && hash !== 'manage-account' && hash !== 'logout') {
+                window.location.hash = 'manage-account';
+                document.querySelector('[data-section="manage-account"]')?.click();
+                return;
+            }
             // SECURITY: Check authentication first (only block if user is on login screen)
             const isLoginScreen = loginSection && !loginSection.classList.contains('hidden');
             const isAuth = !!(currentUser || (typeof auth !== 'undefined' && auth.currentUser) || (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length && firebase.auth && firebase.auth().currentUser));

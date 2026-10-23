@@ -301,6 +301,7 @@ function saveSchoolChanges(ownerId, schoolId) {
     const ownerUpdates = {};
     ownerUpdates['name'] = name;
     ownerUpdates['type'] = type;
+    ownerUpdates['institutionType'] = type.toLowerCase();
     ownerUpdates['status'] = status;
     ownerUpdates['contacts/phone'] = phone;
     ownerUpdates['admin/username'] = adminUsername;
@@ -315,6 +316,7 @@ function saveSchoolChanges(ownerId, schoolId) {
                 const schoolUpdates = {};
                 schoolUpdates['name'] = name;
                 schoolUpdates['type'] = type;
+                schoolUpdates['institutionType'] = type.toLowerCase();
                 schoolUpdates['status'] = status;
                 schoolUpdates['contacts/phone'] = phone;
                 schoolUpdates['admin/username'] = adminUsername;
