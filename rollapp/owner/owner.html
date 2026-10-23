@@ -1499,6 +1499,17 @@
         .table thead th { padding: 12px 14px; color: #5b6d62; background: #f4f8f5; border-bottom: 1px solid #e0e9e3; font-size: 11px; letter-spacing: .045em; }
         .table tbody td { padding: 12px 14px; vertical-align: middle; }
         .table tbody tr:hover { background: #f6faf7; transform: none; }
+        #ownerSchoolsTable { min-width: 1080px; table-layout: fixed; }
+        #ownerSchoolsTable th:nth-child(1) { width: 17%; }
+        #ownerSchoolsTable th:nth-child(2) { width: 8%; }
+        #ownerSchoolsTable th:nth-child(3) { width: 10%; }
+        #ownerSchoolsTable th:nth-child(4) { width: 13%; }
+        #ownerSchoolsTable th:nth-child(5) { width: 8%; }
+        #ownerSchoolsTable th:nth-child(6) { width: 11%; }
+        #ownerSchoolsTable th:nth-child(7) { width: 33%; }
+        #ownerSchoolsTable .owner-school-name { overflow-wrap: anywhere; }
+        #ownerSchoolsTable .owner-school-actions { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+        #ownerSchoolsTable .owner-school-action { min-height: 34px; padding: 6px 9px; border-radius: 8px; font-size: 12px; }
         .modal-content { border: 1px solid #e0e9e3; border-radius: 16px; box-shadow: 0 24px 70px rgba(24,50,35,.18); }
         .modal-header { padding: 18px 22px; border-bottom-color: #e7eee9; }
         .modal-footer { border-top-color: #e7eee9; }
@@ -1694,7 +1705,7 @@
                                 </div>
                                 <div class="card-body p-0">
                                     <div class="table-responsive">
-                                        <table class="table table-hover align-middle mb-0">
+                                        <table id="ownerSchoolsTable" class="table table-hover align-middle mb-0">
                                             <thead>
                                                 <tr>
                                                     <th>Name</th>

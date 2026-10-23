@@ -922,35 +922,123 @@
     function installSchoolEditModal() {
         if (document.getElementById('ownerSchoolEditModal')) return;
         const modal = document.createElement('div'); modal.className = 'modal fade'; modal.id = 'ownerSchoolEditModal'; modal.tabIndex = -1;
-        modal.innerHTML = `<div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content"><form id="ownerSchoolEditForm"><div class="modal-header"><div><h2 class="modal-title fs-5">Edit school details</h2><div class="small text-muted">School code is fixed because staff use it to connect their accounts.</div></div><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><input id="ownerEditSchoolId" type="hidden"><div class="row g-3"><div class="col-md-6"><label class="form-label" for="ownerEditName">School name</label><input class="form-control" id="ownerEditName" required></div><div class="col-md-6"><label class="form-label" for="ownerEditType">School type</label><input class="form-control" id="ownerEditType"></div><div class="col-md-6"><label class="form-label" for="ownerEditPhone">Contact phone</label><input class="form-control" id="ownerEditPhone"></div><div class="col-md-6"><label class="form-label" for="ownerEditCity">City</label><input class="form-control" id="ownerEditCity"></div><div class="col-12"><label class="form-label" for="ownerEditAddress">Address</label><textarea class="form-control" id="ownerEditAddress" rows="2"></textarea></div></div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" type="submit">Save school details</button></div></form></div></div>`;
+        modal.innerHTML = `<div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered"><div class="modal-content"><form id="ownerSchoolEditForm"><div class="modal-header"><div><h2 class="modal-title fs-5">Edit school details</h2><div class="small text-muted">Update school information, contacts, reported totals, and facilities. School code, administrator credentials, and subscription are managed separately.</div></div><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><input id="ownerEditSchoolId" type="hidden"><h3 class="h6 mb-3">School information</h3><div class="row g-3 mb-4"><div class="col-md-6"><label class="form-label" for="ownerEditName">School name *</label><input class="form-control" id="ownerEditName" required></div><div class="col-md-6"><label class="form-label" for="ownerEditType">Institution type *</label><select class="form-select" id="ownerEditType" required><option value="School">School</option><option value="College">College</option><option value="ERP">RollCall ERP</option></select></div><div class="col-md-6"><label class="form-label" for="ownerEditEstablishedYear">Established year</label><input class="form-control" id="ownerEditEstablishedYear" type="number" min="1800"></div><div class="col-12"><label class="form-label" for="ownerEditAddress">Complete address *</label><textarea class="form-control" id="ownerEditAddress" rows="2" required></textarea></div><div class="col-md-4"><label class="form-label" for="ownerEditCity">City *</label><input class="form-control" id="ownerEditCity" required></div><div class="col-md-4"><label class="form-label" for="ownerEditState">State *</label><input class="form-control" id="ownerEditState" required></div><div class="col-md-4"><label class="form-label" for="ownerEditZipCode">ZIP code *</label><input class="form-control" id="ownerEditZipCode" required></div></div><h3 class="h6 mb-3">Contact information</h3><div class="row g-3 mb-4"><div class="col-md-6"><label class="form-label" for="ownerEditPrincipalName">Principal name *</label><input class="form-control" id="ownerEditPrincipalName" required></div><div class="col-md-6"><label class="form-label" for="ownerEditPrincipalEmail">Principal email *</label><input class="form-control" id="ownerEditPrincipalEmail" type="email" required></div><div class="col-md-6"><label class="form-label" for="ownerEditPhone">School phone *</label><input class="form-control" id="ownerEditPhone" type="tel" required></div><div class="col-md-6"><label class="form-label" for="ownerEditAlternatePhone">Alternate phone</label><input class="form-control" id="ownerEditAlternatePhone" type="tel"></div></div><h3 class="h6 mb-1">School details</h3><p class="small text-muted mb-3">Reported figures are informational and do not change subscription profile limits.</p><div class="row g-3 mb-4"><div class="col-md-4"><label class="form-label" for="ownerEditCapacity">School student capacity</label><input class="form-control" id="ownerEditCapacity" type="number" min="0"></div><div class="col-md-4"><label class="form-label" for="ownerEditCurrentStudents">Current students (reported)</label><input class="form-control" id="ownerEditCurrentStudents" type="number" min="0"></div><div class="col-md-4"><label class="form-label" for="ownerEditTeacherCount">Teachers (reported)</label><input class="form-control" id="ownerEditTeacherCount" type="number" min="0"></div><div class="col-md-6"><label class="form-label" for="ownerEditAccreditation">Accreditation body</label><input class="form-control" id="ownerEditAccreditation"></div><div class="col-md-6"><label class="form-label" for="ownerEditWebsite">School website</label><input class="form-control" id="ownerEditWebsite" type="url" placeholder="https://"></div></div><h3 class="h6 mb-3">Facilities</h3><div class="row g-3"><div class="col-sm-6 col-lg-3"><div class="form-check"><input class="form-check-input" id="ownerEditLibrary" type="checkbox"><label class="form-check-label" for="ownerEditLibrary">Library</label></div></div><div class="col-sm-6 col-lg-3"><div class="form-check"><input class="form-check-input" id="ownerEditComputerLab" type="checkbox"><label class="form-check-label" for="ownerEditComputerLab">Computer lab</label></div></div><div class="col-sm-6 col-lg-3"><div class="form-check"><input class="form-check-input" id="ownerEditSports" type="checkbox"><label class="form-check-label" for="ownerEditSports">Sports facility</label></div></div><div class="col-sm-6 col-lg-3"><div class="form-check"><input class="form-check-input" id="ownerEditTransportation" type="checkbox"><label class="form-check-label" for="ownerEditTransportation">Transportation</label></div></div></div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" id="ownerEditSaveButton" type="submit">Save school details</button></div></form></div></div>`;
         document.body.append(modal);
         modal.querySelector('form').addEventListener('submit', saveSchoolDetails);
     }
 
     function openSchoolEdit(school) {
         installSchoolEditModal();
-        document.getElementById('ownerEditSchoolId').value = school.id;
-        document.getElementById('ownerEditName').value = school.name || '';
-        document.getElementById('ownerEditType').value = school.type || '';
-        document.getElementById('ownerEditPhone').value = school.contacts?.phone || school.contact || '';
-        document.getElementById('ownerEditCity').value = school.address?.city || '';
-        document.getElementById('ownerEditAddress').value = school.address?.complete || school.location || '';
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('ownerSchoolEditModal')).show();
+        const modal = document.getElementById('ownerSchoolEditModal');
+        const details = school.details || {};
+        const facilities = school.facilities || {};
+        const fields = {
+            ownerEditSchoolId: school.id,
+            ownerEditName: school.name || '',
+            ownerEditType: school.type || school.institutionType || 'School',
+            ownerEditEstablishedYear: school.establishedYear || '',
+            ownerEditAddress: school.address?.complete || school.location || '',
+            ownerEditCity: school.address?.city || '',
+            ownerEditState: school.address?.state || '',
+            ownerEditZipCode: school.address?.zipCode || '',
+            ownerEditPrincipalName: school.contacts?.principal?.name || '',
+            ownerEditPrincipalEmail: school.contacts?.principal?.email || '',
+            ownerEditPhone: school.contacts?.phone || school.contact || '',
+            ownerEditAlternatePhone: school.contacts?.alternatePhone || '',
+            ownerEditCapacity: details.capacity ?? '',
+            ownerEditCurrentStudents: details.currentStudents ?? '',
+            ownerEditTeacherCount: details.teacherCount ?? '',
+            ownerEditAccreditation: details.accreditation || '',
+            ownerEditWebsite: details.website || ''
+        };
+        Object.entries(fields).forEach(([id, value]) => { document.getElementById(id).value = String(value); });
+        document.getElementById('ownerEditLibrary').checked = facilities.library === true;
+        document.getElementById('ownerEditComputerLab').checked = facilities.computerLab === true;
+        document.getElementById('ownerEditSports').checked = facilities.sports === true;
+        document.getElementById('ownerEditTransportation').checked = facilities.transportation === true;
+        const establishedYear = document.getElementById('ownerEditEstablishedYear');
+        establishedYear.max = String(new Date().getFullYear());
+        modal.querySelector('#ownerSchoolEditForm').classList.remove('was-validated');
+        bootstrap.Modal.getOrCreateInstance(modal).show();
     }
 
     async function saveSchoolDetails(event) {
         event.preventDefault();
+        const form = event.currentTarget;
+        form.classList.add('was-validated');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
         const id = document.getElementById('ownerEditSchoolId').value;
         const school = (schools || []).find(item => item.id === id);
         if (!school) return notify('School record could not be found. Refresh the list and retry.', 'danger');
-        const updates = { name: document.getElementById('ownerEditName').value.trim(), type: document.getElementById('ownerEditType').value.trim(), 'contacts/phone': document.getElementById('ownerEditPhone').value.trim(), 'address/city': document.getElementById('ownerEditCity').value.trim(), 'address/complete': document.getElementById('ownerEditAddress').value.trim(), lastUpdated: new Date().toISOString() };
+        const fieldValue = id => document.getElementById(id).value.trim();
+        const schoolDetails = {
+            ...school,
+            name: fieldValue('ownerEditName'),
+            type: fieldValue('ownerEditType'),
+            institutionType: fieldValue('ownerEditType').toLowerCase(),
+            establishedYear: fieldValue('ownerEditEstablishedYear'),
+            address: {
+                ...(school.address || {}),
+                complete: fieldValue('ownerEditAddress'),
+                city: fieldValue('ownerEditCity'),
+                state: fieldValue('ownerEditState'),
+                zipCode: fieldValue('ownerEditZipCode')
+            },
+            contacts: {
+                ...(school.contacts || {}),
+                principal: {
+                    ...(school.contacts?.principal || {}),
+                    name: fieldValue('ownerEditPrincipalName'),
+                    email: fieldValue('ownerEditPrincipalEmail')
+                },
+                phone: fieldValue('ownerEditPhone'),
+                alternatePhone: fieldValue('ownerEditAlternatePhone')
+            },
+            details: {
+                ...(school.details || {}),
+                capacity: Number(fieldValue('ownerEditCapacity')) || 0,
+                currentStudents: Number(fieldValue('ownerEditCurrentStudents')) || 0,
+                teacherCount: Number(fieldValue('ownerEditTeacherCount')) || 0,
+                accreditation: fieldValue('ownerEditAccreditation'),
+                website: fieldValue('ownerEditWebsite')
+            },
+            facilities: {
+                ...(school.facilities || {}),
+                library: document.getElementById('ownerEditLibrary').checked,
+                computerLab: document.getElementById('ownerEditComputerLab').checked,
+                sports: document.getElementById('ownerEditSports').checked,
+                transportation: document.getElementById('ownerEditTransportation').checked
+            },
+            lastUpdated: new Date().toISOString()
+        };
+        const updates = {};
+        for (const [key, value] of Object.entries(schoolDetails)) {
+            updates[`schools/${id}/${key}`] = value;
+            updates[`owners/${currentUser.uid}/schools/${id}/${key}`] = value;
+        }
+        updates[`publicSchools/${id}/name`] = schoolDetails.name;
+        updates[`publicSchools/${id}/type`] = schoolDetails.type;
+        updates[`publicSchools/${id}/institutionType`] = schoolDetails.institutionType;
+        updates[`publicSchools/${id}/updatedAt`] = Date.now();
+        const saveButton = document.getElementById('ownerEditSaveButton');
+        saveButton.disabled = true;
+        saveButton.textContent = 'Saving...';
         try {
-            await database.ref(`schools/${id}`).update(updates);
-            await database.ref(`publicSchools/${id}`).update({ name: updates.name, type: updates.type, updatedAt: Date.now() });
-            await ownerPath(`schools/${id}`).update(updates).catch(() => {});
+            await database.ref().update(updates);
+            Object.assign(school, schoolDetails);
             bootstrap.Modal.getInstance(document.getElementById('ownerSchoolEditModal'))?.hide();
+            loadSchoolsTable();
             notify('School details updated.', 'success');
-        } catch (error) { notify(`Could not update school details: ${error.message}`, 'danger'); }
+        } catch (error) {
+            console.error('Could not update school details:', error);
+            notify(`Could not update school details: ${error.message}`, 'danger');
+        } finally {
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save school details';
+        }
     }
 
     async function loadPricingPlans() {
@@ -1253,19 +1341,20 @@
             const row = document.createElement('tr');
             const location = school.address?.city || school.location || school.address?.complete || '—';
             const contact = school.contacts?.phone || school.contact || school.contacts?.principal?.email || '—';
-            row.innerHTML = `<td class="fw-semibold">${escapeHtml(school.name || 'Unnamed school')}<div class="small text-muted">${escapeCodeForTable(school)}</div></td><td>${escapeHtml(school.type || '—')}</td><td>${escapeHtml(location)}</td><td>${escapeHtml(contact)}</td><td><span class="badge text-bg-${String(school.status).toLowerCase() === 'inactive' ? 'secondary' : 'success'}">${escapeHtml(school.status || 'Active')}</span></td><td>${Number(school.details?.currentStudents || 0)}</td><td class="text-nowrap"></td>`;
-            const actions = document.createElement('div'); actions.className = 'd-flex gap-1';
-            const details = document.createElement('button'); details.className = 'btn btn-sm btn-outline-info'; details.type = 'button'; details.title = 'View school and subscription details'; details.setAttribute('aria-label', `View details for ${school.name || 'school'}`); details.innerHTML = '<i class="fas fa-info" aria-hidden="true"></i>'; details.onclick = () => showSchoolDetails(school);
+            row.innerHTML = `<td class="owner-school-name fw-semibold">${escapeHtml(school.name || 'Unnamed school')}<div class="small text-muted">${escapeCodeForTable(school)}</div></td><td>${escapeHtml(school.type || '—')}</td><td>${escapeHtml(location)}</td><td>${escapeHtml(contact)}</td><td><span class="badge text-bg-${String(school.status).toLowerCase() === 'inactive' ? 'secondary' : 'success'}">${escapeHtml(school.status || 'Active')}</span></td><td>${Number(school.details?.currentStudents || 0)}</td><td class="text-nowrap"></td>`;
+            const actions = document.createElement('div'); actions.className = 'owner-school-actions';
+            const details = document.createElement('button'); details.className = 'btn btn-sm btn-outline-info owner-school-action'; details.type = 'button'; details.title = 'View school and subscription details'; details.setAttribute('aria-label', `View details for ${school.name || 'school'}`); details.innerHTML = '<i class="fas fa-info" aria-hidden="true"></i>'; details.onclick = () => showSchoolDetails(school);
             const subscriptionExpired = school.subscription?.endDate && Date.parse(school.subscription.endDate) < Date.now();
             const schoolActive = String(school.status || 'Active').toLowerCase() === 'active' && String(school.subscription?.status || 'active').toLowerCase() !== 'inactive' && !subscriptionExpired;
-            const toggle = document.createElement('button'); toggle.className = 'btn btn-sm btn-outline-secondary'; toggle.textContent = schoolActive ? 'Deactivate' : 'Activate'; toggle.onclick = () => toggleSchoolStatus(school);
-            const plan = document.createElement('button'); plan.className = 'btn btn-sm btn-outline-primary'; plan.textContent = 'Subscription'; plan.onclick = () => { switchSection('owner-pricing'); renderSubscriptionRows(); };
-            const edit = document.createElement('button'); edit.className = 'btn btn-sm btn-outline-primary'; edit.textContent = 'Edit'; edit.onclick = () => openSchoolEdit(school);
+            const toggle = document.createElement('button'); toggle.className = 'btn btn-sm btn-outline-secondary owner-school-action'; toggle.textContent = schoolActive ? 'Deactivate' : 'Activate'; toggle.setAttribute('aria-label', `${schoolActive ? 'Deactivate' : 'Activate'} ${school.name || 'school'}`); toggle.onclick = () => toggleSchoolStatus(school);
+            const plan = document.createElement('button'); plan.className = 'btn btn-sm btn-outline-primary owner-school-action'; plan.textContent = 'Plan'; plan.title = 'Manage school subscription'; plan.onclick = () => { switchSection('owner-pricing'); renderSubscriptionRows(); };
+            const edit = document.createElement('button'); edit.className = 'btn btn-sm btn-outline-primary owner-school-action'; edit.innerHTML = '<i class="fas fa-pen" aria-hidden="true"></i> Edit'; edit.onclick = () => openSchoolEdit(school);
             const deleteSchoolButton = document.createElement('button');
-            deleteSchoolButton.className = 'btn btn-sm btn-outline-danger';
+            deleteSchoolButton.className = 'btn btn-sm btn-outline-danger owner-school-action';
             deleteSchoolButton.type = 'button';
-            deleteSchoolButton.textContent = 'Email report & delete';
+            deleteSchoolButton.innerHTML = '<i class="fas fa-trash-alt" aria-hidden="true"></i> Delete';
             deleteSchoolButton.title = 'Email the school report to its administrator, then permanently delete the school and linked accounts';
+            deleteSchoolButton.setAttribute('aria-label', `Email report and delete ${school.name || 'school'}`);
             deleteSchoolButton.onclick = () => deleteSchoolAfterReport(school, deleteSchoolButton);
             actions.append(details, edit, toggle, plan, deleteSchoolButton); row.cells[6].append(actions); body.append(row);
         });
