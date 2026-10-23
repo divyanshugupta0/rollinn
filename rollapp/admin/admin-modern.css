@@ -4406,7 +4406,7 @@ body.admin-school-mode :is(#manage-courses-section, #manage-courses-section-acti
 :is(#manage-teachers-section, #manage-teachers-section-active) .mt-action-trigger:hover,
 :is(#manage-teachers-section, #manage-teachers-section-active) .mt-action-trigger[aria-expanded="true"] { border-color: #a5b4fc !important; color: #4338ca !important; background: #f8f8ff !important; }
 :is(#manage-teachers-section, #manage-teachers-section-active) .mt-status { color: #65738a !important; }
-:is(#manage-teachers-section, #manage-teachers-section-active) #mtDirectory > .alert { margin: 0 !important; padding: 28px 18px !important; border: 1px dashed #d5ddec !important; border-radius: 11px !important; color: #718097 !important; background: #fafbfe !important; text-align: center !important; }
+:is(#manage-teachers-section, #manage-teachers-section-active) #mtDirectory > .mt-empty-state { margin: 0 !important; padding: 28px 18px !important; border: 1px dashed #d5ddec !important; border-radius: 11px !important; color: #718097 !important; background: #fafbfe !important; text-align: center !important; }
 @media (max-width: 760px) {
     :is(#manage-teachers-section, #manage-teachers-section-active) .mt-page-header { align-items: flex-start !important; flex-direction: column !important; padding: 18px !important; }
     :is(#manage-teachers-section, #manage-teachers-section-active) .mt-header-actions { width: 100% !important; }

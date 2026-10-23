@@ -262,7 +262,7 @@
         const count = activeRoot.querySelector('#mtTeacherCount');
         if (count) count.textContent = String(teachers.length);
         if (!filtered.length) {
-            directory.innerHTML = `<div class="alert alert-light">${search ? 'No teachers match your search.' : 'No teacher accounts are linked to this school yet.'}</div>`;
+            directory.innerHTML = `<div class="mt-empty-state">${search ? 'No teachers match your search.' : 'No teacher accounts are linked to this school yet.'}</div>`;
             return;
         }
 
