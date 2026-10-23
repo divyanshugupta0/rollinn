@@ -108,48 +108,57 @@
             pointer-events: none;
         }
         .account-erp-license {
-            margin-top: 18px;
-            padding: 18px;
-            border: 1px solid #bfdbfe;
-            border-radius: 14px;
-            background: #eff6ff;
+            margin-top: 0;
+            padding: 18px 20px;
+            border-top: 1px solid #e8edf3;
+            background: #fff;
         }
         .account-erp-license[hidden] { display: none; }
-        .account-erp-license h4 { margin: 0 0 8px; color: #1e3a8a; }
-        .account-erp-license p { margin: 0 0 12px; color: #475569; }
+        .account-erp-license h4 { display:flex; align-items:center; gap:9px; margin: 0 0 8px; color: #243247; font-size:1rem; font-weight:700; }
+        .account-erp-license h4 i { color:#5274a5; }
+        .account-erp-license p { margin: 0 0 12px; color: #64748b; }
         .account-erp-code-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
         .account-erp-code-row code {
             flex: 1 1 280px;
-            padding: 12px;
-            border: 1px solid #bfdbfe;
-            border-radius: 8px;
-            background: #fff;
-            color: #0f172a;
-            font-size: .95rem;
+            padding: 11px 13px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #f8fafc;
+            color: #334155;
+            font: 600 .92rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
             overflow-wrap: anywhere;
             user-select: all;
         }
         .account-erp-license .account-erp-license-status { margin-top: 10px; }
         .account-erp-devices {
-            margin-top: 18px;
-            padding-top: 16px;
-            border-top: 1px solid #bfdbfe;
+            margin-top: 20px;
+            padding-top: 17px;
+            border-top: 1px solid #e8edf3;
         }
         .account-erp-devices[hidden] { display: none; }
-        .account-erp-devices h5 { margin: 0 0 12px; color: #1e3a8a; }
-        .account-erp-device-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+        .account-erp-devices h5 { display:flex; align-items:center; gap:8px; margin: 0 0 12px; color: #243247; font-size:.95rem; font-weight:700; }
+        .account-erp-devices h5 i { color:#5274a5; }
+        .account-erp-device-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
         .account-erp-device {
             display: grid;
             gap: 6px;
-            padding: 14px;
-            border: 1px solid #dbeafe;
-            border-radius: 10px;
-            background: #fff;
+            padding: 14px 15px;
+            border: 1px solid #e8edf3;
+            border-radius: 12px;
+            background: #f8fafc;
             color: #475569;
             font-size: .88rem;
             overflow-wrap: anywhere;
         }
-        .account-erp-device strong { color: #0f172a; font-size: .98rem; }
+        .account-erp-device strong { color: #243247; font-size: .96rem; }
+        .account-erp-download-card[hidden] { display:none; }
+        .account-erp-download-card .card-body { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; }
+        .account-erp-download-card .account-card-description { margin:0; }
+        .account-erp-download-card .primary-btn { text-decoration:none; white-space:nowrap; }
+        @media (max-width: 600px) {
+            .account-erp-license { padding:16px; }
+            .account-erp-download-card .primary-btn { width:100%; text-align:center; }
+        }
     </style>
         <script src="admin.js"></script>
     <script src="manage-teachers.js"></script>
@@ -5617,6 +5626,15 @@
                                 <div id="account-erp-devices-list"></div>
                             </div>
                             <p id="account-erp-license-status" class="account-erp-license-status" role="status"></p>
+                        </div>
+                    </section>
+                    <section id="account-erp-download" class="card account-card ac-card account-erp-download-card" hidden>
+                        <div class="card-header"><span class="ac-card-icon"><i class="fas fa-download"></i></span><div><span class="ac-card-kicker">ROLLCALL ERP</span><h3>Desktop application</h3></div></div>
+                        <div class="card-body">
+                            <p class="account-card-description">Download the RollCall ERP desktop application for your school computer.</p>
+                            <a class="primary-btn" href="https://pub-abd456e24fae48faa48a5ccca3791a3e.r2.dev/RollCall-ERP-0.3.0-x64-setup.exe" target="_blank" rel="noopener noreferrer" download>
+                                <i class="fas fa-download"></i> Download RollCall ERP
+                            </a>
                         </div>
                     </section>
                     <section class="card account-card account-security-card ac-card ac-security-card">

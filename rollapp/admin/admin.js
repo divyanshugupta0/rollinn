@@ -1376,6 +1376,7 @@ function initManageAccountSection() {
     const copyCodeButton = section.querySelector('#copy-institution-code-btn');
     const exportButton = section.querySelector('#export-account-summary-btn');
     const erpLicensePanel = section.querySelector('#account-erp-license');
+    const erpDownloadPanel = section.querySelector('#account-erp-download');
     const erpLicenseDescription = section.querySelector('#account-erp-license-description');
     const erpLicenseStatus = section.querySelector('#account-erp-license-status');
     const erpCodeRow = section.querySelector('#account-erp-code-row');
@@ -1579,6 +1580,7 @@ function initManageAccountSection() {
                 `;
                 if (String(school.type || school.institutionType || '').trim().toLowerCase() === 'erp' && erpLicensePanel) {
                     erpLicensePanel.hidden = false;
+                    if (erpDownloadPanel) erpDownloadPanel.hidden = false;
                     erpLicenseDescription.textContent = 'Checking the active ERP subscription and access code...';
                     erpLicenseStatus.textContent = '';
                     erpCodeRow.hidden = true;
@@ -1586,6 +1588,7 @@ function initManageAccountSection() {
                     loadErpPortalLicense();
                 } else if (erpLicensePanel) {
                     erpLicensePanel.hidden = true;
+                    if (erpDownloadPanel) erpDownloadPanel.hidden = true;
                 }
                 showStatus('success', 'Account and institution details are up to date.', 'fa-check-circle');
             })
