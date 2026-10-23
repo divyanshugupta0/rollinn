@@ -5539,6 +5539,7 @@
         }
 
         const LOGIN_EMAIL_KEY = 'rollcall_login_email';
+        const LAST_STUDENT_PROFILE_KEY = 'rollcall_last_student_profile_v1';
 
         // User cache (device storage)
         const USER_CACHE_PREFIX = 'rollcall_user_cache_v1:';
@@ -5579,6 +5580,53 @@
         function getSavedEmail() {
             const saved = safeStorage.getItem(LOGIN_EMAIL_KEY);
             return saved && typeof saved === 'string' ? saved : '';
+        }
+
+        function getLastStudentProfile() {
+            try {
+                const raw = safeStorage.getItem(LAST_STUDENT_PROFILE_KEY);
+                if (!raw) return null;
+                const profile = JSON.parse(raw);
+                return profile && typeof profile === 'object' && profile.uid
+                    ? profile
+                    : null;
+            } catch (error) {
+                console.warn('Could not read the remembered student profile:', error);
+                return null;
+            }
+        }
+
+        function rememberStudentProfile(user, userData) {
+            if (!user?.uid || !userData) return;
+            const profile = {
+                uid: user.uid,
+                email: userData.email || user.email || '',
+                name: userData.name || user.displayName || (userData.email || user.email || '').split('@')[0],
+                profilePhoto: userData.profilePhoto || userData.photoURL || user.photoURL || '',
+                profilePhotoKey: userData.profilePhotoKey || userData.profilePhoto || ''
+            };
+            try {
+                safeStorage.setItem(LAST_STUDENT_PROFILE_KEY, JSON.stringify(profile));
+            } catch (error) {
+                console.warn('Could not remember the student profile on this device:', error);
+            }
+        }
+
+        async function renderLastStudentProfile() {
+            const profile = getLastStudentProfile();
+            if (!profile) return false;
+            if (profile.profilePhoto && loginProfileImg) {
+                await applyEncryptedPhotoToImg(
+                    loginProfileImg,
+                    profile.profilePhoto,
+                    profile.profilePhotoKey || profile.profilePhoto
+                );
+            }
+            if (profile.email && emailInput && !emailInput.value) {
+                emailInput.value = profile.email;
+            }
+            updateLoginAvatarName(profile.name);
+            return true;
         }
 
         // Lazy script loading for heavy libraries
@@ -5761,6 +5809,9 @@
         const loginProfileImg = document.getElementById('login-profile-img');
         const loginAvatarContainer = document.querySelector('.avatar-container');
         const DEFAULT_LOGIN_AVATAR_SRC = loginProfileImg ? loginProfileImg.getAttribute('src') : '';
+        renderLastStudentProfile().catch(error => {
+            console.error('Could not display the remembered student profile:', error);
+        });
 
         configureStudentCourseControls({schoolCodeInputId:'reg-school-code', courseSelectId:'reg-course', yearSelectId:'reg-year', sectionSelectId:'reg-section'})
             .catch(error => {
@@ -5968,6 +6019,29 @@
             hideDeviceLockNotice();
         }
 
+        function updateLoginAvatarName(name) {
+            if (!loginAvatarContainer) return;
+            let nameDisplay = loginAvatarContainer.querySelector('.device-lock-name');
+            if (!name) {
+                if (nameDisplay) nameDisplay.remove();
+                return;
+            }
+            if (!nameDisplay) {
+                nameDisplay = document.createElement('div');
+                nameDisplay.className = 'device-lock-name';
+                nameDisplay.style.cssText = `
+                    text-align: center;
+                    margin-top: 10px;
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    color: var(--primary-color);
+                    opacity: 0.8;
+                `;
+                loginAvatarContainer.appendChild(nameDisplay);
+            }
+            nameDisplay.textContent = name;
+        }
+
         async function renderDeviceLockProfile(lockProfile) {
             if (!lockProfile) {
                 resetLoginAvatar();
@@ -5984,27 +6058,7 @@
                 loginProfileImg.src = DEFAULT_LOGIN_AVATAR_SRC;
             }
 
-            if (loginAvatarContainer) {
-                let nameDisplay = loginAvatarContainer.querySelector('.device-lock-name');
-                if (!lockProfile.name) {
-                    if (nameDisplay) nameDisplay.remove();
-                } else {
-                    if (!nameDisplay) {
-                        nameDisplay = document.createElement('div');
-                        nameDisplay.className = 'device-lock-name';
-                        nameDisplay.style.cssText = `
-                            text-align: center;
-                            margin-top: 10px;
-                            font-size: 0.9rem;
-                            font-weight: 600;
-                            color: var(--primary-color);
-                            opacity: 0.8;
-                        `;
-                        loginAvatarContainer.appendChild(nameDisplay);
-                    }
-                    nameDisplay.textContent = lockProfile.name;
-                }
-            }
+            updateLoginAvatarName(lockProfile.name);
 
             if (lockProfile.email && emailInput && !emailInput.value) {
                 emailInput.value = lockProfile.email;
@@ -6057,7 +6111,7 @@
                 const activeLock = await getActiveDeviceLock();
                 if (!activeLock || !activeLock.userId) {
                     clearDeviceLockProfile();
-                    resetLoginAvatar();
+                    if (!(await renderLastStudentProfile())) resetLoginAvatar();
                     return;
                 }
 
@@ -6100,7 +6154,7 @@
                 if (remainingMinutes) showDeviceLockNotice(profileData, remainingMinutes);
             } catch (error) {
                 console.error('Error loading device lock profile:', error);
-                resetLoginAvatar();
+                if (!(await renderLastStudentProfile())) resetLoginAvatar();
             }
         }
 
@@ -7075,6 +7129,7 @@
 
                         cacheUserData(user.uid, userData);
                         updateDeviceLockProfile(user, userData);
+                        rememberStudentProfile(user, userData);
 
                         applyAndroidDownloadCreditsFromUserData(userData);
 
