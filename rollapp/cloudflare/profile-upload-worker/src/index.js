@@ -1454,15 +1454,34 @@ async function readErpLicenseContext(env, schoolId, accessToken) {
         return { erpMode: false, school, ownerSchool, subscription };
     }
     if (!subscription.planId) {
-        return { erpMode: true, active: false, school, ownerSchool, ownerId, subscription, plan: null };
+        return {
+            erpMode: true,
+            active: false,
+            subscriptionRequired: true,
+            school,
+            ownerSchool,
+            ownerId,
+            subscription,
+            plan: null
+        };
     }
     const plan = await readDatabaseWithAccessToken(
         env,
         `owners/${ownerId}/pricingPlans/${subscription.planId}`,
         accessToken
     );
-    if (!plan || plan.type === 'topup') {
-        return { erpMode: true, active: false, school, ownerSchool, ownerId, subscription, plan: null };
+    const planProductType = String(plan?.productType || (plan?.erpPlan === true ? 'erp' : '')).trim().toLowerCase();
+    if (!plan || plan.type === 'topup' || planProductType !== 'erp') {
+        return {
+            erpMode: true,
+            active: false,
+            subscriptionRequired: true,
+            school,
+            ownerSchool,
+            ownerId,
+            subscription,
+            plan: null
+        };
     }
     return {
         erpMode: true,
@@ -1518,13 +1537,11 @@ async function issuePortalLicense(request, env, origin) {
         );
         const { school, ownerSchool, subscription, plan } = context;
         const expiresAt = Date.parse(subscription.endDate || '');
-        if (!Number.isFinite(expiresAt)) {
-            throw new Error('The ERP subscription has an invalid end date.');
-        }
-        if (!context.active) {
+        if (!context.active || !Number.isFinite(expiresAt)) {
             return uploadResponse({
                 erpMode: true,
                 active: false,
+                subscriptionRequired: context.subscriptionRequired === true,
                 expired: Number.isFinite(expiresAt) && expiresAt <= Date.now(),
                 schoolName: String(ownerSchool.name || school.name || ''),
                 schoolCode: String(ownerSchool.code || school.code || ''),
@@ -1539,10 +1556,16 @@ async function issuePortalLicense(request, env, origin) {
         }
 
         const previousLicense = await readLicenseRecord(env, schoolId, accessToken);
+        const previousRecord = previousLicense.record;
+        const previousExpiresAt = Number(previousRecord?.expiresAt);
+        const previousLicenseIsCurrent = previousRecord?.active === true &&
+            previousRecord.codeHash &&
+            Number.isFinite(previousExpiresAt) &&
+            previousExpiresAt > Date.now();
         if (
-            previousLicense.record &&
-            Number(previousLicense.record.expiresAt) <= Date.now() &&
-            expiresAt <= Number(previousLicense.record.expiresAt)
+            previousRecord &&
+            !previousLicenseIsCurrent &&
+            (!Number.isFinite(previousExpiresAt) || expiresAt <= previousExpiresAt)
         ) {
             return uploadResponse({
                 erpMode: true,

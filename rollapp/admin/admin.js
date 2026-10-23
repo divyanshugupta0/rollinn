@@ -1625,7 +1625,10 @@ function initManageAccountSection() {
                 erpRenewButton.hidden = true;
                 return;
             }
-            if (result.expired === true) {
+            if (result.subscriptionRequired === true) {
+                erpLicenseDescription.textContent = 'No active ERP subscription plan is attached. The institution owner must assign or renew an ERP plan before an access code can be issued.';
+                erpRenewButton.hidden = false;
+            } else if (result.expired === true) {
                 erpLicenseDescription.textContent = `${result.plan || loadedSubscription.plan || 'ERP plan'} expired on ${formatDate(result.endDate)}. The access code is inactive. Send a renewal request to the institution owner to receive a new code after renewal.`;
                 erpRenewButton.hidden = false;
             } else if (result.renewalRequired === true) {
