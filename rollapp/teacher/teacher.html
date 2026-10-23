@@ -5770,6 +5770,7 @@
     <!-- Add external scripts for new features -->
     <script src="section-fix.js"></script>
     <script src="../auth/subscription-expiry.js"></script>
+    <script src="../shared/account-block-status.js"></script>
     <script src="../auth/login-handler.js"></script>
     <script src="teacher-features.js"></script>
     <script src="teacher-settings.js"></script>
@@ -5784,8 +5785,10 @@
     <script src="classes-schedule.js"></script>
     <script src="location-features.js"></script>
     <script src="reports-dashboard.js"></script>
+    <script src="student-photo-preview.js"></script>
     <script src="students-record.js"></script>
     <script src="teacher-notifications.js"></script>
+    <script src="teacher-blocked-users.js"></script>
     <script src="teacher-profile-requests.js"></script>
     <script src="teacher-leave-requests.js"></script>
     <script src="teacher-homework.js"></script>
@@ -6060,9 +6063,17 @@
                 ])
                     .then(async ([snapshot, blockedSnapshot]) => {
                         let profile = snapshot.val();
-                        if (profile?.blocked === true || blockedSnapshot.exists()) {
-                            const blockedInfo = blockedSnapshot.val() || {};
-                            const blockReason = String(blockedInfo.reason || '').trim().replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+                        const blockStatus = await window.RollCallAccountBlockStatus.check(
+                            profile || {},
+                            blockedSnapshot,
+                            'teacher',
+                            async blockerUid => {
+                                const blockerSnapshot = await firebase.database().ref(`users/${blockerUid}`).once('value');
+                                return blockerSnapshot.val() || {};
+                            }
+                        );
+                        if (blockStatus.blocked) {
+                            const blockReason = blockStatus.reason.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
                             currentTeacher = null;
                             students = [];
                             document.body.classList.remove('teacher-authenticated', 'teacher-school-mode');
@@ -6112,11 +6123,21 @@
                         // Revoke active access immediately if an administrator blocks this teacher.
                         if (window.__teacherBlockedWatchUid !== user.uid) {
                             window.__teacherBlockedWatchRefs?.forEach(({ ref, callback }) => ref.off('value', callback));
-                            const enforceBlockedStatus = (blocked, blockInfo = {}) => {
-                                if (!blocked || firebase.auth().currentUser?.uid !== user.uid) return;
+                            const enforceBlockedStatus = async (blockedValue) => {
+                                if (firebase.auth().currentUser?.uid !== user.uid) return;
+                                const status = await window.RollCallAccountBlockStatus.check(
+                                    currentTeacher,
+                                    blockedValue,
+                                    'teacher',
+                                    async blockerUid => {
+                                        const blockerSnapshot = await firebase.database().ref(`users/${blockerUid}`).once('value');
+                                        return blockerSnapshot.val() || {};
+                                    }
+                                );
+                                if (!status.blocked) return;
                                 currentTeacher = null;
                                 document.body.classList.remove('teacher-authenticated', 'teacher-school-mode');
-                                const reason = String(blockInfo.reason || '').trim().replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+                                const reason = String(status.reason || '').trim().replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
                                 showAlert(loginAlert, `This teacher account has been blocked.${reason ? ` Reason: ${reason}` : ''} Contact your school administrator.`, 'error');
                                 loginAlert.dataset.persistent = 'true';
                                 firebase.auth().signOut().catch(error => console.warn('Unable to end blocked teacher session:', error));
@@ -6124,12 +6145,8 @@
                             const blockedRefs = [
                                 {
                                     ref: firebase.database().ref('blockedUsers/' + user.uid),
-                                    callback: snapshot => enforceBlockedStatus(snapshot.exists(), snapshot.val() || {})
+                                    callback: snapshot => enforceBlockedStatus(snapshot)
                                 },
-                                {
-                                    ref: firebase.database().ref('users/' + user.uid + '/blocked'),
-                                    callback: snapshot => enforceBlockedStatus(snapshot.val() === true)
-                                }
                             ];
                             blockedRefs.forEach(({ ref, callback }) => {
                                 ref.on('value', callback);
@@ -6954,8 +6971,10 @@
         function fallbackLoadStudents() {
             console.log('Fallback: Checking if student data needs to be loaded');
             
-            // Only run if authenticated and students array is empty
-            if (firebase.auth().currentUser && students.length === 0) {
+            // Only run after the teacher profile and school assignment are ready.
+            const signedInUser = firebase.auth().currentUser;
+            const schoolId = String(currentTeacher?.schoolId || '').trim();
+            if (signedInUser && schoolId && students.length === 0) {
                 console.log('Fallback: Loading students data');
                 
             // Show loading indicator
@@ -6966,8 +6985,9 @@
             `;
             
                 // Direct database query to get students - using same approach as admin.html
-                firebase.database().ref('schoolUsers/' + currentTeacher.schoolId).once('value')
+                firebase.database().ref('schoolUsers/' + schoolId).once('value')
                 .then((snapshot) => {
+                        if (firebase.auth().currentUser?.uid !== signedInUser.uid || String(currentTeacher?.schoolId || '').trim() !== schoolId) return;
                         console.log('Fallback: Students data received', snapshot.exists());
                         
                     if (snapshot.exists()) {
@@ -6990,6 +7010,7 @@
                     }
                 })
                 .catch((error) => {
+                        if (firebase.auth().currentUser?.uid !== signedInUser.uid) return;
                         console.error('Fallback: Error loading students:', error);
                     studentList.innerHTML = '<div class="student-item"><p><i class="fas fa-exclamation-circle"></i> Error loading students</p></div>';
                 });

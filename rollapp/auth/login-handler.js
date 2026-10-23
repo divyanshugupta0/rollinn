@@ -29,10 +29,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         firebase.database().ref(`blockedUsers/${uid}`).once('value')
                     ]);
                     const profile = profileSnapshot.val() || {};
-                    if (profile.blocked === true || blockedSnapshot.exists()) {
+                    const blockStatus = await window.RollCallAccountBlockStatus.check(
+                        profile,
+                        blockedSnapshot,
+                        'teacher',
+                        async blockerUid => {
+                            const blockerSnapshot = await firebase.database().ref(`users/${blockerUid}`).once('value');
+                            return blockerSnapshot.val() || {};
+                        }
+                    );
+                    if (blockStatus.blocked) {
                         await firebase.auth().signOut().catch(() => {});
-                        const blockedInfo = blockedSnapshot.val() || {};
-                        const reason = String(blockedInfo.reason || '').trim();
+                        const reason = blockStatus.reason;
                         const blockedError = new Error(`This teacher account has been blocked.${reason ? ` Reason: ${reason}` : ''} Contact your school administrator.`);
                         blockedError.code = 'auth/user-disabled';
                         throw blockedError;

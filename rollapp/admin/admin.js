@@ -279,15 +279,20 @@ function initBlockedUsers(panelRoot = null) {
 
     function loadBlockedUsers() {
         list.innerHTML = '<tr class="bu-empty-row"><td colspan="5"><div class="bu-empty-state"><i class="fas fa-spinner fa-spin"></i><span>Loading blocked accounts...</span></div></td></tr>';
-        Promise.all([db.ref('blockedUsers').once('value'), db.ref('users').once('value')]).then(([blockedSnapshot, usersSnapshot]) => {
+        Promise.all([db.ref('blockedUsers').once('value'), db.ref('users').once('value'), getCurrentAdminNotificationContext()]).then(([blockedSnapshot, usersSnapshot, adminContext]) => {
             const users = usersSnapshot.val() || {};
             blockedRows = [];
             if (blockedSnapshot.exists()) blockedSnapshot.forEach(child => {
                 const data = child.val() || {};
                 const profile = users[child.key] || {};
+                const role = String(data.role || profile.role || '').toLowerCase();
+                const schoolId = String(data.schoolId || profile.schoolId || '').trim();
+                if (schoolId !== adminContext.schoolId || !['student', 'teacher'].includes(role) ||
+                    String(profile.schoolId || '').trim() !== adminContext.schoolId) return;
                 blockedRows.push({
                     id: child.key,
-                    role: String(data.role || profile.role || '').toLowerCase(),
+                    role,
+                    schoolId,
                     name: data.name || profile.name || '',
                     email: data.email || profile.email || '',
                     reason: data.reason || '',
@@ -312,14 +317,14 @@ function initBlockedUsers(panelRoot = null) {
 
     function loadEligibleUsers() {
         userSelect.innerHTML = '<option value="">Loading users...</option>';
-        Promise.all([db.ref('users').once('value'), db.ref('blockedUsers').once('value')]).then(([usersSnapshot, blockedSnapshot]) => {
+        Promise.all([db.ref('users').once('value'), db.ref('blockedUsers').once('value'), getCurrentAdminNotificationContext()]).then(([usersSnapshot, blockedSnapshot, adminContext]) => {
             const blocked = blockedSnapshot.val() || {};
             eligibleUsers = [];
             usersSnapshot.forEach(child => {
                 const data = child.val() || {};
                 const role = String(data.role || '').toLowerCase();
-                if (!['student', 'teacher'].includes(role) || data.blocked || blocked[child.key]) return;
-                eligibleUsers.push({ id: child.key, role, name: data.name || '', email: data.email || '' });
+                if (!['student', 'teacher'].includes(role) || String(data.schoolId || '').trim() !== adminContext.schoolId || data.blocked || blocked[child.key]) return;
+                eligibleUsers.push({ id: child.key, role, schoolId: adminContext.schoolId, name: data.name || '', email: data.email || '' });
             });
             eligibleUsers.sort((a, b) => a.name.localeCompare(b.name));
             renderEligibleUsers();
@@ -366,20 +371,25 @@ function initBlockedUsers(panelRoot = null) {
         const role = this.dataset.role;
         if (!id || !['student', 'teacher'].includes(role)) return;
         this.disabled = true;
-        db.ref(`users/${id}`).once('value').then(snapshot => {
+        Promise.all([db.ref(`users/${id}`).once('value'), getCurrentAdminNotificationContext()]).then(([snapshot, adminContext]) => {
             if (!snapshot.exists()) throw new Error('Selected user not found.');
             const user = snapshot.val() || {};
             if (String(user.role || '').toLowerCase() !== role) throw new Error('The user type changed. Refresh and try again.');
+            if (String(user.schoolId || '').trim() !== adminContext.schoolId) throw new Error('You can only block students or teachers belonging to your school.');
             const updates = {};
             const blockedAt = Date.now();
             const reason = this.dataset.reason || '';
             const noticeKey = db.ref(`notifications/${id}`).push().key;
             updates[`blockedUsers/${id}`] = {
-                name: user.name || '', email: user.email || '', role,
+                name: user.name || '', email: user.email || '', role, schoolId: adminContext.schoolId,
                 reason, blockedDate: blockedAt,
                 blockedBy: firebase.auth().currentUser?.uid || null
             };
             updates[`users/${id}/blocked`] = true;
+            updates[`users/${id}/blockedSchoolId`] = adminContext.schoolId;
+            updates[`users/${id}/blockedRole`] = role;
+            updates[`users/${id}/blockedBy`] = firebase.auth().currentUser?.uid || null;
+            updates[`users/${id}/blockedReason`] = reason;
             updates[`notifications/${id}/${noticeKey}`] = {
                 title: 'Account access blocked',
                 message: `Your ${role} account was blocked by your school administrator.${reason ? ` Reason: ${reason}` : ''} Contact your administrator if you believe this is a mistake.`,
@@ -402,10 +412,22 @@ function initBlockedUsers(panelRoot = null) {
         const id = this.dataset.id;
         if (!id) return;
         this.disabled = true;
-        const updates = {};
-        updates[`blockedUsers/${id}`] = null;
-        updates[`users/${id}/blocked`] = false;
-        db.ref().update(updates).then(() => {
+        Promise.all([db.ref(`users/${id}`).once('value'), getCurrentAdminNotificationContext()]).then(([snapshot, adminContext]) => {
+            if (!snapshot.exists()) throw new Error('Selected account no longer exists.');
+            const user = snapshot.val() || {};
+            if (!['student', 'teacher'].includes(String(user.role || '').toLowerCase()) ||
+                String(user.schoolId || '').trim() !== adminContext.schoolId) {
+                throw new Error('You can only unblock students or teachers belonging to your school.');
+            }
+            const updates = {};
+            updates[`blockedUsers/${id}`] = null;
+            updates[`users/${id}/blocked`] = false;
+            updates[`users/${id}/blockedSchoolId`] = null;
+            updates[`users/${id}/blockedRole`] = null;
+            updates[`users/${id}/blockedBy`] = null;
+            updates[`users/${id}/blockedReason`] = null;
+            return db.ref().update(updates);
+        }).then(() => {
             document.getElementById('unblock-confirm-popup').classList.add('hidden');
             loadBlockedUsers();
             loadEligibleUsers();

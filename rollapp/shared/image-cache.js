@@ -81,13 +81,16 @@
 
     function cacheUrl(key, url) {
         if (!key || !url || /^(data:|blob:)/i.test(url)) return Promise.resolve(false);
-        return fetch(url, { mode: 'cors', credentials: 'omit' }).then(response => {
-            if (!response.ok || response.type === 'opaque') return false;
-            const type = response.headers.get('content-type') || '';
-            if (!type.startsWith('image/')) return false;
-            return response.blob().then(blob => {
-                if (!blob.size || blob.size > MAX_IMAGE_BYTES) return false;
-                return write({ key, url, blob, type, savedAt: Date.now() });
+        return read(String(key)).then(entry => {
+            if (entry && entry.url === url) return true;
+            return fetch(url, { mode: 'cors', credentials: 'omit' }).then(response => {
+                if (!response.ok || response.type === 'opaque') return false;
+                const type = response.headers.get('content-type') || '';
+                if (!type.startsWith('image/')) return false;
+                return response.blob().then(blob => {
+                    if (!blob.size || blob.size > MAX_IMAGE_BYTES) return false;
+                    return write({ key, url, blob, type, savedAt: Date.now() });
+                });
             });
         }).catch(() => false);
     }

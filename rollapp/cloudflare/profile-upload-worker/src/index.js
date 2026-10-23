@@ -566,6 +566,127 @@ async function deleteStudent(request, env, origin) {
     }
 }
 
+function normalizeAssignmentSection(value) {
+    return String(value || '').trim().replace(/^section\s+/i, '').toLowerCase();
+}
+
+function normalizeAssignmentName(value) {
+    return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function teacherHasStudentAssignment(assignments, teacherUid, student) {
+    const studentClassIds = [student.classId, student.courseId, student.enrolledClassId]
+        .map(value => String(value || '').trim().toLowerCase()).filter(Boolean);
+    const studentClassNames = [student.className, student.courseName, student.course, student.class, student.grade]
+        .map(normalizeAssignmentName).filter(Boolean);
+    const studentSection = normalizeAssignmentSection(student.section);
+    if (!studentSection) return false;
+
+    return Object.entries(assignments || {}).some(([classId, sections]) =>
+        Object.values(sections || {}).some(assignment => {
+            if (!assignment || String(assignment.teacherId || '') !== teacherUid ||
+                String(assignment.schoolId || student.schoolId || '') !== String(student.schoolId || '')) return false;
+            if (normalizeAssignmentSection(assignment.section) !== studentSection) return false;
+
+            const assignedClassId = String(assignment.classId || classId || '').trim().toLowerCase();
+            if (studentClassIds.length) return studentClassIds.includes(assignedClassId);
+            const assignedClassName = normalizeAssignmentName(assignment.className);
+            return Boolean(assignedClassName && studentClassNames.includes(assignedClassName));
+        })
+    );
+}
+
+async function manageTeacherBlockedStudent(request, env, origin) {
+    const authorization = request.headers.get('Authorization') || '';
+    const tokenMatch = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]+)$/);
+    if (!tokenMatch) return response({ error: 'Teacher authentication is required.' }, 401, origin);
+
+    let caller;
+    try {
+        caller = await verifyFirebaseToken(tokenMatch[1], env.FIREBASE_PROJECT_ID);
+    } catch (error) {
+        console.error('Teacher block requester verification failed:', error);
+        return response({ error: 'Authentication could not be verified. Try again shortly.' }, 503, origin);
+    }
+    if (!caller) return response({ error: 'Authentication token is invalid or expired.' }, 401, origin);
+
+    const payload = await readJsonWithinLimit(request, 4096);
+    const targetUid = String(payload?.targetUid || '').trim();
+    const action = String(payload?.action || '').trim().toLowerCase();
+    const reason = String(payload?.reason || '').trim().slice(0, 500);
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(targetUid) || targetUid === caller.uid || !['block', 'unblock'].includes(action)) {
+        return response({ error: 'Select a valid student and action.' }, 400, origin);
+    }
+
+    try {
+        const accessToken = await getFirebaseAccessToken(env);
+        const [teacher, student, assignments, schoolUser, currentBlock] = await Promise.all([
+            readDatabaseWithAccessToken(env, `users/${caller.uid}`, accessToken),
+            readDatabaseWithAccessToken(env, `users/${targetUid}`, accessToken),
+            readDatabaseWithAccessToken(env, `classTeacherAssignmentsByClass/${String(payload?.schoolId || '').trim()}`, accessToken),
+            readDatabaseWithAccessToken(env, `schoolUsers/${String(payload?.schoolId || '').trim()}/${targetUid}`, accessToken),
+            readDatabaseWithAccessToken(env, `blockedUsers/${targetUid}`, accessToken)
+        ]);
+        const schoolId = String(teacher?.schoolId || '').trim();
+        if (!teacher || String(teacher.role || '').toLowerCase() !== 'teacher' || !schoolId ||
+            String(payload?.schoolId || '').trim() !== schoolId) {
+            return response({ error: 'Teacher access for this school could not be verified.' }, 403, origin);
+        }
+        if (!student || String(student.role || '').toLowerCase() !== 'student' ||
+            (student.schoolId && String(student.schoolId).trim() !== schoolId) || !schoolUser ||
+            (schoolUser.schoolId && String(schoolUser.schoolId).trim() !== schoolId)) {
+            return response({ error: 'You can manage only student accounts belonging to your school.' }, 403, origin);
+        }
+        // The school-scoped membership record supplies legacy class/section fields when
+        // older user profiles do not contain them. Keep the authenticated user role and
+        // any explicit school ID authoritative.
+        const assignmentStudent = { ...schoolUser, ...student, schoolId };
+        ['classId', 'courseId', 'enrolledClassId', 'className', 'courseName', 'course', 'class', 'grade', 'section']
+            .forEach(key => {
+                if (student[key] == null || String(student[key]).trim() === '') assignmentStudent[key] = schoolUser[key];
+            });
+        if (!teacherHasStudentAssignment(assignments, caller.uid, assignmentStudent)) {
+            return response({ error: 'You can manage only students in your assigned classes and sections.' }, 403, origin);
+        }
+        if (currentBlock && String(currentBlock.schoolId || '').trim() !== schoolId) {
+            return response({ error: 'This account has a block record owned by another school.' }, 409, origin);
+        }
+
+        const path = `blockedUsers/${safeDatabaseChildKey(targetUid)}`;
+        const userPath = `users/${safeDatabaseChildKey(targetUid)}`;
+        const updates = action === 'block'
+            ? {
+                [path]: {
+                    name: String(student.name || student.fullName || ''),
+                    email: String(student.email || ''),
+                    role: 'student',
+                    schoolId,
+                    reason,
+                    blockedDate: Date.now(),
+                    blockedBy: caller.uid
+                },
+                [`${userPath}/blocked`]: true,
+                [`${userPath}/blockedSchoolId`]: schoolId,
+                [`${userPath}/blockedRole`]: 'student',
+                [`${userPath}/blockedBy`]: caller.uid,
+                [`${userPath}/blockedReason`]: reason
+            }
+            : {
+                [path]: null,
+                [`${userPath}/blocked`]: false,
+                [`${userPath}/blockedSchoolId`]: null,
+                [`${userPath}/blockedRole`]: null,
+                [`${userPath}/blockedBy`]: null,
+                [`${userPath}/blockedReason`]: null
+            };
+        await updateDatabaseWithAccessToken(env, updates, accessToken);
+        return response({ ok: true, action }, 200, origin);
+    } catch (error) {
+        console.error('Teacher student-block update failed:', error);
+        return response({ error: error.message || 'Student access could not be updated.' }, 503, origin);
+    }
+}
+
 async function sendCustomMail(request, env, origin) {
     const authorization = request.headers.get('Authorization') || '';
     const tokenMatch = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]+)$/);
@@ -1351,6 +1472,11 @@ export default {
             if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
             if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
             return deleteStudent(request, env, allowedOrigin);
+        }
+        if (routePath.endsWith('/teacher-block-user')) {
+            if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);
+            if (request.method !== 'POST') return response({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            return manageTeacherBlockedStudent(request, env, allowedOrigin);
         }
         if (routePath.endsWith('/custom-mail')) {
             if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);

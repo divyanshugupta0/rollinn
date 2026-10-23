@@ -11,6 +11,7 @@
     <script src="../shared/profile-upload.js"></script>
     <script src="../shared/password-reset.js"></script>
     <script src="../shared/search-autofill.js"></script>
+    <script src="../shared/account-block-status.js"></script>
     <script src="../auth/subscription-expiry.js"></script>
         <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
@@ -5044,7 +5045,10 @@
                 }
 
                 // Fetch user data to check for profile photo
-                get(ref(database, `users/${user.uid}`)).then((snapshot) => {
+                Promise.all([
+                    get(ref(database, `users/${user.uid}`)),
+                    get(ref(database, `blockedUsers/${user.uid}`))
+                ]).then(async ([snapshot, blockedSnapshot]) => {
                     if (snapshot.exists()) {
                         const userData = snapshot.val();
                         const accountRole = String(userData.role || '').trim().toLowerCase();
@@ -5060,16 +5064,26 @@
                             else signOut(auth).catch(error => console.error('Could not sign out an unauthorized student portal session:', error));
                             return;
                         }
+                        const blockStatus = await window.RollCallAccountBlockStatus.check(
+                            userData,
+                            blockedSnapshot,
+                            'student',
+                            async blockerUid => {
+                                const blockerSnapshot = await get(ref(database, `users/${blockerUid}`));
+                                return blockerSnapshot.val() || {};
+                            }
+                        );
                         cacheUserData(user.uid, userData);
                         // Update global currentUser with DB data
                         window.currentUser = { ...user, ...userData };
 
                         // If user is blocked, do not show profile-required modal
-                        if (userData.blocked === true) {
+                        if (blockStatus.blocked) {
+                            const blockReason = blockStatus.reason || userData.blockedReason;
                             const modal = document.getElementById('missing-photo-modal');
                             if (modal) modal.classList.remove('visible');
-                            showAccountBlockedNotice(userData.blockedReason);
-                            showBlockedUserPopup(userData.blockedReason);
+                            showAccountBlockedNotice(blockReason);
+                            showBlockedUserPopup(blockReason);
                             showLoginStatus('Access Blocked: Your account is blocked. Contact your teacher to unblock.', 'error');
                             signOut(auth);
                             return;
@@ -6964,8 +6978,11 @@
             subscriptionLockout?.classList.add('hidden');
             if (subscriptionLockout) subscriptionLockout.textContent = '';
 
-            get(userRef)
-                .then(async (snapshot) => {
+            Promise.all([
+                get(userRef),
+                get(ref(database, `blockedUsers/${user.uid}`))
+            ])
+                .then(async ([snapshot, blockedSnapshot]) => {
                     console.log("User snapshot exists:", snapshot.exists());
                     if (snapshot.exists()) {
                         const userData = snapshot.val();
@@ -6988,6 +7005,26 @@
                             loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
                             loginBtn.disabled = false;
                             signOut(auth).catch(error => console.error('Could not sign out an unauthorized student portal session:', error));
+                            return;
+                        }
+
+                        const blockStatus = await window.RollCallAccountBlockStatus.check(
+                            userData,
+                            blockedSnapshot,
+                            'student',
+                            async blockerUid => {
+                                const blockerSnapshot = await get(ref(database, `users/${blockerUid}`));
+                                return blockerSnapshot.val() || {};
+                            }
+                        );
+                        if (blockStatus.blocked) {
+                            const blockReason = blockStatus.reason || userData.blockedReason;
+                            showAccountBlockedNotice(blockReason);
+                            showBlockedUserPopup(blockReason);
+                            showLoginStatus('Access Blocked: Your account is blocked. Contact your teacher to unblock.', 'error');
+                            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+                            loginBtn.disabled = false;
+                            signOut(auth).catch(error => console.error('Could not sign out a blocked student:', error));
                             return;
                         }
 
@@ -7054,17 +7091,6 @@
                             return;
                         }
 
-                        // Check if user is blocked
-                        if (userData.blocked === true) {
-                            showAccountBlockedNotice(userData.blockedReason);
-                            showBlockedUserPopup(userData.blockedReason);
-                            showLoginStatus('Access Blocked: Your account is blocked. Contact your teacher to unblock.', 'error');
-                            signOut(auth);
-                            // Reset login button
-                            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
-                            loginBtn.disabled = false;
-                            return;
-                        }
                         showAttendanceSection();
                     } else {
                         console.warn('Authenticated account has no student profile; refusing automatic role assignment.');

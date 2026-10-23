@@ -432,7 +432,9 @@
     },
     "blockedUsers": {
       ".read": true,
-      ".write": "auth != null"
+      "$uid": {
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('schoolId').val() === root.child('users').child($uid).child('schoolId').val() && (root.child('users').child($uid).child('role').val() === 'student' || root.child('users').child($uid).child('role').val() === 'teacher')"
+      }
     },
     "faceRegistrationTokens": {
       ".read": true,
