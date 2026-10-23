@@ -340,6 +340,51 @@ async function deleteFirebaseAccount(projectId, uid, accessToken) {
     }
 }
 
+async function lookupFirebaseAccounts(projectId, uids, accessToken) {
+    const accounts = [];
+    for (let index = 0; index < uids.length; index += 100) {
+        const response = await fetch(
+            `https://identitytoolkit.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/accounts:lookup`,
+            {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ localId: uids.slice(index, index + 100) })
+            }
+        );
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            console.error('Firebase school account lookup failed:', response.status);
+            throw new Error('School authentication accounts could not be verified; no school data was deleted.');
+        }
+        accounts.push(...(Array.isArray(result.users) ? result.users : []));
+    }
+    return accounts;
+}
+
+async function deleteFirebaseAccounts(projectId, uids, accessToken) {
+    for (let index = 0; index < uids.length; index += 1000) {
+        const response = await fetch(
+            `https://identitytoolkit.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/accounts:batchDelete`,
+            {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ localIds: uids.slice(index, index + 1000), force: true })
+            }
+        );
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || (Array.isArray(result.errors) && result.errors.length)) {
+            console.error('Firebase school authentication deletion failed:', response.status);
+            throw new Error('Email was accepted, but some authentication accounts could not be deleted. School data is retained; retry deletion to continue.');
+        }
+    }
+}
+
 function safeDatabaseChildKey(value) {
     return String(value).replace(/[.#$\[\]/]/g, character => encodeURIComponent(character));
 }
@@ -1675,6 +1720,451 @@ async function issuePortalLicense(request, env, origin) {
     }
 }
 
+function sanitizeSchoolReportValue(value) {
+    if (Array.isArray(value)) return value.map(sanitizeSchoolReportValue);
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.entries(value)
+        .filter(([key]) => !/(?:password|passcode|secret|token|credential|private.?key|api.?key|hash|reset.?link)/i.test(key))
+        .map(([key, item]) => [key, sanitizeSchoolReportValue(item)]));
+}
+
+function xmlEscape(value) {
+    return String(value ?? '').replace(/[<>&"']/g, character => ({
+        '<': '&lt;',
+        '>': '&gt;',
+        '&': '&amp;',
+        '"': '&quot;',
+        "'": '&apos;'
+    }[character]));
+}
+
+function schoolReportChunkEnd(value, start, size) {
+    let end = Math.min(start + size, value.length);
+    if (end < value.length && value.charCodeAt(end - 1) >= 0xD800 && value.charCodeAt(end - 1) <= 0xDBFF) {
+        end -= 1;
+    }
+    return end;
+}
+
+function appendSchoolReportJsonRows(rows, label, value, appendRow, encoder) {
+    const json = JSON.stringify(sanitizeSchoolReportValue(value), null, 2);
+    if (encoder.encode(json).byteLength > 8 * 1024 * 1024) {
+        throw new Error('A school data section exceeds the export size limit; no email was sent and no data was deleted.');
+    }
+    const chunkSize = 30000;
+    let offset = 0;
+    let part = 1;
+    while (offset < json.length) {
+        const end = schoolReportChunkEnd(json, offset, chunkSize);
+        appendRow(rows, [label, String(part), json.slice(offset, end)]);
+        offset = end;
+        part += 1;
+    }
+}
+
+function createSchoolExcelXml(school, profiles, authAccounts, schoolData) {
+    const encoder = new TextEncoder();
+    const maxWorkbookBytes = 8 * 1024 * 1024 - 1024;
+    let workbookBytes = 0;
+    const appendRow = (rows, values) => {
+        if (rows.length >= 65000) {
+            throw new Error('The school export exceeds the Excel worksheet row limit; no email was sent and no data was deleted.');
+        }
+        const rowXml = `<Row>${values.map(value => `<Cell><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`).join('')}</Row>`;
+        workbookBytes += encoder.encode(rowXml).byteLength;
+        if (workbookBytes > maxWorkbookBytes) {
+            throw new Error('The school report exceeds the email attachment limit; no email was sent and no data was deleted.');
+        }
+        rows.push(values);
+    };
+    const schoolRows = [];
+    appendRow(schoolRows, ['Field', 'Value']);
+    appendSchoolReportJsonRows(schoolRows, 'School record', school, appendRow, encoder);
+    const accountRows = [];
+    appendRow(accountRows, ['UID', 'Role', 'Email', 'Part', 'Profile details']);
+    profiles.forEach(profile => {
+        const details = JSON.stringify(sanitizeSchoolReportValue(profile));
+        if (encoder.encode(details).byteLength > 8 * 1024 * 1024) {
+            throw new Error('An account profile exceeds the export size limit; no email was sent and no data was deleted.');
+        }
+        const chunkSize = 30000;
+        let offset = 0;
+        let part = 1;
+        while (offset < details.length) {
+            const end = schoolReportChunkEnd(details, offset, chunkSize);
+            appendRow(accountRows, [
+                String(profile.uid || ''),
+                String(profile.role || ''),
+                String(profile.email || ''),
+                String(part),
+                details.slice(offset, end)
+            ]);
+            offset = end;
+            part += 1;
+        }
+    });
+    const authRows = [];
+    appendRow(authRows, ['UID', 'Email', 'Email verified', 'Disabled', 'Created', 'Last sign-in', 'Providers', 'Phone']);
+    authAccounts.forEach(account => {
+        appendRow(authRows, [
+            String(account.localId || ''),
+            String(account.email || ''),
+            String(account.emailVerified === true),
+            String(account.disabled === true),
+            String(account.createdAt || account.userMetadata?.creationTime || ''),
+            String(account.lastLoginAt || account.userMetadata?.lastLoginAt || ''),
+            (account.providerUserInfo || []).map(provider => provider.providerId || '').filter(Boolean).join(', '),
+            String(account.phoneNumber || '')
+        ]);
+    });
+    const dataRows = [];
+    appendRow(dataRows, ['School data path', 'Part', 'Data']);
+    schoolData.forEach(item => appendSchoolReportJsonRows(dataRows, item.path, item.value, appendRow, encoder));
+    const sheets = [
+        ['School', schoolRows],
+        ['Accounts', accountRows],
+        ['Authentication', authRows],
+        ['School Data', dataRows]
+    ];
+    const worksheetXml = sheets.map(([name, rows]) => `<Worksheet ss:Name="${xmlEscape(name)}"><Table>${rows.map(row =>
+        `<Row>${row.map(value => `<Cell><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`).join('')}</Row>`
+    ).join('')}</Table></Worksheet>`).join('');
+    const workbook = `<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">${worksheetXml}</Workbook>`;
+    if (encoder.encode(workbook).byteLength > 8 * 1024 * 1024) {
+        throw new Error('The school report exceeds the email attachment limit; no email was sent and no data was deleted.');
+    }
+    return workbook;
+}
+
+function encodeBase64(bytes) {
+    let binary = '';
+    for (let index = 0; index < bytes.length; index += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+    }
+    return btoa(binary);
+}
+
+async function sendSchoolDeletionReport(env, email, schoolName, workbook) {
+    if (!env.BREVO_API_KEY || !env.BREVO_SENDER_EMAIL || !env.BREVO_SENDER_NAME) {
+        throw new Error('Report email configuration is incomplete; the school was not deleted.');
+    }
+    const bytes = new TextEncoder().encode(workbook);
+    if (bytes.length > 8 * 1024 * 1024) {
+        throw new Error('The school report exceeds the email attachment limit; the school was not deleted.');
+    }
+    const subject = `School data export: ${schoolName}`;
+    const result = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': env.BREVO_API_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+            sender: { name: env.BREVO_SENDER_NAME, email: env.BREVO_SENDER_EMAIL },
+            to: [{ email }],
+            subject,
+            textContent: `Attached is the requested Excel-compatible export for ${schoolName}. It includes school records, linked account profiles, Firebase Authentication metadata and school-scoped data. Passwords, authentication tokens and secret values are not included. After the email provider accepts this message, the school and all linked school data and accounts will be permanently deleted.`,
+            attachment: [{
+                name: `${String(schoolName || 'school').replace(/[^A-Za-z0-9_-]+/g, '_')}-data-export.xls`,
+                content: encodeBase64(bytes)
+            }]
+        })
+    });
+    if (!result.ok) {
+        const responseText = (await result.text().catch(() => '')).slice(0, 400);
+        console.error('Brevo school export email failed:', result.status, responseText);
+        throw new Error('The export email was not accepted; the school and its accounts were not deleted.');
+    }
+}
+
+async function readSchoolUsers(env, schoolId, accessToken) {
+    const url = databasePathUrl(env, 'users', accessToken);
+    url.searchParams.set('orderBy', JSON.stringify('schoolId'));
+    url.searchParams.set('equalTo', JSON.stringify(schoolId));
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('School user accounts could not be loaded; no deletion was started.');
+    return response.json();
+}
+
+async function deleteSchoolAfterEmail(request, env, origin) {
+    const authorization = request.headers.get('Authorization') || '';
+    const tokenMatch = authorization.match(/^Bearer\s+([A-Za-z0-9._~-]+)$/);
+    if (!tokenMatch) return uploadResponse({ error: 'Owner authentication is required.' }, 401, origin);
+
+    let caller;
+    let reportEmailAccepted = false;
+    try {
+        caller = await verifyFirebaseToken(tokenMatch[1], env.FIREBASE_PROJECT_ID);
+    } catch (error) {
+        console.error('School deletion requester verification failed:', error);
+        return uploadResponse({ error: 'Authentication could not be verified. Try again shortly.' }, 503, origin);
+    }
+    if (!caller) return uploadResponse({ error: 'Authentication token is invalid or expired.' }, 401, origin);
+
+    const payload = await readJsonWithinLimit(request, 4096);
+    const schoolId = String(payload?.schoolId || '').trim();
+    const confirmationCode = String(payload?.confirmationCode || '').trim();
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(schoolId)) {
+        return uploadResponse({ error: 'A valid school must be selected.' }, 400, origin);
+    }
+
+    try {
+        const accessToken = await getFirebaseAccessToken(env);
+        const [school, ownerSchool, priorJob] = await Promise.all([
+            readDatabaseWithAccessToken(env, `schools/${schoolId}`, accessToken),
+            readDatabaseWithAccessToken(env, `owners/${caller.uid}/schools/${schoolId}`, accessToken),
+            readDatabaseWithAccessToken(env, `schoolDeletionJobs/${schoolId}`, accessToken)
+        ]);
+        if (!school || !ownerSchool || String(school.ownerId || '') !== caller.uid ||
+            String(ownerSchool.ownerId || '') !== caller.uid) {
+            return uploadResponse({ error: 'You can delete only a school registered to your owner account.' }, 403, origin);
+        }
+        if (priorJob?.emailAcceptedAt && priorJob.ownerId !== caller.uid) {
+            return uploadResponse({ error: 'A school deletion is already in progress under a different owner account.' }, 409, origin);
+        }
+        if (confirmationCode !== String(school.code || '')) {
+            return uploadResponse({ error: 'The confirmation code does not match this school. No data was deleted.' }, 400, origin);
+        }
+
+        const schoolUsers = await readDatabaseWithAccessToken(env, `schoolUsers/${schoolId}`, accessToken);
+        const userProfiles = await readSchoolUsers(env, schoolId, accessToken);
+        const profileMap = new Map();
+        Object.entries(userProfiles || {}).forEach(([uid, profile]) => {
+            if (profile && typeof profile === 'object') profileMap.set(uid, { ...profile, uid });
+        });
+        Object.entries(schoolUsers || {}).forEach(([uid, profile]) => {
+            if (profile && typeof profile === 'object' && !profileMap.has(uid)) {
+                profileMap.set(uid, { ...profile, uid });
+            }
+        });
+
+        const schoolAdminRecord = await readDatabaseWithAccessToken(env, `schoolAdmins/${schoolId}`, accessToken);
+        const primaryAdminUid = String(
+            ownerSchool.contacts?.admin?.uid ||
+            ownerSchool.admin?.uid ||
+            school.contacts?.admin?.uid ||
+            schoolAdminRecord?.authUid ||
+            schoolAdminRecord?.uid ||
+            ''
+        ).trim();
+        const schoolAdminAccounts = schoolAdminRecord?.administrators || {};
+        const adminUids = new Set([
+            primaryAdminUid,
+            ...Object.entries(schoolAdminAccounts).flatMap(([uid, admin]) => [
+                uid,
+                String(admin?.uid || ''),
+                String(admin?.authUid || '')
+            ])
+        ].filter(uid => /^[A-Za-z0-9_-]{1,128}$/.test(uid) && uid !== caller.uid));
+        for (const uid of adminUids) {
+            if (profileMap.has(uid)) continue;
+            const admin = schoolAdminAccounts[uid] || {};
+            profileMap.set(uid, {
+                ...admin,
+                ...(uid === primaryAdminUid ? ownerSchool.contacts?.admin || school.contacts?.admin || schoolAdminRecord || {} : {}),
+                uid,
+                role: 'admin',
+                schoolId
+            });
+        }
+        const profiles = [...profileMap.values()]
+            .filter(profile => profile.uid !== caller.uid && String(profile.role || '').toLowerCase() !== 'owner');
+        const uids = [...new Set(profiles.map(profile => String(profile.uid || '')).filter(uid => /^[A-Za-z0-9_-]{1,128}$/.test(uid)))];
+        if (uids.length !== profiles.length) {
+            return uploadResponse({ error: 'One or more school profiles have an invalid account ID. No report was sent and no data was deleted.' }, 409, origin);
+        }
+        if (uids.length > 10000) {
+            return uploadResponse({ error: 'This school has too many linked accounts for a safe single-request deletion. No accounts were deleted.' }, 413, origin);
+        }
+        if (primaryAdminUid && !uids.includes(primaryAdminUid)) {
+            return uploadResponse({ error: 'The registered administrator account could not be safely matched to a school profile. No data was deleted.' }, 409, origin);
+        }
+        const authAccounts = await lookupFirebaseAccounts(env.FIREBASE_PROJECT_ID, uids, accessToken);
+        const recipient = String(
+            ownerSchool.contacts?.admin?.email ||
+            ownerSchool.admin?.email ||
+            school.contacts?.admin?.email ||
+            schoolAdminRecord?.email ||
+            profiles.find(profile => profile.uid === primaryAdminUid)?.email ||
+            ''
+        ).trim();
+        if (!recipient || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+            return uploadResponse({ error: 'The school administrator email is missing or invalid. No report was sent and no data was deleted.' }, 409, origin);
+        }
+
+        const schoolRootNames = [
+            'schoolClasses', 'schoolCourses', 'courses', 'classTeacherAssignments',
+            'classTeacherAssignmentsByClass', 'subjectTeacherAssignments', 'schoolTimetables',
+            'schoolTimetablesVersion', 'schoolTimetableSettings', 'schoolHomework',
+            'schoolClassHomework', 'schoolLocations', 'schoolSettings',
+            'teacher_leave_requests', 'attendance', 'publicCourseCatalog',
+            'subscriptionResubscribeRequests', 'subscriptionExpiryOverlayCounts',
+            'erpLicenseKeys', 'erpLicenseDevices'
+        ];
+        const schoolDataPaths = schoolRootNames.map(name => `${name}/${schoolId}`);
+        const schoolDataValues = await Promise.all(schoolDataPaths.map(path =>
+            readDatabaseWithAccessToken(env, path, accessToken)
+        ));
+        const schoolData = schoolDataPaths.map((path, index) => ({ path, value: schoolDataValues[index] })).filter(item => item.value != null);
+        schoolData.push(
+            { path: `owners/${caller.uid}/schools/${schoolId}`, value: ownerSchool },
+            { path: `schoolAdmins/${schoolId}`, value: schoolAdminRecord }
+        );
+        const locationIds = Object.keys(schoolDataValues[schoolRootNames.indexOf('schoolLocations')] || {})
+            .filter(id => /^[A-Za-z0-9_-]{1,128}$/.test(id));
+        const attendanceByLocation = await Promise.all(locationIds.map(async id => ({
+            path: `attendance_by_location/${id}`,
+            value: await readDatabaseWithAccessToken(env, `attendance_by_location/${id}`, accessToken)
+        })));
+        schoolData.push(...attendanceByLocation.filter(item => item.value != null));
+
+        const schoolCode = String(school.code || '');
+        const reservationPath = schoolCode ? `schoolCodeReservations/${safeDatabaseChildKey(schoolCode)}` : '';
+        const codeReservation = reservationPath
+            ? await readDatabaseWithAccessToken(env, reservationPath, accessToken)
+            : null;
+        const schoolDataPathsToRemove = new Set([
+            `schools/${schoolId}`,
+            `schoolAdmins/${schoolId}`,
+            `schoolUsers/${schoolId}`,
+            `publicSchools/${schoolId}`,
+            `owners/${caller.uid}/schools/${schoolId}`,
+            ...schoolDataPaths,
+            ...locationIds.flatMap(id => [`locations/${id}`, `attendance_by_location/${id}`]),
+            ...uids.flatMap(uid => [
+                `users/${uid}`,
+                `notifications/${uid}`,
+                `user_attendance/${uid}`,
+                `leave_requests/${uid}`,
+                `device_unlock_requests/${uid}`,
+                `classTeacherProfileRequests/${uid}`
+            ])
+        ]);
+        if (codeReservation) {
+            schoolData.push({ path: reservationPath, value: codeReservation });
+            if (String(codeReservation.ownerId || '') === caller.uid) {
+                schoolDataPathsToRemove.add(reservationPath);
+            }
+        }
+
+        const erpCodeIndexUrl = databasePathUrl(env, 'erpLicenseCodes', accessToken);
+        erpCodeIndexUrl.searchParams.set('orderBy', JSON.stringify('schoolId'));
+        erpCodeIndexUrl.searchParams.set('equalTo', JSON.stringify(schoolId));
+        const erpCodeIndexResponse = await fetch(erpCodeIndexUrl);
+        if (!erpCodeIndexResponse.ok) throw new Error('ERP license data could not be checked; no report was sent and no deletion was started.');
+        const erpCodeIndex = await erpCodeIndexResponse.json();
+        Object.keys(erpCodeIndex || {}).forEach(codeHash => {
+            schoolDataPathsToRemove.add(`erpLicenseCodes/${codeHash}`);
+            schoolData.push({ path: `erpLicenseCodes/${codeHash}`, value: erpCodeIndex[codeHash] });
+        });
+
+        const globalRequestRoots = ['profileRequests', 'profile_update_requests', 'locationRequests', 'announcements'];
+        const globalRequestData = await Promise.all(globalRequestRoots.map(root =>
+            readDatabaseWithAccessToken(env, root, accessToken)
+        ));
+        globalRequestRoots.forEach((root, index) => {
+            const records = globalRequestData[index];
+            Object.entries(records || {}).forEach(([key, record]) => {
+                if (String(record?.schoolId || '') === schoolId) {
+                    const path = `${root}/${safeDatabaseChildKey(key)}`;
+                    schoolDataPathsToRemove.add(path);
+                    schoolData.push({ path, value: record });
+                }
+            });
+        });
+
+        const jobPath = `schoolDeletionJobs/${schoolId}`;
+        if (priorJob?.emailAcceptedAt) {
+            await updateDatabaseWithAccessToken(env, {
+                [jobPath]: { ...priorJob, state: 'deleting', retryAt: Date.now() }
+            }, accessToken);
+        } else {
+            const workbook = createSchoolExcelXml(school, profiles, authAccounts, schoolData);
+            await sendSchoolDeletionReport(env, recipient, String(school.name || 'school'), workbook);
+            reportEmailAccepted = true;
+            await updateDatabaseWithAccessToken(env, {
+                [jobPath]: {
+                    ownerId: caller.uid,
+                    schoolId,
+                    state: 'deleting',
+                    emailAcceptedAt: Date.now(),
+                    reportRecipient: recipient,
+                    reportAccountCount: profiles.length
+                }
+            }, accessToken);
+        }
+
+        const photoReferences = profiles.map(profile => {
+            const storedKey = String(profile.profilePhotoKey || '');
+            if (storedKey) return { uid: String(profile.uid || ''), key: storedKey };
+            const photoUrl = String(profile.profilePhoto || '');
+            if (photoUrl.startsWith('profile-photos/')) {
+                return { uid: String(profile.uid || ''), key: photoUrl };
+            }
+            try {
+                const url = new URL(photoUrl);
+                const marker = '/file/';
+                const markerIndex = url.pathname.indexOf(marker);
+                if (markerIndex < 0) return null;
+                return {
+                    uid: String(profile.uid || ''),
+                    key: decodeURIComponent(url.pathname.slice(markerIndex + marker.length))
+                };
+            } catch (error) {
+                return null;
+            }
+        }).filter(reference => reference?.key);
+        const photoKeys = [...new Set(photoReferences
+            .filter(reference => /^[A-Za-z0-9_-]{1,128}$/.test(reference.uid) &&
+                new RegExp(`^profile-photos/${reference.uid}/[0-9a-f-]+\\.(?:webp|jpg|png)$`, 'i').test(reference.key))
+            .map(reference => reference.key))];
+        let photoCleanupFailures = photoReferences.length - photoKeys.length;
+        let removedProfilePhotos = 0;
+        if (photoKeys.length && env.PROFILE_PHOTOS) {
+            for (let index = 0; index < photoKeys.length; index += 1000) {
+                const batch = photoKeys.slice(index, index + 1000);
+                try {
+                    await env.PROFILE_PHOTOS.delete(batch);
+                    removedProfilePhotos += batch.length;
+                } catch (error) {
+                    photoCleanupFailures += photoKeys.length - index;
+                    console.error('School profile photo cleanup failed:', error);
+                    break;
+                }
+            }
+        } else if (photoKeys.length) {
+            photoCleanupFailures = photoKeys.length;
+        }
+
+        await deleteFirebaseAccounts(
+            env.FIREBASE_PROJECT_ID,
+            authAccounts.map(account => String(account.localId || '')).filter(Boolean),
+            accessToken
+        );
+        const updates = Object.fromEntries([...schoolDataPathsToRemove].map(path => [`${path}`, null]));
+        updates[jobPath] = null;
+        await updateDatabaseWithAccessToken(env, updates, accessToken);
+
+        return uploadResponse({
+            ok: true,
+            emailAccepted: true,
+            recipient,
+            deletedAuthenticationAccounts: authAccounts.length,
+            deletedProfiles: profiles.length,
+            deletedSchoolDataRoots: schoolDataPathsToRemove.size,
+            removedProfilePhotos,
+            profilePhotoCleanupFailures: photoCleanupFailures,
+            message: photoCleanupFailures
+                ? 'The report email was accepted and school data/accounts were deleted, but some R2 profile photos could not be removed.'
+                : 'The report email was accepted and the school, linked accounts, and school-scoped data were deleted.'
+        }, 200, origin);
+    } catch (error) {
+        console.error('School export and deletion failed:', error);
+        return uploadResponse({
+            error: reportEmailAccepted
+                ? `${error.message || 'Deletion did not complete.'} The export email was accepted; school deletion may be incomplete. Retry the school deletion action to continue.`
+                : error.message || 'School export and deletion failed.'
+        }, 503, origin);
+    }
+}
+
 async function verifyErpLicense(request, env, origin) {
     const payload = await readJsonWithinLimit(request, 4096);
     const code = String(payload?.code || '').trim();
@@ -1910,6 +2400,11 @@ export default {
             return new Response(null, { status: 204, headers: corsHeaders(opaqueErpClient ? 'null' : allowedOrigin) });
         }
 
+        if (routePath === '/owner/delete-school') {
+            if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
+            if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            return deleteSchoolAfterEmail(request, env, allowedOrigin);
+        }
         if (routePath === '/erp-license/portal') {
             if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
             if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);

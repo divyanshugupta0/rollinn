@@ -1663,7 +1663,7 @@
                                 <div class="col-sm-6 col-xl-3"><div class="card h-100 border-0 shadow-sm"><div class="card-body"><div class="d-flex justify-content-between"><span class="text-muted">Capacity usage</span><i class="fas fa-users text-info"></i></div><div id="dashboardCapacityUsage" class="display-6 fw-bold text-info mt-2">0%</div><small id="dashboardCapacityDetail" class="text-muted">Student records in use</small></div></div></div>
                             </div>
                             <div class="row g-4">
-                                <div class="col-lg-8"><div class="card h-100 border-0 shadow-sm"><div class="card-body"><div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="mb-1">Subscription health</h5><p class="text-muted small mb-0">Active plans and upcoming renewals</p></div><button class="btn btn-sm btn-outline-primary" type="button" onclick="switchSection('owner-pricing')">Manage plans</button></div><div class="row g-3"><div class="col-md-4"><div class="p-3 rounded bg-light"><small class="text-muted d-block">Expiring in 30 days</small><strong id="dashboardExpiringCount" class="fs-3">0</strong></div></div><div class="col-md-4"><div class="p-3 rounded bg-light"><small class="text-muted d-block">Students capacity</small><strong id="dashboardStudentCapacity" class="fs-3">0</strong></div></div><div class="col-md-4"><div class="p-3 rounded bg-light"><small class="text-muted d-block">Teacher capacity</small><strong id="dashboardTeacherCapacity" class="fs-3">0</strong></div></div></div><div class="mt-4"><h6>Next renewals</h6><div id="dashboardRenewals" class="small text-muted">No renewal data available.</div></div></div></div></div>
+                                <div class="col-lg-8"><div class="card h-100 border-0 shadow-sm"><div class="card-body"><div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="mb-1">Subscription health</h5><p class="text-muted small mb-0">Active plans and upcoming renewals</p></div><button class="btn btn-sm btn-outline-primary" type="button" onclick="switchSection('owner-pricing')">Manage plans</button></div><div class="row g-3"><div class="col-md-4"><div class="p-3 rounded bg-light"><small class="text-muted d-block">Expiring in 30 days</small><strong id="dashboardExpiringCount" class="fs-3">0</strong></div></div>                                <div class="col-md-4"><div class="p-3 rounded bg-light"><small class="text-muted d-block">Student profile allowance</small><strong id="dashboardStudentCapacity" class="fs-3">0</strong></div></div><div class="col-md-4"><div class="p-3 rounded bg-light"><small class="text-muted d-block">Teacher profile allowance</small><strong id="dashboardTeacherCapacity" class="fs-3">0</strong></div></div></div><div class="mt-4"><h6>Next renewals</h6><div id="dashboardRenewals" class="small text-muted">No renewal data available.</div></div></div></div></div>
                                 <div class="col-lg-4"><div class="card h-100 border-0 shadow-sm"><div class="card-body"><h5 class="mb-1">Quick actions</h5><p class="text-muted small mb-3">Jump directly to common owner tasks.</p><div class="d-grid gap-2"><button class="btn btn-outline-primary text-start" type="button" onclick="switchSection('schools')"><i class="fas fa-school me-2"></i>Manage schools</button><button class="btn btn-outline-warning text-start" type="button" onclick="switchSection('owner-pricing')"><i class="fas fa-tags me-2"></i>Plans & subscriptions</button><button class="btn btn-outline-info text-start" type="button" onclick="switchSection('analytics')"><i class="fas fa-chart-pie me-2"></i>View analytics</button><button class="btn btn-outline-secondary text-start" type="button" onclick="switchSection('settings')"><i class="fas fa-cog me-2"></i>Workspace settings</button></div></div></div></div>
                             </div>
                         </div>
@@ -1702,7 +1702,7 @@
                                                     <th>Location</th>
                                                     <th>Contact</th>
                                                     <th>Status</th>
-                                                    <th>Students</th>
+                                                    <th>Reported students</th>
                                                     <th>Actions</th>
                                                 </tr>
                                             </thead>
@@ -1988,25 +1988,28 @@
                                                             <div class="col-md-4">
                                                                 <div class="mb-3">
                                                                     <label for="studentCapacity"
-                                                                        class="form-label">Student Capacity *</label>
+                                                                        class="form-label">School Student Capacity *</label>
                                                                     <input type="number" class="form-control"
                                                                         id="studentCapacity" min="1" required>
+                                                                    <div class="form-text">Informational school size only. Student and teacher profile limits come from the selected subscription plan and top-ups.</div>
                                                                 </div>
                                                             </div>
                                                             <div class="col-md-4">
                                                                 <div class="mb-3">
                                                                     <label for="currentStudents"
-                                                                        class="form-label">Current Students</label>
+                                                                        class="form-label">Current Students (reported)</label>
                                                                     <input type="number" class="form-control"
                                                                         id="currentStudents" min="0">
+                                                                    <div class="form-text">Informational only; this count does not use the subscription profile allowance.</div>
                                                                 </div>
                                                             </div>
                                                             <div class="col-md-4">
                                                                 <div class="mb-3">
                                                                     <label for="teacherCount" class="form-label">Number
-                                                                        of Teachers</label>
+                                                                        of Teachers (reported)</label>
                                                                     <input type="number" class="form-control"
                                                                         id="teacherCount" min="1">
+                                                                    <div class="form-text">Informational only; the teacher profile allowance comes from the selected plan and top-ups.</div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -2075,9 +2078,9 @@
                                                             <div class="col-12"><div class="alert alert-light border text-muted mb-0">Loading available plans...</div></div>
                                                         </div>
                                                         <div class="alert alert-info">
-                                                            <small><i class="fas fa-info-circle me-1"></i> Subscription
-                                                                will start from today and will be valid until the plan
-                                                                expires.</small>
+                                                            <small><i class="fas fa-info-circle me-1"></i> Choose a
+                                                                subscription plan to activate it now, or register without
+                                                                a plan and have the owner assign one later.</small>
                                                         </div>
 
                                                         <div class="text-end mt-4">
@@ -2206,9 +2209,9 @@
                                     <div class="card text-center">
                                         <div class="card-body">
                                             <i class="fas fa-graduation-cap fa-2x text-info mb-2"></i>
-                                            <h5>Total Students</h5>
+                                            <h5>Reported Students</h5>
                                             <h3 id="totalStudents" class="text-info">â€”</h3>
-                                            <small class="text-muted">From registered school records</small>
+                                            <small class="text-muted">Reported school totals; profile limits come from subscription plans</small>
                                         </div>
                                     </div>
                                 </div>
@@ -2216,9 +2219,9 @@
                                     <div class="card text-center">
                                         <div class="card-body">
                                             <i class="fas fa-chalkboard-teacher fa-2x text-warning mb-2"></i>
-                                            <h5>Total Teachers</h5>
+                                            <h5>Reported Teachers</h5>
                                             <h3 id="totalTeachers" class="text-warning">â€”</h3>
-                                            <small class="text-muted">From registered school records</small>
+                                            <small class="text-muted">Reported school totals; profile limits come from subscription plans</small>
                                         </div>
                                     </div>
                                 </div>
@@ -3968,7 +3971,7 @@
                 .filter(Boolean);
             const topupCount = topups.reduce((sum, item) => sum + item.quantity, 0);
             const planCurrency = plan?.currency || 'INR';
-            const priceByCurrency = { [planCurrency]: Number(plan?.price || 0) };
+            const priceByCurrency = plan ? { [planCurrency]: Number(plan.price || 0) } : {};
             topups.forEach(item => { const currency = item.currency || planCurrency; priceByCurrency[currency] = Number(priceByCurrency[currency] || 0) + Number(item.price || 0) * item.quantity; });
             const priceSummary = Object.entries(priceByCurrency).map(([currency, amount]) => `${currency} ${Number(amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}`).join(' + ');
             const topupMarkup = topups.length
@@ -3998,7 +4001,7 @@
                                     <section class="registration-preview-section"><h6><i class="fas fa-user-tie"></i> Primary contact</h6>${field('Principal', value('principalName'))}${field('Email', value('principalEmail'))}${field('Phone', value('schoolPhone'))}</section>
                                 </div>
                                 <section class="registration-preview-section"><h6><i class="fas fa-user-shield"></i> School administrator</h6>${field('Name', value('adminName'))}${field('Username', value('schoolAdminUsername'))}${field('Email', value('schoolAdminContactEmail'))}${field('Profile image', value('schoolAdminPhotoUrl') === 'Not provided' ? 'Not provided' : 'Included')}<div class="registration-preview-field"><span>Password</span><strong>Will be shared after registration</strong></div></section>
-                                <section class="registration-preview-section"><h6><i class="fas fa-crown"></i> Subscription</h6><div class="registration-preview-line"><span>${escape(plan?.name || 'No main plan selected')}${plan?.erpPlan === true ? ' · RollCall ERP' : ''}</span><strong>${escape(plan ? `${planCurrency} ${Number(plan.price || 0).toLocaleString()} Â· ${plan.durationMonths || 1} months` : 'â€”')}</strong></div>${topupMarkup}<div class="registration-preview-total"><span>Total${topupCount ? ` Â· ${topupCount} top-up${topupCount === 1 ? '' : 's'}` : ''}</span><strong>${escape(priceSummary)}</strong></div></section>
+                                <section class="registration-preview-section"><h6><i class="fas fa-crown"></i> Subscription</h6><div class="registration-preview-line"><span>${escape(plan?.name || 'No subscription')}${plan?.erpPlan === true ? ' · RollCall ERP' : ''}</span><strong>${escape(plan ? `${planCurrency} ${Number(plan.price || 0).toLocaleString()} Â· ${plan.durationMonths || 1} months` : 'No plan assigned')}</strong></div>${plan ? `${topupMarkup}<div class="registration-preview-total"><span>Total${topupCount ? ` Â· ${topupCount} top-up${topupCount === 1 ? '' : 's'}` : ''}</span><strong>${escape(priceSummary)}</strong></div>` : '<p class="text-muted small mb-0">The owner can assign a subscription plan later.</p>'}</section>
                             </div>
                             <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Continue editing</button><button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="document.getElementById('registerSchoolBtn')?.focus()">Looks good</button></div>
                         </div>

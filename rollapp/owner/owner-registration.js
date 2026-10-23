@@ -357,7 +357,7 @@
             return;
         }
         const plan = selectedPlan();
-        if (!plan || plan.type === 'topup' || plan.active === false) {
+        if (plan && (plan.type === 'topup' || plan.active === false)) {
             setStatus('Registration needs an active main plan.', 'warning', 'Select a main plan in the subscription section before registering.');
             return notify('Select an active main plan.', 'warning');
         }
@@ -367,13 +367,13 @@
         let stage = 'preparing the registration';
         try {
             const start = new Date();
-            const end = new Date(start);
-            end.setMonth(end.getMonth() + Math.max(1, Number(plan.durationMonths) || 1));
+            const end = plan ? new Date(start) : null;
+            if (end) end.setMonth(end.getMonth() + Math.max(1, Number(plan.durationMonths) || 1));
             stage = 'generating a unique school code';
             const code = await reserveCode(value('schoolType'));
             document.getElementById('schoolCode').value = code;
-            const selectedTopups = topups(start, end);
-            if (plan.bonus === true) {
+            const selectedTopups = plan ? topups(start, end) : [];
+            if (plan?.bonus === true) {
                 selectedTopups.push({
                     planId: plan.id,
                     name: `${plan.name} bonus top-up`,
@@ -389,9 +389,9 @@
                     assignedAt: start.toISOString()
                 });
             }
-            const basePlanEnd = new Date(end);
+            const basePlanEnd = end ? new Date(end) : null;
             const termExtensionMonths = selectedTopups.reduce((sum, item) => sum + Number(item.monthsAdded || 0), 0);
-            if (termExtensionMonths) end.setTime(addCalendarMonths(end, termExtensionMonths).getTime());
+            if (termExtensionMonths && end) end.setTime(addCalendarMonths(end, termExtensionMonths).getTime());
             selectedTopups.forEach(item => {
                 item.startDate = item.topupKind === 'months' ? basePlanEnd.toISOString() : start.toISOString();
                 item.endDate = end.toISOString();
@@ -417,6 +417,50 @@
                 schoolName: value('schoolName'),
                 dob: adminDob
             });
+            const subscription = plan ? {
+                plan: plan.name,
+                planId: plan.id,
+                price: (() => {
+                    const totals = selectedTopups.reduce((result, item) => {
+                        const currency = item.currency || plan.currency || 'INR';
+                        result[currency] = Number(result[currency] || 0) + Number(item.price || 0);
+                        return result;
+                    }, { [plan.currency || 'INR']: Number(plan.price || 0) });
+                    return Object.keys(totals).length === 1 ? Object.values(totals)[0] : Number(plan.price || 0);
+                })(),
+                basePlanPrice: Number(plan.price || 0),
+                priceBreakdown: selectedTopups.reduce((totals, item) => {
+                    const currency = item.currency || plan.currency || 'INR';
+                    totals[currency] = Number(totals[currency] || 0) + Number(item.price || 0);
+                    return totals;
+                }, { [plan.currency || 'INR']: Number(plan.price || 0) }),
+                currency: plan.currency || 'INR',
+                durationMonths: Number(plan.durationMonths),
+                termExtensionMonths,
+                autoRenew: plan.autoRenew === true,
+                studentCapacity: Number(plan.studentCapacity || 0),
+                teacherCapacity: Number(plan.teacherCapacity || 0),
+                topups: selectedTopups,
+                status: 'active',
+                startDate: start.toISOString(),
+                endDate: end.toISOString()
+            } : {
+                plan: '',
+                planId: '',
+                price: 0,
+                basePlanPrice: 0,
+                priceBreakdown: {},
+                currency: '',
+                durationMonths: 0,
+                termExtensionMonths: 0,
+                autoRenew: false,
+                studentCapacity: 0,
+                teacherCapacity: 0,
+                topups: [],
+                status: 'inactive',
+                startDate: '',
+                endDate: ''
+            };
             const school = {
                 schoolId: reference.key, name: value('schoolName'), code, type: value('schoolType'), institutionType: value('schoolType').toLowerCase(),
                 establishedYear: value('establishedYear'),
@@ -424,7 +468,7 @@
                 contacts: { principal: { name: value('principalName'), email: value('principalEmail') }, admin: { uid: administrator.uid, name: value('adminName'), username: value('schoolAdminUsername'), email: adminEmail, dob: adminDob, dateOfBirth: adminDob, photoURL }, phone: value('schoolPhone'), alternatePhone: value('alternatePhone') },
                 details: { capacity: Number(value('studentCapacity')) || 0, currentStudents: Number(value('currentStudents')) || 0, teacherCount: Number(value('teacherCount')) || 0, accreditation: value('accreditation'), website: value('website') },
                 facilities: { library: document.getElementById('hasLibrary')?.checked === true, computerLab: document.getElementById('hasLab')?.checked === true, sports: document.getElementById('hasSports')?.checked === true, transportation: document.getElementById('hasTransport')?.checked === true },
-                subscription: { plan: plan.name, planId: plan.id, price: (() => { const totals = selectedTopups.reduce((result, item) => { const currency = item.currency || plan.currency || 'INR'; result[currency] = Number(result[currency] || 0) + Number(item.price || 0); return result; }, { [plan.currency || 'INR']: Number(plan.price || 0) }); return Object.keys(totals).length === 1 ? Object.values(totals)[0] : Number(plan.price || 0); })(), basePlanPrice: Number(plan.price || 0), priceBreakdown: selectedTopups.reduce((totals, item) => { const currency = item.currency || plan.currency || 'INR'; totals[currency] = Number(totals[currency] || 0) + Number(item.price || 0); return totals; }, { [plan.currency || 'INR']: Number(plan.price || 0) }), currency: plan.currency || 'INR', durationMonths: Number(plan.durationMonths), termExtensionMonths, autoRenew: plan.autoRenew === true, studentCapacity: Number(plan.studentCapacity || value('studentCapacity')), teacherCapacity: Number(plan.teacherCapacity || 0), topups: selectedTopups, status: 'active', startDate: start.toISOString(), endDate: end.toISOString() },
+                subscription,
                 status: 'Active', ownerId: currentUser.uid, registrationDate: start.toISOString(), lastUpdated: start.toISOString()
             };
             stage = 'saving the school and administrator records';
@@ -433,7 +477,7 @@
                 [`schools/${reference.key}`]: school,
                 [`schoolAdmins/${reference.key}`]: { ...school.contacts.admin, authUid: administrator.uid, password: adminPassword, dob: adminDob, dateOfBirth: adminDob, schoolId: reference.key, institutionType: value('schoolType').toLowerCase(), createdAt: start.toISOString() },
                 [`users/${administrator.uid}`]: { ...administrator.profile, profilePhoto: photoURL || null },
-                [`publicSchools/${reference.key}`]: { name: school.name, code: school.code, type: school.type, institutionType: school.institutionType, status: 'Active', subscriptionEndDate: end.toISOString(), updatedAt: Date.now() }
+                [`publicSchools/${reference.key}`]: { name: school.name, code: school.code, type: school.type, institutionType: school.institutionType, status: 'Active', subscriptionEndDate: end?.toISOString() || '', updatedAt: Date.now() }
             });
             stage = 'saving the owner school record';
             await ownerAuth.database().ref(`owners/${currentUser.uid}/schools/${reference.key}`).set(school);

@@ -468,10 +468,19 @@
       ]
     },
     "erpLicenseKeys": {
+      ".read": false,
+      ".write": false,
       ".indexOn": ["expiresAt"]
     },
-    "erpLicenseCodes": {},
+    "erpLicenseCodes": {
+      ".read": false,
+      ".write": false
+    },
     "erpLicenseDevices": {
+      ".read": false,
+      ".write": false
+    },
+    "schoolDeletionJobs": {
       ".read": false,
       ".write": false
     },

@@ -1506,6 +1506,19 @@ function initManageAccountSection() {
             .then(({ schoolSnapshot, usersSnapshot }) => {
                 const school = schoolSnapshot.val() || {};
                 const subscription = school.subscription || {};
+                const planId = String(subscription.planId || '').trim();
+                const planPath = school.ownerId && planId
+                    ? firebase.database().ref(`owners/${school.ownerId}/pricingPlans/${planId}`)
+                    : null;
+                if (!planPath) return { school, usersSnapshot, planDefinition: null };
+                return planPath.once('value').then(planSnapshot => ({
+                    school,
+                    usersSnapshot,
+                    planDefinition: planSnapshot.val()
+                }));
+            })
+            .then(({ school, usersSnapshot, planDefinition }) => {
+                const subscription = school.subscription || {};
                 loadedSchool = school;
                 loadedSubscription = subscription;
                 const plan = subscription.plan || 'No plan configured';
@@ -1520,8 +1533,8 @@ function initManageAccountSection() {
                 });
                 const topupStudents = activeTopups.reduce((sum, item) => sum + (Number(item?.studentCapacity) || 0), 0);
                 const topupTeachers = activeTopups.reduce((sum, item) => sum + (Number(item?.teacherCapacity) || 0), 0);
-                const studentCapacity = (Number(subscription.studentCapacity) || 0) + topupStudents;
-                const teacherCapacity = (Number(subscription.teacherCapacity) || 0) + topupTeachers;
+                const studentCapacity = Number(planDefinition?.studentCapacity ?? subscription.studentCapacity ?? 0) + topupStudents;
+                const teacherCapacity = Number(planDefinition?.teacherCapacity ?? subscription.teacherCapacity ?? 0) + topupTeachers;
                 const usage = { students: 0, teachers: 0 };
                 usersSnapshot.forEach(userSnapshot => {
                     const user = userSnapshot.val() || {};
@@ -1573,6 +1586,7 @@ function initManageAccountSection() {
                         ${renderUsage('Teacher accounts', 'fa-chalkboard-user', usage.teachers, teacherCapacity, 'teachers')}
                     </div>
                     <div class="account-topups"><strong>Top-ups:</strong> ${escape(topupLabel)}${topupStudents || topupTeachers ? ` · +${topupStudents.toLocaleString()} student records · +${topupTeachers.toLocaleString()} teachers` : ''}</div>
+                    <p class="small text-muted mb-0">Profile limits come from the assigned subscription plan and active top-ups. School size recorded during registration is informational only.</p>
                     <dl class="account-detail-list">
                         <div><dt>Subscription status</dt><dd>${escape(subscription.status || schoolStatus)}</dd></div>
                         <div><dt>Plan price</dt><dd>${escape(currency)} ${totalPrice.toLocaleString()}</dd></div>

@@ -609,6 +609,13 @@
         };
     }
 
+    function schoolPlanCapacity(school, key) {
+        const subscription = school.subscription || {};
+        const planId = subscription.planId || subscription.plan || '';
+        const plan = pricingPlans.find(item => item.id === planId || item.name === planId);
+        return Number(plan?.[key] ?? subscription[key] ?? 0);
+    }
+
     async function createOwnerTeacher(event) {
         event.preventDefault();
         const form = event.currentTarget;
@@ -820,14 +827,11 @@
         const topupPlans = available.filter(plan => plan.type === 'topup');
         if (!grid) return;
         grid.replaceChildren();
-        if (!mainPlans.length) {
-            const empty = document.createElement('div');
-            empty.className = 'col-12';
-            empty.innerHTML = '<div class="alert alert-warning mb-0">No active main plans are available. Create a plan in Plans & subscriptions before registering a school.</div>';
-            grid.appendChild(empty);
-            return;
-        }
-        mainPlans.forEach((plan, index) => {
+        const noPlanColumn = document.createElement('div');
+        noPlanColumn.className = 'col-md-6';
+        noPlanColumn.innerHTML = '<div class="card mb-3 h-100"><div class="card-body"><h5 class="card-title">No subscription</h5><p class="card-text">Register this institution without an active plan. The owner can assign a plan later.</p><div class="form-check"><input class="form-check-input me-2" type="radio" name="subscriptionPlan" id="registrationPlan-none" value="none" checked><label class="form-check-label" for="registrationPlan-none">Continue without a plan</label></div></div></div>';
+        grid.appendChild(noPlanColumn);
+        mainPlans.forEach(plan => {
             const column = document.createElement('div'); column.className = 'col-md-6';
             const card = document.createElement('div'); card.className = 'card mb-3';
             const body = document.createElement('div'); body.className = 'card-body';
@@ -836,7 +840,7 @@
             const categoryLabel = productType === 'erp' ? 'RollCall ERP' : productType === 'college' ? 'College' : 'School';
             const detail = document.createElement('p'); detail.className = 'card-text'; detail.textContent = `${plan.currency || 'INR'} ${Number(plan.price || 0).toLocaleString()} · ${plan.durationMonths || 1} months · ${categoryLabel} · ${Number(plan.studentCapacity || 0).toLocaleString()} students · ${Number(plan.teacherCapacity || 0).toLocaleString()} teachers`;
             const label = document.createElement('label'); label.className = 'form-check-label'; label.htmlFor = `registrationPlan-${plan.id}`; label.textContent = 'Select plan';
-            const radio = document.createElement('input'); radio.className = 'form-check-input me-2'; radio.type = 'radio'; radio.name = 'subscriptionPlan'; radio.id = `registrationPlan-${plan.id}`; radio.value = plan.id; radio.checked = index === 0;
+            const radio = document.createElement('input'); radio.className = 'form-check-input me-2'; radio.type = 'radio'; radio.name = 'subscriptionPlan'; radio.id = `registrationPlan-${plan.id}`; radio.value = plan.id;
             const check = document.createElement('div'); check.className = 'form-check'; check.append(radio, label);
             body.append(title, detail, check); card.append(body); column.append(card); grid.append(column);
         });
@@ -883,7 +887,15 @@
         if (!summary) return;
         const selected = document.querySelector('#schoolRegistrationForm [name=subscriptionPlan]:checked');
         const plan = pricingPlans.find(item => item.id === selected?.value || item.name === selected?.value);
+        const hasPlan = Boolean(plan && plan.type !== 'topup' && plan.active !== false);
+        document.querySelectorAll('#schoolRegistrationForm .topup-quantity').forEach(input => {
+            input.disabled = !hasPlan;
+            const controls = input.closest('.input-group');
+            controls?.querySelectorAll('button').forEach(button => { button.disabled = !hasPlan; });
+            if (!hasPlan) input.value = '0';
+        });
         const topupTotals = Array.from(document.querySelectorAll('#schoolRegistrationForm .topup-quantity')).reduce((total, input) => {
+            if (!hasPlan) return total;
             const count = Math.max(0, Number(input.value) || 0);
             const item = pricingPlans.find(candidate => candidate.id === input.closest('[data-plan-id]')?.dataset.planId);
             if (item) {
@@ -902,7 +914,9 @@
         const priceByCurrency = { [plan?.currency || 'INR']: mainPrice };
         Object.entries(topupTotals.priceByCurrency).forEach(([currency, amount]) => { priceByCurrency[currency] = Number(priceByCurrency[currency] || 0) + amount; });
         const priceSummary = Object.entries(priceByCurrency).map(([currency, amount]) => currency + ' ' + Number(amount).toLocaleString(undefined, { maximumFractionDigits: 2 })).join(' + ');
-        summary.textContent = (plan?.name || 'Select a main plan') + ' · Total: ' + (plan ? priceSummary : '—') + ' · ' + (mainStudents + topupTotals.students) + ' student records · ' + (mainTeachers + topupTotals.teachers) + ' teacher records' + (topupTotals.months ? ' · +' + topupTotals.months + ' months' : '') + (topupTotals.count ? ' · ' + topupTotals.count + ' top-up' + (topupTotals.count === 1 ? '' : 's') : '');
+        summary.textContent = hasPlan
+            ? `${plan.name} · Total: ${priceSummary} · Profile limits: ${mainStudents + topupTotals.students} students, ${mainTeachers + topupTotals.teachers} teachers${topupTotals.months ? ` · +${topupTotals.months} months` : ''}${topupTotals.count ? ` · ${topupTotals.count} top-up${topupTotals.count === 1 ? '' : 's'}` : ''}`
+            : 'No subscription plan selected. Optional top-ups are unavailable until a main plan is selected.';
     }
 
     function installSchoolEditModal() {
@@ -1043,8 +1057,8 @@
             const basePlan = pricingPlans.find(plan => plan.id === planId || plan.name === planId);
             const validTopups = (school.subscription?.topups || []).filter(item => !item.endDate || Date.parse(item.endDate) >= Date.now());
             const topupCapacity = validTopups.reduce((total, item) => ({ students: total.students + Number(item.studentCapacity || 0), teachers: total.teachers + Number(item.teacherCapacity || 0) }), { students: 0, teachers: 0 });
-            const studentCapacity = Number(school.subscription?.studentCapacity ?? basePlan?.studentCapacity ?? school.details?.capacity ?? 0) + topupCapacity.students;
-            const teacherCapacity = Number(school.subscription?.teacherCapacity ?? basePlan?.teacherCapacity ?? 0) + topupCapacity.teachers;
+            const studentCapacity = schoolPlanCapacity(school, 'studentCapacity') + topupCapacity.students;
+            const teacherCapacity = schoolPlanCapacity(school, 'teacherCapacity') + topupCapacity.teachers;
             row.innerHTML = `<td class="fw-semibold">${escapeHtml(school.name || 'School')}</td><td>${escapeHtml(school.code || '—')}</td><td><select class="form-select form-select-sm school-plan" aria-label="Main plan for ${escapeAttr(school.name || 'school')}"><option value="">No plan</option>${plans}</select></td><td><div>${usage.students.toLocaleString()} / ${studentCapacity.toLocaleString()} students</div><div>${usage.teachers.toLocaleString()} / ${teacherCapacity.toLocaleString()} teachers</div></td><td><select class="form-select form-select-sm school-topup" aria-label="Top-up for ${escapeAttr(school.name || 'school')}"><option value="">No top-up</option>${topups}</select><button type="button" class="btn btn-sm btn-outline-warning mt-1 apply-topup">Add top-up</button></td><td><input class="form-control form-control-sm school-renewal" type="date" aria-label="Subscription renewal date"><div class="form-check mt-1"><input class="form-check-input school-auto-renew" type="checkbox" id="autoRenew-${escapeAttr(school.id)}"><label class="form-check-label small" for="autoRenew-${escapeAttr(school.id)}">Auto-renew</label></div></td><td><select class="form-select form-select-sm school-status"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></td><td><button class="btn btn-sm btn-primary">Save</button></td>`;
             const renewal = school.subscription?.endDate || '';
             row.querySelector('.school-renewal').value = renewal ? new Date(renewal).toISOString().slice(0, 10) : '';
@@ -1247,8 +1261,58 @@
             const toggle = document.createElement('button'); toggle.className = 'btn btn-sm btn-outline-secondary'; toggle.textContent = schoolActive ? 'Deactivate' : 'Activate'; toggle.onclick = () => toggleSchoolStatus(school);
             const plan = document.createElement('button'); plan.className = 'btn btn-sm btn-outline-primary'; plan.textContent = 'Subscription'; plan.onclick = () => { switchSection('owner-pricing'); renderSubscriptionRows(); };
             const edit = document.createElement('button'); edit.className = 'btn btn-sm btn-outline-primary'; edit.textContent = 'Edit'; edit.onclick = () => openSchoolEdit(school);
-            actions.append(details, edit, toggle, plan); row.cells[6].append(actions); body.append(row);
+            const deleteSchoolButton = document.createElement('button');
+            deleteSchoolButton.className = 'btn btn-sm btn-outline-danger';
+            deleteSchoolButton.type = 'button';
+            deleteSchoolButton.textContent = 'Email report & delete';
+            deleteSchoolButton.title = 'Email the school report to its administrator, then permanently delete the school and linked accounts';
+            deleteSchoolButton.onclick = () => deleteSchoolAfterReport(school, deleteSchoolButton);
+            actions.append(details, edit, toggle, plan, deleteSchoolButton); row.cells[6].append(actions); body.append(row);
         });
+    }
+
+    async function deleteSchoolAfterReport(school, button) {
+        const schoolCode = String(school.code || '').trim();
+        if (!schoolCode) return notify('This school has no confirmation code, so it cannot be safely deleted.', 'danger');
+        const enteredCode = window.prompt(
+            `This permanently deletes ${school.name || 'this school'}, all linked student, teacher, and administrator accounts, and all school-scoped records. An Excel-compatible report will be emailed to the registered school administrator first. Passwords and secrets are not included.\n\nType the school code ${schoolCode} to continue:`
+        );
+        if (enteredCode === null) return;
+        if (enteredCode.trim() !== schoolCode) return notify('The school code did not match. Nothing was deleted.', 'warning');
+        if (!window.confirm(`Email the report to the school administrator and permanently delete ${school.name || schoolCode} only after the email provider accepts it?`)) return;
+
+        const owner = ownerAuth?.auth?.().currentUser;
+        if (!owner) return notify('Sign in to the owner portal before deleting a school.', 'danger');
+        button.disabled = true;
+        const originalText = button.textContent;
+        button.textContent = 'Preparing report...';
+        try {
+            const idToken = await owner.getIdToken();
+            const workerBase = String(window.ROLLCALL_FIREBASE_CONFIG?.profileUploadWorkerUrl || 'https://rollcall-worker.divyanshugupta415.workers.dev/').replace(/\/?$/, '/');
+            const response = await fetch(new URL('owner/delete-school', workerBase), {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${idToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ schoolId: school.id, confirmationCode: enteredCode.trim() })
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || result.ok !== true) {
+                throw new Error(result.error || `School deletion service returned HTTP ${response.status}.`);
+            }
+            notify(
+                `${result.message} Report recipient: ${result.recipient}. Deleted ${Number(result.deletedAuthenticationAccounts || 0)} authentication accounts.`,
+                result.profilePhotoCleanupFailures ? 'warning' : 'success'
+            );
+            await refreshSchoolData();
+        } catch (error) {
+            console.error('School export and deletion failed:', error);
+            notify(error.message || 'School export and deletion failed. Check the school record before retrying.', 'danger');
+        } finally {
+            button.disabled = false;
+            button.textContent = originalText;
+        }
     }
 
     function showSchoolDetails(school) {
@@ -1257,8 +1321,8 @@
         const usage = schoolUserUsage[school.id] || { students: 0, teachers: 0 };
         const mainPlanId = subscription.planId || subscription.plan || '';
         const currentPlan = pricingPlans.find(item => item.id === mainPlanId || item.name === mainPlanId);
-        const baseStudents = Number(subscription.studentCapacity ?? currentPlan?.studentCapacity ?? school.details?.capacity ?? 0);
-        const baseTeachers = Number(subscription.teacherCapacity ?? currentPlan?.teacherCapacity ?? 0);
+        const baseStudents = schoolPlanCapacity(school, 'studentCapacity');
+        const baseTeachers = schoolPlanCapacity(school, 'teacherCapacity');
         const now = Date.now();
         const validTopups = topups.filter(item => !item.endDate || Date.parse(item.endDate) >= now);
         const hasRecordedBonus = validTopups.some(item => item.includedWithPlan && item.planId === currentPlan?.id);
@@ -1310,8 +1374,8 @@
         const all = schools || [];
         const active = all.filter(school => String(school.status || 'Active').toLowerCase() === 'active' && String(school.subscription?.status || 'active').toLowerCase() !== 'inactive' && (!school.subscription?.endDate || Date.parse(school.subscription.endDate) >= Date.now()));
         const pending = all.filter(school => String(school.status || '').toLowerCase() === 'pending');
-        const studentCapacity = all.reduce((total, school) => total + Number(school.subscription?.studentCapacity || school.details?.capacity || 0) + (school.subscription?.topups || []).reduce((sum, item) => sum + Number(item.studentCapacity || 0), 0), 0);
-        const teacherCapacity = all.reduce((total, school) => total + Number(school.subscription?.teacherCapacity || 0) + (school.subscription?.topups || []).reduce((sum, item) => sum + Number(item.teacherCapacity || 0), 0), 0);
+        const studentCapacity = all.reduce((total, school) => total + schoolPlanCapacity(school, 'studentCapacity') + (school.subscription?.topups || []).reduce((sum, item) => sum + Number(item.studentCapacity || 0), 0), 0);
+        const teacherCapacity = all.reduce((total, school) => total + schoolPlanCapacity(school, 'teacherCapacity') + (school.subscription?.topups || []).reduce((sum, item) => sum + Number(item.teacherCapacity || 0), 0), 0);
         const studentUsage = Object.values(schoolUserUsage).reduce((total, usage) => total + Number(usage.students || 0), 0);
         const expiring = all.filter(school => {
             const end = Date.parse(school.subscription?.endDate || '');
