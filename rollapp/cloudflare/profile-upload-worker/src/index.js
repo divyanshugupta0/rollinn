@@ -1762,78 +1762,327 @@ function appendSchoolReportJsonRows(rows, label, value, appendRow, encoder) {
     }
 }
 
-function createSchoolExcelXml(school, profiles, authAccounts, schoolData) {
-    const encoder = new TextEncoder();
-    const maxWorkbookBytes = 8 * 1024 * 1024 - 1024;
-    let workbookBytes = 0;
-    const appendRow = (rows, values) => {
-        if (rows.length >= 65000) {
-            throw new Error('The school export exceeds the Excel worksheet row limit; no email was sent and no data was deleted.');
+function extractStudentAttendance(schoolData, profiles) {
+    const studentStats = new Map();
+    const attendanceLogs = [];
+    const loggedKeys = new Set();
+
+    const studentMap = new Map();
+    (profiles || []).forEach(p => {
+        if (p?.uid) studentMap.set(String(p.uid), p);
+    });
+
+    const getOrInitStats = uid => {
+        if (!studentStats.has(uid)) {
+            studentStats.set(uid, { total: 0, present: 0, absent: 0, late: 0, excused: 0 });
         }
-        const rowXml = `<Row>${values.map(value => `<Cell><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`).join('')}</Row>`;
-        workbookBytes += encoder.encode(rowXml).byteLength;
-        if (workbookBytes > maxWorkbookBytes) {
-            throw new Error('The school report exceeds the email attachment limit; no email was sent and no data was deleted.');
-        }
-        rows.push(values);
+        return studentStats.get(uid);
     };
-    const schoolRows = [];
-    appendRow(schoolRows, ['Field', 'Value']);
-    appendSchoolReportJsonRows(schoolRows, 'School record', school, appendRow, encoder);
-    const accountRows = [];
-    appendRow(accountRows, ['UID', 'Role', 'Email', 'Part', 'Profile details']);
-    profiles.forEach(profile => {
-        const details = JSON.stringify(sanitizeSchoolReportValue(profile));
-        if (encoder.encode(details).byteLength > 8 * 1024 * 1024) {
-            throw new Error('An account profile exceeds the export size limit; no email was sent and no data was deleted.');
-        }
-        const chunkSize = 30000;
-        let offset = 0;
-        let part = 1;
-        while (offset < details.length) {
-            const end = schoolReportChunkEnd(details, offset, chunkSize);
-            appendRow(accountRows, [
-                String(profile.uid || ''),
-                String(profile.role || ''),
-                String(profile.email || ''),
-                String(part),
-                details.slice(offset, end)
-            ]);
-            offset = end;
-            part += 1;
-        }
-    });
-    const authRows = [];
-    appendRow(authRows, ['UID', 'Email', 'Email verified', 'Disabled', 'Created', 'Last sign-in', 'Providers', 'Phone']);
-    authAccounts.forEach(account => {
-        appendRow(authRows, [
-            String(account.localId || ''),
-            String(account.email || ''),
-            String(account.emailVerified === true),
-            String(account.disabled === true),
-            String(account.createdAt || account.userMetadata?.creationTime || ''),
-            String(account.lastLoginAt || account.userMetadata?.lastLoginAt || ''),
-            (account.providerUserInfo || []).map(provider => provider.providerId || '').filter(Boolean).join(', '),
-            String(account.phoneNumber || '')
-        ]);
-    });
-    const dataRows = [];
-    appendRow(dataRows, ['School data path', 'Part', 'Data']);
-    schoolData.forEach(item => appendSchoolReportJsonRows(dataRows, item.path, item.value, appendRow, encoder));
-    const sheets = [
-        ['School', schoolRows],
-        ['Accounts', accountRows],
-        ['Authentication', authRows],
-        ['School Data', dataRows]
-    ];
-    const worksheetXml = sheets.map(([name, rows]) => `<Worksheet ss:Name="${xmlEscape(name)}"><Table>${rows.map(row =>
-        `<Row>${row.map(value => `<Cell><Data ss:Type="String">${xmlEscape(value)}</Data></Cell>`).join('')}</Row>`
-    ).join('')}</Table></Worksheet>`).join('');
-    const workbook = `<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">${worksheetXml}</Workbook>`;
-    if (encoder.encode(workbook).byteLength > 8 * 1024 * 1024) {
-        throw new Error('The school report exceeds the email attachment limit; no email was sent and no data was deleted.');
+
+    const recordAttendance = (studentUid, dateStr, classLabel, rawStatus, remarkStr) => {
+        if (!studentUid || !dateStr) return;
+        const normStatus = String(rawStatus || '').trim().toLowerCase();
+        if (!normStatus || normStatus === 'unmarked' || normStatus === 'null') return;
+
+        const uniqueKey = `${studentUid}_${dateStr}_${classLabel}`;
+        if (loggedKeys.has(uniqueKey)) return;
+        loggedKeys.add(uniqueKey);
+
+        const stats = getOrInitStats(studentUid);
+        stats.total += 1;
+        if (normStatus === 'present') stats.present += 1;
+        else if (normStatus === 'absent') stats.absent += 1;
+        else if (normStatus === 'late') stats.late += 1;
+        else stats.excused += 1;
+
+        const student = studentMap.get(studentUid) || {};
+        const studentName = student.name || student.displayName || student.fullName || studentUid;
+        const rollNo = student.classRoll || student.rollNumber || student.rollNo || student.univRoll || '—';
+
+        let displayStatus = 'Present';
+        if (normStatus === 'absent') displayStatus = 'Absent';
+        else if (normStatus === 'late') displayStatus = 'Late';
+        else if (normStatus === 'excused' || normStatus === 'onduty') displayStatus = 'Excused';
+        else displayStatus = normStatus.charAt(0).toUpperCase() + normStatus.slice(1);
+
+        attendanceLogs.push({
+            date: dateStr,
+            studentUid,
+            studentName,
+            rollNo,
+            classLabel: classLabel || student.className || 'Class',
+            status: displayStatus,
+            remark: remarkStr || '—'
+        });
+    };
+
+    // 1. Process attendance/${schoolId}
+    const schoolAttendanceItem = schoolData.find(item => item.path && item.path.startsWith('attendance/'));
+    if (schoolAttendanceItem?.value && typeof schoolAttendanceItem.value === 'object') {
+        Object.entries(schoolAttendanceItem.value).forEach(([classId, classSessions]) => {
+            if (classSessions && typeof classSessions === 'object') {
+                Object.entries(classSessions).forEach(([dateStr, sessionData]) => {
+                    if (sessionData && typeof sessionData === 'object') {
+                        const meta = sessionData._meta || {};
+                        const classLabel = meta.className || meta.name || classId;
+                        Object.entries(sessionData).forEach(([key, val]) => {
+                            if (key === '_meta' || key.startsWith('_') || key.endsWith('_remark')) return;
+                            let studentUid = key;
+                            let status = '';
+                            let remark = '';
+                            if (key.endsWith('_record')) {
+                                studentUid = key.slice(0, -7);
+                                if (typeof val === 'object' && val !== null) {
+                                    status = val.status;
+                                    remark = val.remark;
+                                }
+                            } else if (typeof val === 'string') {
+                                status = val;
+                                remark = sessionData[key + '_remark'];
+                            } else if (typeof val === 'object' && val !== null) {
+                                status = val.status;
+                                remark = val.remark || val.note;
+                            }
+                            recordAttendance(studentUid, dateStr, classLabel, status, remark);
+                        });
+                    }
+                });
+            }
+        });
     }
-    return workbook;
+
+    // 2. Process attendance_by_location/${locationId}
+    const locationAttendanceItems = schoolData.filter(item => item.path && item.path.startsWith('attendance_by_location/'));
+    locationAttendanceItems.forEach(item => {
+        const locationId = item.path.split('/')[1] || 'Location';
+        if (item.value && typeof item.value === 'object') {
+            Object.entries(item.value).forEach(([dateStr, sessionData]) => {
+                if (sessionData && typeof sessionData === 'object') {
+                    const meta = sessionData._meta || {};
+                    const classLabel = meta.className || meta.locationName || locationId;
+                    Object.entries(sessionData).forEach(([key, val]) => {
+                        if (key === '_meta' || key.startsWith('_') || key.endsWith('_remark')) return;
+                        let studentUid = key;
+                        let status = '';
+                        let remark = '';
+                        if (typeof val === 'string') {
+                            status = val;
+                            remark = sessionData[key + '_remark'];
+                        } else if (typeof val === 'object' && val !== null) {
+                            status = val.status;
+                            remark = val.remark || val.note;
+                        }
+                        recordAttendance(studentUid, dateStr, classLabel, status, remark);
+                    });
+                }
+            });
+        }
+    });
+
+    // 3. Process user_attendance/${uid}
+    const userAttendanceItems = schoolData.filter(item => item.path && item.path.startsWith('user_attendance/'));
+    userAttendanceItems.forEach(item => {
+        const studentUid = item.path.split('/')[1];
+        if (item.value && typeof item.value === 'object') {
+            Object.entries(item.value).forEach(([dateStr, dateBucket]) => {
+                if (dateBucket && typeof dateBucket === 'object') {
+                    Object.entries(dateBucket).forEach(([locId, record]) => {
+                        let status = '';
+                        let remark = '';
+                        let locName = locId;
+                        if (typeof record === 'string') {
+                            status = record;
+                        } else if (typeof record === 'object' && record !== null) {
+                            status = record.status;
+                            remark = record.remark || record.note;
+                            locName = record.locationName || locId;
+                        }
+                        recordAttendance(studentUid, dateStr, locName, status, remark);
+                    });
+                }
+            });
+        }
+    });
+
+    // Sort logs: newest date first, then class, then roll number
+    attendanceLogs.sort((a, b) => {
+        const dateDiff = String(b.date || '').localeCompare(String(a.date || ''));
+        if (dateDiff !== 0) return dateDiff;
+        const classDiff = String(a.classLabel || '').localeCompare(String(b.classLabel || ''));
+        if (classDiff !== 0) return classDiff;
+        return String(a.rollNo || '').localeCompare(String(b.rollNo || ''), undefined, { numeric: true });
+    });
+
+    return { studentStats, attendanceLogs };
+}
+
+function createSchoolSimplifiedCsv(school, profiles, authAccounts, schoolData) {
+    const csvEscape = value => {
+        if (value === null || value === undefined) return '""';
+        const str = String(value).trim();
+        return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const { studentStats, attendanceLogs } = extractStudentAttendance(schoolData, profiles);
+
+    const lines = [];
+
+    // 1. School Information Section
+    lines.push('=== SCHOOL INFORMATION ===');
+    lines.push(['Field', 'Details'].map(csvEscape).join(','));
+    lines.push(['School Name', school.name || 'Unnamed School'].map(csvEscape).join(','));
+    lines.push(['School Code', school.code || '—'].map(csvEscape).join(','));
+    lines.push(['Institution Type', school.type || school.institutionType || '—'].map(csvEscape).join(','));
+    lines.push(['Address', school.address?.complete || school.location || '—'].map(csvEscape).join(','));
+    lines.push(['City', school.address?.city || '—'].map(csvEscape).join(','));
+    lines.push(['State', school.address?.state || '—'].map(csvEscape).join(','));
+    lines.push(['PIN / Zip Code', school.address?.zipCode || '—'].map(csvEscape).join(','));
+    lines.push(['School Phone', school.contacts?.phone || school.contact || '—'].map(csvEscape).join(','));
+    lines.push(['Principal Name', school.contacts?.principal?.name || '—'].map(csvEscape).join(','));
+    lines.push(['Principal Email', school.contacts?.principal?.email || '—'].map(csvEscape).join(','));
+    lines.push(['Administrator Email', school.contacts?.admin?.email || school.admin?.email || '—'].map(csvEscape).join(','));
+    lines.push(['Export & Deletion Date', new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })].map(csvEscape).join(','));
+    lines.push('');
+
+    // 2. Summary Statistics
+    const students = (profiles || []).filter(p => String(p.role || '').toLowerCase() === 'student');
+    const teachers = (profiles || []).filter(p => {
+        const r = String(p.role || '').toLowerCase();
+        return r === 'teacher' || r === 'staff';
+    });
+    const admins = (profiles || []).filter(p => String(p.role || '').toLowerCase() === 'admin');
+
+    let totalRecordedPresent = 0;
+    let totalRecordedAbsent = 0;
+    studentStats.forEach(s => {
+        totalRecordedPresent += s.present;
+        totalRecordedAbsent += s.absent;
+    });
+    const totalAttendanceMarks = totalRecordedPresent + totalRecordedAbsent;
+    const overallRate = totalAttendanceMarks > 0 ? `${((totalRecordedPresent / totalAttendanceMarks) * 100).toFixed(1)}%` : '—';
+
+    lines.push('=== SUMMARY STATISTICS ===');
+    lines.push(['Metric', 'Count / Value'].map(csvEscape).join(','));
+    lines.push(['Total Students', students.length].map(csvEscape).join(','));
+    lines.push(['Total Teachers / Staff', teachers.length].map(csvEscape).join(','));
+    lines.push(['Total Administrators', admins.length].map(csvEscape).join(','));
+    lines.push(['Total Linked Accounts', (profiles || []).length].map(csvEscape).join(','));
+    lines.push(['Total Attendance Records Logged', attendanceLogs.length].map(csvEscape).join(','));
+    lines.push(['Overall Student Attendance Rate', overallRate].map(csvEscape).join(','));
+    lines.push('');
+
+    // 3. User Directory (Clean, simplified tabular list with individual student attendance metrics)
+    lines.push('=== USERS DIRECTORY & ATTENDANCE SUMMARY ===');
+    lines.push([
+        'Role',
+        'Full Name',
+        'Email',
+        'Phone Number',
+        'Class / Grade',
+        'Section',
+        'Roll Number / ID',
+        'Designation / Subject',
+        'Total Sessions',
+        'Present',
+        'Absent',
+        'Late',
+        'Attendance %',
+        'Account Status'
+    ].map(csvEscape).join(','));
+
+    const authMap = new Map();
+    (authAccounts || []).forEach(acc => {
+        if (acc?.localId) authMap.set(String(acc.localId), acc);
+    });
+
+    const roleOrder = { admin: 1, teacher: 2, staff: 2, student: 3 };
+    const sortedProfiles = [...(profiles || [])].sort((a, b) => {
+        const orderA = roleOrder[String(a.role || '').toLowerCase()] || 4;
+        const orderB = roleOrder[String(b.role || '').toLowerCase()] || 4;
+        if (orderA !== orderB) return orderA - orderB;
+        return String(a.name || a.displayName || '').localeCompare(String(b.name || b.displayName || ''));
+    });
+
+    sortedProfiles.forEach(profile => {
+        const role = String(profile.role || 'Member').toLowerCase();
+        const isStudent = role === 'student';
+        const roleLabel = role === 'admin' ? 'Administrator' : (role === 'teacher' ? 'Teacher' : (isStudent ? 'Student' : 'Staff'));
+        const name = profile.name || profile.displayName || profile.fullName || '—';
+        const email = profile.email || '—';
+        const phone = profile.phoneNumber || profile.phone || profile.contact || '—';
+        const className = profile.className || profile.class || profile.assignedClass || '—';
+        const section = profile.section || '—';
+        const rollNo = profile.classRoll || profile.rollNumber || profile.rollNo || profile.univRoll || profile.employeeId || '—';
+
+        let designationSubject = '—';
+        if (profile.designation && profile.subjectsTaught) {
+            designationSubject = `${profile.designation} (${Array.isArray(profile.subjectsTaught) ? profile.subjectsTaught.join(', ') : profile.subjectsTaught})`;
+        } else if (profile.designation) {
+            designationSubject = profile.designation;
+        } else if (profile.subjectsTaught) {
+            designationSubject = Array.isArray(profile.subjectsTaught) ? profile.subjectsTaught.join(', ') : String(profile.subjectsTaught);
+        } else if (profile.subject) {
+            designationSubject = profile.subject;
+        }
+
+        const authAcc = authMap.get(String(profile.uid || ''));
+        const status = (authAcc?.disabled === true || String(profile.status || '').toLowerCase() === 'inactive') ? 'Inactive' : 'Active';
+
+        const stats = studentStats.get(String(profile.uid || ''));
+        const totalSessions = isStudent ? (stats ? stats.total : 0) : '—';
+        const presentDays = isStudent ? (stats ? stats.present : 0) : '—';
+        const absentDays = isStudent ? (stats ? stats.absent : 0) : '—';
+        const lateDays = isStudent ? (stats ? stats.late : 0) : '—';
+        const attendancePercent = isStudent
+            ? (stats && stats.total > 0 ? `${((stats.present / stats.total) * 100).toFixed(1)}%` : '0.0%')
+            : '—';
+
+        lines.push([
+            roleLabel,
+            name,
+            email,
+            phone,
+            className,
+            section,
+            rollNo,
+            designationSubject,
+            totalSessions,
+            presentDays,
+            absentDays,
+            lateDays,
+            attendancePercent,
+            status
+        ].map(csvEscape).join(','));
+    });
+    lines.push('');
+
+    // 4. Detailed Day-by-Day Student Attendance Log
+    lines.push('=== STUDENT ATTENDANCE LOG (DAY-BY-DAY RECORDS) ===');
+    if (attendanceLogs.length === 0) {
+        lines.push(['Notice', 'No attendance session records were found for this school.'].map(csvEscape).join(','));
+    } else {
+        lines.push([
+            'Date',
+            'Class / Section',
+            'Roll Number',
+            'Student Name',
+            'Attendance Status',
+            'Remarks / Notes'
+        ].map(csvEscape).join(','));
+
+        attendanceLogs.forEach(entry => {
+            lines.push([
+                entry.date,
+                entry.classLabel,
+                entry.rollNo,
+                entry.studentName,
+                entry.status,
+                entry.remark
+            ].map(csvEscape).join(','));
+        });
+    }
+
+    return '\uFEFF' + lines.join('\r\n');
 }
 
 function encodeBase64(bytes) {
@@ -1844,15 +2093,16 @@ function encodeBase64(bytes) {
     return btoa(binary);
 }
 
-async function sendSchoolDeletionReport(env, email, schoolName, workbook) {
+async function sendSchoolDeletionReport(env, email, schoolName, reportCsv) {
     if (!env.BREVO_API_KEY || !env.BREVO_SENDER_EMAIL || !env.BREVO_SENDER_NAME) {
-        throw new Error('Report email configuration is incomplete; the school was not deleted.');
+        throw new Error('Report email configuration is incomplete; no email was sent.');
     }
-    const bytes = new TextEncoder().encode(workbook);
+    const bytes = new TextEncoder().encode(reportCsv);
     if (bytes.length > 8 * 1024 * 1024) {
-        throw new Error('The school report exceeds the email attachment limit; the school was not deleted.');
+        throw new Error('The school report exceeds the email attachment limit (8MB); no email was sent.');
     }
-    const subject = `School data export: ${schoolName}`;
+    const safeSchoolName = String(schoolName || 'school').replace(/[^A-Za-z0-9_-]+/g, '_');
+    const subject = `School record summary: ${schoolName}`;
     const result = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: { 'api-key': env.BREVO_API_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -1860,9 +2110,9 @@ async function sendSchoolDeletionReport(env, email, schoolName, workbook) {
             sender: { name: env.BREVO_SENDER_NAME, email: env.BREVO_SENDER_EMAIL },
             to: [{ email }],
             subject,
-            textContent: `Attached is the requested Excel-compatible export for ${schoolName}. It includes school records, linked account profiles, Firebase Authentication metadata and school-scoped data. Passwords, authentication tokens and secret values are not included. After the email provider accepts this message, the school and all linked school data and accounts will be permanently deleted.`,
+            textContent: `Hello,\n\nPlease find attached the final data summary report for ${schoolName} in CSV format.\n\nThis file contains a simplified directory of school details, student records, teacher/staff accounts, and administrator information. You can open it directly in Microsoft Excel, Google Sheets, or Numbers.\n\nThank you,\nRollCall Support`,
             attachment: [{
-                name: `${String(schoolName || 'school').replace(/[^A-Za-z0-9_-]+/g, '_')}-data-export.xls`,
+                name: `${safeSchoolName}-summary-report.csv`,
                 content: encodeBase64(bytes)
             }]
         })
@@ -1870,7 +2120,7 @@ async function sendSchoolDeletionReport(env, email, schoolName, workbook) {
     if (!result.ok) {
         const responseText = (await result.text().catch(() => '')).slice(0, 400);
         console.error('Brevo school export email failed:', result.status, responseText);
-        throw new Error('The export email was not accepted; the school and its accounts were not deleted.');
+        throw new Error(`The export email was rejected by the mail provider (${result.status}: ${responseText}).`);
     }
 }
 
@@ -2015,6 +2265,17 @@ async function deleteSchoolAfterEmail(request, env, origin) {
         })));
         schoolData.push(...attendanceByLocation.filter(item => item.value != null));
 
+        const studentProfiles = profiles.filter(p => String(p.role || '').toLowerCase() === 'student');
+        if (studentProfiles.length > 0) {
+            const userAttendanceRecords = await Promise.all(
+                studentProfiles.slice(0, 100).map(async p => ({
+                    path: `user_attendance/${p.uid}`,
+                    value: await readDatabaseWithAccessToken(env, `user_attendance/${p.uid}`, accessToken)
+                }))
+            );
+            schoolData.push(...userAttendanceRecords.filter(item => item.value != null));
+        }
+
         const schoolCode = String(school.code || '');
         const reservationPath = schoolCode ? `schoolCodeReservations/${safeDatabaseChildKey(schoolCode)}` : '';
         const codeReservation = reservationPath
@@ -2074,21 +2335,32 @@ async function deleteSchoolAfterEmail(request, env, origin) {
             });
         });
 
+        const reportCsv = createSchoolSimplifiedCsv(school, profiles, authAccounts, schoolData);
+        const exportFileName = `${String(school.name || 'school').replace(/[^A-Za-z0-9_-]+/g, '_')}-summary-report.csv`;
+        let emailDeliveryError = null;
+
         const jobPath = `schoolDeletionJobs/${schoolId}`;
         if (priorJob?.emailAcceptedAt) {
+            reportEmailAccepted = true;
             await updateDatabaseWithAccessToken(env, {
                 [jobPath]: { ...priorJob, state: 'deleting', retryAt: Date.now() }
             }, accessToken);
         } else {
-            const workbook = createSchoolExcelXml(school, profiles, authAccounts, schoolData);
-            await sendSchoolDeletionReport(env, recipient, String(school.name || 'school'), workbook);
-            reportEmailAccepted = true;
+            try {
+                await sendSchoolDeletionReport(env, recipient, String(school.name || 'school'), reportCsv);
+                reportEmailAccepted = true;
+            } catch (emailErr) {
+                console.error('Brevo school export email failed:', emailErr);
+                emailDeliveryError = emailErr.message || 'Report email could not be delivered.';
+            }
+
             await updateDatabaseWithAccessToken(env, {
                 [jobPath]: {
                     ownerId: caller.uid,
                     schoolId,
                     state: 'deleting',
-                    emailAcceptedAt: Date.now(),
+                    emailAcceptedAt: reportEmailAccepted ? Date.now() : null,
+                    emailDeliveryError: emailDeliveryError || null,
                     reportRecipient: recipient,
                     reportAccountCount: profiles.length
                 }
@@ -2148,16 +2420,21 @@ async function deleteSchoolAfterEmail(request, env, origin) {
 
         return uploadResponse({
             ok: true,
-            emailAccepted: true,
+            emailAccepted: reportEmailAccepted,
+            emailDeliveryError: emailDeliveryError || undefined,
             recipient,
+            exportData: reportCsv,
+            exportFileName,
             deletedAuthenticationAccounts: authAccounts.length,
             deletedProfiles: profiles.length,
             deletedSchoolDataRoots: schoolDataPathsToRemove.size,
             removedProfilePhotos,
             profilePhotoCleanupFailures: photoCleanupFailures,
-            message: photoCleanupFailures
-                ? 'The report email was accepted and school data/accounts were deleted, but some R2 profile photos could not be removed.'
-                : 'The report email was accepted and the school, linked accounts, and school-scoped data were deleted.'
+            message: emailDeliveryError
+                ? `School and linked accounts were permanently deleted. (Email warning: ${emailDeliveryError})`
+                : (photoCleanupFailures
+                    ? 'The report email was accepted and school data/accounts were deleted, but some R2 profile photos could not be removed.'
+                    : 'The report email was accepted and the school, linked accounts, and school-scoped data were deleted.')
         }, 200, origin);
     } catch (error) {
         console.error('School export and deletion failed:', error);

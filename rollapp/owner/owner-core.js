@@ -1364,11 +1364,11 @@
         const schoolCode = String(school.code || '').trim();
         if (!schoolCode) return notify('This school has no confirmation code, so it cannot be safely deleted.', 'danger');
         const enteredCode = window.prompt(
-            `This permanently deletes ${school.name || 'this school'}, all linked student, teacher, and administrator accounts, and all school-scoped records. An Excel-compatible report will be emailed to the registered school administrator first. Passwords and secrets are not included.\n\nType the school code ${schoolCode} to continue:`
+            `This permanently deletes ${school.name || 'this school'}, all linked student, teacher, and administrator accounts, and all school-scoped records. A simplified Excel-compatible summary report (CSV) will be generated and a backup copy will be downloaded. Passwords and secrets are not included.\n\nType the school code ${schoolCode} to continue:`
         );
         if (enteredCode === null) return;
         if (enteredCode.trim() !== schoolCode) return notify('The school code did not match. Nothing was deleted.', 'warning');
-        if (!window.confirm(`Email the report to the school administrator and permanently delete ${school.name || schoolCode} only after the email provider accepts it?`)) return;
+        if (!window.confirm(`Permanently delete ${school.name || schoolCode} and all associated accounts? A simplified data export will be sent to the administrator (if email delivery is accepted) and downloaded to this device.`)) return;
 
         const owner = ownerAuth?.auth?.().currentUser;
         if (!owner) return notify('Sign in to the owner portal before deleting a school.', 'danger');
@@ -1390,9 +1390,13 @@
             if (!response.ok || result.ok !== true) {
                 throw new Error(result.error || `School deletion service returned HTTP ${response.status}.`);
             }
+            if (result.exportData) {
+                downloadSchoolExportFile(result.exportFileName || `${String(school.name || 'school').replace(/[^A-Za-z0-9_-]+/g, '_')}-summary-report.csv`, result.exportData);
+            }
+            const isWarning = result.emailAccepted === false || Boolean(result.profilePhotoCleanupFailures);
             notify(
-                `${result.message} Report recipient: ${result.recipient}. Deleted ${Number(result.deletedAuthenticationAccounts || 0)} authentication accounts.`,
-                result.profilePhotoCleanupFailures ? 'warning' : 'success'
+                `${result.message} Recipient: ${result.recipient}. Deleted ${Number(result.deletedAuthenticationAccounts || 0)} authentication accounts.`,
+                isWarning ? 'warning' : 'success'
             );
             await refreshSchoolData();
         } catch (error) {
@@ -1401,6 +1405,24 @@
         } finally {
             button.disabled = false;
             button.textContent = originalText;
+        }
+    }
+
+    function downloadSchoolExportFile(filename, content) {
+        try {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                a.remove();
+                URL.revokeObjectURL(url);
+            }, 1000);
+        } catch (err) {
+            console.warn('Could not trigger automatic export download:', err);
         }
     }
 
