@@ -1,5 +1,6 @@
-const CACHE_NAME = 'rollcall-v1';
-const PRECACHE_URLS = ['/index.html'];
+const CACHE_NAME = 'rollcall-v2';
+const START_URL = new URL('index.html', self.registration.scope).pathname;
+const PRECACHE_URLS = [START_URL];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -29,7 +30,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
-      return fetch(event.request).catch(() => caches.match('/index.html'));
+      return fetch(event.request).catch(() => caches.match(START_URL));
     })
   );
 });
