@@ -3554,10 +3554,10 @@
             .studio-sel-input:focus { border-color: #0284c7; box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15); }
 
             /* FULLSCREEN STUDIO MODAL WORKSPACE */
-            #ownerPhotoCameraModal[hidden] {
+            #ownerPhotoCameraModal {
               display: none !important;
             }
-            #ownerPhotoCameraModal:not([hidden]) {
+            #ownerPhotoCameraModal.active {
               position: fixed !important;
               inset: 0 !important;
               width: 100vw !important;
@@ -3571,15 +3571,15 @@
               padding: 0 !important;
               margin: 0 !important;
             }
-            #ownerPhotoCameraModal:not([hidden]):fullscreen,
-            #ownerPhotoCameraModal:not([hidden]):-webkit-full-screen {
+            #ownerPhotoCameraModal.active:fullscreen,
+            #ownerPhotoCameraModal.active:-webkit-full-screen {
               width: 100vw !important;
               height: 100vh !important;
               background: #090d16 !important;
               z-index: 999999 !important;
             }
-            :fullscreen #ownerPhotoCameraModal:not([hidden]),
-            :-webkit-full-screen #ownerPhotoCameraModal:not([hidden]) {
+            :fullscreen #ownerPhotoCameraModal.active,
+            :-webkit-full-screen #ownerPhotoCameraModal.active {
               width: 100vw !important;
               height: 100vh !important;
             }
@@ -3750,7 +3750,7 @@
         </div>
 
         <!-- FULLSCREEN CAPTURE STUDIO WORKSTATION -->
-        <div id="ownerPhotoCameraModal" hidden role="dialog" aria-modal="true" aria-labelledby="ownerPhotoModalTitle">
+        <div id="ownerPhotoCameraModal" hidden style="display: none !important;" role="dialog" aria-modal="true" aria-labelledby="ownerPhotoModalTitle">
           <header class="studio-topbar">
             <div class="d-flex align-items-center gap-2 flex-wrap">
               <span class="studio-live-tag"><i class="fas fa-circle"></i> Live Studio</span>
@@ -3867,7 +3867,23 @@
         main.appendChild(section);
         const schoolSelect = section.querySelector('#ownerPhotoSchool'); const classSelect = section.querySelector('#ownerPhotoClass'); const sectionSelect = section.querySelector('#ownerPhotoSection');
         const lockButton = section.querySelector('#ownerPhotoLock'); const rosterElement = section.querySelector('#ownerPhotoRoster'); const modal = section.querySelector('#ownerPhotoCameraModal');
-        if (modal) modal.hidden = true;
+        function openStudioModal() {
+            if (!modal) return;
+            modal.classList.add('active');
+            modal.hidden = false;
+            modal.style.setProperty('display', 'flex', 'important');
+            document.body.classList.add('studio-fullscreen-active');
+            enterStudioFullscreen();
+        }
+        function closeStudioModal() {
+            if (!modal) return;
+            modal.classList.remove('active');
+            modal.hidden = true;
+            modal.style.setProperty('display', 'none', 'important');
+            document.body.classList.remove('studio-fullscreen-active');
+            exitStudioFullscreen();
+        }
+        closeStudioModal();
         const video = section.querySelector('#ownerPhotoVideo'); const snapshot = section.querySelector('#ownerPhotoSnapshot'); const faceGuide = section.querySelector('#ownerPhotoFaceGuide'); const details = section.querySelector('#ownerPhotoStudentDetails');
         const captureButton = section.querySelector('#ownerPhotoCapture'); const doUploadButton = section.querySelector('#ownerPhotoDoUpload'); const stopUploadButton = section.querySelector('#ownerPhotoStopUpload');
         const retakeButton = section.querySelector('#ownerPhotoRetake'); const skipButton = section.querySelector('#ownerPhotoSkip'); const finishButton = section.querySelector('#ownerPhotoFinish');
@@ -4279,9 +4295,7 @@
                 });
                 return;
             }
-            selectionLocked = false; stopCamera(); resetSnapshotView(); modal.hidden = true;
-            document.body.classList.remove('studio-fullscreen-active');
-            exitStudioFullscreen();
+            selectionLocked = false; stopCamera(); resetSnapshotView(); closeStudioModal();
             const modalTitle = section.querySelector('#ownerPhotoModalTitle');
             if (modalTitle) modalTitle.textContent = 'Capture student profile photo';
             const classBadge = section.querySelector('#ownerPhotoClassBadge');
@@ -4564,9 +4578,7 @@
         }
         section._onBulkPhotosOpen = async () => {
             if (!selectionLocked) {
-                if (modal) modal.hidden = true;
-                document.body.classList.remove('studio-fullscreen-active');
-                exitStudioFullscreen();
+                closeStudioModal();
             }
             const cached = await readSchoolsCache();
             if (Array.isArray(cached)) schools = cached;
@@ -4615,9 +4627,7 @@
             selectionLocked = true; captureIndex = 0; schoolSelect.disabled = true; classSelect.disabled = true; sectionSelect.disabled = true;
             lockButton.innerHTML = '<i class="fas fa-unlock me-2"></i> Unlock to change selection'; lockButton.classList.remove('btn-primary'); lockButton.classList.add('btn-outline-secondary');
 
-            document.body.classList.add('studio-fullscreen-active');
-            enterStudioFullscreen();
-            modal.hidden = false;
+            openStudioModal();
             renderCurrentStudent();
             if (!pendingStudents.length) return;
             try { await startCamera(); }
@@ -4685,18 +4695,12 @@
         section.querySelector('#ownerPhotoClose').addEventListener('click', () => { void unlockSelection(); });
         section._onBulkPhotosClose = () => {
             if (selectionLocked) unlockSelection();
-            else {
-                if (modal) modal.hidden = true;
-                document.body.classList.remove('studio-fullscreen-active');
-                exitStudioFullscreen();
-            }
+            else closeStudioModal();
         };
         item.querySelector('a').addEventListener('click', event => {
             event.preventDefault();
             if (!selectionLocked) {
-                if (modal) modal.hidden = true;
-                document.body.classList.remove('studio-fullscreen-active');
-                exitStudioFullscreen();
+                closeStudioModal();
             }
             switchSection('owner-bulk-profile-photos');
             renderPhotoSchools();
