@@ -76,7 +76,9 @@
         "dateOfBirth",
         "classId",
         "appDownloadUsed",
-        "status"
+        "status",
+        "academicBatch",
+        "batch"
       ],
       "$uid": {
         ".read": true,
@@ -102,7 +104,9 @@
           "dateOfBirth",
           "classId",
           "className",
-          "enrolledClassId"
+          "enrolledClassId",
+          "academicBatch",
+          "batch"
         ]
       }
     },

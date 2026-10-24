@@ -28,6 +28,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="admin.css">
     <link rel="stylesheet" href="../accessibility/accessibility-styles.css?v=large-text-scale-20261022-v2">
+    <link rel="stylesheet" href="manage-batches.css">
     <style>
         body.erp-portal-mode .sidebar-menu-item-modern[data-erp-locked="true"],
         body.erp-portal-mode .sidebar-menu-item[data-erp-locked="true"] {
@@ -163,6 +164,7 @@
         <script src="admin.js"></script>
     <script src="manage-teachers.js"></script>
         <script src="timetable-management.js"></script>
+    <script src="manage-batches.js"></script>
     <script src="../accessibility/accessibility-settings.js?v=natural-voice-20261022-v1"></script>
     <script src="live-attendees.js"></script>
     <script>
@@ -4460,6 +4462,10 @@
                         <div class="menu-item-icon"><i class="fas fa-graduation-cap"></i></div>
                         <span class="menu-item-text" id="academic-management-menu-label">Manage Courses</span>
                     </div>
+                    <div class="sidebar-menu-item-modern" data-section="manage-batches">
+                        <div class="menu-item-icon"><i class="fas fa-layer-group"></i></div>
+                        <span class="menu-item-text">Manage Batches</span>
+                    </div>
                     <div class="sidebar-menu-item-modern" data-section="manage-subjects">
                         <div class="menu-item-icon"><i class="fas fa-book-open"></i></div>
                         <span class="menu-item-text">Manage Subjects</span>
@@ -4970,6 +4976,7 @@
                                     <div class="button-group">
                                         <button id="search-users-btn"><i class="fas fa-search"></i> Search</button>
                                         <button id="refresh-users-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+                                        <button type="button" class="modern-btn secondary" id="users-manage-batches-btn" onclick="document.querySelector('[data-section=\'manage-batches\']')?.click()" title="Assign and manage student batches"><i class="fas fa-layer-group"></i> Manage Batches</button>
                                     </div>
                                 </div>
                                 <div id="users-table-toolbar">
@@ -5416,6 +5423,171 @@
                 </div>
             </div>
         </section>
+    </div>
+
+    <div id="manage-batches-section" class="section-template hidden batch-management-panel">
+        <div class="mb-workspace">
+            <!-- Page Header -->
+            <header class="mb-page-header">
+                <div class="mb-heading">
+                    <button class="section-menu-btn" type="button" aria-label="Open navigation"><i class="fas fa-bars"></i></button>
+                    <div class="mb-heading-icon"><i class="fas fa-layer-group"></i></div>
+                    <div class="mb-heading-copy">
+                        <span class="mb-eyebrow">ACADEMIC ENROLLMENT</span>
+                        <h2>Manage Batches</h2>
+                        <p>Assign intake and graduating batches to students individually or by whole classes in a single click.</p>
+                    </div>
+                </div>
+                <div class="mb-header-actions">
+                    <button type="button" class="mb-btn mb-btn-outline" id="mbRefreshBtn">
+                        <i class="fas fa-rotate"></i><span>Refresh</span>
+                    </button>
+                    <button type="button" class="mb-btn mb-btn-outline" id="mbManageBatchesModalBtn">
+                        <i class="fas fa-list-check"></i><span>Batches Directory</span>
+                    </button>
+                    <button type="button" class="mb-btn mb-btn-outline" id="mbExportCsvBtn">
+                        <i class="fas fa-file-csv"></i><span>Export Roster</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Stats Grid -->
+            <div class="mb-stats-grid">
+                <div class="mb-stat-card">
+                    <div class="mb-stat-icon blue"><i class="fas fa-users"></i></div>
+                    <div class="mb-stat-info">
+                        <div class="mb-stat-label">Total Students</div>
+                        <div class="mb-stat-value" id="mbStatTotal">0</div>
+                        <div class="mb-stat-subtext">Active student accounts</div>
+                    </div>
+                </div>
+                <div class="mb-stat-card">
+                    <div class="mb-stat-icon green"><i class="fas fa-check-circle"></i></div>
+                    <div class="mb-stat-info">
+                        <div class="mb-stat-label">Assigned Batches</div>
+                        <div class="mb-stat-value" id="mbStatAssigned">0</div>
+                        <div class="mb-stat-subtext text-success fw-bold" id="mbStatAssignedPct">0% Assigned</div>
+                    </div>
+                </div>
+                <div class="mb-stat-card">
+                    <div class="mb-stat-icon amber"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="mb-stat-info">
+                        <div class="mb-stat-label">Unassigned</div>
+                        <div class="mb-stat-value text-danger" id="mbStatUnassigned">0</div>
+                        <div class="mb-stat-subtext">Need batch assignment</div>
+                    </div>
+                </div>
+                <div class="mb-stat-card">
+                    <div class="mb-stat-icon purple"><i class="fas fa-graduation-cap"></i></div>
+                    <div class="mb-stat-info">
+                        <div class="mb-stat-label">Active Batches</div>
+                        <div class="mb-stat-value" id="mbStatBatches">0</div>
+                        <div class="mb-stat-subtext">Configured academic groups</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1-Click Whole Class Assigner Hero Card -->
+            <div class="mb-class-assign-card">
+                <div class="mb-class-assign-header">
+                    <div class="mb-class-assign-title">
+                        <span class="mb-stat-icon green" style="width:36px;height:36px;font-size:1.05rem;"><i class="fas fa-bolt"></i></span>
+                        <div>
+                            <h3>One-Click Class Batch Assignment</h3>
+                            <div class="text-muted" style="font-size:0.83rem;">Select an entire class or section to assign its academic batch to all students at once.</div>
+                        </div>
+                    </div>
+                    <span class="mb-badge-pill"><i class="fas fa-magic me-1"></i> Instant Bulk Update</span>
+                </div>
+                <div class="mb-class-assign-grid">
+                    <div class="mb-input-group">
+                        <label for="mbQuickClassSelect"><i class="fas fa-school text-primary me-1"></i>Select Class &amp; Section</label>
+                        <select id="mbQuickClassSelect" class="mb-select">
+                            <option value="">Loading classes...</option>
+                        </select>
+                        <div id="mbQuickPreviewNote" class="mb-class-preview-note">
+                            <i class="fas fa-info-circle text-primary"></i> Select a class to see student counts.
+                        </div>
+                    </div>
+                    <div class="mb-input-group">
+                        <label for="mbQuickBatchSelect"><i class="fas fa-tag text-primary me-1"></i>Target Academic Batch</label>
+                        <select id="mbQuickBatchSelect" class="mb-select">
+                            <option value="">Select or enter batch...</option>
+                        </select>
+                        <input type="text" id="mbQuickCustomBatch" class="mb-input mt-2" placeholder="e.g. 2024-2028" style="display:none;">
+                    </div>
+                    <div>
+                        <button type="button" class="mb-btn mb-btn-primary" id="mbAssignClassBtn" style="padding:10px 20px;font-size:0.95rem;width:100%;justify-content:center;">
+                            <i class="fas fa-bolt"></i><span>Assign to All in Class</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toolbar: Search & Filters -->
+            <div class="mb-toolbar">
+                <div class="mb-filters-row">
+                    <div class="mb-search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="mbSearchInput" class="mb-input" placeholder="Search by name, roll, email...">
+                    </div>
+                    <select id="mbClassFilter" class="mb-select" style="max-width:200px;">
+                        <option value="">All Classes</option>
+                    </select>
+                    <select id="mbBatchFilter" class="mb-select" style="max-width:180px;">
+                        <option value="">All Batches</option>
+                    </select>
+                </div>
+                <div class="mb-selection-buttons">
+                    <span class="text-muted small me-1" id="mbVisibleCount">0 of 0</span>
+                    <button type="button" class="mb-btn mb-btn-outline" id="mbSelectAllBtn" style="padding:6px 10px;font-size:0.8rem;">Select All Visible</button>
+                    <button type="button" class="mb-btn mb-btn-outline" id="mbSelectUnassignedBtn" style="padding:6px 10px;font-size:0.8rem;">Select Unassigned</button>
+                    <button type="button" class="mb-btn mb-btn-outline" id="mbDeselectAllBtn" style="padding:6px 10px;font-size:0.8rem;">Clear Selection</button>
+                </div>
+            </div>
+
+            <!-- Student Roster Table -->
+            <div class="mb-table-container">
+                <table class="mb-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;"><input type="checkbox" id="mbSelectAllMaster" class="mb-checkbox" title="Select / deselect all visible"></th>
+                            <th>Student</th>
+                            <th>Class / Section</th>
+                            <th>Roll Numbers</th>
+                            <th>Assigned Batch</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mbStudentTableBody">
+                        <tr><td colspan="6" class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading students...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Sticky Bulk Actions Floating Bar -->
+            <div class="mb-bulk-bar" id="mbBulkBar" style="display:none;">
+                <div class="mb-bulk-left">
+                    <span class="mb-bulk-count" id="mbBulkSelectedCount">0 Selected</span>
+                    <span style="font-size:0.9rem;">Quickly apply or remove batches for selected students.</span>
+                </div>
+                <div class="mb-bulk-right">
+                    <select id="mbBulkBatchSelect" class="mb-bulk-select">
+                        <option value="">Select Batch to Assign...</option>
+                    </select>
+                    <input type="text" id="mbBulkCustomBatch" class="mb-input" placeholder="e.g. 2024-2028" style="display:none;width:140px;padding:6px 10px;font-size:0.85rem;">
+                    <button type="button" class="mb-btn mb-btn-success" id="mbBulkApplyBtn">
+                        <i class="fas fa-check-circle"></i> Apply Batch
+                    </button>
+                    <button type="button" class="mb-btn mb-btn-danger-outline" id="mbBulkClearBtn">
+                        <i class="fas fa-times-circle"></i> Remove Batch
+                    </button>
+                    <button type="button" class="mb-btn mb-btn-outline" id="mbBulkCancelBtn" style="color:#ffffff;border-color:#475569;background:transparent;">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="manage-subjects-section" class="section-template hidden subject-management-panel">

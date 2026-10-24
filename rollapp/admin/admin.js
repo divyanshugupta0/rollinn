@@ -5466,9 +5466,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         initDownloadLimitSection();
                     } else if (section === 'device-locks') {
                         initDeviceLocksSection();
-
-                }
-            } catch (initErr) {
+                    } else if (section === 'manage-batches') {
+                        if (typeof window.initManageBatchesSection === 'function') {
+                            window.initManageBatchesSection(clonedTemplate);
+                        }
+                    }
+                } catch (initErr) {
                 console.error(`Error initializing section ${section}:`, initErr);
             }
         }
