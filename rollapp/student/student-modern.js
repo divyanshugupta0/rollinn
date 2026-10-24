@@ -2461,28 +2461,92 @@
     let studentScoresCache = {}; // testId -> scoreRecord
     let schoolTestsCache = {};   // testId -> testMeta
 
+    function normSecVal(sec) {
+        if (!sec) return '';
+        let s = String(sec).trim().toUpperCase();
+        s = s.replace(/^(SECTION|SEC\.?)\s*[-:]?\s*/i, '').trim();
+        const m = s.match(/^[A-Z0-9]+/);
+        return m ? m[0] : s;
+    }
+
+    function extractStudentSection(st) {
+        if (!st) return '';
+        const direct = [st.section, st.classSection, st.assignedSection, st.sec, st.studentSection, st.batch];
+        for (const f of direct) {
+            const val = normSecVal(f);
+            if (val) return val;
+        }
+        const nameFields = [st.className, st.courseName, st.class, st.course, st.assignedClass, st.fullClass];
+        for (const name of nameFields) {
+            if (!name) continue;
+            const str = String(name).trim();
+            const mSec = str.match(/(?:section|sec)[\s.:_-]*([a-z0-9]+)/i);
+            if (mSec && mSec[1]) return normSecVal(mSec[1]);
+            const mParen = str.match(/[\(\[\{]([a-z0-9]+)[\)\]\}]/i);
+            if (mParen && mParen[1]) return normSecVal(mParen[1]);
+            const mDash = str.match(/(?:\d+|[a-z]+)\s*[-_]\s*([a-z0-9])\b/i);
+            if (mDash && mDash[1]) return normSecVal(mDash[1]);
+            const mGradeLetter = str.match(/\b(?:\d+|x|xi|xii|ix|viii|vii|vi|v|iv|iii|ii|i)\s+([a-z])\b/i);
+            if (mGradeLetter && mGradeLetter[1]) return normSecVal(mGradeLetter[1]);
+        }
+        return '';
+    }
+
+    function getUnifiedStudentUser() {
+        const u = {
+            ...(window.currentUser || {}),
+            ...(state.currentUser || {})
+        };
+        try {
+            if (u.uid && typeof getCachedUserData === 'function') {
+                const cached = getCachedUserData(u.uid);
+                if (cached) Object.assign(u, cached);
+            }
+        } catch (e) {}
+        return u;
+    }
+
     function isStudentMatchingTest(st, test) {
         if (!st || !test) return false;
-        const testSec = String(test.section || '').trim().replace(/^section\s+/i, '').toUpperCase();
-        const stSec = String(st.section || st.classSection || st.assignedSection || '').trim().replace(/^section\s+/i, '').toUpperCase();
-        if (testSec && stSec && testSec !== 'ALL' && testSec !== stSec) {
+        const testSec = normSecVal(test.section || test.normSection);
+        const stSec = extractStudentSection(st);
+
+        // 1. Strict Section Isolation:
+        // If test specifies a section and it is not 'ALL'
+        if (testSec && testSec !== 'ALL') {
+            // Student must strictly match this section
+            if (!stSec || stSec !== testSec) {
+                return false;
+            }
+        } else if (stSec && testSec && testSec !== 'ALL' && stSec !== testSec) {
             return false;
         }
 
+        // 2. Direct Class / Course ID matching
         const stClassId = String(st.classId || st.enrolledClassId || st.courseId || '').toLowerCase().trim();
-        const testClassId = String(test.classId || '').toLowerCase().trim();
+        const testClassId = String(test.classId || test.courseId || '').toLowerCase().trim();
         if (stClassId && testClassId && stClassId === testClassId) return true;
 
-        const stNames = [st.className, st.courseName, st.course, st.class].filter(Boolean).map(x => String(x).toLowerCase().trim());
-        const testName = String(test.className || '').toLowerCase().trim();
+        // 3. Class Name matching
+        const stNames = [st.className, st.courseName, st.course, st.class, st.assignedClass].filter(Boolean).map(x => String(x).toLowerCase().trim());
+        const testName = String(test.className || test.courseName || '').toLowerCase().trim();
 
         if (testName && stNames.length > 0) {
-            if (stNames.some(name => name === testName || name.includes(testName) || testName.includes(name))) {
-                return true;
+            const testGrade = extractGradeNumber(testName);
+            for (const name of stNames) {
+                if (name === testName || name.includes(testName) || testName.includes(name)) {
+                    return true;
+                }
+                if (testGrade) {
+                    const stGrade = extractGradeNumber(name);
+                    if (stGrade && stGrade === testGrade) {
+                        return true;
+                    }
+                }
             }
         }
 
-        if (testSec && stSec && testSec === stSec) return true;
+        if (!testName && !testClassId && testSec && stSec && testSec === stSec) return true;
         return false;
     }
 
@@ -2521,7 +2585,7 @@
     window.initStudentTestsSync = initStudentTestsSync;
 
     function rebuildStudentTestsList() {
-        const student = state.currentUser || {};
+        const student = getUnifiedStudentUser();
         const combined = new Map();
 
         // 1. Process matching school tests
@@ -2547,6 +2611,12 @@
 
         // 2. Merge personal scores (overrides with actual marks obtained / absent status)
         Object.entries(studentScoresCache).forEach(([id, score]) => {
+            const testMeta = schoolTestsCache[id] || score;
+            // Strict section & class isolation: do not display if not matching this student
+            if (!isStudentMatchingTest(student, testMeta)) {
+                return;
+            }
+
             const existing = combined.get(id) || {};
             combined.set(id, {
                 ...existing,

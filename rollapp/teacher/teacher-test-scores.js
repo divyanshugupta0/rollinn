@@ -20,12 +20,12 @@
         let nav = sidebar.querySelector('[data-section="test-scores"]') || sidebar.querySelector('[data-section="testScores"]');
         if (nav) {
             nav.dataset.section = 'test-scores';
-            nav.innerHTML = '<i class="fas fa-file-pen"></i><span>Test Scores</span>';
+            nav.innerHTML = '<i class="fas fa-clipboard-list"></i><span>Test Scores</span>';
         } else {
             nav = document.createElement('div');
             nav.className = 'menu-item';
             nav.dataset.section = 'test-scores';
-            nav.innerHTML = '<i class="fas fa-file-pen"></i><span>Test Scores</span>';
+            nav.innerHTML = '<i class="fas fa-clipboard-list"></i><span>Test Scores</span>';
 
             // Insert after homework or classes
             const anchor = sidebar.querySelector('[data-section="homework"]') || sidebar.querySelector('[data-section="classes"]');
@@ -759,7 +759,53 @@
         const db = firebase.database();
 
         function normSec(sec) {
-            return String(sec || '').trim().replace(/^section\s+/i, '').toUpperCase();
+            if (!sec) return '';
+            let s = String(sec).trim().toUpperCase();
+            s = s.replace(/^(SECTION|SEC\.?)\s*[-:]?\s*/i, '').trim();
+            const m = s.match(/^[A-Z0-9]+/);
+            return m ? m[0] : s;
+        }
+
+        function extractStudentSection(st) {
+            if (!st) return '';
+            const direct = [st.section, st.classSection, st.assignedSection, st.sec, st.studentSection, st.batch];
+            for (const f of direct) {
+                const val = normSec(f);
+                if (val) return val;
+            }
+            const nameFields = [st.className, st.courseName, st.class, st.course, st.assignedClass, st.fullClass];
+            for (const name of nameFields) {
+                if (!name) continue;
+                const str = String(name).trim();
+                const mSec = str.match(/(?:section|sec)[\s.:_-]*([a-z0-9]+)/i);
+                if (mSec && mSec[1]) return normSec(mSec[1]);
+                const mParen = str.match(/[\(\[\{]([a-z0-9]+)[\)\]\}]/i);
+                if (mParen && mParen[1]) return normSec(mParen[1]);
+                const mDash = str.match(/(?:\d+|[a-z]+)\s*[-_]\s*([a-z0-9])\b/i);
+                if (mDash && mDash[1]) return normSec(mDash[1]);
+                const mGradeLetter = str.match(/\b(?:\d+|x|xi|xii|ix|viii|vii|vi|v|iv|iii|ii|i)\s+([a-z])\b/i);
+                if (mGradeLetter && mGradeLetter[1]) return normSec(mGradeLetter[1]);
+            }
+            return '';
+        }
+
+        function extractGradeNum(str) {
+            if (!str) return null;
+            const s = String(str).toLowerCase().trim();
+            if (/\b(xii|12th|12)\b/i.test(s)) return '12';
+            if (/\b(xi|11th|11)\b/i.test(s)) return '11';
+            if (/\b(x|10th|10)\b/i.test(s)) return '10';
+            if (/\b(ix|9th|9)\b/i.test(s)) return '9';
+            if (/\b(viii|8th|8)\b/i.test(s)) return '8';
+            if (/\b(vii|7th|7)\b/i.test(s)) return '7';
+            if (/\b(vi|6th|6)\b/i.test(s)) return '6';
+            if (/\b(v|5th|5)\b/i.test(s)) return '5';
+            if (/\b(iv|4th|4)\b/i.test(s)) return '4';
+            if (/\b(iii|3rd|3)\b/i.test(s)) return '3';
+            if (/\b(ii|2nd|2)\b/i.test(s)) return '2';
+            if (/\b(i|1st|1)\b/i.test(s)) return '1';
+            const m = s.match(/\d+/);
+            return m ? m[0] : null;
         }
 
         function safeKey(str) {
@@ -1161,21 +1207,46 @@
         function isStudentInClass(st, classId, section, className) {
             if (!st) return false;
             const targetSec = normSec(section);
-            const stSec = normSec(st.section || st.classSection || st.assignedSection);
-            if (targetSec && stSec && targetSec !== 'ALL' && targetSec !== stSec) {
+            const stSec = extractStudentSection(st);
+
+            // 1. Strict Section Isolation
+            if (targetSec && targetSec !== 'ALL') {
+                if (stSec && stSec !== targetSec) {
+                    return false;
+                }
+                if (!stSec) {
+                    const stNames = [st.className, st.courseName, st.course, st.class, st.assignedClass].filter(Boolean).map(x => String(x).toLowerCase());
+                    const otherSecFound = stNames.some(n => {
+                        const m = n.match(/(?:sec|section)[\s.:_-]*([a-z0-9]+)/i);
+                        return m && normSec(m[1]) !== targetSec;
+                    });
+                    if (otherSecFound) return false;
+                }
+            } else if (stSec && targetSec && targetSec !== 'ALL' && stSec !== targetSec) {
                 return false;
             }
 
+            // 2. Class ID matching
             const stClassId = String(st.classId || st.enrolledClassId || st.courseId || '').toLowerCase().trim();
             const targetClassId = String(classId || '').toLowerCase().trim();
             if (stClassId && targetClassId && stClassId === targetClassId) return true;
 
-            const stNames = [st.className, st.courseName, st.course, st.class].filter(Boolean).map(x => String(x).toLowerCase().trim());
+            // 3. Class Name & Grade matching
+            const stNames = [st.className, st.courseName, st.course, st.class, st.assignedClass].filter(Boolean).map(x => String(x).toLowerCase().trim());
             const targetName = String(className || '').toLowerCase().trim();
 
             if (targetName && stNames.length > 0) {
-                if (stNames.some(name => name === targetName || name.includes(targetName) || targetName.includes(name))) {
-                    return true;
+                const targetGrade = extractGradeNum(targetName);
+                for (const name of stNames) {
+                    if (name === targetName || name.includes(targetName) || targetName.includes(name)) {
+                        return true;
+                    }
+                    if (targetGrade) {
+                        const stGrade = extractGradeNum(name);
+                        if (stGrade && stGrade === targetGrade) {
+                            return true;
+                        }
+                    }
                 }
             }
 
