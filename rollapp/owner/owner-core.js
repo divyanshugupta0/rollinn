@@ -2180,7 +2180,8 @@
               <div class="row g-3"><div class="col-md-7"><div id="ownerPhotoStudentDetails" class="row g-2 border rounded p-3 mb-3"></div>
                 <video id="ownerPhotoVideo" autoplay playsinline muted style="display:block;width:100%;max-height:48vh;object-fit:cover;background:#111827;border-radius:12px;"></video>
                 <div id="ownerPhotoCameraStatus" class="small text-muted mt-2" role="status">Allow camera access to begin capturing.</div>
-                <div class="d-flex justify-content-between align-items-center gap-2 mt-3"><button id="ownerPhotoSkip" type="button" class="btn btn-outline-secondary">Skip student</button><div class="d-flex gap-2"><button id="ownerPhotoCapture" type="button" class="btn btn-primary" disabled><i class="fas fa-camera"></i> Capture &amp; upload</button><button id="ownerPhotoFinish" type="button" class="btn btn-success" hidden>Finish</button></div></div>
+                <div id="ownerPhotoRemotePanel" class="border rounded p-3 mt-3" hidden><div class="d-flex justify-content-between align-items-center gap-2"><strong>Remote camera</strong><button id="ownerPhotoRemoteDisconnect" type="button" class="btn btn-sm btn-outline-secondary">Disconnect</button></div><div class="row g-3 align-items-center mt-1"><div class="col-sm-auto"><div id="ownerPhotoRemoteQr" aria-label="Remote camera pairing QR code"></div></div><div class="col"><p id="ownerPhotoRemoteStatus" class="small mb-2" role="status">Preparing a secure camera session…</p><div id="ownerPhotoRemoteApproval" hidden><p class="small mb-2">Approve only if this code matches the code shown on that device: <strong id="ownerPhotoRemoteCode" class="fs-5"></strong></p><button id="ownerPhotoRemoteApprove" type="button" class="btn btn-sm btn-success">Approve device</button><button id="ownerPhotoRemoteReject" type="button" class="btn btn-sm btn-outline-danger ms-2">Reject</button></div></div></div></div>
+                <div class="d-flex justify-content-between align-items-center gap-2 mt-3"><button id="ownerPhotoSkip" type="button" class="btn btn-outline-secondary">Skip student</button><div class="d-flex gap-2 flex-wrap justify-content-end"><button id="ownerPhotoRemoteConnect" type="button" class="btn btn-outline-primary"><i class="fas fa-mobile-alt"></i> Use another device</button><button id="ownerPhotoCapture" type="button" class="btn btn-primary" disabled><i class="fas fa-camera"></i> Capture &amp; upload</button><button id="ownerPhotoFinish" type="button" class="btn btn-success" hidden>Finish</button></div></div>
               </div><aside class="col-md-5"><h3 class="h6">Student sequence</h3><p class="small text-muted">Students with saved photos are marked complete. This list updates locally after each upload.</p><ol id="ownerPhotoPendingList" class="small ps-4 mb-0" style="max-height:60vh;overflow:auto;"></ol></aside></div>
             </div>
           </div>`;
@@ -2189,8 +2190,10 @@
         const lockButton = section.querySelector('#ownerPhotoLock'); const rosterElement = section.querySelector('#ownerPhotoRoster'); const modal = section.querySelector('#ownerPhotoCameraModal');
         const video = section.querySelector('#ownerPhotoVideo'); const details = section.querySelector('#ownerPhotoStudentDetails'); const captureButton = section.querySelector('#ownerPhotoCapture'); const pendingList = section.querySelector('#ownerPhotoPendingList');
         const skipButton = section.querySelector('#ownerPhotoSkip'); const finishButton = section.querySelector('#ownerPhotoFinish'); const cameraStatus = section.querySelector('#ownerPhotoCameraStatus');
+        const remoteConnectButton = section.querySelector('#ownerPhotoRemoteConnect'); const remotePanel = section.querySelector('#ownerPhotoRemotePanel'); const remoteQr = section.querySelector('#ownerPhotoRemoteQr'); const remoteStatus = section.querySelector('#ownerPhotoRemoteStatus'); const remoteApproval = section.querySelector('#ownerPhotoRemoteApproval');
         const accountCacheBySchool = new Map(); const classCacheBySchool = new Map();
         let accounts = []; let classes = []; let selectedStudents = []; let pendingStudents = []; let captureIndex = 0; let cameraStream = null; let selectionLocked = false;
+        let remoteCaptureSession = null; let remoteCaptureTimer = null; let remoteCaptureBusy = false; let remoteCaptureHasImage = false; let remoteCaptureSlot = 0; let remotePairingCode = '';
         function renderPhotoSchools() {
             const previous = schoolSelect.value; schoolSelect.replaceChildren(new Option('Select school', ''));
             (schools || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).forEach(school => schoolSelect.add(new Option(`${school.name || 'Unnamed school'} · ${school.code || 'No code'}`, school.id)));
@@ -2273,7 +2276,131 @@
             if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
             cameraStream = null; video.srcObject = null; captureButton.disabled = true;
         }
+        function remoteCaptureUrl(action) {
+            const endpoint = String(APP_FIREBASE?.profileUploadWorkerUrl || '').trim();
+            const base = new URL(endpoint);
+            if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) throw new Error('Secure remote capture requires a valid HTTPS Worker URL.');
+            return new URL(`owner/remote-photo-capture/${action}`, base);
+        }
+        async function ownerRemoteCaptureRequest(action, payload = {}, responseType = 'json') {
+            const owner = ownerAuth?.auth().currentUser;
+            if (!owner || !remoteCaptureSession) throw new Error('The owner session or remote camera session is unavailable.');
+            const token = await owner.getIdToken();
+            const response = await fetch(remoteCaptureUrl(action), {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: remoteCaptureSession.sessionId, ...payload }),
+                credentials: 'omit',
+                redirect: 'error',
+                referrerPolicy: 'no-referrer'
+            });
+            if (!response.ok) {
+                const result = await response.json().catch(() => ({}));
+                const error = new Error(result.error || 'Remote camera request failed.');
+                error.status = response.status;
+                throw error;
+            }
+            return responseType === 'blob' ? response.blob() : response.json();
+        }
+        function syncRemoteCaptureButton() {
+            const studentPending = !!pendingStudents[captureIndex];
+            if (remoteCaptureSession) {
+                remoteConnectButton.hidden = true;
+                captureButton.disabled = !studentPending || !remoteCaptureHasImage;
+                captureButton.innerHTML = remoteCaptureHasImage ? '<i class="fas fa-cloud-download-alt"></i> Receive &amp; upload' : '<i class="fas fa-camera"></i> Waiting for photo';
+            } else {
+                remoteConnectButton.hidden = !studentPending;
+                captureButton.innerHTML = '<i class="fas fa-camera"></i> Capture &amp; upload';
+                captureButton.disabled = !studentPending || !cameraStream;
+            }
+        }
+        async function pollRemoteCaptureStatus() {
+            if (!remoteCaptureSession || remoteCaptureBusy) return;
+            remoteCaptureBusy = true;
+            try {
+                const result = await ownerRemoteCaptureRequest('status');
+                if (!remoteCaptureSession) return;
+                remoteCaptureHasImage = result.hasCapture === true;
+                remoteCaptureSlot = Number.isSafeInteger(result.captureSlot) ? result.captureSlot : remoteCaptureSlot;
+                if (result.pairExpired) {
+                    remoteApproval.hidden = true;
+                    remoteStatus.textContent = 'This QR code expired. Disconnect and create a new one.';
+                } else if (result.status === 'pairing') {
+                    remotePairingCode = result.pairingCode;
+                    section.querySelector('#ownerPhotoRemoteCode').textContent = remotePairingCode;
+                    remoteApproval.hidden = false;
+                    remoteStatus.textContent = `A device named “${result.deviceName || 'Camera device'}” is requesting access. Confirm the code on that device.`;
+                } else {
+                    remoteApproval.hidden = true;
+                    if (result.status === 'approved') remoteStatus.textContent = remoteCaptureHasImage ? 'Photo received securely. Review the current student, then receive and upload it.' : `Connected to ${result.deviceName || 'camera device'}. Waiting for a photo.`;
+                    else remoteStatus.textContent = 'Waiting for a camera device to scan the QR code.';
+                }
+                syncRemoteCaptureButton();
+            } catch (error) {
+                if (error.status === 410) {
+                    clearInterval(remoteCaptureTimer); remoteCaptureTimer = null;
+                    remoteStatus.textContent = 'This remote camera session expired. Disconnect and create a new one.';
+                }
+            } finally { remoteCaptureBusy = false; }
+        }
+        async function startRemoteCapture() {
+            if (typeof window.QRCode !== 'function') throw new Error('QR code support did not load. Reload the owner portal and try again.');
+            stopCamera();
+            video.style.display = 'none';
+            remoteConnectButton.disabled = true;
+            remotePanel.hidden = false;
+            remoteQr.replaceChildren();
+            remoteStatus.textContent = 'Creating a private pairing code…';
+            remoteApproval.hidden = true;
+            const owner = ownerAuth?.auth().currentUser;
+            if (!owner) throw new Error('Sign in again before connecting a camera device.');
+            const token = await owner.getIdToken();
+            const response = await fetch(remoteCaptureUrl('create'), {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: '{}',
+                credentials: 'omit',
+                redirect: 'error',
+                referrerPolicy: 'no-referrer'
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.error || 'Could not start remote capture.');
+            remoteCaptureSession = { sessionId: result.sessionId };
+            remoteCaptureSlot = Number.isSafeInteger(result.captureSlot) ? result.captureSlot : 0;
+            const captureUrl = new URL('../remote-photo-capture.html', window.location.href);
+            captureUrl.hash = new URLSearchParams({ session: result.sessionId, token: result.qrToken }).toString();
+            new window.QRCode(remoteQr, { text: captureUrl.href, width: 190, height: 190, colorDark: '#17243a', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.H });
+            remoteStatus.textContent = 'Scan this QR code with the camera device. The owner must approve its matching code before camera access starts.';
+            remoteCaptureTimer = window.setInterval(pollRemoteCaptureStatus, 1800);
+            await pollRemoteCaptureStatus();
+            syncRemoteCaptureButton();
+        }
+        async function closeRemoteCapture() {
+            if (remoteCaptureTimer) window.clearInterval(remoteCaptureTimer);
+            remoteCaptureTimer = null;
+            const session = remoteCaptureSession;
+            if (session) {
+                try { await ownerRemoteCaptureRequest('revoke'); }
+                catch (error) { throw error; }
+            }
+            remoteCaptureSession = null;
+            remoteCaptureHasImage = false;
+            remoteCaptureSlot = 0;
+            remotePairingCode = '';
+            remoteApproval.hidden = true;
+            remotePanel.hidden = true;
+            remoteQr.replaceChildren();
+            video.style.display = 'block';
+            remoteConnectButton.hidden = false;
+            remoteConnectButton.disabled = false;
+        }
         function unlockSelection() {
+            if (remoteCaptureSession) {
+                closeRemoteCapture().then(() => unlockSelection()).catch(error => {
+                    cameraStatus.textContent = `Could not revoke remote camera access: ${error.message}. Try Finish again.`;
+                });
+                return;
+            }
             selectionLocked = false; stopCamera(); modal.hidden = true;
             schoolSelect.disabled = false; classSelect.disabled = !schoolSelect.value || !classes.length; sectionSelect.disabled = !classSelect.value || !sectionSelect.value;
             lockButton.innerHTML = '<i class="fas fa-lock"></i> Lock selection &amp; open camera';
@@ -2286,6 +2413,7 @@
                 section.querySelector('#ownerPhotoProgress').textContent = pendingStudents.length ? `Complete: ${pendingStudents.length} pending photos processed.` : `${selectedStudents.length} students selected; no photos are pending.`;
                 cameraStatus.textContent = pendingStudents.length ? 'All pending students have been processed.' : 'Every student in this section already has a profile photo.';
                 captureButton.hidden = true; skipButton.hidden = true; finishButton.hidden = false;
+                remoteConnectButton.hidden = true;
                 renderPendingStudents();
                 return;
             }
@@ -2305,6 +2433,7 @@
             });
             cameraStatus.textContent = 'Check the student details, position the student in frame, then capture and upload.';
             captureButton.hidden = false; skipButton.hidden = false; finishButton.hidden = true;
+            syncRemoteCaptureButton();
             renderPendingStudents();
         }
         async function startCamera() {
@@ -2315,15 +2444,21 @@
             await video.play(); captureButton.disabled = false; cameraStatus.textContent = 'Camera is ready.';
         }
         async function captureAndUpload() {
-            const student = selectedStudents[captureIndex]; const owner = ownerAuth?.auth().currentUser;
-            if (!student || !owner || !window.RollCallProfileUpload || !video.videoWidth) return notify('The camera or secure photo upload service is not ready.', 'warning');
-            captureButton.disabled = true; skipButton.disabled = true; cameraStatus.textContent = 'Preparing and uploading the photo to R2…';
+            const student = pendingStudents[captureIndex]; const owner = ownerAuth?.auth().currentUser;
+            if (!student || !owner || !window.RollCallProfileUpload || (!remoteCaptureSession && !video.videoWidth) || (remoteCaptureSession && !remoteCaptureHasImage)) return notify('The camera or secure photo upload service is not ready.', 'warning');
+            captureButton.disabled = true; skipButton.disabled = true; cameraStatus.textContent = remoteCaptureSession ? 'Receiving and uploading the photo to R2…' : 'Preparing and uploading the photo to R2…';
             try {
-                const scale = Math.min(1, 640 / Math.max(video.videoWidth, video.videoHeight));
-                const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(video.videoWidth * scale)); canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-                const context = canvas.getContext('2d'); if (!context) throw new Error('Could not prepare the captured photo.');
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
+                let blob;
+                if (remoteCaptureSession) {
+                    blob = await ownerRemoteCaptureRequest('take', {}, 'blob');
+                    remoteCaptureHasImage = false;
+                } else {
+                    const scale = Math.min(1, 640 / Math.max(video.videoWidth, video.videoHeight));
+                    const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(video.videoWidth * scale)); canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+                    const context = canvas.getContext('2d'); if (!context) throw new Error('Could not prepare the captured photo.');
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
+                }
                 if (!blob || blob.size > 2 * 1024 * 1024) throw new Error('The captured photo could not be compressed under the 2 MB upload limit.');
                 const result = await window.RollCallProfileUpload.upload(blob, { uid: student.uid, getIdToken: () => owner.getIdToken() });
                 const timestamp = Date.now(); const updates = {
@@ -2338,15 +2473,20 @@
                 }
                 await database.ref().update(updates);
                 student.profilePhoto = result.publicUrl; student.profilePhotoKey = result.key; student.profilePhotoUpdatedAt = timestamp; student._photoCaptureStatus = 'Uploaded';
-                cameraIndexNext('Photo uploaded.');
+                await cameraIndexNext('Photo uploaded.');
             } catch (error) {
                 cameraStatus.textContent = error.message || 'Photo upload failed. You can try again.';
-                captureButton.disabled = false;
+                if (remoteCaptureSession) syncRemoteCaptureButton(); else captureButton.disabled = false;
             } finally { skipButton.disabled = false; }
         }
-        function cameraIndexNext(message) {
+        async function cameraIndexNext(message) {
+            if (remoteCaptureSession) {
+                const result = await ownerRemoteCaptureRequest('advance');
+                remoteCaptureSlot = Number.isSafeInteger(result.captureSlot) ? result.captureSlot : remoteCaptureSlot + 1;
+                remoteCaptureHasImage = false;
+            }
             captureIndex += 1; cameraStatus.textContent = message; renderCurrentStudent();
-            if (pendingStudents[captureIndex]) captureButton.disabled = !cameraStream;
+            if (pendingStudents[captureIndex]) syncRemoteCaptureButton();
         }
         section._onBulkPhotosOpen = async () => {
             const cached = await readSchoolsCache();
@@ -2385,13 +2525,41 @@
             catch (error) { stopCamera(); cameraStatus.textContent = error.message; captureButton.disabled = true; notify(error.message, 'warning'); }
         });
         captureButton.addEventListener('click', captureAndUpload);
-        skipButton.addEventListener('click', () => {
+        remoteConnectButton.addEventListener('click', async () => {
+            try { await startRemoteCapture(); }
+            catch (error) {
+                remoteStatus.textContent = error.message;
+                remoteConnectButton.disabled = false;
+                video.style.display = 'block';
+                await startCamera().catch(() => {});
+            }
+        });
+        section.querySelector('#ownerPhotoRemoteApprove').addEventListener('click', async event => {
+            const button = event.currentTarget; button.disabled = true;
+            try {
+                await ownerRemoteCaptureRequest('approve', { pairingCode: remotePairingCode });
+                remotePairingCode = '';
+                await pollRemoteCaptureStatus();
+            } catch (error) { remoteStatus.textContent = error.message; }
+            finally { button.disabled = false; }
+        });
+        section.querySelector('#ownerPhotoRemoteReject').addEventListener('click', async () => {
+            try { await ownerRemoteCaptureRequest('reject', { pairingCode: remotePairingCode }); await closeRemoteCapture(); await startCamera(); }
+            catch (error) { remoteStatus.textContent = error.message; }
+        });
+        section.querySelector('#ownerPhotoRemoteDisconnect').addEventListener('click', async () => {
+            try { await closeRemoteCapture(); await startCamera(); syncRemoteCaptureButton(); }
+            catch (error) { remoteStatus.textContent = error.message; }
+        });
+        skipButton.addEventListener('click', async () => {
             skipButton.disabled = true;
             if (pendingStudents[captureIndex]) pendingStudents[captureIndex]._photoCaptureStatus = 'Skipped';
-            cameraIndexNext('Student skipped. No photo was uploaded.'); skipButton.disabled = !pendingStudents[captureIndex];
+            try { await cameraIndexNext('Student skipped. No photo was uploaded.'); }
+            catch (error) { cameraStatus.textContent = `Could not advance the remote capture sequence: ${error.message}`; syncRemoteCaptureButton(); }
+            skipButton.disabled = !pendingStudents[captureIndex];
         });
-        finishButton.addEventListener('click', unlockSelection);
-        section.querySelector('#ownerPhotoClose').addEventListener('click', unlockSelection);
+        finishButton.addEventListener('click', () => { void unlockSelection(); });
+        section.querySelector('#ownerPhotoClose').addEventListener('click', () => { void unlockSelection(); });
         section._onBulkPhotosClose = () => { if (selectionLocked) unlockSelection(); };
         item.querySelector('a').addEventListener('click', event => { event.preventDefault(); switchSection('owner-bulk-profile-photos'); renderPhotoSchools(); });
     }

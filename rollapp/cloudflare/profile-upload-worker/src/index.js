@@ -2775,6 +2775,310 @@ async function createProfileUpload(request, env, origin) {
     }
 }
 
+const REMOTE_CAPTURE_ROOT = 'remotePhotoCaptureSessions';
+const REMOTE_CAPTURE_TTL_MS = 2 * 60 * 60 * 1000;
+const REMOTE_CAPTURE_PAIR_TTL_MS = 5 * 60 * 1000;
+
+async function hashRemoteCaptureSecret(secret) {
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
+    return encodeBase64Url(new Uint8Array(digest));
+}
+
+function remoteCaptureTokenMatches(expected, provided) {
+    if (typeof expected !== 'string' || typeof provided !== 'string' || expected.length !== provided.length) return false;
+    let difference = 0;
+    for (let index = 0; index < expected.length; index += 1) difference |= expected.charCodeAt(index) ^ provided.charCodeAt(index);
+    return difference === 0;
+}
+
+async function authenticateRemoteCaptureOwner(request, env) {
+    const tokenMatch = (request.headers.get('Authorization') || '').match(/^Bearer\s+([A-Za-z0-9._~-]+)$/);
+    if (!tokenMatch) return null;
+    const caller = await verifyFirebaseToken(tokenMatch[1], env.FIREBASE_PROJECT_ID);
+    if (!caller) return null;
+    const [ownerProfile, userProfile] = await Promise.all([
+        readDatabaseProfile(env, `owners/${caller.uid}`, tokenMatch[1]),
+        readDatabaseProfile(env, `users/${caller.uid}`, tokenMatch[1])
+    ]);
+    const ownerRoles = new Set(['owner', 'platform_owner', 'super_owner']);
+    const profileRole = String(userProfile?.role || '').trim().toLowerCase();
+    const storedOwnerRole = String(ownerProfile?.role || ownerProfile?.accountType || ownerProfile?.platformRole || '').trim().toLowerCase();
+    const hasOwnerRecord = !!ownerProfile && typeof ownerProfile === 'object' && (!storedOwnerRole || ownerRoles.has(storedOwnerRole));
+    const hasOwnerRole = ownerRoles.has(profileRole) || ownerRoles.has(storedOwnerRole);
+    if ((profileRole && !ownerRoles.has(profileRole)) || (!hasOwnerRecord && !hasOwnerRole)) return null;
+    return { uid: caller.uid, idToken: tokenMatch[1], accessToken: await getFirebaseAccessToken(env) };
+}
+
+async function readRemoteCaptureRecord(env, sessionId, accessToken) {
+    const result = await fetch(databasePathUrl(env, `${REMOTE_CAPTURE_ROOT}/${sessionId}`, accessToken), {
+        headers: { 'X-Firebase-ETag': 'true' }
+    });
+    if (!result.ok) throw new Error('Remote capture session could not be loaded.');
+    return { record: await result.json(), etag: result.headers.get('ETag') || 'null_etag' };
+}
+
+async function writeRemoteCaptureRecord(env, sessionId, record, etag, accessToken) {
+    const result = await fetch(databasePathUrl(env, `${REMOTE_CAPTURE_ROOT}/${sessionId}`, accessToken), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+        body: JSON.stringify(record)
+    });
+    if (result.status === 412) return false;
+    if (!result.ok) throw new Error('Remote capture session could not be updated.');
+    return true;
+}
+
+async function ownerRemoteCapture(request, env, origin, action) {
+    try {
+        const owner = await authenticateRemoteCaptureOwner(request, env);
+        if (!owner) return uploadResponse({ error: 'Authorized platform owner access is required.' }, 403, origin);
+        const payload = await readJsonWithinLimit(request, 4096);
+        if (action === 'create') {
+            const sessionId = crypto.randomUUID();
+            const qrToken = encodeBase64Url(crypto.getRandomValues(new Uint8Array(32)));
+            const now = Date.now();
+            const record = {
+                ownerUid: owner.uid,
+                status: 'waiting',
+                qrTokenHash: await hashRemoteCaptureSecret(qrToken),
+                createdAt: now,
+                pairExpiresAt: now + REMOTE_CAPTURE_PAIR_TTL_MS,
+                expiresAt: now + REMOTE_CAPTURE_TTL_MS,
+                captureSlot: 0,
+                captureKey: null
+            };
+            const saved = await writeRemoteCaptureRecord(env, sessionId, record, 'null_etag', owner.accessToken);
+            if (!saved) return uploadResponse({ error: 'Could not create a unique remote capture session.' }, 503, origin);
+            return uploadResponse({ sessionId, qrToken, expiresAt: record.expiresAt, captureSlot: record.captureSlot }, 200, origin);
+        }
+
+        const sessionId = String(payload?.sessionId || '').trim();
+        if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return uploadResponse({ error: 'Invalid remote capture session.' }, 400, origin);
+        const { record, etag } = await readRemoteCaptureRecord(env, sessionId, owner.accessToken);
+        if (!record && action === 'revoke') return uploadResponse({ status: 'revoked' }, 200, origin);
+        if (!record || record.ownerUid !== owner.uid || (record.expiresAt <= Date.now() && action !== 'revoke')) {
+            return uploadResponse({ error: 'Remote capture session expired or is unavailable.' }, 410, origin);
+        }
+
+        if (action === 'status') {
+            return uploadResponse({
+                status: record.status,
+                deviceName: record.deviceName || '',
+                pairingCode: record.pairingCode || '',
+                pairExpired: record.status === 'waiting' && record.pairExpiresAt <= Date.now(),
+                hasCapture: !!record.captureKey,
+                captureSlot: Number.isSafeInteger(record.captureSlot) ? record.captureSlot : 0,
+                expiresAt: record.expiresAt
+            }, 200, origin);
+        }
+
+        if (action === 'approve' || action === 'reject') {
+            if (record.status !== 'pairing' || !remoteCaptureTokenMatches(record.pairingCode, String(payload?.pairingCode || ''))) {
+                return uploadResponse({ error: 'The pending device or pairing code is no longer valid.' }, 409, origin);
+            }
+            if (action === 'reject') {
+                record.status = 'revoked';
+                record.qrTokenHash = null;
+                record.deviceTokenHash = null;
+                record.pairingCode = null;
+                const saved = await writeRemoteCaptureRecord(env, sessionId, record, etag, owner.accessToken);
+                if (!saved) return uploadResponse({ error: 'Pairing changed. Refresh and try again.' }, 409, origin);
+                return uploadResponse({ status: 'revoked' }, 200, origin);
+            }
+            record.status = 'approved';
+            record.pairingCode = null;
+            record.approvedAt = Date.now();
+            if (!await writeRemoteCaptureRecord(env, sessionId, record, etag, owner.accessToken)) {
+                return uploadResponse({ error: 'Pairing changed. Refresh and try again.' }, 409, origin);
+            }
+            return uploadResponse({ status: 'approved' }, 200, origin);
+        }
+
+        if (action === 'take') {
+            if (record.status !== 'approved') return uploadResponse({ error: 'Remote camera is not approved.' }, 409, origin);
+            if (!record.captureKey) return uploadResponse({ empty: true }, 200, origin);
+            const captureKey = record.captureKey;
+            record.captureKey = null;
+            record.captureContentType = null;
+            record.captureUploadedAt = null;
+            record.lastTakenAt = Date.now();
+            if (!await writeRemoteCaptureRecord(env, sessionId, record, etag, owner.accessToken)) {
+                return uploadResponse({ error: 'Capture is already being received.' }, 409, origin);
+            }
+            const object = await env.PROFILE_PHOTOS.get(captureKey);
+            if (!object) return uploadResponse({ error: 'Temporary capture is no longer available.' }, 404, origin);
+            const bytes = await object.arrayBuffer();
+            await env.PROFILE_PHOTOS.delete(captureKey);
+            return new Response(bytes, {
+                status: 200,
+                headers: {
+                    ...corsHeaders(origin),
+                    'Cache-Control': 'no-store',
+                    'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
+                    'X-Content-Type-Options': 'nosniff'
+                }
+            });
+        }
+
+        if (action === 'advance') {
+            if (record.status !== 'approved') return uploadResponse({ error: 'Remote camera is not approved.' }, 409, origin);
+            const captureKey = record.captureKey;
+            record.captureSlot = (Number.isSafeInteger(record.captureSlot) ? record.captureSlot : 0) + 1;
+            record.captureKey = null;
+            record.captureContentType = null;
+            record.captureUploadedAt = null;
+            if (!await writeRemoteCaptureRecord(env, sessionId, record, etag, owner.accessToken)) {
+                return uploadResponse({ error: 'Capture sequence changed. Try again.' }, 409, origin);
+            }
+            if (captureKey) await env.PROFILE_PHOTOS.delete(captureKey);
+            return uploadResponse({ captureSlot: record.captureSlot }, 200, origin);
+        }
+
+        if (action === 'revoke') {
+            const captureKey = record.captureKey;
+            record.status = 'revoked';
+            record.qrTokenHash = null;
+            record.deviceTokenHash = null;
+            record.pairingCode = null;
+            record.captureKey = null;
+            if (!await writeRemoteCaptureRecord(env, sessionId, record, etag, owner.accessToken)) {
+                return uploadResponse({ error: 'Session changed while closing. Try again.' }, 409, origin);
+            }
+            if (captureKey) await env.PROFILE_PHOTOS.delete(captureKey);
+            await fetch(databasePathUrl(env, `${REMOTE_CAPTURE_ROOT}/${sessionId}`, owner.accessToken), { method: 'DELETE' });
+            return uploadResponse({ status: 'revoked' }, 200, origin);
+        }
+        return uploadResponse({ error: 'Unknown remote capture action.' }, 404, origin);
+    } catch (error) {
+        console.error('Owner remote photo capture request failed:', error);
+        return uploadResponse({ error: error.message || 'Remote photo capture is temporarily unavailable.' }, 503, origin);
+    }
+}
+
+async function pairRemoteCaptureDevice(request, env, origin) {
+    try {
+        const payload = await readJsonWithinLimit(request, 4096);
+        const sessionId = String(payload?.sessionId || '').trim();
+        const qrToken = String(payload?.qrToken || '');
+        const deviceToken = String(payload?.deviceToken || '');
+        const deviceName = String(payload?.deviceName || 'Camera device').trim().slice(0, 48);
+        if (!/^[0-9a-f-]{36}$/i.test(sessionId) || !/^[A-Za-z0-9_-]{40,64}$/.test(qrToken) || !/^[A-Za-z0-9_-]{40,64}$/.test(deviceToken)) {
+            return uploadResponse({ error: 'Invalid pairing request.' }, 400, origin);
+        }
+        const accessToken = await getFirebaseAccessToken(env);
+        const { record, etag } = await readRemoteCaptureRecord(env, sessionId, accessToken);
+        if (!record || record.status !== 'waiting' || record.expiresAt <= Date.now() || record.pairExpiresAt <= Date.now() ||
+            !remoteCaptureTokenMatches(record.qrTokenHash, await hashRemoteCaptureSecret(qrToken))) {
+            return uploadResponse({ error: 'This QR code has expired or has already been used.' }, 410, origin);
+        }
+        const pairingCode = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
+        record.status = 'pairing';
+        record.qrTokenHash = null;
+        record.deviceTokenHash = await hashRemoteCaptureSecret(deviceToken);
+        record.deviceName = deviceName || 'Camera device';
+        record.pairingCode = pairingCode;
+        record.pairingRequestedAt = Date.now();
+        if (!await writeRemoteCaptureRecord(env, sessionId, record, etag, accessToken)) {
+            return uploadResponse({ error: 'Another device already requested this QR code.' }, 409, origin);
+        }
+        return uploadResponse({ status: 'pairing', pairingCode }, 200, origin);
+    } catch (error) {
+        console.error('Remote photo capture pairing failed:', error);
+        return uploadResponse({ error: error.message || 'Could not pair this camera device.' }, 503, origin);
+    }
+}
+
+async function remoteCaptureDeviceStatus(request, env, origin) {
+    const tokenMatch = (request.headers.get('Authorization') || '').match(/^Bearer\s+([A-Za-z0-9_-]{40,64})$/);
+    if (!tokenMatch) return uploadResponse({ error: 'Pairing access is invalid.' }, 401, origin);
+    const payload = await readJsonWithinLimit(request, 2048);
+    const sessionId = String(payload?.sessionId || '').trim();
+    if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return uploadResponse({ error: 'Invalid capture session.' }, 400, origin);
+    try {
+        const accessToken = await getFirebaseAccessToken(env);
+        const { record } = await readRemoteCaptureRecord(env, sessionId, accessToken);
+        if (!record || record.expiresAt <= Date.now() || record.status === 'revoked') return uploadResponse({ error: 'Capture access has ended.' }, 410, origin);
+        if (!remoteCaptureTokenMatches(record.deviceTokenHash, await hashRemoteCaptureSecret(tokenMatch[1]))) {
+            return uploadResponse({ error: 'This device is not paired.' }, 403, origin);
+        }
+        return uploadResponse({ status: record.status, hasCapture: !!record.captureKey, captureSlot: Number.isSafeInteger(record.captureSlot) ? record.captureSlot : 0, expiresAt: record.expiresAt }, 200, origin);
+    } catch (error) {
+        console.error('Remote capture device status failed:', error);
+        return uploadResponse({ error: 'Could not check capture access.' }, 503, origin);
+    }
+}
+
+async function receiveRemoteCapture(request, env, origin, url) {
+    const tokenMatch = (request.headers.get('Authorization') || '').match(/^Bearer\s+([A-Za-z0-9_-]{40,64})$/);
+    const sessionId = String(url.searchParams.get('sessionId') || '').trim();
+    const slotText = String(url.searchParams.get('slot') || '');
+    const captureSlot = /^\d+$/.test(slotText) ? Number(slotText) : -1;
+    const contentType = String(request.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
+    const extension = CONTENT_TYPES.get(contentType);
+    if (!tokenMatch || !/^[0-9a-f-]{36}$/i.test(sessionId) || !Number.isSafeInteger(captureSlot) || captureSlot < 0 || !extension) {
+        return uploadResponse({ error: 'Invalid remote photo capture request.' }, 400, origin);
+    }
+    let temporaryKey = '';
+    try {
+        const accessToken = await getFirebaseAccessToken(env);
+        const initial = await readRemoteCaptureRecord(env, sessionId, accessToken);
+        if (!initial.record || initial.record.status !== 'approved' || initial.record.expiresAt <= Date.now() || initial.record.captureSlot !== captureSlot ||
+            !remoteCaptureTokenMatches(initial.record.deviceTokenHash, await hashRemoteCaptureSecret(tokenMatch[1]))) {
+            return uploadResponse({ error: 'This camera is not authorized for capture.' }, 403, origin);
+        }
+        if (initial.record.captureKey) return uploadResponse({ error: 'The owner must receive the current image first.' }, 409, origin);
+        const bytes = await readBodyWithinLimit(request);
+        if (!bytes || !validImage(bytes, contentType)) return uploadResponse({ error: 'Image is invalid or exceeds the 2 MB limit.' }, 413, origin);
+        temporaryKey = `remote-photo-captures/${sessionId}/${crypto.randomUUID()}.${extension}`;
+        await env.PROFILE_PHOTOS.put(temporaryKey, bytes, { httpMetadata: { contentType } });
+        const current = await readRemoteCaptureRecord(env, sessionId, accessToken);
+        if (!current.record || current.record.status !== 'approved' || current.record.expiresAt <= Date.now() || current.record.captureSlot !== captureSlot || current.record.captureKey ||
+            !remoteCaptureTokenMatches(current.record.deviceTokenHash, await hashRemoteCaptureSecret(tokenMatch[1]))) {
+            await env.PROFILE_PHOTOS.delete(temporaryKey);
+            return uploadResponse({ error: 'Capture session changed. Ask the owner to reconnect.' }, 409, origin);
+        }
+        current.record.captureKey = temporaryKey;
+        current.record.captureContentType = contentType;
+        current.record.captureUploadedAt = Date.now();
+        if (!await writeRemoteCaptureRecord(env, sessionId, current.record, current.etag, accessToken)) {
+            await env.PROFILE_PHOTOS.delete(temporaryKey);
+            return uploadResponse({ error: 'Another capture is waiting for the owner.' }, 409, origin);
+        }
+        return uploadResponse({ received: true }, 200, origin);
+    } catch (error) {
+        if (temporaryKey) await env.PROFILE_PHOTOS.delete(temporaryKey).catch(() => {});
+        console.error('Remote profile photo receive failed:', error);
+        return uploadResponse({ error: 'Photo could not be sent to the owner device.' }, 503, origin);
+    }
+}
+
+async function cleanupExpiredRemoteCaptureSessions(env) {
+    const accessToken = await getFirebaseAccessToken(env);
+    const records = await readDatabaseWithAccessToken(env, REMOTE_CAPTURE_ROOT, accessToken);
+    const updates = {};
+    for (const [sessionId, record] of Object.entries(records || {})) {
+        if (!record || Number(record.expiresAt) > Date.now()) continue;
+        if (typeof record.captureKey === 'string' && record.captureKey.startsWith(`remote-photo-captures/${sessionId}/`)) {
+            await env.PROFILE_PHOTOS.delete(record.captureKey).catch(() => {});
+        }
+        updates[`${REMOTE_CAPTURE_ROOT}/${sessionId}`] = null;
+    }
+    if (Object.keys(updates).length) await updateDatabaseWithAccessToken(env, updates, accessToken);
+}
+
+async function cleanupOrphanedRemoteCaptureObjects(env) {
+    const cutoff = Date.now() - REMOTE_CAPTURE_TTL_MS - 60 * 60 * 1000;
+    let cursor;
+    do {
+        const page = await env.PROFILE_PHOTOS.list({ prefix: 'remote-photo-captures/', cursor, limit: 1000 });
+        const expiredKeys = page.objects
+            .filter(object => object.uploaded && object.uploaded.getTime() < cutoff)
+            .map(object => object.key);
+        if (expiredKeys.length) await env.PROFILE_PHOTOS.delete(expiredKeys);
+        cursor = page.truncated ? page.cursor : undefined;
+    } while (cursor);
+}
+
 async function uploadProfilePhoto(request, env, origin, url) {
     const key = url.searchParams.get('key') || '';
     const contentType = url.searchParams.get('contentType') || '';
@@ -2819,6 +3123,9 @@ async function getProfilePhoto(origin, env, url) {
     if (!key || key.split('/').some(part => part === '..' || part === '.')) {
         return new Response('Missing or invalid key', { status: 400, headers: corsHeaders(origin) });
     }
+    if (key.startsWith('remote-photo-captures/')) {
+        return new Response('Not found', { status: 404, headers: corsHeaders(origin) });
+    }
     const object = await env.PROFILE_PHOTOS.get(key);
     if (!object) return new Response('Not found', { status: 404, headers: corsHeaders(origin) });
     const headers = new Headers(corsHeaders(origin));
@@ -2843,6 +3150,31 @@ export default {
             const opaqueErpClient = routePath === '/erp-license/verify' && origin === 'null';
             if (!allowedOrigin && !opaqueErpClient) return new Response(null, { status: 403 });
             return new Response(null, { status: 204, headers: corsHeaders(opaqueErpClient ? 'null' : allowedOrigin) });
+        }
+
+        if (routePath.startsWith('/owner/remote-photo-capture/')) {
+            if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
+            if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            const action = routePath.slice('/owner/remote-photo-capture/'.length);
+            if (!['create', 'status', 'approve', 'reject', 'take', 'advance', 'revoke'].includes(action)) {
+                return uploadResponse({ error: 'Not found.' }, 404, allowedOrigin);
+            }
+            return ownerRemoteCapture(request, env, allowedOrigin, action);
+        }
+        if (routePath === '/remote-photo-capture/pair') {
+            if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
+            if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            return pairRemoteCaptureDevice(request, env, allowedOrigin);
+        }
+        if (routePath === '/remote-photo-capture/status') {
+            if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
+            if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            return remoteCaptureDeviceStatus(request, env, allowedOrigin);
+        }
+        if (routePath === '/remote-photo-capture/image') {
+            if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
+            if (request.method !== 'PUT') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            return receiveRemoteCapture(request, env, allowedOrigin, url);
         }
 
         if (routePath === '/owner/delete-school') {
@@ -2903,8 +3235,10 @@ export default {
         return response({ error: 'Not found.' }, 404, allowedOrigin);
     },
     async scheduled(_event, env, context) {
-        context.waitUntil(cleanupExpiredErpLicenses(env).catch(error => {
-            console.error('Scheduled ERP license cleanup failed:', error);
-        }));
+        context.waitUntil(Promise.all([
+            cleanupExpiredErpLicenses(env).catch(error => console.error('Scheduled ERP license cleanup failed:', error)),
+            cleanupExpiredRemoteCaptureSessions(env).catch(error => console.error('Scheduled remote capture cleanup failed:', error)),
+            cleanupOrphanedRemoteCaptureObjects(env).catch(error => console.error('Scheduled remote capture object cleanup failed:', error))
+        ]));
     }
 };

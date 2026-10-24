@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="referrer" content="no-referrer">
+    <meta name="theme-color" content="#17243a">
+    <title>Remote Photo Capture | RollCall</title>
+    <script src="https://rollcall-worker.divyanshugupta415.workers.dev/firebase-config"></script>
+    <style>
+        :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #eef2f6; color: #17243a; }
+        * { box-sizing: border-box; }
+        body { min-height: 100vh; margin: 0; padding: max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom)); }
+        main { width: min(100%, 520px); margin: 0 auto; }
+        header { margin: 8px 0 18px; }
+        header p { margin: 6px 0 0; color: #607086; line-height: 1.5; }
+        h1 { margin: 0; font-size: 23px; line-height: 1.2; }
+        .panel { padding: 18px; border: 1px solid #d9e1ea; border-radius: 12px; background: #fff; box-shadow: 0 8px 28px rgba(23,36,58,.08); }
+        #status { min-height: 48px; margin: 0 0 14px; color: #42536a; line-height: 1.5; }
+        #pair-code { display: block; margin: 8px 0 16px; color: #17243a; font-size: 30px; font-variant-numeric: tabular-nums; letter-spacing: .12em; }
+        video { display: block; width: 100%; max-height: 58vh; margin: 12px 0; border-radius: 10px; background: #111827; object-fit: cover; }
+        .actions { display: grid; gap: 10px; }
+        button { min-height: 48px; padding: 11px 14px; border: 0; border-radius: 9px; background: #2563a6; color: #fff; font: inherit; font-weight: 700; }
+        button.secondary { border: 1px solid #cbd5e1; background: #fff; color: #27364a; }
+        button:disabled { opacity: .5; }
+        [hidden] { display: none !important; }
+        .hint { margin: 14px 0 0; color: #69788a; font-size: 13px; line-height: 1.5; }
+        @media (max-width: 520px) { input, select, textarea, button { font-size: 16px; } .panel { padding: 15px; } }
+    </style>
+</head>
+<body>
+<main>
+    <header>
+        <h1>Remote student photo capture</h1>
+        <p>This device can only send camera images to the owner who created this pairing.</p>
+    </header>
+    <section class="panel" aria-live="polite">
+        <p id="status" role="status">Checking the secure pairing link…</p>
+        <div id="approval" hidden>
+            <span>Confirm this same code on the owner device:</span>
+            <strong id="pair-code"></strong>
+        </div>
+        <button id="start-camera" type="button" hidden>Start camera</button>
+        <video id="camera" autoplay playsinline muted hidden></video>
+        <div class="actions">
+            <button id="capture" type="button" disabled hidden>Capture and send photo</button>
+            <button id="retry" class="secondary" type="button" hidden>Retry connection</button>
+        </div>
+        <p class="hint">Keep this page open while capturing. The owner reviews each photo against the selected student before saving it.</p>
+    </section>
+</main>
+<script>
+(function () {
+    const status = document.getElementById('status');
+    const approval = document.getElementById('approval');
+    const codeElement = document.getElementById('pair-code');
+    const startButton = document.getElementById('start-camera');
+    const captureButton = document.getElementById('capture');
+    const retryButton = document.getElementById('retry');
+    const video = document.getElementById('camera');
+    const params = new URLSearchParams(location.hash.slice(1));
+    const sessionId = params.get('session') || '';
+    const qrToken = params.get('token') || '';
+    history.replaceState(null, '', `${location.pathname}${location.search}`);
+
+    let deviceToken = '';
+    let timer = null;
+    let stream = null;
+    let busy = false;
+    let approved = false;
+    let hasCapture = false;
+    let captureSlot = 0;
+    let workerBase;
+
+    function randomToken() {
+        const bytes = crypto.getRandomValues(new Uint8Array(32));
+        let binary = '';
+        bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    }
+
+    function endpoint(path) {
+        return new URL(path, workerBase);
+    }
+
+    async function jsonRequest(path, payload, token = '') {
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const response = await fetch(endpoint(path), {
+            method: 'POST', headers, body: JSON.stringify(payload), credentials: 'omit',
+            redirect: 'error', referrerPolicy: 'no-referrer'
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const error = new Error(result.error || 'The secure capture service could not complete this request.');
+            error.status = response.status;
+            throw error;
+        }
+        return result;
+    }
+
+    function stopCamera() {
+        if (stream) stream.getTracks().forEach(track => track.stop());
+        stream = null;
+        video.srcObject = null;
+        video.hidden = true;
+        captureButton.disabled = true;
+    }
+
+    async function pollStatus() {
+        if (busy || !deviceToken) return;
+        busy = true;
+        try {
+            const result = await jsonRequest('remote-photo-capture/status', { sessionId }, deviceToken);
+            approved = result.status === 'approved';
+            hasCapture = result.hasCapture === true;
+            if (Number.isSafeInteger(result.captureSlot)) captureSlot = result.captureSlot;
+            if (approved) {
+                approval.hidden = true;
+                startButton.hidden = !!stream;
+                status.textContent = hasCapture ? 'A photo is waiting for the owner. Capture the next photo after it has been received.' : stream ? 'Camera is ready. Frame the student and capture.' : 'The owner approved this device. Start the camera when ready.';
+                captureButton.hidden = !stream;
+                captureButton.disabled = !stream || hasCapture;
+            } else if (result.status === 'pairing') {
+                startButton.hidden = true;
+                captureButton.hidden = true;
+                status.textContent = 'Waiting for the owner to verify the matching code and approve this device.';
+            }
+        } catch (error) {
+            if (error.status === 410 || error.status === 403) {
+                stopCamera();
+                if (timer) clearInterval(timer);
+                timer = null;
+                approved = false;
+                status.textContent = 'This capture session has ended. Ask the owner to create a new QR code.';
+            } else {
+                status.textContent = error.message;
+            }
+        } finally { busy = false; }
+    }
+
+    async function pair() {
+        try {
+            if (!window.ROLLCALL_FIREBASE_CONFIG?.profileUploadWorkerUrl) throw new Error('The secure capture service is not configured.');
+            workerBase = new URL(window.ROLLCALL_FIREBASE_CONFIG.profileUploadWorkerUrl);
+            if (workerBase.protocol !== 'https:' || workerBase.username || workerBase.password || workerBase.search || workerBase.hash) throw new Error('The secure capture service URL is invalid.');
+            if (!/^[0-9a-f-]{36}$/i.test(sessionId) || !/^[A-Za-z0-9_-]{40,64}$/.test(qrToken)) throw new Error('The pairing link is incomplete. Scan the QR code again.');
+            deviceToken = randomToken();
+            const result = await jsonRequest('remote-photo-capture/pair', { sessionId, qrToken, deviceToken, deviceName: 'Camera device' });
+            approval.hidden = false;
+            codeElement.textContent = result.pairingCode;
+            status.textContent = 'Show this code to the owner. Camera access stays off until the owner approves it.';
+            retryButton.hidden = true;
+            timer = window.setInterval(pollStatus, 1600);
+            await pollStatus();
+        } catch (error) {
+            status.textContent = error.message;
+            retryButton.hidden = false;
+        }
+    }
+
+    startButton.addEventListener('click', async () => {
+        startButton.disabled = true;
+        try {
+            if (!approved) throw new Error('Wait for the owner to approve this device first.');
+            if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access requires HTTPS and a supported browser.');
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+            video.srcObject = stream;
+            video.hidden = false;
+            await video.play();
+            startButton.hidden = true;
+            captureButton.hidden = false;
+            status.textContent = 'Camera is ready. Frame the student and capture.';
+            await pollStatus();
+        } catch (error) {
+            stopCamera();
+            status.textContent = error.message || 'Could not start the camera.';
+        } finally { startButton.disabled = false; }
+    });
+
+    captureButton.addEventListener('click', async () => {
+        if (!approved || hasCapture || !video.videoWidth || !deviceToken) return;
+        captureButton.disabled = true;
+        status.textContent = 'Preparing and sending the photo securely…';
+        try {
+            const scale = Math.min(1, 800 / Math.max(video.videoWidth, video.videoHeight));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+            canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('Could not prepare the captured photo.');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
+            if (!blob || blob.size < 1 || blob.size > 2 * 1024 * 1024) throw new Error('Photo must be under 2 MB. Move closer and try again.');
+            const uploadUrl = endpoint('remote-photo-capture/image');
+            uploadUrl.searchParams.set('sessionId', sessionId);
+            uploadUrl.searchParams.set('slot', String(captureSlot));
+            const response = await fetch(uploadUrl, {
+                method: 'PUT',
+                headers: { Authorization: `Bearer ${deviceToken}`, 'Content-Type': blob.type },
+                body: blob, credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer'
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.error || 'Photo could not be sent.');
+            hasCapture = true;
+            status.textContent = 'Photo sent. Wait for the owner to receive it before capturing another.';
+            await pollStatus();
+        } catch (error) {
+            status.textContent = error.message;
+            await pollStatus();
+            if (approved && !hasCapture && stream) captureButton.disabled = false;
+        }
+    });
+
+    retryButton.addEventListener('click', () => { retryButton.hidden = true; void pair(); });
+    window.addEventListener('pagehide', stopCamera);
+    void pair();
+})();
+</script>
+</body>
+</html>
