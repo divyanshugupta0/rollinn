@@ -1,0 +1,19 @@
+{
+  "id": "./admin.html",
+  "name": "RollCall Admin Portal",
+  "short_name": "RollCall Admin",
+  "description": "Administrator attendance portal",
+  "start_url": "./admin.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "../shared/rollcall-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

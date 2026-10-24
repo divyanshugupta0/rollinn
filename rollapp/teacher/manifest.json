@@ -1,0 +1,19 @@
+{
+  "id": "./teacher.html",
+  "name": "RollCall Teacher Portal",
+  "short_name": "RollCall Teacher",
+  "description": "Teacher attendance portal",
+  "start_url": "./teacher.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "../shared/rollcall-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
