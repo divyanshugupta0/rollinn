@@ -1593,7 +1593,8 @@ function initManageAccountSection() {
                     </dl>
                     <div class="account-plan-dates"><span><strong>Started:</strong> ${escape(startDate)}</span><span><strong>Renews / ends:</strong> ${escape(endDate)}</span></div>
                 `;
-                const isErpInstitution = String(school.type || school.institutionType || '').trim().toLowerCase() === 'erp';
+                const institutionCategory = String(school.type || school.institutionType || '').trim().toLowerCase();
+                const isErpInstitution = institutionCategory === 'erp' || institutionCategory === 'rollcall erp' || institutionCategory.includes('erp');
                 accountGrid?.classList.toggle('erp-mode', isErpInstitution);
                 if (isErpInstitution && erpLicensePanel) {
                     erpLicensePanel.hidden = false;
@@ -1632,8 +1633,12 @@ function initManageAccountSection() {
                 erpLicenseDescription.textContent = 'This subscription is not currently configured as an ERP plan. Contact the institution owner.';
                 return;
             }
+            const planName = result.plan || loadedSubscription?.plan || 'ERP plan';
+            const price = Number(result.price ?? loadedSubscription?.price ?? 0);
+            const currency = result.currency || loadedSubscription?.currency || 'INR';
+            const licenseEnd = result.endDate || loadedSubscription?.endDate;
             if (result.active === true && result.code) {
-                erpLicenseDescription.textContent = `${result.plan || loadedSubscription.plan || 'ERP plan'} · ${result.currency || loadedSubscription.currency || 'INR'} ${Number(result.price || 0).toLocaleString()} · Active until ${formatDate(result.endDate)}.`;
+                erpLicenseDescription.textContent = `${planName} · ${currency} ${price.toLocaleString()} · Active until ${formatDate(licenseEnd)}.`;
                 erpAccessCode.textContent = result.code;
                 erpCodeRow.hidden = false;
                 erpRenewButton.hidden = true;
@@ -1643,13 +1648,13 @@ function initManageAccountSection() {
                 erpLicenseDescription.textContent = 'No active ERP subscription plan is attached. The institution owner must assign or renew an ERP plan before an access code can be issued.';
                 erpRenewButton.hidden = false;
             } else if (result.expired === true) {
-                erpLicenseDescription.textContent = `${result.plan || loadedSubscription.plan || 'ERP plan'} expired on ${formatDate(result.endDate)}. The access code is inactive. Send a renewal request to the institution owner to receive a new code after renewal.`;
+                erpLicenseDescription.textContent = `${planName} expired on ${formatDate(licenseEnd)}. The access code is inactive. Send a renewal request to the institution owner to receive a new code after renewal.`;
                 erpRenewButton.hidden = false;
             } else if (result.renewalRequired === true) {
-                erpLicenseDescription.textContent = 'The previous ERP term has ended. A new access code is issued only after the institution owner renews the subscription.';
+                erpLicenseDescription.textContent = `${planName} expired on ${formatDate(licenseEnd)}. A new access code is issued only after the institution owner renews the subscription.`;
                 erpRenewButton.hidden = false;
             } else {
-                erpLicenseDescription.textContent = `${result.plan || loadedSubscription.plan || 'ERP plan'} is not currently active. Contact the institution owner for assistance.`;
+                erpLicenseDescription.textContent = `${planName} is not currently active. Contact the institution owner for assistance.`;
             }
         } catch (error) {
             console.error('Could not load the ERP access code:', error);

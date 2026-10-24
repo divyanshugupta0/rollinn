@@ -1643,8 +1643,10 @@ function subscriptionIsActive(subscription, now = Date.now()) {
     const startsAt = Date.parse(subscription?.startDate || '');
     const expiresAt = Date.parse(subscription?.endDate || '');
     const status = String(subscription?.status || '').toLowerCase();
+    // Allow small clock drift (up to 15 minutes) for startsAt
+    const validStart = !Number.isFinite(startsAt) || startsAt <= (now + 15 * 60 * 1000);
     return ['active', 'trial', 'trialing'].includes(status) &&
-        Number.isFinite(startsAt) && startsAt <= now &&
+        validStart &&
         Number.isFinite(expiresAt) && expiresAt > now;
 }
 
@@ -1657,24 +1659,23 @@ async function readErpLicenseContext(env, schoolId, accessToken) {
     if (!ownerSchool || String(ownerSchool.ownerId || '') !== ownerId) {
         return { erpMode: false, school, ownerSchool: null, subscription: {} };
     }
-    const subscription = ownerSchool.subscription || {};
-    const institutionType = String(ownerSchool.institutionType || ownerSchool.type || '').trim().toLowerCase();
-    if (institutionType !== 'erp') {
-        return { erpMode: false, school, ownerSchool, subscription };
+
+    const institutionType = String(ownerSchool.institutionType || ownerSchool.type || school.institutionType || school.type || '').trim().toLowerCase();
+    const isErpInstitution = institutionType === 'erp' || institutionType === 'rollcall erp' || institutionType.includes('erp');
+    if (!isErpInstitution) {
+        return { erpMode: false, school, ownerSchool, subscription: ownerSchool.subscription || school.subscription || {} };
     }
+
+    // Resolve subscription: prioritize active subscription between school and ownerSchool
     const schoolSubscription = school.subscription || {};
-    const planId = String(subscription.planId || '').trim();
-    const schoolPlanId = String(schoolSubscription.planId || '').trim();
-    const subscriptionStart = Date.parse(subscription.startDate || '');
-    const schoolSubscriptionStart = Date.parse(schoolSubscription.startDate || '');
-    const subscriptionEnd = Date.parse(subscription.endDate || '');
-    const schoolSubscriptionEnd = Date.parse(schoolSubscription.endDate || '');
-    if (!planId ||
-        planId !== schoolPlanId ||
-        !Number.isFinite(subscriptionStart) ||
-        subscriptionStart !== schoolSubscriptionStart ||
-        !Number.isFinite(subscriptionEnd) ||
-        subscriptionEnd !== schoolSubscriptionEnd) {
+    const ownerSubscription = ownerSchool.subscription || {};
+    const subscription = (subscriptionIsActive(schoolSubscription) ? schoolSubscription : null) ||
+        (subscriptionIsActive(ownerSubscription) ? ownerSubscription : null) ||
+        schoolSubscription ||
+        ownerSubscription;
+
+    const expiresAt = Date.parse(subscription.endDate || '');
+    if (!subscription.planId && !subscription.plan) {
         return {
             erpMode: true,
             active: false,
@@ -1686,13 +1687,18 @@ async function readErpLicenseContext(env, schoolId, accessToken) {
             plan: null
         };
     }
-    const plan = await readDatabaseWithAccessToken(
-        env,
-        `owners/${ownerId}/pricingPlans/${subscription.planId}`,
-        accessToken
-    );
+
+    let plan = null;
+    if (subscription.planId) {
+        plan = await readDatabaseWithAccessToken(
+            env,
+            `owners/${ownerId}/pricingPlans/${subscription.planId}`,
+            accessToken
+        );
+    }
     const planProductType = String(plan?.productType || (plan?.erpPlan === true ? 'erp' : '')).trim().toLowerCase();
-    if (!plan || plan.active === false || plan.type === 'topup' || planProductType !== 'erp') {
+    const isPlanErp = !plan || planProductType === 'erp' || planProductType === 'rollcall erp' || planProductType.includes('erp') || plan.erpPlan === true;
+    if (plan && planProductType && !isPlanErp) {
         return {
             erpMode: true,
             active: false,
@@ -1704,12 +1710,14 @@ async function readErpLicenseContext(env, schoolId, accessToken) {
             plan: null
         };
     }
+
+    const active = String(ownerSchool.status || 'active').toLowerCase() === 'active' &&
+        String(school.status || 'active').toLowerCase() === 'active' &&
+        subscriptionIsActive(subscription);
+
     return {
         erpMode: true,
-        active: String(ownerSchool.status || '').toLowerCase() === 'active' &&
-            String(school.status || '').toLowerCase() === 'active' &&
-            subscriptionIsActive(subscription) &&
-            subscriptionIsActive(schoolSubscription),
+        active,
         school,
         ownerSchool,
         ownerId,
@@ -1760,44 +1768,19 @@ async function issuePortalLicense(request, env, origin) {
         );
         const { school, ownerSchool, subscription, plan } = context;
         const expiresAt = Date.parse(subscription.endDate || '');
-        if (!context.active || !Number.isFinite(expiresAt)) {
+        const isPlanActive = context.active && Number.isFinite(expiresAt) && expiresAt > Date.now();
+        if (!isPlanActive) {
+            const hasExpired = Number.isFinite(expiresAt) && expiresAt <= Date.now();
             return uploadResponse({
                 erpMode: true,
                 active: false,
                 subscriptionRequired: context.subscriptionRequired === true,
-                expired: Number.isFinite(expiresAt) && expiresAt <= Date.now(),
-                schoolName: String(ownerSchool.name || school.name || ''),
-                schoolCode: String(ownerSchool.code || school.code || ''),
+                expired: hasExpired,
+                renewalRequired: hasExpired || !context.active,
+                schoolName: String(ownerSchool?.name || school.name || ''),
+                schoolCode: String(ownerSchool?.code || school.code || ''),
                 plan: String(subscription.plan || plan?.name || ''),
-                planId: String(subscription.planId),
-                startDate: String(subscription.startDate || ''),
-                endDate: String(subscription.endDate || ''),
-                devices: Object.values(devices || {})
-                    .filter(device => device && typeof device === 'object')
-                    .sort((a, b) => Number(b.lastVerifiedAt || 0) - Number(a.lastVerifiedAt || 0))
-            }, 200, origin);
-        }
-
-        const previousLicense = await readLicenseRecord(env, schoolId, accessToken);
-        const previousRecord = previousLicense.record;
-        const previousExpiresAt = Number(previousRecord?.expiresAt);
-        const previousLicenseIsCurrent = previousRecord?.active === true &&
-            previousRecord.codeHash &&
-            Number.isFinite(previousExpiresAt) &&
-            previousExpiresAt > Date.now();
-        if (
-            previousRecord &&
-            !previousLicenseIsCurrent &&
-            (!Number.isFinite(previousExpiresAt) || expiresAt <= previousExpiresAt)
-        ) {
-            return uploadResponse({
-                erpMode: true,
-                active: false,
-                renewalRequired: true,
-                schoolName: String(ownerSchool.name || school.name || ''),
-                schoolCode: String(ownerSchool.code || school.code || ''),
-                plan: String(subscription.plan || plan?.name || ''),
-                planId: String(subscription.planId),
+                planId: String(subscription.planId || ''),
                 startDate: String(subscription.startDate || ''),
                 endDate: String(subscription.endDate || ''),
                 devices: Object.values(devices || {})
@@ -1808,28 +1791,52 @@ async function issuePortalLicense(request, env, origin) {
 
         for (let attempt = 0; attempt < 3; attempt += 1) {
             const { record, etag } = await readLicenseRecord(env, schoolId, accessToken);
-            const matchesSubscription = record &&
-                record.codeHash &&
-                record.active === true &&
-                Number(record.expiresAt) > Date.now();
-            if (matchesSubscription) {
-                const licenseExpiresAt = Math.min(Number(record.expiresAt), expiresAt);
-                const licenseEndDate = licenseExpiresAt < Number(record.expiresAt)
-                    ? String(subscription.endDate || new Date(licenseExpiresAt).toISOString())
-                    : String(record.endDate || new Date(licenseExpiresAt).toISOString());
-                const code = await decryptLicenseCode(env, record);
+            let existingCode = null;
+            if (record && record.encryptedCode && record.iv) {
+                try {
+                    existingCode = await decryptLicenseCode(env, record);
+                } catch (decryptErr) {
+                    existingCode = null;
+                }
+            }
+
+            if (existingCode && record.codeHash) {
+                const needsSync = !record.active || Number(record.expiresAt) !== expiresAt || record.endDate !== String(subscription.endDate);
+                if (needsSync) {
+                    const recordUpdates = {
+                        ...record,
+                        active: true,
+                        expiresAt,
+                        startDate: String(subscription.startDate || record.startDate || ''),
+                        endDate: String(subscription.endDate || ''),
+                        planId: subscription.planId || record.planId || '',
+                        updatedAt: Date.now()
+                    };
+                    const saved = await writeLicenseRecord(env, schoolId, recordUpdates, etag, accessToken);
+                    if (!saved) continue;
+                    await updateErpLicenseDatabase(env, {
+                        [`erpLicenseCodes/${record.codeHash}`]: {
+                            schoolId,
+                            planId: subscription.planId || record.planId || '',
+                            startDate: String(subscription.startDate || record.startDate || ''),
+                            endDate: String(subscription.endDate || ''),
+                            expiresAt,
+                            active: true
+                        }
+                    }, accessToken).catch(err => console.error('Could not sync ERP license code index:', err));
+                }
                 return uploadResponse({
                     erpMode: true,
                     active: true,
-                    code,
-                    schoolName: String(ownerSchool.name || school.name || ''),
-                    schoolCode: String(ownerSchool.code || school.code || ''),
-                    plan: String(subscription.plan || plan.name || ''),
-                    planId: String(subscription.planId),
-                    price: Number(subscription.price || plan.price || 0),
-                    currency: String(subscription.currency || plan.currency || 'INR'),
-                    startDate: String(record.startDate || ''),
-                    endDate: licenseEndDate,
+                    code: existingCode,
+                    schoolName: String(ownerSchool?.name || school.name || ''),
+                    schoolCode: String(ownerSchool?.code || school.code || ''),
+                    plan: String(subscription.plan || plan?.name || ''),
+                    planId: String(subscription.planId || ''),
+                    price: Number(subscription.price || plan?.price || 0),
+                    currency: String(subscription.currency || plan?.currency || 'INR'),
+                    startDate: String(subscription.startDate || record.startDate || ''),
+                    endDate: String(subscription.endDate || ''),
                     devices: Object.values(devices || {})
                         .filter(device => device && typeof device === 'object')
                         .sort((a, b) => Number(b.lastVerifiedAt || 0) - Number(a.lastVerifiedAt || 0))
@@ -1840,7 +1847,7 @@ async function issuePortalLicense(request, env, origin) {
             const [codeHash, encrypted] = await Promise.all([hashLicenseCode(code), encryptLicenseCode(env, code)]);
             const recordToSave = {
                 schoolId,
-                planId: subscription.planId,
+                planId: subscription.planId || '',
                 startDate: String(subscription.startDate || ''),
                 endDate: String(subscription.endDate || ''),
                 expiresAt,
@@ -1854,27 +1861,32 @@ async function issuePortalLicense(request, env, origin) {
             const indexUpdates = {
                 [`erpLicenseCodes/${codeHash}`]: {
                     schoolId,
-                    planId: subscription.planId,
+                    planId: subscription.planId || '',
                     startDate: String(subscription.startDate || ''),
                     endDate: String(subscription.endDate || ''),
                     expiresAt,
                     active: true
                 }
             };
-            if (record?.codeHash) indexUpdates[`erpLicenseCodes/${record.codeHash}`] = null;
+            if (record?.codeHash && record.codeHash !== codeHash) {
+                indexUpdates[`erpLicenseCodes/${record.codeHash}`] = null;
+            }
             await updateErpLicenseDatabase(env, indexUpdates, accessToken);
             return uploadResponse({
                 erpMode: true,
                 active: true,
                 code,
-                schoolName: String(ownerSchool.name || school.name || ''),
-                schoolCode: String(ownerSchool.code || school.code || ''),
-                plan: String(subscription.plan || plan.name || ''),
-                planId: String(subscription.planId),
-                price: Number(subscription.price || plan.price || 0),
-                currency: String(subscription.currency || plan.currency || 'INR'),
+                schoolName: String(ownerSchool?.name || school.name || ''),
+                schoolCode: String(ownerSchool?.code || school.code || ''),
+                plan: String(subscription.plan || plan?.name || ''),
+                planId: String(subscription.planId || ''),
+                price: Number(subscription.price || plan?.price || 0),
+                currency: String(subscription.currency || plan?.currency || 'INR'),
                 startDate: String(subscription.startDate || ''),
-                endDate: String(subscription.endDate || '')
+                endDate: String(subscription.endDate || ''),
+                devices: Object.values(devices || {})
+                    .filter(device => device && typeof device === 'object')
+                    .sort((a, b) => Number(b.lastVerifiedAt || 0) - Number(a.lastVerifiedAt || 0))
             }, 200, origin);
         }
         return uploadResponse({ error: 'The ERP access code is being updated. Refresh and try again.' }, 409, origin);
@@ -2637,39 +2649,52 @@ async function verifyErpLicense(request, env, origin) {
         const [schoolId, school] = schoolEntry;
         const codeHash = await hashLicenseCode(code);
         const codeRecord = await readDatabaseWithAccessToken(env, `erpLicenseCodes/${codeHash}`, accessToken);
-        if (
-            codeRecord?.schoolId !== schoolId ||
-            codeRecord.active !== true ||
-            !Number.isFinite(Number(codeRecord.expiresAt)) ||
-            Number(codeRecord.expiresAt) <= Date.now()
-        ) {
+        if (codeRecord?.schoolId !== schoolId) {
             return uploadResponse({ valid: false, error: 'School code or ERP access code is invalid.' }, 200, origin);
         }
 
         const context = await readErpLicenseContext(env, schoolId, accessToken);
-        if (!context.erpMode ||
-            String(context.ownerSchool?.code || '').trim().toUpperCase() !== schoolCode ||
-            !context.active) {
+        const subscriptionExpiresAt = Date.parse(context.subscription?.endDate || '');
+        const recordedExpiresAt = Number(codeRecord.expiresAt);
+        const licenseExpiresAt = Number.isFinite(subscriptionExpiresAt) && subscriptionExpiresAt > Date.now()
+            ? subscriptionExpiresAt
+            : recordedExpiresAt;
+
+        if (
+            !context.erpMode ||
+            String(context.ownerSchool?.code || school.code || '').trim().toUpperCase() !== schoolCode ||
+            !context.active ||
+            !Number.isFinite(licenseExpiresAt) ||
+            licenseExpiresAt <= Date.now()
+        ) {
             return uploadResponse({ valid: false, error: 'This ERP license has expired or is inactive.' }, 200, origin);
         }
+
         const device = normalizeErpDevice(payload?.device);
         if (device) await recordErpDevice(env, schoolId, device, accessToken);
-        const recordedExpiresAt = Number(codeRecord.expiresAt);
-        const subscriptionExpiresAt = Date.parse(context.subscription.endDate || '');
-        const licenseExpiresAt = Math.min(recordedExpiresAt, subscriptionExpiresAt);
-        const licenseEndDate = licenseExpiresAt < recordedExpiresAt
-            ? String(context.subscription.endDate || new Date(licenseExpiresAt).toISOString())
-            : String(codeRecord.endDate || new Date(licenseExpiresAt).toISOString());
+
+        const licenseEndDate = String(context.subscription?.endDate || codeRecord.endDate || new Date(licenseExpiresAt).toISOString());
+        if (Number.isFinite(subscriptionExpiresAt) && (recordedExpiresAt !== subscriptionExpiresAt || codeRecord.active !== true)) {
+            await updateErpLicenseDatabase(env, {
+                [`erpLicenseCodes/${codeHash}/expiresAt`]: subscriptionExpiresAt,
+                [`erpLicenseCodes/${codeHash}/endDate`]: licenseEndDate,
+                [`erpLicenseCodes/${codeHash}/active`]: true,
+                [`erpLicenseKeys/${schoolId}/expiresAt`]: subscriptionExpiresAt,
+                [`erpLicenseKeys/${schoolId}/endDate`]: licenseEndDate,
+                [`erpLicenseKeys/${schoolId}/active`]: true
+            }, accessToken).catch(err => console.error('Could not sync ERP license expiry on verification:', err));
+        }
+
         return uploadResponse({
             valid: true,
             license: {
                 licenseNo: `RCERP-${codeHash.slice(0, 12).toUpperCase()}`,
                 schoolId,
-                schoolCode: String(context.ownerSchool.code || ''),
-                schoolName: String(context.ownerSchool.name || school.name || ''),
-                planId: String(codeRecord.planId || context.subscription.planId),
-                plan: String(context.subscription.plan || context.plan.name || ''),
-                startDate: String(codeRecord.startDate || context.subscription.startDate || ''),
+                schoolCode: String(context.ownerSchool?.code || school.code || ''),
+                schoolName: String(context.ownerSchool?.name || school.name || ''),
+                planId: String(codeRecord.planId || context.subscription?.planId || ''),
+                plan: String(context.subscription?.plan || context.plan?.name || ''),
+                startDate: String(context.subscription?.startDate || codeRecord.startDate || ''),
                 endDate: licenseEndDate,
                 expiresAt: licenseExpiresAt
             }

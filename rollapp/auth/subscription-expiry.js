@@ -211,7 +211,10 @@
         const meta = document.createElement('div');
         meta.className = 'expiry-meta';
         const expiryDate = document.createElement('span');
-        expiryDate.textContent = `Ended: ${new Date(state.endAt).toLocaleDateString()}`;
+        const formattedEnd = Number.isFinite(state.endAt)
+            ? new Date(state.endAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+            : 'Not available';
+        expiryDate.textContent = `Ended: ${formattedEnd}`;
         const counterLabel = document.createElement('span');
         counterLabel.textContent = counter === null
             ? 'Reminder display count could not be recorded.'
