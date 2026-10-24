@@ -4951,7 +4951,7 @@
                             <div id="users-tab" class="tab-content">
                                 <h3 class="section-title">Manage Users</h3>
                                 <div class="filter-bar">
-                                    <input type="text" id="user-search" placeholder="Search by name or email"
+                                    <input type="text" id="user-search" placeholder="Search by name, roll, class, section, batch..."
                                         autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
                                         inputmode="search" aria-autocomplete="none" data-lpignore="true"
                                         data-1p-ignore="true" data-bwignore="true">
@@ -4960,6 +4960,9 @@
                                     <select id="users-sort-field" aria-label="Sort users by">
                                         <option value="classRoll">Sort by class roll</option>
                                         <option value="name">Sort by name</option>
+                                        <option value="className">Sort by class</option>
+                                        <option value="batch">Sort by batch</option>
+                                        <option value="attendance">Sort by attendance</option>
                                         <option value="bloodGroup">Sort by blood group</option>
                                     </select>
                                     <select id="role-filter">
@@ -10335,16 +10338,130 @@
             loadAttendanceData(selectedAttendanceDate);
         });
 
-        // Read student profiles whose canonical users.schoolId matches this school.
+        let schoolAttendanceCache = {}; // userId -> { present, late, absent, total, rate }
+        let schoolClassesCache = {}; // classId -> name
+
+        // Read student profiles whose canonical users.schoolId matches this school,
+        // and resolve their class, section, batch, and overall attendance (strictly school-scoped and isolated).
         async function readUsersForSchool(schoolId) {
-            const snapshot = await get(query(ref(database, 'users'), orderByChild('schoolId'), equalTo(schoolId)));
+            const cleanSchoolId = String(schoolId || '').trim();
+            if (!cleanSchoolId) return {};
+
+            // Parallel school-scoped fetches
+            const [usersSnap, schoolUsersSnap, locsSnap, schClassesSnap, schCoursesSnap] = await Promise.all([
+                get(query(ref(database, 'users'), orderByChild('schoolId'), equalTo(cleanSchoolId))),
+                get(ref(database, `schoolUsers/${cleanSchoolId}`)),
+                get(query(ref(database, 'locations'), orderByChild('schoolId'), equalTo(cleanSchoolId))),
+                get(ref(database, `schoolClasses/${cleanSchoolId}`)),
+                get(ref(database, `schoolCourses/${cleanSchoolId}`))
+            ]);
+
             const records = {};
-            snapshot.forEach(childSnapshot => {
-                const profile = childSnapshot.val() || {};
-                if (String(profile.schoolId || '').trim() === schoolId) {
-                    records[childSnapshot.key] = profile;
+            // 1. Collect student profiles from users
+            if (usersSnap.exists()) {
+                usersSnap.forEach(child => {
+                    const profile = child.val() || {};
+                    if (String(profile.schoolId || '').trim() === cleanSchoolId) {
+                        records[child.key] = { ...profile, id: child.key };
+                    }
+                });
+            }
+            // 2. Merge from schoolUsers/${schoolId}
+            if (schoolUsersSnap.exists()) {
+                schoolUsersSnap.forEach(child => {
+                    const profile = child.val() || {};
+                    if (!records[child.key]) {
+                        records[child.key] = { ...profile, id: child.key, schoolId: cleanSchoolId };
+                    } else {
+                        records[child.key] = { ...profile, ...records[child.key] };
+                    }
+                });
+            }
+
+            // 3. Build school classes dictionary
+            schoolClassesCache = {};
+            if (schClassesSnap.exists()) {
+                const sc = schClassesSnap.val() || {};
+                Object.entries(sc).forEach(([id, val]) => {
+                    schoolClassesCache[id] = val?.name || val?.className || val?.courseName || id;
+                });
+            }
+            if (schCoursesSnap.exists()) {
+                const sc = schCoursesSnap.val() || {};
+                Object.entries(sc).forEach(([id, val]) => {
+                    if (!schoolClassesCache[id]) {
+                        schoolClassesCache[id] = val?.courseName || val?.name || id;
+                    }
+                });
+            }
+
+            // 4. Collect location IDs strictly for this school
+            const schoolLocIds = new Set();
+            if (locsSnap.exists()) {
+                locsSnap.forEach(child => {
+                    schoolLocIds.add(child.key);
+                    const val = child.val() || {};
+                    const locName = val.name || val.className;
+                    if (locName && !schoolClassesCache[child.key]) {
+                        schoolClassesCache[child.key] = locName;
+                    }
+                });
+            }
+            Object.keys(schoolClassesCache).forEach(id => schoolLocIds.add(id));
+
+            // 5. Load attendance exclusively for this school's locations
+            schoolAttendanceCache = {};
+            try {
+                const locIdArray = Array.from(schoolLocIds);
+                if (locIdArray.length > 0) {
+                    const attSnapshots = await Promise.all(locIdArray.map(lid =>
+                        get(ref(database, `attendance_by_location/${lid}`))
+                    ));
+                    locIdArray.forEach((lid, idx) => {
+                        const locAtt = attSnapshots[idx]?.val() || {};
+                        Object.keys(locAtt).forEach(date => {
+                            const dateRecords = locAtt[date] || {};
+                            Object.keys(dateRecords).forEach(uid => {
+                                if (records[uid]) { // strictly this school's students
+                                    if (!schoolAttendanceCache[uid]) {
+                                        schoolAttendanceCache[uid] = { present: 0, late: 0, absent: 0, total: 0 };
+                                    }
+                                    const st = String(dateRecords[uid]?.status || 'present').toLowerCase();
+                                    schoolAttendanceCache[uid].total += 1;
+                                    if (st === 'present') schoolAttendanceCache[uid].present += 1;
+                                    else if (st === 'late') schoolAttendanceCache[uid].late += 1;
+                                    else if (st === 'absent') schoolAttendanceCache[uid].absent += 1;
+                                }
+                            });
+                        });
+                    });
                 }
+            } catch (attErr) {
+                console.warn('Could not load school attendance stats:', attErr);
+            }
+
+            // 6. Attach resolved fields
+            Object.values(records).forEach(user => {
+                let clsName = user.className || user.class || user.courseName || user.course;
+                if (!clsName || clsName.startsWith('class_') || clsName.startsWith('course_')) {
+                    const cid = user.classId || user.enrolledClassId || user.courseId;
+                    if (cid && schoolClassesCache[cid]) {
+                        clsName = schoolClassesCache[cid];
+                    }
+                }
+                user._resolvedClass = clsName || 'N/A';
+
+                const sec = (user.section || user.classSection || user.assignedSection || '').trim().replace(/^section\s+/i, '');
+                user._resolvedSection = sec || 'N/A';
+
+                user._resolvedBatch = user.academicBatch || user.batch || user.assignedBatch || user.year || 'N/A';
+
+                const att = schoolAttendanceCache[user.id || user.uid] || { present: 0, late: 0, absent: 0, total: 0 };
+                user._attendanceStats = att;
+                user._attendanceRate = att.total > 0 ? Math.round(((att.present + att.late) / att.total) * 100) : null;
+                user._resolvedAttendanceStr = att.total > 0 ? `${user._attendanceRate}% (${att.present + att.late}/${att.total})` : 'No records';
             });
+
             return records;
         }
 
@@ -10374,7 +10491,7 @@
 
                         // Show only student accounts assigned to this administrator's school.
                         // Administrator, teacher, and owner accounts are managed elsewhere.
-                        const searchTerm = userSearch.value.toLowerCase();
+                        const searchTerm = userSearch.value.toLowerCase().trim();
                         const selectedBloodGroup = document.getElementById('users-blood-filter')?.value || 'all';
                         const faceFilter = document.getElementById('users-face-filter')?.value || 'all';
                         const faceFilterElement = document.getElementById('users-face-filter');
@@ -10397,7 +10514,12 @@
                             const hasFaceId = !!(user.faceDescriptor || user.faceRegistered || user.faceEnrolled);
                             const matchesSearch = !searchTerm ||
                                 (user.name || '').toLowerCase().includes(searchTerm) ||
-                                (user.email || '').toLowerCase().includes(searchTerm);
+                                (user.email || '').toLowerCase().includes(searchTerm) ||
+                                String(user.classRoll || '').toLowerCase().includes(searchTerm) ||
+                                String(user.univRoll || '').toLowerCase().includes(searchTerm) ||
+                                String(user._resolvedClass || '').toLowerCase().includes(searchTerm) ||
+                                String(user._resolvedSection || '').toLowerCase().includes(searchTerm) ||
+                                String(user._resolvedBatch || '').toLowerCase().includes(searchTerm);
                             const matchesBlood = currentBloodGroup === 'all' || bloodGroup === currentBloodGroup;
                             const matchesFace = faceFilter === 'all' || (faceFilter === 'enrolled' ? hasFaceId : !hasFaceId);
 
@@ -10423,6 +10545,19 @@
                                 const comparison = String(valueA).localeCompare(String(valueB), undefined, { numeric: true, sensitivity: 'base' });
                                 return userSortDirection === 'asc' ? comparison : -comparison;
                             }
+                            if (sortField === 'className') {
+                                const comparison = String(a._resolvedClass || '').localeCompare(String(b._resolvedClass || ''), undefined, { numeric: true, sensitivity: 'base' });
+                                return userSortDirection === 'asc' ? comparison : -comparison;
+                            }
+                            if (sortField === 'batch') {
+                                const comparison = String(a._resolvedBatch || '').localeCompare(String(b._resolvedBatch || ''), undefined, { numeric: true, sensitivity: 'base' });
+                                return userSortDirection === 'asc' ? comparison : -comparison;
+                            }
+                            if (sortField === 'attendance') {
+                                const valA = a._attendanceRate !== null ? a._attendanceRate : -1;
+                                const valB = b._attendanceRate !== null ? b._attendanceRate : -1;
+                                return userSortDirection === 'asc' ? valA - valB : valB - valA;
+                            }
                             const rollA = Number.parseInt(a.classRoll, 10) || 0;
                             const rollB = Number.parseInt(b.classRoll, 10) || 0;
                             return userSortDirection === 'asc' ? rollA - rollB : rollB - rollA;
@@ -10438,8 +10573,8 @@
 
                         let html = '<div class="modern-table-container users-table-container"><table class="modern-table users-table">';
                         html += isSchoolMode
-                            ? '<thead><tr><th>Student Details</th><th>Roll No</th><th>Blood Group</th><th>Role</th><th>Actions</th></tr></thead><tbody>'
-                            : '<thead><tr><th>Student Details</th><th>Roll Numbers</th><th>Branch & Batch</th><th>Blood Group</th><th>Face ID Status</th><th>Role</th><th>Actions</th></tr></thead><tbody>';
+                            ? '<thead><tr><th>Student Details</th><th>Roll No</th><th>Class</th><th>Section</th><th>Batch</th><th>Overall Attendance</th><th>Blood Group</th><th>Role</th><th>Actions</th></tr></thead><tbody>'
+                            : '<thead><tr><th>Student Details</th><th>Roll Numbers</th><th>Class</th><th>Section</th><th>Batch</th><th>Overall Attendance</th><th>Branch</th><th>Blood Group</th><th>Face ID Status</th><th>Role</th><th>Actions</th></tr></thead><tbody>';
 
                         for (const user of pageUsers) {
                             const roleValue = (user.role || 'student').toString().toLowerCase();
@@ -10456,37 +10591,78 @@
                                 : `<div class="user-avatar-sm" style="width:38px;height:38px;border-radius:50%;background:#e0e7ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;">${initials}</div>`;
 
                             const branch = user.department || user.branch || 'General';
-                            const batch = user.academicBatch || user.batch || 'Not provided';
                             const blood = user.bloodGroup || user.blood || 'Not provided';
                             const hasFaceId = !!(user.faceDescriptor || user.faceRegistered || user.faceEnrolled);
                             const faceBadge = hasFaceId
                                 ? `<span class="badge badge-success" style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;font-size:0.75rem;"><i class="fas fa-circle-check"></i> Enrolled</span>`
                                 : `<span class="badge badge-warning" style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;font-size:0.75rem;"><i class="fas fa-clock"></i> Not Enrolled</span>`;
 
+                            const studentClass = user._resolvedClass || 'N/A';
+                            const studentSection = user._resolvedSection || 'N/A';
+                            const studentBatch = user._resolvedBatch || 'N/A';
+                            const attRate = user._attendanceRate;
+                            const attStats = user._attendanceStats || { present: 0, late: 0, absent: 0, total: 0 };
+
+                            let attBadgeHtml = '';
+                            if (attRate !== null) {
+                                let badgeColor = 'background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;';
+                                let icon = 'fa-circle-check';
+                                if (attRate < 50) {
+                                    badgeColor = 'background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;';
+                                    icon = 'fa-triangle-exclamation';
+                                } else if (attRate < 75) {
+                                    badgeColor = 'background:#fef3c7;color:#b45309;border:1px solid #fde68a;';
+                                    icon = 'fa-clock';
+                                }
+                                attBadgeHtml = `
+                                    <div style="display:flex;flex-direction:column;gap:3px;">
+                                        <span class="badge" style="${badgeColor}font-weight:800;font-size:0.80rem;display:inline-flex;align-items:center;gap:4px;width:fit-content;padding:3px 8px;border-radius:6px;">
+                                            <i class="fas ${icon}"></i> ${attRate}%
+                                        </span>
+                                        <span style="font-size:0.72rem;color:#64748b;white-space:nowrap;">${attStats.present + attStats.late}/${attStats.total} sessions</span>
+                                    </div>
+                                `;
+                            } else {
+                                attBadgeHtml = `<span class="badge" style="background:#f1f5f9;color:#64748b;font-size:0.75rem;padding:3px 8px;border-radius:6px;">No records</span>`;
+                            }
+
                             html += `<tr>
                                 <td data-label="Student">
                                     <div class="user-cell" style="display:flex;align-items:center;gap:12px;">
                                         ${avatarHtml}
                                         <div class="user-meta">
-                                            <div class="user-name" style="font-weight:700;color:#0f172a;cursor:pointer;" onclick="showUserDetails('${user.id}')">${displayName}</div>
-                                            <div class="user-email" style="font-size:0.8rem;color:#64748b;">${user.email || ''}</div>
+                                            <div class="user-name" style="font-weight:700;color:#0f172a;cursor:pointer;" onclick="showUserDetails('${user.id}')">${escapeHtml(displayName)}</div>
+                                            <div class="user-email" style="font-size:0.8rem;color:#64748b;">${escapeHtml(user.email || '')}</div>
                                         </div>
                                     </div>
                                 </td>
                                 <td data-label="Roll Numbers">
                                     <div style="font-size:0.85rem;line-height:1.4;">
-                                        <div style="font-weight:600;color:#334155;">CR: ${user.classRoll || 'N/A'}</div>
-                                        ${isSchoolMode ? '' : `<div style="color:#64748b;font-size:0.8rem;">UR: ${user.univRoll || 'N/A'}</div>`}
+                                        <div style="font-weight:600;color:#334155;">CR: ${escapeHtml(user.classRoll || 'N/A')}</div>
+                                        ${isSchoolMode ? '' : `<div style="color:#64748b;font-size:0.8rem;">UR: ${escapeHtml(user.univRoll || 'N/A')}</div>`}
                                     </div>
                                 </td>
-                                ${isSchoolMode ? '' : `<td data-label="Branch & Batch">
-                                    <div style="font-size:0.85rem;line-height:1.4;">
-                                        <div style="font-weight:600;color:#334155;">${branch}</div>
-                                        <div style="color:#64748b;font-size:0.8rem;">Batch: ${batch}</div>
-                                    </div>
+                                <td data-label="Class">
+                                    <div style="font-weight:700;color:#0f172a;font-size:0.86rem;">${escapeHtml(studentClass)}</div>
+                                </td>
+                                <td data-label="Section">
+                                    <span class="badge" style="background:#e0f2fe;color:#0369a1;font-weight:700;font-size:0.78rem;padding:3px 8px;border-radius:6px;">
+                                        ${studentSection === 'N/A' ? 'N/A' : 'Sec ' + escapeHtml(studentSection)}
+                                    </span>
+                                </td>
+                                <td data-label="Batch">
+                                    <span class="badge" style="background:#f8fafc;border:1px solid #e2e8f0;color:#334155;font-weight:600;font-size:0.80rem;padding:3px 8px;border-radius:6px;">
+                                        ${escapeHtml(studentBatch)}
+                                    </span>
+                                </td>
+                                <td data-label="Overall Attendance">
+                                    ${attBadgeHtml}
+                                </td>
+                                ${isSchoolMode ? '' : `<td data-label="Branch">
+                                    <div style="font-size:0.85rem;font-weight:600;color:#334155;">${escapeHtml(branch)}</div>
                                 </td>`}
                                 <td data-label="Blood Group">
-                                    <span class="badge" style="background:#f1f5f9;color:#475569;font-weight:600;font-size:0.78rem;">${blood}</span>
+                                    <span class="badge" style="background:#f1f5f9;color:#475569;font-weight:600;font-size:0.78rem;">${escapeHtml(blood)}</span>
                                 </td>
                                 ${isSchoolMode ? '' : `<td data-label="Face ID">
                                     ${faceBadge}
@@ -10620,7 +10796,9 @@
             if (!rows.length || !exportButton) return;
             const isSchoolMode = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
             const columns = ['Name', 'Email', 'Class Roll'];
-            if (!isSchoolMode) columns.push('University Roll', 'Branch', 'Batch', 'Face ID');
+            if (!isSchoolMode) columns.push('University Roll');
+            columns.push('Class', 'Section', 'Batch', 'Overall Attendance');
+            if (!isSchoolMode) columns.push('Branch', 'Face ID');
             columns.push('Blood Group', 'Role');
             const csvValue = value => {
                 let text = String(value ?? '');
@@ -10636,11 +10814,13 @@
                     const chunk = rows.slice(offset, offset + chunkSize);
                     chunk.forEach(user => {
                         const row = [user.name || '', user.email || '', user.classRoll || ''];
-                        if (!isSchoolMode) row.push(user.univRoll || '', user.department || user.branch || '', user.academicBatch || user.batch || '', user.faceDescriptor || user.faceRegistered || user.faceEnrolled ? 'Enrolled' : 'Not enrolled');
+                        if (!isSchoolMode) row.push(user.univRoll || '');
+                        row.push(user._resolvedClass || 'N/A', user._resolvedSection || 'N/A', user._resolvedBatch || 'N/A', user._resolvedAttendanceStr || 'No records');
+                        if (!isSchoolMode) row.push(user.department || user.branch || '', user.faceDescriptor || user.faceRegistered || user.faceEnrolled ? 'Enrolled' : 'Not enrolled');
                         row.push(user.bloodGroup || user.blood || '', user.role || 'student');
                         lines.push(row.map(csvValue).join(','));
                     });
-                    exportButton.textContent = `Preparing ${Math.min(offset + chunk.length, rows.length).toLocaleString()} of ${rows.length.toLocaleString()}ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦`;
+                    exportButton.textContent = `Preparing ${Math.min(offset + chunk.length, rows.length).toLocaleString()} of ${rows.length.toLocaleString()}...`;
                     await new Promise(resolve => setTimeout(resolve, 0));
                 }
                 const blob = new Blob(['\uFEFF', lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
