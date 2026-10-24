@@ -1114,6 +1114,135 @@ function normalizeDate(str) {
     return s.toLowerCase();
 }
 
+const RESET_RATE_LIMIT_COOLDOWN_MS = 60 * 1000; // 60s minimum interval between requests
+const RESET_RATE_LIMIT_HOURLY_WINDOW_MS = 60 * 60 * 1000; // 1h window
+const RESET_RATE_LIMIT_DAILY_WINDOW_MS = 24 * 60 * 60 * 1000; // 24h window
+const MAX_RESETS_PER_HOUR = 3;
+const MAX_RESETS_PER_DAY = 5;
+
+async function checkPasswordResetRateLimit(env, email) {
+    if (!email) return { allowed: true, record: null };
+
+    try {
+        const key = safeDatabaseChildKey(email.toLowerCase());
+        const accessToken = await getFirebaseAccessToken(env);
+        const limitRecord = await readDatabaseWithAccessToken(env, `passwordResetLimits/${key}`, accessToken).catch(err => {
+            console.warn('Failed to read passwordResetLimits:', err);
+            return null;
+        });
+
+        if (!limitRecord || typeof limitRecord !== 'object') {
+            return { allowed: true, record: { requests: [] } };
+        }
+
+        const now = Date.now();
+        const rawRequests = Array.isArray(limitRecord.requests) ? limitRecord.requests : [];
+        const validRequests = rawRequests
+            .map(Number)
+            .filter(t => Number.isFinite(t) && (now - t) < RESET_RATE_LIMIT_DAILY_WINDOW_MS && (now - t) >= 0)
+            .sort((a, b) => a - b);
+
+        // All stored requests are older than 24 hours — clean up the stale record from Firebase
+        // so the database does not accumulate orphaned data after the window expires.
+        if (validRequests.length === 0 && rawRequests.length > 0) {
+            const baseUrl = String(env.FIREBASE_DATABASE_URL || '').replace(/\/+$/, '');
+            if (baseUrl) {
+                const deleteUrl = new URL(`${baseUrl}/passwordResetLimits/${key}.json`);
+                deleteUrl.searchParams.set('access_token', accessToken);
+                fetch(deleteUrl, { method: 'DELETE' }).catch(err =>
+                    console.warn('Failed to delete stale passwordResetLimits record:', err)
+                );
+            }
+            return { allowed: true, record: { requests: [] } };
+        }
+
+        const lastRequestedAt = Number(limitRecord.lastRequestedAt) || (validRequests.length > 0 ? validRequests[validRequests.length - 1] : 0);
+
+        // 1. Check cooldown (prevents rapid automated spam)
+        if (lastRequestedAt > 0 && (now - lastRequestedAt) < RESET_RATE_LIMIT_COOLDOWN_MS) {
+            const remainingSeconds = Math.max(1, Math.ceil((RESET_RATE_LIMIT_COOLDOWN_MS - (now - lastRequestedAt)) / 1000));
+            return {
+                allowed: false,
+                error: `Please wait ${remainingSeconds} second${remainingSeconds === 1 ? '' : 's'} before requesting another password reset.`,
+                status: 429
+            };
+        }
+
+        // 2. Check hourly limit (prevents hourly bursts)
+        const hourlyRequests = validRequests.filter(t => (now - t) < RESET_RATE_LIMIT_HOURLY_WINDOW_MS);
+        if (hourlyRequests.length >= MAX_RESETS_PER_HOUR) {
+            const earliestHourly = hourlyRequests[0];
+            const remainingMinutes = Math.max(1, Math.ceil((RESET_RATE_LIMIT_HOURLY_WINDOW_MS - (now - earliestHourly)) / (60 * 1000)));
+            return {
+                allowed: false,
+                error: `Password reset limit reached (maximum ${MAX_RESETS_PER_HOUR} requests per hour for this account). Please try again in ${remainingMinutes} minute${remainingMinutes === 1 ? '' : 's'}.`,
+                status: 429
+            };
+        }
+
+        // 3. Check daily limit (hard cap per 24 hours)
+        if (validRequests.length >= MAX_RESETS_PER_DAY) {
+            const earliestDaily = validRequests[0];
+            const remainingHours = Math.max(1, Math.ceil((RESET_RATE_LIMIT_DAILY_WINDOW_MS - (now - earliestDaily)) / (60 * 60 * 1000)));
+            return {
+                allowed: false,
+                error: `Daily password reset limit exceeded for this account (maximum ${MAX_RESETS_PER_DAY} requests per day). Please try again in ${remainingHours} hour${remainingHours === 1 ? '' : 's'}.`,
+                status: 429
+            };
+        }
+
+        return {
+            allowed: true,
+            record: {
+                requests: validRequests,
+                lastRequestedAt
+            }
+        };
+    } catch (error) {
+        console.warn('Error during password reset rate limit check:', error);
+        return { allowed: true, record: null };
+    }
+}
+
+async function recordPasswordResetSuccess(env, email, existingRecord) {
+    if (!email) return;
+
+    try {
+        const key = safeDatabaseChildKey(email.toLowerCase());
+        const accessToken = await getFirebaseAccessToken(env);
+        const baseUrl = String(env.FIREBASE_DATABASE_URL || '').replace(/\/+$/, '');
+        if (!baseUrl) return;
+
+        const now = Date.now();
+        const previousRequests = (existingRecord && Array.isArray(existingRecord.requests))
+            ? existingRecord.requests.map(Number).filter(t => Number.isFinite(t) && (now - t) < RESET_RATE_LIMIT_DAILY_WINDOW_MS)
+            : [];
+
+        previousRequests.push(now);
+
+        const targetUrl = new URL(`${baseUrl}/passwordResetLimits/${key}.json`);
+        targetUrl.searchParams.set('access_token', accessToken);
+        targetUrl.searchParams.set('print', 'silent');
+
+        const putResponse = await fetch(targetUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: email.toLowerCase(),
+                lastRequestedAt: now,
+                requests: previousRequests,
+                updatedAt: new Date(now).toISOString()
+            })
+        });
+
+        if (!putResponse.ok) {
+            console.warn('Failed to persist password reset limit record:', putResponse.status);
+        }
+    } catch (error) {
+        console.warn('Error recording password reset rate limit entry:', error);
+    }
+}
+
 async function handlePasswordReset(request, env, origin) {
     const payload = await readJsonWithinLimit(request, 4096);
     if (!payload) return response({ error: 'Invalid password reset request.' }, 400, origin);
@@ -1129,6 +1258,12 @@ async function handlePasswordReset(request, env, origin) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
         (targetUid && !/^[A-Za-z0-9_-]{1,128}$/.test(targetUid))) {
         return response({ error: 'Enter a valid email address.' }, 400, origin);
+    }
+
+    // Enforce per-account password reset limits to prevent abuse and high Brevo email costs
+    const rateLimit = await checkPasswordResetRateLimit(env, email);
+    if (!rateLimit.allowed) {
+        return response({ error: rateLimit.error }, rateLimit.status || 429, origin);
     }
 
     if (isStudentVerification) {
@@ -1185,6 +1320,7 @@ async function handlePasswordReset(request, env, origin) {
             const resetLink = await generatePasswordResetLink(env, email);
             if (resetLink) {
                 await sendBrevoPasswordReset(env, email, resetLink);
+                await recordPasswordResetSuccess(env, email, rateLimit.record);
             } else {
                 throw new Error('Failed to generate password reset link.');
             }
@@ -1243,7 +1379,10 @@ async function handlePasswordReset(request, env, origin) {
         }
 
         const resetLink = await generatePasswordResetLink(env, email);
-        if (resetLink) await sendBrevoPasswordReset(env, email, resetLink);
+        if (resetLink) {
+            await sendBrevoPasswordReset(env, email, resetLink);
+            await recordPasswordResetSuccess(env, email, rateLimit.record);
+        }
         return response({ message: RESET_MESSAGE }, 200, origin);
     } catch (error) {
         console.error('Password reset delivery failed:', error);

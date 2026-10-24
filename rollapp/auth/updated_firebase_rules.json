@@ -439,6 +439,10 @@
         "timestamp"
       ]
     },
+    "passwordResetLimits": {
+      ".read": false,
+      ".write": false
+    },
     "profileRequests": {
       ".read": "auth != null",
       ".write": "auth != null",
