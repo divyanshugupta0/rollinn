@@ -1527,7 +1527,89 @@
         }
         @media (max-width: 640px) {
             .main-content { padding: 78px 12px 28px; }
-            ::-webkit-scrollbar { width: 7px; height: 7px; }
+        /* Redesigned Pricing & Plans Suite */
+        .pricing-panel-wrapper {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .pricing-hero {
+            background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+            border: 1px solid #e2e8f0;
+        }
+        .kpi-card {
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            background: #fff;
+        }
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(79, 70, 229, 0.08);
+        }
+        .plan-term-preset, .plan-days-preset {
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.15s ease;
+        }
+        .plan-term-preset:hover, .plan-days-preset:hover {
+            transform: scale(1.05);
+        }
+        #pricingCatalogFilterTabs .nav-link {
+            color: #64748b;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        #pricingCatalogFilterTabs .nav-link.active {
+            background-color: #4f46e5 !important;
+            color: #fff !important;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+        }
+        #subscriptionStatusFilterGroup .btn.active {
+            background-color: #4f46e5;
+            color: #fff;
+            border-color: #4f46e5;
+        }
+        #ownerPricingTable tbody tr {
+            transition: background-color 0.15s ease;
+        }
+        #ownerPricingTable tbody tr:hover {
+            background-color: rgba(79, 70, 229, 0.02) !important;
+        }
+        .plan-toggle-status {
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .plan-toggle-status:hover {
+            transform: translateY(-1px);
+        }
+        .plan-edit-btn {
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .plan-edit-btn:hover {
+            background-color: #4f46e5;
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
+        }
+        .save-subscription-btn {
+            background: linear-gradient(135deg, #4f46e5, #4338ca);
+            border: none;
+            transition: all 0.2s ease;
+        }
+        .save-subscription-btn:hover {
+            background: linear-gradient(135deg, #4338ca, #3730a3);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
+        }
+        .quick-extend-days {
+            color: #0284c7;
+            border-color: #bae6fd;
+            background: #f0f9ff;
+            font-weight: 600;
+            transition: all 0.15s ease;
+        }
+        .quick-extend-days:hover {
+            background: #0284c7;
+            color: #fff;
+            border-color: #0284c7;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
         }
     </style>
     <link rel="stylesheet" href="../shared/portal-loader.css?v=20261022-v1">

@@ -102,6 +102,9 @@
         }
     }
 
+    let currentPlanCatalogFilter = 'all';
+    let currentSubscriptionStatusFilter = 'all';
+
     function addPricingPanel() {
         const nav = document.querySelector('.nav-links');
         const main = document.querySelector('.main-content');
@@ -115,44 +118,403 @@
         section.className = 'animated-section';
         section.style.display = 'none';
         section.innerHTML = `
-          <div class="section-card">
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
-              <div><h2><i class="fas fa-tags"></i>Pricing plans & school subscriptions</h2><p class="text-muted mb-0">Create base plans, capacity top-ups, or extra-month top-ups that extend a school's current subscription.</p></div>
-              <span id="ownerPricingDbBadge" class="badge text-bg-light">Shared RollCall database</span>
+          <div class="pricing-panel-wrapper">
+            <!-- Hero Header -->
+            <div class="pricing-hero mb-4 p-4 rounded-4 bg-white border shadow-sm">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="rounded-4 d-flex align-items-center justify-content-center text-white shadow-sm" style="width: 52px; height: 52px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); font-size: 22px;">
+                    <i class="fas fa-tags"></i>
+                  </div>
+                  <div>
+                    <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                      <h2 class="h4 mb-0 fw-bold text-dark">Pricing &amp; Subscription Engine</h2>
+                      <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2 py-1 small"><i class="fas fa-shield-alt me-1"></i>Tier Manager</span>
+                    </div>
+                    <p class="text-muted mb-0 small">Configure tiered base plans, capacity packages, and day-wise or month-wise term extenders.</p>
+                  </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <span id="ownerPricingDbBadge" class="badge bg-light text-secondary border px-3 py-2 rounded-pill"><i class="fas fa-database me-1 text-primary"></i>Shared RollCall DB</span>
+                  <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" id="ownerPricingRefreshBtn"><i class="fas fa-sync-alt me-1"></i>Refresh</button>
+                  <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" id="ownerPricingScrollCreateBtn"><i class="fas fa-plus me-1"></i>New Plan</button>
+                </div>
+              </div>
+
+              <!-- Live KPI Summary Metric Cards -->
+              <div class="row g-3 mt-2" id="ownerPricingKpis">
+                <div class="col-6 col-lg-3">
+                  <div class="p-3 rounded-3 border bg-light-subtle h-100 kpi-card" style="border-left: 4px solid #4f46e5 !important;">
+                    <div class="text-muted small fw-medium d-flex justify-content-between align-items-center">
+                      <span>Base Plans</span>
+                      <i class="fas fa-layer-group text-primary"></i>
+                    </div>
+                    <div class="h3 mb-1 fw-bold text-dark mt-1" id="kpiMainPlansCount">0</div>
+                    <div class="small text-muted text-truncate" id="kpiMainPlansBreakdown">School · College · ERP</div>
+                  </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                  <div class="p-3 rounded-3 border bg-light-subtle h-100 kpi-card" style="border-left: 4px solid #06b6d4 !important;">
+                    <div class="text-muted small fw-medium d-flex justify-content-between align-items-center">
+                      <span>Top-up Offers</span>
+                      <i class="fas fa-calendar-plus text-info"></i>
+                    </div>
+                    <div class="h3 mb-1 fw-bold text-dark mt-1" id="kpiTopupsCount">0</div>
+                    <div class="small text-muted text-truncate" id="kpiTopupsBreakdown">Days · Months · Capacity</div>
+                  </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                  <div class="p-3 rounded-3 border bg-light-subtle h-100 kpi-card" style="border-left: 4px solid #10b981 !important;">
+                    <div class="text-muted small fw-medium d-flex justify-content-between align-items-center">
+                      <span>Active Subscriptions</span>
+                      <i class="fas fa-building text-success"></i>
+                    </div>
+                    <div class="h3 mb-1 fw-bold text-dark mt-1" id="kpiActiveSubsCount">0</div>
+                    <div class="small text-muted">Institutions covered</div>
+                  </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                  <div class="p-3 rounded-3 border bg-light-subtle h-100 kpi-card" style="border-left: 4px solid #f59e0b !important;">
+                    <div class="text-muted small fw-medium d-flex justify-content-between align-items-center">
+                      <span>Needs Attention</span>
+                      <i class="fas fa-exclamation-circle text-warning"></i>
+                    </div>
+                    <div class="h3 mb-1 fw-bold text-dark mt-1" id="kpiExpiringSubsCount">0</div>
+                    <div class="small text-muted">Expiring in ≤14d or expired</div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <form id="ownerPlanForm" class="row g-2 align-items-end border rounded p-3 mb-4">
-              <input id="ownerPlanId" type="hidden">
-              <div class="col-md-3"><label class="form-label" for="ownerPlanName">Name</label><input id="ownerPlanName" class="form-control" required maxlength="60" placeholder="e.g. Campus Pro"></div>
-              <div class="col-md-2"><label class="form-label" for="ownerPlanType">Subscription type</label><select id="ownerPlanType" class="form-select"><option value="plan">Main plan</option><option value="topup">Top-up</option></select></div>
-              <div class="col-md-2" id="ownerPlanTopupKindField" hidden><label class="form-label" for="ownerPlanTopupKind">Top-up pattern</label><select id="ownerPlanTopupKind" class="form-select"><option value="capacity">Extra capacity</option><option value="months">Extra months</option></select></div>
-              <div class="col-md-2"><label class="form-label" for="ownerPlanPrice">Price</label><input id="ownerPlanPrice" type="number" class="form-control" min="0" step="0.01" required placeholder="0"></div>
-              <div class="col-md-2"><label class="form-label" for="ownerPlanCurrency">Currency</label><select id="ownerPlanCurrency" class="form-select"><option value="INR">INR</option><option value="USD">USD</option><option value="EUR">EUR</option></select></div>
-              <div class="col-md-1" id="ownerPlanMonthsField"><label class="form-label" for="ownerPlanMonths">Months</label><input id="ownerPlanMonths" type="number" class="form-control" min="1" max="120" value="12"></div>
-              <div class="col-md-2 d-flex align-items-center" id="ownerPlanAutoRenewField"><div class="form-check mt-3"><input id="ownerPlanAutoRenew" class="form-check-input" type="checkbox"><label class="form-check-label" for="ownerPlanAutoRenew">Auto-renew</label></div></div>
-              <div class="col-md-3"><label class="form-label" for="ownerPlanCategory">Plan type</label><select id="ownerPlanCategory" class="form-select"><option value="school">School</option><option value="college">College</option><option value="erp">RollCall ERP</option></select></div>
-              <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Save</button></div>
-              <div class="col-md-3" id="ownerPlanStudentCapacityField"><label class="form-label" for="ownerPlanStudentCapacity">Student records</label><input id="ownerPlanStudentCapacity" type="number" class="form-control" min="0" step="1" value="0" required></div>
-              <div class="col-md-3" id="ownerPlanTeacherCapacityField"><label class="form-label" for="ownerPlanTeacherCapacity">Teacher records</label><input id="ownerPlanTeacherCapacity" type="number" class="form-control" min="0" step="1" value="0" required></div>
-              <div class="col-md-3 d-flex align-items-center" id="ownerPlanBonusOfferField"><div class="form-check mt-3"><input id="ownerPlanBonus" class="form-check-input" type="checkbox"><label class="form-check-label" for="ownerPlanBonus">Include bonus top-up offer</label></div></div>
-              <div class="col-md-3" id="ownerPlanBonusStudentCapacityField"><label class="form-label" for="ownerPlanBonusStudentCapacity">Bonus student records <span class="text-muted">(optional)</span></label><input id="ownerPlanBonusStudentCapacity" type="number" class="form-control" min="0" step="1" placeholder="Uses default"></div>
-              <div class="col-md-3" id="ownerPlanBonusTeacherCapacityField"><label class="form-label" for="ownerPlanBonusTeacherCapacity">Bonus teacher records <span class="text-muted">(optional)</span></label><input id="ownerPlanBonusTeacherCapacity" type="number" class="form-control" min="0" step="1" placeholder="Uses default"></div>
-              <div class="col-12"><label class="form-label" for="ownerPlanFeatures">Included features</label><input id="ownerPlanFeatures" class="form-control" placeholder="Attendance, reports, student directory"></div>
-              <div class="col-12"><button class="btn btn-link px-0" id="ownerPlanCancel" type="button" hidden>Cancel editing</button></div>
-            </form>
-            <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Name</th><th>Type</th><th>Price</th><th>Term</th><th>Capacity</th><th>Features</th><th>Availability</th><th>Actions</th></tr></thead><tbody id="ownerPlanRows"></tbody></table></div>
-            <hr class="my-4"><div class="d-flex justify-content-between align-items-center flex-wrap gap-2"><h3 class="h5 mb-0">School subscriptions</h3><input id="ownerSubscriptionSearch" class="form-control" style="max-width:320px" placeholder="Search schools"></div>
-            <div class="table-responsive mt-3"><table class="table table-hover align-middle"><thead><tr><th>School</th><th>School code</th><th>Main plan</th><th>Usage / capacity</th><th>Top-up</th><th>Renewal date</th><th>School access</th><th>Save</th></tr></thead><tbody id="ownerSubscriptionRows"></tbody></table></div>
+
+            <!-- Plan Creation / Edit Suite Card -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" id="planEditorCard" style="border-top: 4px solid #4f46e5 !important;">
+              <div class="card-header bg-white py-3 px-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="rounded-circle bg-primary-subtle text-primary p-2 d-inline-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                    <i class="fas fa-sliders-h"></i>
+                  </span>
+                  <div>
+                    <h5 class="mb-0 fw-bold" id="ownerPlanFormTitle">Plan Configuration Suite</h5>
+                    <small class="text-muted" id="ownerPlanFormSubtitle">Configure plan details, pricing tiers, and capacity constraints</small>
+                  </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <span id="ownerPlanFormBadge" class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-1">New Plan</span>
+                  <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" id="ownerPlanCancel" type="button" hidden><i class="fas fa-times me-1"></i>Cancel editing</button>
+                </div>
+              </div>
+              <div class="card-body p-4">
+                <form id="ownerPlanForm">
+                  <input id="ownerPlanId" type="hidden">
+                  
+                  <div class="row g-3">
+                    <!-- Column 1: Identity & Role -->
+                    <div class="col-lg-4">
+                      <div class="p-3 rounded-3 border bg-light-subtle h-100">
+                        <h6 class="fw-bold text-primary mb-3"><i class="fas fa-id-card me-2"></i>1. Plan Identity</h6>
+                        <div class="mb-3">
+                          <label class="form-label fw-semibold small" for="ownerPlanName">Plan Name *</label>
+                          <input id="ownerPlanName" class="form-control" required maxlength="60" placeholder="e.g. Standard Campus Plan">
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label fw-semibold small" for="ownerPlanType">Subscription Type</label>
+                          <select id="ownerPlanType" class="form-select">
+                            <option value="plan">Main Plan (Base)</option>
+                            <option value="topup">Top-up Add-on</option>
+                          </select>
+                        </div>
+                        <div class="mb-3" id="ownerPlanCategoryContainer">
+                          <label class="form-label fw-semibold small" for="ownerPlanCategory">Institution Target</label>
+                          <select id="ownerPlanCategory" class="form-select">
+                            <option value="school">School</option>
+                            <option value="college">College / University</option>
+                            <option value="erp">RollCall ERP</option>
+                          </select>
+                        </div>
+                        <div class="mb-3" id="ownerPlanTopupKindField" hidden>
+                          <label class="form-label fw-semibold small text-info" for="ownerPlanTopupKind"><i class="fas fa-puzzle-piece me-1"></i>Top-up Pattern</label>
+                          <select id="ownerPlanTopupKind" class="form-select border-info">
+                            <option value="capacity">Extra Capacity (Students / Teachers)</option>
+                            <option value="months">Extra Months (Term Extension)</option>
+                            <option value="days">Extra Days (Quick Day Extension)</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Column 2: Pricing & Term -->
+                    <div class="col-lg-4">
+                      <div class="p-3 rounded-3 border bg-light-subtle h-100">
+                        <h6 class="fw-bold text-primary mb-3"><i class="fas fa-coins me-2"></i>2. Pricing &amp; Billing Term</h6>
+                        <div class="row g-2 mb-3">
+                          <div class="col-7">
+                            <label class="form-label fw-semibold small" for="ownerPlanPrice">Price *</label>
+                            <div class="input-group">
+                              <span class="input-group-text bg-white"><i class="fas fa-tag text-muted"></i></span>
+                              <input id="ownerPlanPrice" type="number" class="form-control" min="0" step="0.01" required placeholder="0">
+                            </div>
+                          </div>
+                          <div class="col-5">
+                            <label class="form-label fw-semibold small" for="ownerPlanCurrency">Currency</label>
+                            <select id="ownerPlanCurrency" class="form-select">
+                              <option value="INR">INR (₹)</option>
+                              <option value="USD">USD ($)</option>
+                              <option value="EUR">EUR (€)</option>
+                            </select>
+                          </div>
+                        </div>
+                        
+                        <div class="mb-3" id="ownerPlanMonthsField">
+                          <label class="form-label fw-semibold small" for="ownerPlanMonths">Term Duration (Months)</label>
+                          <div class="input-group">
+                            <input id="ownerPlanMonths" type="number" class="form-control" min="1" max="120" value="12">
+                            <span class="input-group-text bg-white">months</span>
+                          </div>
+                          <div class="d-flex gap-1 mt-1">
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 small plan-term-preset" data-term-months="1">1 mo</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 small plan-term-preset" data-term-months="3">3 mos</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 small plan-term-preset" data-term-months="6">6 mos</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 small plan-term-preset" data-term-months="12">1 year</button>
+                          </div>
+                        </div>
+
+                        <div class="mb-3" id="ownerPlanDaysField" hidden>
+                          <label class="form-label fw-semibold small text-info" for="ownerPlanDays"><i class="fas fa-calendar-day me-1"></i>Term Extension (Days)</label>
+                          <div class="input-group">
+                            <input id="ownerPlanDays" type="number" class="form-control border-info" min="1" max="365" value="7">
+                            <span class="input-group-text bg-info-subtle border-info text-info">days</span>
+                          </div>
+                          <div class="d-flex gap-1 mt-1">
+                            <button type="button" class="btn btn-xs btn-outline-info py-0 px-2 small plan-days-preset" data-days="1">+1d</button>
+                            <button type="button" class="btn btn-xs btn-outline-info py-0 px-2 small plan-days-preset" data-days="3">+3d</button>
+                            <button type="button" class="btn btn-xs btn-outline-info py-0 px-2 small plan-days-preset" data-days="7">+7d</button>
+                            <button type="button" class="btn btn-xs btn-outline-info py-0 px-2 small plan-days-preset" data-days="15">+15d</button>
+                            <button type="button" class="btn btn-xs btn-outline-info py-0 px-2 small plan-days-preset" data-days="30">+30d</button>
+                          </div>
+                        </div>
+
+                        <div class="form-check form-switch mt-3 pt-2 border-top" id="ownerPlanAutoRenewField">
+                          <input id="ownerPlanAutoRenew" class="form-check-input" type="checkbox" role="switch">
+                          <label class="form-check-label fw-semibold small ms-1" for="ownerPlanAutoRenew">Enable Auto-Renewal</label>
+                          <div class="text-muted" style="font-size: 11px;">Automatically renews on expiry if supported</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Column 3: Capacity & Features -->
+                    <div class="col-lg-4">
+                      <div class="p-3 rounded-3 border bg-light-subtle h-100">
+                        <h6 class="fw-bold text-primary mb-3"><i class="fas fa-users-cog me-2"></i>3. Capacity &amp; Features</h6>
+                        <div class="row g-2 mb-3">
+                          <div class="col-6" id="ownerPlanStudentCapacityField">
+                            <label class="form-label fw-semibold small" for="ownerPlanStudentCapacity">Student Limit</label>
+                            <div class="input-group">
+                              <span class="input-group-text bg-white"><i class="fas fa-user-graduate text-muted"></i></span>
+                              <input id="ownerPlanStudentCapacity" type="number" class="form-control" min="0" step="1" value="0" required>
+                            </div>
+                          </div>
+                          <div class="col-6" id="ownerPlanTeacherCapacityField">
+                            <label class="form-label fw-semibold small" for="ownerPlanTeacherCapacity">Teacher Limit</label>
+                            <div class="input-group">
+                              <span class="input-group-text bg-white"><i class="fas fa-chalkboard-teacher text-muted"></i></span>
+                              <input id="ownerPlanTeacherCapacity" type="number" class="form-control" min="0" step="1" value="0" required>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="mb-3">
+                          <label class="form-label fw-semibold small" for="ownerPlanFeatures">Included Features</label>
+                          <input id="ownerPlanFeatures" class="form-control" placeholder="Attendance, Reports, SMS Alerts">
+                          <div class="text-muted" style="font-size: 11px;">Comma-separated list of capabilities</div>
+                        </div>
+
+                        <div class="p-2 rounded border bg-white mt-2" id="ownerPlanBonusOfferField">
+                          <div class="form-check form-switch mb-2">
+                            <input id="ownerPlanBonus" class="form-check-input" type="checkbox" role="switch">
+                            <label class="form-check-label fw-semibold small" for="ownerPlanBonus">Include Bonus Top-up Offer</label>
+                          </div>
+                          <div class="row g-2" id="ownerPlanBonusInputs">
+                            <div class="col-6" id="ownerPlanBonusStudentCapacityField">
+                              <input id="ownerPlanBonusStudentCapacity" type="number" class="form-control form-control-sm" min="0" placeholder="Bonus students">
+                            </div>
+                            <div class="col-6" id="ownerPlanBonusTeacherCapacityField">
+                              <input id="ownerPlanBonusTeacherCapacity" type="number" class="form-control form-control-sm" min="0" placeholder="Bonus teachers">
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="d-flex justify-content-end align-items-center gap-2 mt-3 pt-3 border-top">
+                    <button type="button" class="btn btn-outline-secondary px-3" onclick="resetPricingForm()">Reset</button>
+                    <button class="btn btn-primary px-4 fw-semibold shadow-sm" type="submit" id="ownerPlanSubmitBtn">
+                      <i class="fas fa-save me-2"></i>Save Pricing Plan
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- Pricing Plans Explorer -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+              <div class="card-header bg-white py-3 px-4 border-bottom">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="rounded-circle bg-success-subtle text-success p-2 d-inline-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                      <i class="fas fa-th-list"></i>
+                    </span>
+                    <h5 class="mb-0 fw-bold">Active Pricing Catalog</h5>
+                  </div>
+                  
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <ul class="nav nav-pills nav-fill bg-light p-1 rounded-pill small" id="pricingCatalogFilterTabs">
+                      <li class="nav-item"><a class="nav-link active rounded-pill py-1 px-3" href="#" data-plan-filter="all">All (<span id="tabCountAll">0</span>)</a></li>
+                      <li class="nav-item"><a class="nav-link rounded-pill py-1 px-3" href="#" data-plan-filter="school">School (<span id="tabCountSchool">0</span>)</a></li>
+                      <li class="nav-item"><a class="nav-link rounded-pill py-1 px-3" href="#" data-plan-filter="college">College (<span id="tabCountCollege">0</span>)</a></li>
+                      <li class="nav-item"><a class="nav-link rounded-pill py-1 px-3" href="#" data-plan-filter="erp">ERP (<span id="tabCountErp">0</span>)</a></li>
+                      <li class="nav-item"><a class="nav-link rounded-pill py-1 px-3" href="#" data-plan-filter="topup">Top-ups (<span id="tabCountTopup">0</span>)</a></li>
+                    </ul>
+                    <input id="ownerPlanSearch" class="form-control form-control-sm rounded-pill" style="width: 180px;" placeholder="Search catalog...">
+                  </div>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="ownerPricingTable">
+                  <thead class="table-light text-muted small text-uppercase">
+                    <tr>
+                      <th class="ps-4">Plan Name</th>
+                      <th>Target &amp; Type</th>
+                      <th>Pricing</th>
+                      <th>Term Duration</th>
+                      <th>Capacity / Add-on</th>
+                      <th>Included Features</th>
+                      <th>Status</th>
+                      <th class="pe-4 text-end">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ownerPlanRows"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- School Subscriptions Section -->
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+              <div class="card-header bg-white py-3 px-4 border-bottom">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="rounded-circle bg-info-subtle text-info p-2 d-inline-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                      <i class="fas fa-university"></i>
+                    </span>
+                    <div>
+                      <h5 class="mb-0 fw-bold">School Subscriptions Management</h5>
+                      <small class="text-muted">Monitor school usage, apply top-ups or +Days extensions, and manage renewals</small>
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <div class="btn-group btn-group-sm" id="subscriptionStatusFilterGroup">
+                      <button type="button" class="btn btn-outline-secondary active" data-sub-filter="all">All</button>
+                      <button type="button" class="btn btn-outline-secondary" data-sub-filter="active">Active</button>
+                      <button type="button" class="btn btn-outline-secondary" data-sub-filter="expiring">Expiring Soon</button>
+                      <button type="button" class="btn btn-outline-secondary" data-sub-filter="expired">Expired</button>
+                    </div>
+                    <div class="input-group input-group-sm" style="max-width:240px">
+                      <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
+                      <input id="ownerSubscriptionSearch" class="form-control" placeholder="Search school or code...">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light text-muted small text-uppercase">
+                    <tr>
+                      <th class="ps-4">School</th>
+                      <th>Main Plan</th>
+                      <th style="min-width: 200px;">Usage &amp; Capacity</th>
+                      <th style="min-width: 210px;">Add Top-Up / Extend</th>
+                      <th style="min-width: 170px;">Renewal Date &amp; Status</th>
+                      <th>Access</th>
+                      <th class="pe-4 text-end">Save</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ownerSubscriptionRows"></tbody>
+                </table>
+              </div>
+            </div>
           </div>`;
         main.appendChild(section);
         item.querySelector('a').addEventListener('click', event => { event.preventDefault(); switchSection('owner-pricing'); renderSubscriptionRows(); });
         section.querySelector('#ownerPlanForm').addEventListener('submit', savePricingPlan);
         section.querySelector('#ownerPlanCancel').addEventListener('click', resetPricingForm);
         section.querySelector('#ownerSubscriptionSearch').addEventListener('input', renderSubscriptionRows);
+        section.querySelector('#ownerPlanSearch')?.addEventListener('input', renderPricingPlans);
+        section.querySelector('#ownerPricingRefreshBtn')?.addEventListener('click', async () => {
+            await loadPricingPlans();
+            await refreshSchoolData();
+            notify('Pricing catalog and school subscriptions refreshed.', 'info');
+        });
+        section.querySelector('#ownerPricingScrollCreateBtn')?.addEventListener('click', () => {
+            resetPricingForm();
+            document.getElementById('planEditorCard')?.scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('ownerPlanName')?.focus();
+        });
+
+        // Term presets
+        section.querySelectorAll('.plan-term-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const months = btn.dataset.termMonths;
+                const field = document.getElementById('ownerPlanMonths');
+                if (field && months) {
+                    field.value = months;
+                    field.dispatchEvent(new Event('input'));
+                }
+            });
+        });
+
+        // Days presets
+        section.querySelectorAll('.plan-days-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const days = btn.dataset.days;
+                const field = document.getElementById('ownerPlanDays');
+                if (field && days) {
+                    field.value = days;
+                    field.dispatchEvent(new Event('input'));
+                }
+            });
+        });
+
+        // Plan Catalog Filter Tabs
+        section.querySelectorAll('#pricingCatalogFilterTabs [data-plan-filter]').forEach(tab => {
+            tab.addEventListener('click', event => {
+                event.preventDefault();
+                section.querySelectorAll('#pricingCatalogFilterTabs .nav-link').forEach(link => link.classList.remove('active'));
+                tab.classList.add('active');
+                currentPlanCatalogFilter = tab.dataset.planFilter || 'all';
+                renderPricingPlans();
+            });
+        });
+
+        // Subscription Status Filter Group
+        section.querySelectorAll('#subscriptionStatusFilterGroup [data-sub-filter]').forEach(btn => {
+            btn.addEventListener('click', event => {
+                event.preventDefault();
+                section.querySelectorAll('#subscriptionStatusFilterGroup button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentSubscriptionStatusFilter = btn.dataset.subFilter || 'all';
+                renderSubscriptionRows();
+            });
+        });
+
         const updateBonusControls = () => {
             const isTopup = document.getElementById('ownerPlanType').value === 'topup';
             const topupKindField = document.getElementById('ownerPlanTopupKindField');
-            const isMonthTopup = isTopup && document.getElementById('ownerPlanTopupKind').value === 'months';
+            const topupKind = isTopup ? document.getElementById('ownerPlanTopupKind').value : '';
+            const isMonthTopup = isTopup && topupKind === 'months';
+            const isDayTopup = isTopup && topupKind === 'days';
+            const isTermTopup = isMonthTopup || isDayTopup;
             const monthsField = document.getElementById('ownerPlanMonthsField');
+            const daysField = document.getElementById('ownerPlanDaysField');
             const studentCapacityField = document.getElementById('ownerPlanStudentCapacityField');
             const teacherCapacityField = document.getElementById('ownerPlanTeacherCapacityField');
             const studentCapacity = document.getElementById('ownerPlanStudentCapacity');
@@ -165,13 +527,25 @@
             const bonusTeacher = document.getElementById('ownerPlanBonusTeacherCapacity');
             const autoRenewField = document.getElementById('ownerPlanAutoRenewField');
             const autoRenew = document.getElementById('ownerPlanAutoRenew');
+            const categoryContainer = document.getElementById('ownerPlanCategoryContainer');
+            const categoryField = document.getElementById('ownerPlanCategory');
+
             if (topupKindField) topupKindField.hidden = !isTopup;
-            if (monthsField) monthsField.hidden = isTopup && !isMonthTopup;
-            if (monthsField) monthsField.querySelector('label').textContent = isMonthTopup ? 'Months to add' : 'Months';
-            if (studentCapacityField) studentCapacityField.hidden = isMonthTopup;
-            if (teacherCapacityField) teacherCapacityField.hidden = isMonthTopup;
-            if (studentCapacity) studentCapacity.disabled = isMonthTopup;
-            if (teacherCapacity) teacherCapacity.disabled = isMonthTopup;
+            if (categoryContainer) categoryContainer.hidden = isTopup;
+            if (categoryField) {
+                categoryField.disabled = isTopup;
+                if (isTopup) categoryField.value = 'school';
+            }
+            if (monthsField) {
+                monthsField.hidden = isTopup && !isMonthTopup;
+                const label = monthsField.querySelector('label');
+                if (label) label.textContent = isMonthTopup ? 'Months to add (Extension)' : 'Term Duration (Months)';
+            }
+            if (daysField) daysField.hidden = !isDayTopup;
+            if (studentCapacityField) studentCapacityField.hidden = isTermTopup;
+            if (teacherCapacityField) teacherCapacityField.hidden = isTermTopup;
+            if (studentCapacity) studentCapacity.disabled = isTermTopup;
+            if (teacherCapacity) teacherCapacity.disabled = isTermTopup;
             const showBonusControls = !isTopup;
             if (bonusOfferField) bonusOfferField.hidden = !showBonusControls;
             if (bonusStudentField) bonusStudentField.hidden = !showBonusControls;
@@ -179,81 +553,9 @@
             if (bonus) bonus.disabled = !showBonusControls;
             if (isTopup && bonus) bonus.checked = false;
             if (autoRenewField) autoRenewField.hidden = isTopup;
-            const categoryField = document.getElementById('ownerPlanCategory');
-            if (categoryField) {
-                categoryField.parentElement.hidden = isTopup;
-                categoryField.disabled = isTopup;
-                if (isTopup) categoryField.value = 'school';
-            }
             if (autoRenew) {
                 autoRenew.disabled = isTopup;
                 if (isTopup) autoRenew.checked = false;
-            }
-
-            function addAdminProfileRequestsPanel() {
-                const nav = document.querySelector('.nav-links');
-                const main = document.querySelector('.main-content');
-                if (!nav || !main || document.getElementById('owner-admin-profile-requests')) return;
-                const item = document.createElement('li');
-                item.className = 'nav-item';
-                item.innerHTML = '<a class="nav-link" href="#owner-admin-profile-requests"><i class="fas fa-user-check"></i>Admin Requests</a>';
-                nav.appendChild(item);
-                const section = document.createElement('section');
-                section.id = 'owner-admin-profile-requests';
-                section.className = 'animated-section';
-                section.style.display = 'none';
-                section.innerHTML = '<div class="section-card"><div class="d-flex justify-content-between align-items-center flex-wrap gap-2"><div><h2><i class="fas fa-user-check"></i>Administrator update requests</h2><p class="text-muted">Review administrator profile changes before they are applied.</p></div><button type="button" class="btn btn-outline-secondary" id="refresh-admin-profile-requests"><i class="fas fa-sync"></i> Refresh</button></div><div id="owner-admin-profile-requests-list" class="mt-3"><p class="text-muted">Loading requests...</p></div></div>';
-                main.appendChild(section);
-
-                const render = async () => {
-                    const list = section.querySelector('#owner-admin-profile-requests-list');
-                    list.innerHTML = '<p class="text-muted">Loading requests...</p>';
-                    try {
-                        const ownerUid = ownerAuth.auth().currentUser?.uid;
-                        const snapshot = await ownerAuth.database().ref('profile_update_requests').once('value');
-                        const requests = [];
-                        snapshot.forEach(child => {
-                            const data = child.val() || {};
-                            if (data.ownerId === ownerUid && data.requestType === 'Administrator Profile Update' && data.status === 'pending') {
-                                requests.push({ id: child.key, ...data });
-                            }
-                        });
-                        if (!requests.length) {
-                            list.innerHTML = '<div class="alert alert-light">No pending administrator update requests.</div>';
-                            return;
-                        }
-                        list.innerHTML = requests.sort((a, b) => b.timestamp - a.timestamp).map(request => `<div class="card mb-3"><div class="card-body"><div class="d-flex justify-content-between gap-3 flex-wrap"><div><h3 class="h6 mb-1">${escapeHtml(request.userName || request.userEmail)}</h3><p class="text-muted mb-2">${escapeHtml(request.userEmail || '')}</p>${renderAdminProfileChanges(request)}<small class="text-muted">${new Date(request.timestamp).toLocaleString()}</small></div><div class="d-flex gap-2 align-items-start"><button type="button" class="btn btn-success approve-admin-request" data-request-id="${request.id}" data-user-id="${request.userId}">Approve</button><button type="button" class="btn btn-outline-danger reject-admin-request" data-request-id="${request.id}">Reject</button></div></div></div></div>`).join('');
-                        list.querySelectorAll('.approve-admin-request').forEach(button => button.addEventListener('click', () => review(requests.find(request => request.id === button.dataset.requestId), true)));
-                        list.querySelectorAll('.reject-admin-request').forEach(button => button.addEventListener('click', () => review(requests.find(request => request.id === button.dataset.requestId), false)));
-                    } catch (error) {
-                        console.error('Could not load administrator update requests:', error);
-                        list.innerHTML = `<div class="alert alert-danger">${escapeHtml(error.message || 'Could not load requests.')}</div>`;
-                    }
-                };
-                const review = async (request, approve) => {
-                    if (!request) return;
-                    const ownerUid = ownerAuth.auth().currentUser?.uid;
-                    const updates = {};
-                    updates[`profile_update_requests/${request.id}/status`] = approve ? 'approved' : 'rejected';
-                    updates[`profile_update_requests/${request.id}/${approve ? 'approvedBy' : 'rejectedBy'}`] = ownerUid;
-                    updates[`profile_update_requests/${request.id}/${approve ? 'approvedAt' : 'rejectedAt'}`] = Date.now();
-                    if (approve && request.requestedData) {
-                        Object.entries(request.requestedData).forEach(([key, value]) => {
-                            updates[`users/${request.userId}/${key}`] = value;
-                        });
-                        updates[`users/${request.userId}/updatedAt`] = Date.now();
-                    }
-                    try {
-                        await ownerAuth.database().ref().update(updates);
-                        notify(approve ? 'Administrator update approved.' : 'Administrator update rejected.', 'success');
-                        render();
-                    } catch (error) {
-                        console.error('Could not review administrator update request:', error);
-                        notify(error.message || 'Could not review request.', 'danger');
-                    }
-                };
-                section.querySelector('#refresh-admin-profile-requests').addEventListener('click', render);
-                item.querySelector('a').addEventListener('click', event => { event.preventDefault(); switchSection('owner-admin-profile-requests'); render(); });
             }
             const bonusEnabled = showBonusControls && bonus?.checked === true;
             if (bonusStudent) bonusStudent.disabled = !bonusEnabled;
@@ -263,12 +565,12 @@
                 if (bonusTeacher) bonusTeacher.value = '';
             }
         };
+
         section.querySelector('#ownerPlanType').addEventListener('change', updateBonusControls);
         section.querySelector('#ownerPlanTopupKind').addEventListener('change', updateBonusControls);
         section.querySelector('#ownerPlanBonus').addEventListener('change', updateBonusControls);
         updateBonusControls();
     }
-
     function addAdminProfileRequestsPanel() {
         const nav = document.querySelector('.nav-links');
         const main = document.querySelector('.main-content');
@@ -378,7 +680,7 @@
                         : 'No plan selected (legacy request)';
                     const selectedPlanId = mainPlans.some(item => item.id === plan?.id) ? plan.id : mainPlans[0]?.id;
                     const planOptions = mainPlans.map(item => `<option value="${escapeAttr(item.id)}" ${item.id === selectedPlanId ? 'selected' : ''}>${escapeHtml(item.name || 'Plan')} · ${escapeHtml(item.currency || 'INR')} ${Number(item.price || 0).toLocaleString()} · ${Number(item.durationMonths || 0)} months</option>`).join('');
-                    const topupOptions = topupPlans.length ? topupPlans.map(item => `<label class="d-flex justify-content-between align-items-center gap-2 border rounded p-2"><span>${escapeHtml(item.name || 'Top-up')} <small class="text-muted">${item.topupKind === 'months' ? `+${Number(item.durationMonths || 0)} months` : `${Number(item.studentCapacity || 0)} students · ${Number(item.teacherCapacity || 0)} teachers`} · ${escapeHtml(item.currency || 'INR')} ${Number(item.price || 0).toLocaleString()} each</small></span><input type="number" class="form-control form-control-sm request-topup-quantity" data-topup-id="${escapeAttr(item.id)}" min="0" max="99" step="1" value="0" aria-label="${escapeAttr(item.name || 'Top-up')} quantity" style="width:88px"></label>`).join('') : '<p class="text-muted mb-0">No active top-ups.</p>';
+                    const topupOptions = topupPlans.length ? topupPlans.map(item => `<label class="d-flex justify-content-between align-items-center gap-2 border rounded p-2"><span>${escapeHtml(item.name || 'Top-up')} <small class="text-muted">${item.topupKind === 'days' ? `+${Number(item.durationDays || item.daysAdded || 0)} days` : item.topupKind === 'months' ? `+${Number(item.durationMonths || 0)} months` : `${Number(item.studentCapacity || 0)} students · ${Number(item.teacherCapacity || 0)} teachers`} · ${escapeHtml(item.currency || 'INR')} ${Number(item.price || 0).toLocaleString()} each</small></span><input type="number" class="form-control form-control-sm request-topup-quantity" data-topup-id="${escapeAttr(item.id)}" min="0" max="99" step="1" value="0" aria-label="${escapeAttr(item.name || 'Top-up')} quantity" style="width:88px"></label>`).join('') : '<p class="text-muted mb-0">No active top-ups.</p>';
                     return `
                         <article class="card mb-3" data-request-index="${index}">
                             <div class="card-body">
@@ -466,8 +768,13 @@
                 const item = pricingPlans.find(plan => plan.id === selection.id && plan.active !== false && plan.type === 'topup' && plan.topupKind === 'months');
                 return total + (item ? Number(item.durationMonths || 0) * Number(selection.quantity || 0) : 0);
             }, 0);
+            const termExtensionDays = (selectedTopups || []).reduce((total, selection) => {
+                const item = pricingPlans.find(plan => plan.id === selection.id && plan.active !== false && plan.type === 'topup' && plan.topupKind === 'days');
+                return total + (item ? Number(item.durationDays || item.daysAdded || 0) * Number(selection.quantity || 0) : 0);
+            }, 0);
             const basePlanEnd = new Date(endDate);
             if (termExtensionMonths) endDate = addCalendarMonths(endDate, termExtensionMonths);
+            if (termExtensionDays) endDate = new Date(endDate.getTime() + termExtensionDays * 86400000);
 
             const topups = [];
             for (const selection of selectedTopups || []) {
@@ -477,9 +784,26 @@
                 if (!topup && quantity) throw new Error('A selected top-up is no longer available. Refresh and try again.');
                 if (!quantity) continue;
                 for (let count = 0; count < quantity; count += 1) {
-                    const isTermTopup = topup.topupKind === 'months';
+                    const isDaysTopup = topup.topupKind === 'days';
+                    const isMonthTopup = topup.topupKind === 'months';
+                    const isTermTopup = isMonthTopup || isDaysTopup;
                     const bonus = topup.bonus === true;
-                    topups.push({ planId: topup.id, name: topup.name || 'Top-up', topupKind: isTermTopup ? 'months' : 'capacity', monthsAdded: isTermTopup ? Number(topup.durationMonths || 0) : 0, studentCapacity: isTermTopup ? 0 : bonus && topup.bonusStudentCapacity != null ? Number(topup.bonusStudentCapacity) : Number(topup.studentCapacity || 0), teacherCapacity: isTermTopup ? 0 : bonus && topup.bonusTeacherCapacity != null ? Number(topup.bonusTeacherCapacity) : Number(topup.teacherCapacity || 0), price: bonus ? 0 : Number(topup.price || 0), listPrice: Number(topup.price || 0), currency: topup.currency || selectedPlan.currency || 'INR', bonus, startDate: isTermTopup ? basePlanEnd.toISOString() : startDate.toISOString(), endDate: endDate.toISOString(), assignedAt: startDate.toISOString() });
+                    topups.push({
+                        planId: topup.id,
+                        name: topup.name || 'Top-up',
+                        topupKind: topup.topupKind || (isTermTopup ? (isDaysTopup ? 'days' : 'months') : 'capacity'),
+                        monthsAdded: isMonthTopup ? Number(topup.durationMonths || 0) : 0,
+                        daysAdded: isDaysTopup ? Number(topup.durationDays || topup.daysAdded || 0) : 0,
+                        studentCapacity: isTermTopup ? 0 : bonus && topup.bonusStudentCapacity != null ? Number(topup.bonusStudentCapacity) : Number(topup.studentCapacity || 0),
+                        teacherCapacity: isTermTopup ? 0 : bonus && topup.bonusTeacherCapacity != null ? Number(topup.bonusTeacherCapacity) : Number(topup.teacherCapacity || 0),
+                        price: bonus ? 0 : Number(topup.price || 0),
+                        listPrice: Number(topup.price || 0),
+                        currency: topup.currency || selectedPlan.currency || 'INR',
+                        bonus,
+                        startDate: isTermTopup ? basePlanEnd.toISOString() : startDate.toISOString(),
+                        endDate: endDate.toISOString(),
+                        assignedAt: startDate.toISOString()
+                    });
                 }
             }
             if (selectedPlan.bonus) topups.push(createBonusTopupEntry(selectedPlan, startDate, endDate));
@@ -500,7 +824,7 @@
             const allTopups = [...retainedTopups, ...topups];
             const priceBreakdown = { [selectedPlan.currency || 'INR']: Number(selectedPlan.price || 0) };
             allTopups.forEach(item => { const currency = item.currency || selectedPlan.currency || 'INR'; priceBreakdown[currency] = Number(priceBreakdown[currency] || 0) + Number(item.price || 0); });
-            const subscription = { ...oldSubscription, plan: selectedPlan.name || '', planId: selectedPlan.id, price: Object.keys(priceBreakdown).length === 1 ? Object.values(priceBreakdown)[0] : Number(selectedPlan.price || 0), basePlanPrice: Number(selectedPlan.price || 0), priceBreakdown, currency: selectedPlan.currency || 'INR', durationMonths: Number(selectedPlan.durationMonths || 0), termExtensionMonths, autoRenew: Boolean(selectedPlan.autoRenew), studentCapacity: Number(selectedPlan.studentCapacity || 0), teacherCapacity: Number(selectedPlan.teacherCapacity || 0), topups: allTopups, usage: { students: usage.students, teachers: usage.teachers, updatedAt: Date.now() }, startDate: startDate.toISOString(), endDate: endDate.toISOString(), status: 'active', updatedAt: Date.now() };
+            const subscription = { ...oldSubscription, plan: selectedPlan.name || '', planId: selectedPlan.id, price: Object.keys(priceBreakdown).length === 1 ? Object.values(priceBreakdown)[0] : Number(selectedPlan.price || 0), basePlanPrice: Number(selectedPlan.price || 0), priceBreakdown, currency: selectedPlan.currency || 'INR', durationMonths: Number(selectedPlan.durationMonths || 0), termExtensionMonths, termExtensionDays, autoRenew: Boolean(selectedPlan.autoRenew), studentCapacity: Number(selectedPlan.studentCapacity || 0), teacherCapacity: Number(selectedPlan.teacherCapacity || 0), topups: allTopups, usage: { students: usage.students, teachers: usage.teachers, updatedAt: Date.now() }, startDate: startDate.toISOString(), endDate: endDate.toISOString(), status: 'active', updatedAt: Date.now() };
             const timestamp = Date.now();
             const updates = {
                 [`schools/${request.schoolId}/status`]: 'Active',
@@ -822,16 +1146,58 @@
 
     function renderSchoolPlanOptions() {
         const grid = document.getElementById('registrationMainPlanOptions');
+        if (!grid) return;
         const available = pricingPlans.filter(plan => plan.active !== false);
         const mainPlans = available.filter(plan => plan.type !== 'topup');
         const topupPlans = available.filter(plan => plan.type === 'topup');
-        if (!grid) return;
+
+        const rawType = String(document.getElementById('schoolType')?.value || '').trim().toLowerCase();
+        const institutionCategory = rawType.includes('college') || rawType.includes('university')
+            ? 'college'
+            : rawType.includes('erp')
+            ? 'erp'
+            : rawType ? 'school' : '';
+        const categoryTitle = institutionCategory === 'college'
+            ? 'College'
+            : institutionCategory === 'erp'
+            ? 'RollCall ERP'
+            : institutionCategory === 'school'
+            ? 'School'
+            : '';
+
+        const filteredMainPlans = mainPlans.filter(plan => {
+            if (!institutionCategory) return true;
+            const planCat = (plan.productType || (plan.erpPlan === true ? 'erp' : 'school')).toLowerCase();
+            return planCat === institutionCategory;
+        });
+
+        const filteredTopupPlans = topupPlans.filter(plan => {
+            if (!plan.productType || !institutionCategory) return true;
+            return plan.productType.toLowerCase() === institutionCategory;
+        });
+
+        const previousSelected = document.querySelector('#schoolRegistrationForm [name="subscriptionPlan"]:checked')?.value;
+        const willSelectNone = !previousSelected || previousSelected === 'none' || !filteredMainPlans.some(plan => plan.id === previousSelected);
+
         grid.replaceChildren();
+
+        const filterNotice = document.createElement('div');
+        filterNotice.className = 'col-12 mb-2';
+        if (institutionCategory) {
+            filterNotice.innerHTML = filteredMainPlans.length
+                ? `<div class="alert alert-light border py-2 px-3 small d-flex justify-content-between align-items-center mb-0"><span><i class="fas fa-filter text-primary me-2"></i>Showing plans for: <strong>${escapeHtml(categoryTitle)}</strong></span><span class="badge text-bg-primary">${filteredMainPlans.length} plan${filteredMainPlans.length === 1 ? '' : 's'} available</span></div>`
+                : `<div class="alert alert-warning py-2 px-3 small mb-0"><i class="fas fa-exclamation-triangle me-2"></i>No subscription plans are currently configured for <strong>${escapeHtml(categoryTitle)}</strong>. You can proceed with <strong>Continue without a plan</strong>, or create a ${escapeHtml(categoryTitle)} plan under <strong>Pricing plans</strong>.</div>`;
+        } else {
+            filterNotice.innerHTML = '<div class="alert alert-info py-2 px-3 small mb-0"><i class="fas fa-info-circle me-2"></i>Select an <strong>Institution Type</strong> in Step 1 to show plans tailored for your institution, or choose from all available plans below.</div>';
+        }
+        grid.appendChild(filterNotice);
+
         const noPlanColumn = document.createElement('div');
         noPlanColumn.className = 'col-md-6';
-        noPlanColumn.innerHTML = '<div class="card mb-3 h-100"><div class="card-body"><h5 class="card-title">No subscription</h5><p class="card-text">Register this institution without an active plan. The owner can assign a plan later.</p><div class="form-check"><input class="form-check-input me-2" type="radio" name="subscriptionPlan" id="registrationPlan-none" value="none" checked><label class="form-check-label" for="registrationPlan-none">Continue without a plan</label></div></div></div>';
+        noPlanColumn.innerHTML = `<div class="card mb-3 h-100"><div class="card-body"><h5 class="card-title">No subscription</h5><p class="card-text">Register this institution without an active plan. The owner can assign a plan later.</p><div class="form-check"><input class="form-check-input me-2" type="radio" name="subscriptionPlan" id="registrationPlan-none" value="none"${willSelectNone ? ' checked' : ''}><label class="form-check-label" for="registrationPlan-none">Continue without a plan</label></div></div></div>`;
         grid.appendChild(noPlanColumn);
-        mainPlans.forEach(plan => {
+
+        filteredMainPlans.forEach(plan => {
             const column = document.createElement('div'); column.className = 'col-md-6';
             const card = document.createElement('div'); card.className = 'card mb-3';
             const body = document.createElement('div'); body.className = 'card-body';
@@ -841,13 +1207,14 @@
             const detail = document.createElement('p'); detail.className = 'card-text'; detail.textContent = `${plan.currency || 'INR'} ${Number(plan.price || 0).toLocaleString()} · ${plan.durationMonths || 1} months · ${categoryLabel} · ${Number(plan.studentCapacity || 0).toLocaleString()} students · ${Number(plan.teacherCapacity || 0).toLocaleString()} teachers`;
             const label = document.createElement('label'); label.className = 'form-check-label'; label.htmlFor = `registrationPlan-${plan.id}`; label.textContent = 'Select plan';
             const radio = document.createElement('input'); radio.className = 'form-check-input me-2'; radio.type = 'radio'; radio.name = 'subscriptionPlan'; radio.id = `registrationPlan-${plan.id}`; radio.value = plan.id;
+            if (!willSelectNone && previousSelected === plan.id) radio.checked = true;
             const check = document.createElement('div'); check.className = 'form-check'; check.append(radio, label);
             body.append(title, detail, check); card.append(body); column.append(card); grid.append(column);
         });
         const topupSection = document.createElement('div');
         topupSection.className = 'col-12 mt-2';
-            topupSection.innerHTML = '<h6><i class="fas fa-plus-circle me-2"></i>Additional top-ups <span class="text-muted fw-normal">(optional)</span></h6><p class="small text-muted">Capacity top-ups use the main plan period. Extra-month top-ups extend the subscription end date.</p>';
-        if (!topupPlans.length) {
+        topupSection.innerHTML = '<h6><i class="fas fa-plus-circle me-2"></i>Additional top-ups <span class="text-muted fw-normal">(optional)</span></h6><p class="small text-muted">Capacity top-ups use the main plan period. Extra-month and day-wise top-ups extend the subscription end date.</p>';
+        if (!filteredTopupPlans.length) {
             const empty = document.createElement('p');
             empty.className = 'small text-muted';
             empty.textContent = 'No top-up offers are currently available.';
@@ -855,12 +1222,14 @@
         } else {
             const list = document.createElement('div');
             list.className = 'row g-2';
-            topupPlans.forEach(plan => {
+            filteredTopupPlans.forEach(plan => {
                 const column = document.createElement('div');
                 column.className = 'col-md-6';
                 column.innerHTML = `<div class="border rounded p-3 h-100"><div class="d-flex justify-content-between gap-2"><div><strong class="topup-name"></strong><div class="small text-muted topup-details"></div></div><div class="input-group input-group-sm" style="max-width:130px"><button type="button" class="btn btn-outline-secondary topup-minus" aria-label="Decrease top-up quantity">−</button><input class="form-control text-center topup-quantity" type="number" min="0" max="99" value="0" inputmode="numeric" aria-label="Top-up quantity"><button type="button" class="btn btn-outline-secondary topup-plus" aria-label="Increase top-up quantity">+</button></div></div></div>`;
                 column.querySelector('.topup-name').textContent = plan.name;
-                column.querySelector('.topup-details').textContent = plan.topupKind === 'months'
+                column.querySelector('.topup-details').textContent = plan.topupKind === 'days'
+                    ? `${plan.currency || 'INR'} ${Number(plan.price || 0).toLocaleString()} each · adds ${Number(plan.durationDays || plan.daysAdded || 0)} days`
+                    : plan.topupKind === 'months'
                     ? `${plan.currency || 'INR'} ${Number(plan.price || 0).toLocaleString()} each · adds ${Number(plan.durationMonths || 0)} months`
                     : `${plan.currency || 'INR'} ${Number(plan.price || 0).toLocaleString()} each · ${Number(plan.studentCapacity || 0).toLocaleString()} students · ${Number(plan.teacherCapacity || 0).toLocaleString()} teachers`;
                 column.dataset.planId = plan.id;
@@ -881,6 +1250,7 @@
         document.querySelectorAll('#schoolRegistrationForm [name="subscriptionPlan"]').forEach(radio => radio.addEventListener('change', updateRegistrationPlanSummary));
         updateRegistrationPlanSummary();
     }
+    window.renderSchoolPlanOptions = renderSchoolPlanOptions;
 
     function updateRegistrationPlanSummary() {
         const summary = document.getElementById('registrationPlanSummary');
@@ -903,11 +1273,12 @@
                 const currency = item.currency || plan?.currency || 'INR';
                 total.priceByCurrency[currency] = Number(total.priceByCurrency[currency] || 0) + count * Number(item.price || 0);
                 total.months += item.topupKind === 'months' ? count * Number(item.durationMonths || 0) : 0;
+                total.days += item.topupKind === 'days' ? count * Number(item.durationDays || item.daysAdded || 0) : 0;
                 total.students += count * Number(item.studentCapacity || 0);
                 total.teachers += count * Number(item.teacherCapacity || 0);
             }
             return total;
-        }, { count: 0, months: 0, priceByCurrency: {}, students: 0, teachers: 0 });
+        }, { count: 0, months: 0, days: 0, priceByCurrency: {}, students: 0, teachers: 0 });
         const mainPrice = Number(plan?.price || 0);
         const mainStudents = Number(plan?.studentCapacity || 0);
         const mainTeachers = Number(plan?.teacherCapacity || 0);
@@ -915,7 +1286,7 @@
         Object.entries(topupTotals.priceByCurrency).forEach(([currency, amount]) => { priceByCurrency[currency] = Number(priceByCurrency[currency] || 0) + amount; });
         const priceSummary = Object.entries(priceByCurrency).map(([currency, amount]) => currency + ' ' + Number(amount).toLocaleString(undefined, { maximumFractionDigits: 2 })).join(' + ');
         summary.textContent = hasPlan
-            ? `${plan.name} · Total: ${priceSummary} · Profile limits: ${mainStudents + topupTotals.students} students, ${mainTeachers + topupTotals.teachers} teachers${topupTotals.months ? ` · +${topupTotals.months} months` : ''}${topupTotals.count ? ` · ${topupTotals.count} top-up${topupTotals.count === 1 ? '' : 's'}` : ''}`
+            ? `${plan.name} · Total: ${priceSummary} · Profile limits: ${mainStudents + topupTotals.students} students, ${mainTeachers + topupTotals.teachers} teachers${topupTotals.months ? ` · +${topupTotals.months} months` : ''}${topupTotals.days ? ` · +${topupTotals.days} days` : ''}${topupTotals.count ? ` · ${topupTotals.count} top-up${topupTotals.count === 1 ? '' : 's'}` : ''}`
             : 'No subscription plan selected. Optional top-ups are unavailable until a main plan is selected.';
     }
 
@@ -1077,11 +1448,14 @@
         const bonus = type === 'plan' && document.getElementById('ownerPlanBonus').checked;
         const bonusStudentInput = bonus ? document.getElementById('ownerPlanBonusStudentCapacity').value.trim() : '';
         const bonusTeacherInput = bonus ? document.getElementById('ownerPlanBonusTeacherCapacity').value.trim() : '';
-        const topupKind = type === 'topup' && document.getElementById('ownerPlanTopupKind').value === 'months' ? 'months' : 'capacity';
+        const selectedKind = document.getElementById('ownerPlanTopupKind').value;
+        const topupKind = type === 'topup' ? (selectedKind === 'days' ? 'days' : selectedKind === 'months' ? 'months' : 'capacity') : 'capacity';
         const durationMonths = type === 'topup' && topupKind !== 'months' ? 1 : Number(document.getElementById('ownerPlanMonths').value);
+        const durationDays = type === 'topup' && topupKind === 'days' ? Number(document.getElementById('ownerPlanDays')?.value || 7) : 0;
         const productType = type === 'plan' ? document.getElementById('ownerPlanCategory').value : '';
-        const plan = { name: document.getElementById('ownerPlanName').value.trim(), type, productType, topupKind, price: Number(document.getElementById('ownerPlanPrice').value), currency: document.getElementById('ownerPlanCurrency').value, durationMonths, autoRenew: type === 'plan' && document.getElementById('ownerPlanAutoRenew').checked, studentCapacity: topupKind === 'months' ? 0 : Number(document.getElementById('ownerPlanStudentCapacity').value), teacherCapacity: topupKind === 'months' ? 0 : Number(document.getElementById('ownerPlanTeacherCapacity').value), bonus, bonusStudentCapacity: bonusStudentInput === '' ? null : Number(bonusStudentInput), bonusTeacherCapacity: bonusTeacherInput === '' ? null : Number(bonusTeacherInput), features: document.getElementById('ownerPlanFeatures').value.split(',').map(value => value.trim()).filter(Boolean), active: existing ? existing.active !== false : true, updatedAt: Date.now(), createdAt: existing?.createdAt || Date.now() };
-        if (!plan.name || !Number.isFinite(plan.price) || plan.price < 0 || !Number.isInteger(plan.durationMonths) || plan.durationMonths < 1 || !Number.isInteger(plan.studentCapacity) || plan.studentCapacity < 0 || !Number.isInteger(plan.teacherCapacity) || plan.teacherCapacity < 0 || (plan.bonusStudentCapacity !== null && (!Number.isInteger(plan.bonusStudentCapacity) || plan.bonusStudentCapacity < 0)) || (plan.bonusTeacherCapacity !== null && (!Number.isInteger(plan.bonusTeacherCapacity) || plan.bonusTeacherCapacity < 0))) return notify('Enter a name, valid price, whole-number term, and non-negative whole-number capacities.', 'warning');
+        const isTermTopup = topupKind === 'months' || topupKind === 'days';
+        const plan = { name: document.getElementById('ownerPlanName').value.trim(), type, productType, topupKind, price: Number(document.getElementById('ownerPlanPrice').value), currency: document.getElementById('ownerPlanCurrency').value, durationMonths, durationDays, autoRenew: type === 'plan' && document.getElementById('ownerPlanAutoRenew').checked, studentCapacity: isTermTopup ? 0 : Number(document.getElementById('ownerPlanStudentCapacity').value), teacherCapacity: isTermTopup ? 0 : Number(document.getElementById('ownerPlanTeacherCapacity').value), bonus, bonusStudentCapacity: bonusStudentInput === '' ? null : Number(bonusStudentInput), bonusTeacherCapacity: bonusTeacherInput === '' ? null : Number(bonusTeacherInput), features: document.getElementById('ownerPlanFeatures').value.split(',').map(value => value.trim()).filter(Boolean), active: existing ? existing.active !== false : true, updatedAt: Date.now(), createdAt: existing?.createdAt || Date.now() };
+        if (!plan.name || !Number.isFinite(plan.price) || plan.price < 0 || (!Number.isInteger(plan.durationMonths) || plan.durationMonths < 1) || (topupKind === 'days' && (!Number.isInteger(plan.durationDays) || plan.durationDays < 1)) || !Number.isInteger(plan.studentCapacity) || plan.studentCapacity < 0 || !Number.isInteger(plan.teacherCapacity) || plan.teacherCapacity < 0 || (plan.bonusStudentCapacity !== null && (!Number.isInteger(plan.bonusStudentCapacity) || plan.bonusStudentCapacity < 0)) || (plan.bonusTeacherCapacity !== null && (!Number.isInteger(plan.bonusTeacherCapacity) || plan.bonusTeacherCapacity < 0))) return notify('Enter a name, valid price, whole-number term/days, and non-negative whole-number capacities.', 'warning');
         try { await ownerPath(`pricingPlans/${id}`).set(plan); resetPricingForm(); await loadPricingPlans(); notify('Pricing plan saved.', 'success'); }
         catch (error) { notify(`Could not save pricing plan: ${error.message}`, 'danger'); }
     }
@@ -1090,6 +1464,7 @@
         document.getElementById('ownerPlanForm')?.reset();
         document.getElementById('ownerPlanId').value = '';
         document.getElementById('ownerPlanMonths').value = 12;
+        if (document.getElementById('ownerPlanDays')) document.getElementById('ownerPlanDays').value = 7;
         document.getElementById('ownerPlanType').value = 'plan';
         document.getElementById('ownerPlanTopupKind').value = 'capacity';
         document.getElementById('ownerPlanStudentCapacity').value = 0;
@@ -1102,61 +1477,349 @@
         document.getElementById('ownerPlanBonus').disabled = true;
         document.getElementById('ownerPlanType').dispatchEvent(new Event('change'));
         document.getElementById('ownerPlanCancel').hidden = true;
+        const title = document.getElementById('ownerPlanFormTitle');
+        if (title) title.textContent = 'Plan Configuration Suite';
+        const subtitle = document.getElementById('ownerPlanFormSubtitle');
+        if (subtitle) subtitle.textContent = 'Configure plan details, pricing tiers, and capacity constraints';
+        const badge = document.getElementById('ownerPlanFormBadge');
+        if (badge) {
+            badge.textContent = 'New Plan';
+            badge.className = 'badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-1';
+        }
+    }
+
+    function updatePricingKpis() {
+        const activeMain = pricingPlans.filter(p => p.active !== false && p.type !== 'topup');
+        const activeTopups = pricingPlans.filter(p => p.active !== false && p.type === 'topup');
+
+        const schoolMain = activeMain.filter(p => (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'school').length;
+        const collegeMain = activeMain.filter(p => (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'college').length;
+        const erpMain = activeMain.filter(p => (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'erp').length;
+
+        const dayTopups = activeTopups.filter(p => p.topupKind === 'days').length;
+        const monthTopups = activeTopups.filter(p => p.topupKind === 'months').length;
+        const capTopups = activeTopups.filter(p => p.topupKind !== 'days' && p.topupKind !== 'months').length;
+
+        const now = Date.now();
+        let activeSubsCount = 0;
+        let expiringSubsCount = 0;
+
+        (schools || []).forEach(school => {
+            const current = school.subscription || {};
+            const end = Date.parse(current.endDate || '');
+            const hasPlan = Boolean(current.planId || current.plan);
+            const isExpired = !end || isNaN(end) || end < now;
+            const status = String(school.status || 'Active').toLowerCase();
+            const subStatus = String(current.status || 'active').toLowerCase();
+
+            if (hasPlan && !isExpired && status === 'active' && subStatus === 'active') {
+                activeSubsCount += 1;
+            }
+            if (hasPlan) {
+                const daysLeft = end ? Math.ceil((end - now) / 86400000) : null;
+                if (isExpired || (daysLeft !== null && daysLeft <= 14)) {
+                    expiringSubsCount += 1;
+                }
+            }
+        });
+
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = String(val); };
+        setVal('kpiMainPlansCount', activeMain.length);
+        setVal('kpiMainPlansBreakdown', `${schoolMain} School · ${collegeMain} College · ${erpMain} ERP`);
+        setVal('kpiTopupsCount', activeTopups.length);
+        setVal('kpiTopupsBreakdown', `${dayTopups} Days · ${monthTopups} Months · ${capTopups} Cap`);
+        setVal('kpiActiveSubsCount', activeSubsCount);
+        setVal('kpiExpiringSubsCount', expiringSubsCount);
     }
 
     function renderPricingPlans() {
         const rows = document.getElementById('ownerPlanRows');
         if (!rows) return;
-        rows.innerHTML = pricingPlans.length ? '' : '<tr><td colspan="8" class="text-center text-muted py-4">No pricing plans yet. Add your first plan above.</td></tr>';
-        pricingPlans.forEach(plan => {
+
+        // Update tab count badges
+        const allCount = pricingPlans.length;
+        const schoolCount = pricingPlans.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'school').length;
+        const collegeCount = pricingPlans.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'college').length;
+        const erpCount = pricingPlans.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'erp').length;
+        const topupCount = pricingPlans.filter(p => p.type === 'topup').length;
+
+        const setBadgeText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = String(text); };
+        setBadgeText('tabCountAll', allCount);
+        setBadgeText('tabCountSchool', schoolCount);
+        setBadgeText('tabCountCollege', collegeCount);
+        setBadgeText('tabCountErp', erpCount);
+        setBadgeText('tabCountTopup', topupCount);
+
+        // Filter by catalog tab
+        let filtered = pricingPlans.slice();
+        if (currentPlanCatalogFilter === 'school') {
+            filtered = filtered.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'school');
+        } else if (currentPlanCatalogFilter === 'college') {
+            filtered = filtered.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'college');
+        } else if (currentPlanCatalogFilter === 'erp') {
+            filtered = filtered.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'erp');
+        } else if (currentPlanCatalogFilter === 'topup') {
+            filtered = filtered.filter(p => p.type === 'topup');
+        }
+
+        // Filter by search query
+        const query = (document.getElementById('ownerPlanSearch')?.value || '').trim().toLowerCase();
+        if (query) {
+            filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(query) || (p.productType || '').toLowerCase().includes(query) || (p.currency || '').toLowerCase().includes(query));
+        }
+
+        rows.innerHTML = filtered.length ? '' : `<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-search me-1"></i>No pricing plans found matching "${escapeHtml(query || currentPlanCatalogFilter)}".</td></tr>`;
+
+        filtered.forEach(plan => {
             const row = document.createElement('tr');
             const amount = `${plan.currency || 'INR'} ${Number(plan.price || 0).toLocaleString()}`;
-            row.innerHTML = `<td class="fw-semibold"></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="text-nowrap"></td>`;
-            row.cells[0].textContent = plan.name;
             const productType = plan.productType || (plan.erpPlan === true ? 'erp' : 'school');
-            const categoryLabel = { school: 'School', college: 'College', erp: 'ERP' }[productType] || 'School';
-            row.cells[1].innerHTML = `<span class="badge text-bg-${plan.type === 'topup' ? 'warning' : 'primary'}">${plan.type === 'topup' ? 'Top-up' : 'Main plan'}</span>${plan.type !== 'topup' ? ` <span class="badge text-bg-info">${categoryLabel}</span>` : ''}`;
-            row.cells[2].textContent = plan.bonus ? 'Bonus' : amount;
-            row.cells[3].textContent = plan.type === 'topup'
-                ? plan.topupKind === 'months' ? `+${Number(plan.durationMonths || 0)} months extension` : 'Remaining subscription term'
-                : `${plan.durationMonths || 1} months · ${plan.autoRenew ? 'Auto-renew on' : 'Manual renewal'}`;
-            row.cells[4].textContent = plan.type === 'topup' && plan.topupKind === 'months' ? 'Extends subscription term' : `${Number(plan.studentCapacity || 0).toLocaleString()} students · ${Number(plan.teacherCapacity || 0).toLocaleString()} teachers${plan.bonus ? ` (bonus: ${plan.bonusStudentCapacity ?? 'default'} · ${plan.bonusTeacherCapacity ?? 'default'})` : ''}`;
-            row.cells[5].textContent = Array.isArray(plan.features) ? plan.features.join(', ') : '';
-            row.cells[6].innerHTML = `<span class="badge text-bg-${plan.active === false ? 'secondary' : 'success'}">${plan.active === false ? 'Inactive' : 'Active'}</span>`;
-            const actions = document.createElement('div'); actions.className = 'd-flex gap-2';
-            const edit = document.createElement('button'); edit.className = 'btn btn-sm btn-outline-primary'; edit.textContent = 'Edit'; edit.onclick = () => { document.getElementById('ownerPlanId').value = plan.id; document.getElementById('ownerPlanName').value = plan.name; document.getElementById('ownerPlanType').value = plan.type === 'topup' ? 'topup' : 'plan'; document.getElementById('ownerPlanCategory').value = plan.productType || (plan.erpPlan === true ? 'erp' : 'school'); document.getElementById('ownerPlanTopupKind').value = plan.topupKind === 'months' ? 'months' : 'capacity'; document.getElementById('ownerPlanPrice').value = plan.price; document.getElementById('ownerPlanCurrency').value = plan.currency || 'INR'; document.getElementById('ownerPlanMonths').value = plan.durationMonths || 1; document.getElementById('ownerPlanAutoRenew').checked = plan.autoRenew === true; document.getElementById('ownerPlanStudentCapacity').value = plan.studentCapacity || 0; document.getElementById('ownerPlanTeacherCapacity').value = plan.teacherCapacity || 0; document.getElementById('ownerPlanBonusStudentCapacity').value = plan.bonusStudentCapacity ?? ''; document.getElementById('ownerPlanBonusTeacherCapacity').value = plan.bonusTeacherCapacity ?? ''; document.getElementById('ownerPlanBonus').checked = plan.bonus === true; document.getElementById('ownerPlanFeatures').value = (plan.features || []).join(', '); document.getElementById('ownerPlanCancel').hidden = false; document.getElementById('ownerPlanType').dispatchEvent(new Event('change')); document.getElementById('ownerPlanTopupKind').dispatchEvent(new Event('change')); document.getElementById('ownerPlanBonus').dispatchEvent(new Event('change')); };
-            const toggle = document.createElement('button'); toggle.className = 'btn btn-sm btn-outline-secondary'; toggle.textContent = plan.active === false ? 'Activate' : 'Deactivate'; toggle.onclick = async () => { try { await ownerPath(`pricingPlans/${plan.id}/active`).set(plan.active === false); await loadPricingPlans(); } catch (error) { notify(error.message, 'danger'); } };
-            actions.append(edit, toggle); row.cells[7].append(actions); rows.append(row);
+            const categoryBadge = plan.type === 'topup'
+                ? (plan.topupKind === 'days'
+                    ? '<span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle px-2 py-1"><i class="fas fa-calendar-plus me-1"></i>Day Extender</span>'
+                    : plan.topupKind === 'months'
+                    ? '<span class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"><i class="fas fa-calendar-alt me-1"></i>Month Extender</span>'
+                    : '<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2 py-1"><i class="fas fa-layer-group me-1"></i>Capacity Top-up</span>')
+                : (productType === 'college'
+                    ? '<span class="badge rounded-pill border px-2 py-1" style="background:#f3e8ff; color:#7e22ce; border-color:#d8b4fe !important;"><i class="fas fa-graduation-cap me-1"></i>College</span>'
+                    : productType === 'erp'
+                    ? '<span class="badge rounded-pill bg-primary text-white px-2 py-1"><i class="fas fa-cogs me-1"></i>RollCall ERP</span>'
+                    : '<span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-school me-1"></i>School</span>');
+
+            const typePill = plan.type === 'topup'
+                ? '<span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">Top-up</span>'
+                : '<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">Base Plan</span>';
+
+            const termText = plan.type === 'topup'
+                ? (plan.topupKind === 'days'
+                    ? `<span class="fw-semibold text-info">+${Number(plan.durationDays || plan.daysAdded || 0)} days</span>`
+                    : plan.topupKind === 'months'
+                    ? `<span class="fw-semibold text-warning">+${Number(plan.durationMonths || 0)} months</span>`
+                    : '<span class="text-muted small">Subscription term</span>')
+                : `<span class="fw-semibold">${plan.durationMonths || 1} months</span>${plan.autoRenew ? ' <small class="text-success"><i class="fas fa-sync-alt" title="Auto-renew enabled"></i></small>' : ''}`;
+
+            const capacityText = plan.type === 'topup' && (plan.topupKind === 'months' || plan.topupKind === 'days')
+                ? '<span class="badge bg-light text-secondary border"><i class="fas fa-clock me-1"></i>Term Extender</span>'
+                : `<div><span class="small fw-semibold text-dark"><i class="fas fa-user-graduate text-primary me-1"></i>${Number(plan.studentCapacity || 0).toLocaleString()}</span> <span class="text-muted small">students</span></div><div><span class="small fw-semibold text-dark"><i class="fas fa-chalkboard-teacher text-info me-1"></i>${Number(plan.teacherCapacity || 0).toLocaleString()}</span> <span class="text-muted small">teachers</span>${plan.bonus ? ' <span class="badge bg-success-subtle text-success ms-1 small" style="font-size:10px">Bonus</span>' : ''}</div>`;
+
+            const featuresMarkup = Array.isArray(plan.features) && plan.features.length
+                ? plan.features.map(f => `<span class="badge bg-light text-dark border me-1 mb-1" style="font-size:11px">${escapeHtml(f)}</span>`).join('')
+                : '<span class="text-muted small">—</span>';
+
+            const statusToggle = `<button type="button" class="btn btn-sm ${plan.active === false ? 'btn-outline-secondary' : 'btn-outline-success'} plan-toggle-status" style="border-radius:20px; font-size:12px; padding:2px 10px;">${plan.active === false ? '<i class="fas fa-pause-circle me-1"></i>Inactive' : '<i class="fas fa-check-circle me-1"></i>Active'}</button>`;
+
+            row.innerHTML = `
+                <td class="ps-4">
+                  <div class="fw-bold text-dark">${escapeHtml(plan.name)}</div>
+                  <div class="extra-small text-muted" style="font-size:11px;">ID: ${escapeHtml(plan.id)}</div>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center gap-1 flex-wrap">${categoryBadge} ${typePill}</div>
+                </td>
+                <td>
+                  <div class="fw-bold fs-6 text-dark">${plan.bonus ? '<span class="badge bg-success">Bonus Free</span>' : escapeHtml(amount)}</div>
+                </td>
+                <td>${termText}</td>
+                <td>${capacityText}</td>
+                <td style="max-width:200px;">${featuresMarkup}</td>
+                <td>${statusToggle}</td>
+                <td class="pe-4 text-end text-nowrap">
+                  <button type="button" class="btn btn-sm btn-outline-primary plan-edit-btn px-3 rounded-pill">
+                    <i class="fas fa-pencil-alt me-1"></i>Edit
+                  </button>
+                </td>
+            `;
+
+            row.querySelector('.plan-edit-btn').addEventListener('click', () => {
+                document.getElementById('ownerPlanId').value = plan.id;
+                document.getElementById('ownerPlanName').value = plan.name;
+                document.getElementById('ownerPlanType').value = plan.type === 'topup' ? 'topup' : 'plan';
+                document.getElementById('ownerPlanCategory').value = plan.productType || (plan.erpPlan === true ? 'erp' : 'school');
+                document.getElementById('ownerPlanTopupKind').value = plan.topupKind === 'days' ? 'days' : plan.topupKind === 'months' ? 'months' : 'capacity';
+                if (document.getElementById('ownerPlanDays')) document.getElementById('ownerPlanDays').value = plan.durationDays || plan.daysAdded || 7;
+                document.getElementById('ownerPlanPrice').value = plan.price;
+                document.getElementById('ownerPlanCurrency').value = plan.currency || 'INR';
+                document.getElementById('ownerPlanMonths').value = plan.durationMonths || 1;
+                document.getElementById('ownerPlanAutoRenew').checked = plan.autoRenew === true;
+                document.getElementById('ownerPlanStudentCapacity').value = plan.studentCapacity || 0;
+                document.getElementById('ownerPlanTeacherCapacity').value = plan.teacherCapacity || 0;
+                document.getElementById('ownerPlanBonusStudentCapacity').value = plan.bonusStudentCapacity ?? '';
+                document.getElementById('ownerPlanBonusTeacherCapacity').value = plan.bonusTeacherCapacity ?? '';
+                document.getElementById('ownerPlanBonus').checked = plan.bonus === true;
+                document.getElementById('ownerPlanFeatures').value = (plan.features || []).join(', ');
+                document.getElementById('ownerPlanCancel').hidden = false;
+
+                const formTitle = document.getElementById('ownerPlanFormTitle');
+                if (formTitle) formTitle.textContent = `Editing: ${plan.name}`;
+                const formSubtitle = document.getElementById('ownerPlanFormSubtitle');
+                if (formSubtitle) formSubtitle.textContent = `Modifying plan configuration (ID: ${plan.id})`;
+                const formBadge = document.getElementById('ownerPlanFormBadge');
+                if (formBadge) {
+                    formBadge.textContent = 'Editing Mode';
+                    formBadge.className = 'badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle px-3 py-1';
+                }
+
+                document.getElementById('ownerPlanType').dispatchEvent(new Event('change'));
+                document.getElementById('ownerPlanTopupKind').dispatchEvent(new Event('change'));
+                document.getElementById('ownerPlanBonus').dispatchEvent(new Event('change'));
+
+                document.getElementById('planEditorCard')?.scrollIntoView({ behavior: 'smooth' });
+            });
+
+            row.querySelector('.plan-toggle-status').addEventListener('click', async () => {
+                try {
+                    await ownerPath(`pricingPlans/${plan.id}/active`).set(plan.active === false);
+                    await loadPricingPlans();
+                    notify(`Plan "${plan.name}" is now ${plan.active === false ? 'Active' : 'Inactive'}.`, 'success');
+                } catch (error) {
+                    notify(error.message, 'danger');
+                }
+            });
+
+            rows.append(row);
         });
+
+        updatePricingKpis();
     }
 
     function renderSubscriptionRows() {
         const body = document.getElementById('ownerSubscriptionRows');
         if (!body) return;
-        const term = document.getElementById('ownerSubscriptionSearch')?.value.trim().toLowerCase() || '';
-        const filtered = (schools || []).filter(school => `${school.name || ''} ${school.code || ''}`.toLowerCase().includes(term));
-        body.innerHTML = filtered.length ? '' : '<tr><td colspan="8" class="text-center text-muted py-4">No registered schools match this search.</td></tr>';
+
+        updatePricingKpis();
+
+        const term = (document.getElementById('ownerSubscriptionSearch')?.value || '').trim().toLowerCase();
+        const now = Date.now();
+
+        let filtered = (schools || []).filter(school => `${school.name || ''} ${school.code || ''}`.toLowerCase().includes(term));
+
+        if (currentSubscriptionStatusFilter === 'active') {
+            filtered = filtered.filter(school => {
+                const end = Date.parse(school.subscription?.endDate || '');
+                return school.subscription?.plan && (!end || end >= now) && String(school.status || 'Active').toLowerCase() === 'active';
+            });
+        } else if (currentSubscriptionStatusFilter === 'expiring') {
+            filtered = filtered.filter(school => {
+                const end = Date.parse(school.subscription?.endDate || '');
+                if (!end) return false;
+                const days = Math.ceil((end - now) / 86400000);
+                return days >= 0 && days <= 14;
+            });
+        } else if (currentSubscriptionStatusFilter === 'expired') {
+            filtered = filtered.filter(school => {
+                const end = Date.parse(school.subscription?.endDate || '');
+                return Boolean(end && end < now);
+            });
+        }
+
+        body.innerHTML = filtered.length ? '' : '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-search me-1"></i>No registered schools match this search or filter.</td></tr>';
+
         filtered.forEach(school => {
             const planId = school.subscription?.planId || school.subscription?.plan || '';
             const plans = pricingPlans.filter(plan => plan.active !== false && plan.type !== 'topup').map(plan => `<option value="${escapeAttr(plan.id)}" ${plan.id === planId || plan.name === planId ? 'selected' : ''}>${escapeHtml(plan.name)}${(plan.productType || (plan.erpPlan === true ? 'erp' : 'school')) === 'erp' ? ' · ERP' : ''} · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}</option>`).join('');
-            const topups = pricingPlans.filter(plan => plan.active !== false && plan.type === 'topup').map(plan => `<option value="${escapeAttr(plan.id)}">${escapeHtml(plan.name)}${plan.topupKind === 'months' ? ` · +${Number(plan.durationMonths || 0)} months · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}` : plan.bonus ? ' · Bonus' : ` · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}`}</option>`).join('');
+            const topups = pricingPlans.filter(plan => plan.active !== false && plan.type === 'topup').map(plan => `<option value="${escapeAttr(plan.id)}">${escapeHtml(plan.name)}${plan.topupKind === 'days' ? ` · +${Number(plan.durationDays || plan.daysAdded || 0)} days · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}` : plan.topupKind === 'months' ? ` · +${Number(plan.durationMonths || 0)} months · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}` : plan.bonus ? ' · Bonus' : ` · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}`}</option>`).join('');
+
             const row = document.createElement('tr');
             const usage = schoolUserUsage[school.id] || { students: 0, teachers: 0 };
             const basePlan = pricingPlans.find(plan => plan.id === planId || plan.name === planId);
-            const validTopups = (school.subscription?.topups || []).filter(item => !item.endDate || Date.parse(item.endDate) >= Date.now());
+            const validTopups = (school.subscription?.topups || []).filter(item => !item.endDate || Date.parse(item.endDate) >= now);
             const topupCapacity = validTopups.reduce((total, item) => ({ students: total.students + Number(item.studentCapacity || 0), teachers: total.teachers + Number(item.teacherCapacity || 0) }), { students: 0, teachers: 0 });
             const studentCapacity = schoolPlanCapacity(school, 'studentCapacity') + topupCapacity.students;
             const teacherCapacity = schoolPlanCapacity(school, 'teacherCapacity') + topupCapacity.teachers;
-            row.innerHTML = `<td class="fw-semibold">${escapeHtml(school.name || 'School')}</td><td>${escapeHtml(school.code || '—')}</td><td><select class="form-select form-select-sm school-plan" aria-label="Main plan for ${escapeAttr(school.name || 'school')}"><option value="">No plan</option>${plans}</select></td><td><div>${usage.students.toLocaleString()} / ${studentCapacity.toLocaleString()} students</div><div>${usage.teachers.toLocaleString()} / ${teacherCapacity.toLocaleString()} teachers</div></td><td><select class="form-select form-select-sm school-topup" aria-label="Top-up for ${escapeAttr(school.name || 'school')}"><option value="">No top-up</option>${topups}</select><button type="button" class="btn btn-sm btn-outline-warning mt-1 apply-topup">Add top-up</button></td><td><input class="form-control form-control-sm school-renewal" type="date" aria-label="Subscription renewal date"><div class="form-check mt-1"><input class="form-check-input school-auto-renew" type="checkbox" id="autoRenew-${escapeAttr(school.id)}"><label class="form-check-label small" for="autoRenew-${escapeAttr(school.id)}">Auto-renew</label></div></td><td><select class="form-select form-select-sm school-status"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></td><td><button class="btn btn-sm btn-primary">Save</button></td>`;
+
+            const studentPct = studentCapacity > 0 ? Math.min(100, Math.round((usage.students / studentCapacity) * 100)) : 0;
+            const studentOver = usage.students > studentCapacity;
+            const teacherPct = teacherCapacity > 0 ? Math.min(100, Math.round((usage.teachers / teacherCapacity) * 100)) : 0;
+            const teacherOver = usage.teachers > teacherCapacity;
+
             const renewal = school.subscription?.endDate || '';
+            const renewalDate = renewal ? new Date(renewal) : null;
+            const daysLeft = renewalDate ? Math.ceil((renewalDate.getTime() - now) / 86400000) : null;
+
+            let expiryBadge = '';
+            if (!renewalDate) {
+                expiryBadge = '<span class="badge bg-secondary-subtle text-secondary small">No renewal date</span>';
+            } else if (daysLeft < 0) {
+                expiryBadge = `<span class="badge bg-danger-subtle text-danger small"><i class="fas fa-exclamation-triangle me-1"></i>Expired (${Math.abs(daysLeft)}d ago)</span>`;
+            } else if (daysLeft <= 14) {
+                expiryBadge = `<span class="badge bg-warning-subtle text-warning small"><i class="fas fa-clock me-1"></i>Expiring in ${daysLeft}d</span>`;
+            } else {
+                expiryBadge = `<span class="badge bg-success-subtle text-success small"><i class="fas fa-check-circle me-1"></i>${daysLeft}d remaining</span>`;
+            }
+
+            row.innerHTML = `
+                <td class="ps-4">
+                  <div class="fw-bold text-dark">${escapeHtml(school.name || 'Unnamed School')}</div>
+                  <div class="d-flex align-items-center gap-1 mt-1">
+                    <span class="badge bg-light text-secondary border font-monospace" style="font-size:11px;">${escapeHtml(school.code || '—')}</span>
+                    <span class="badge bg-secondary-subtle text-secondary" style="font-size:11px;">${escapeHtml(school.type || 'School')}</span>
+                  </div>
+                </td>
+                <td>
+                  <select class="form-select form-select-sm school-plan rounded-3" aria-label="Main plan for ${escapeAttr(school.name || 'school')}">
+                    <option value="">No plan assigned</option>
+                    ${plans}
+                  </select>
+                </td>
+                <td>
+                  <div class="p-2 rounded bg-light-subtle border">
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size:11px;">
+                      <span><i class="fas fa-user-graduate text-primary me-1"></i>Students: <strong>${usage.students.toLocaleString()}</strong> / ${studentCapacity.toLocaleString()}</span>
+                      <span class="badge ${studentOver ? 'bg-danger text-white' : 'bg-light text-muted'}">${studentPct}%</span>
+                    </div>
+                    <div class="progress mb-2" style="height: 4px;">
+                      <div class="progress-bar ${studentOver ? 'bg-danger' : studentPct > 85 ? 'bg-warning' : 'bg-primary'}" role="progressbar" style="width: ${studentPct}%;"></div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size:11px;">
+                      <span><i class="fas fa-chalkboard-teacher text-info me-1"></i>Teachers: <strong>${usage.teachers.toLocaleString()}</strong> / ${teacherCapacity.toLocaleString()}</span>
+                      <span class="badge ${teacherOver ? 'bg-danger text-white' : 'bg-light text-muted'}">${teacherPct}%</span>
+                    </div>
+                    <div class="progress" style="height: 4px;">
+                      <div class="progress-bar ${teacherOver ? 'bg-danger' : teacherPct > 85 ? 'bg-warning' : 'bg-info'}" role="progressbar" style="width: ${teacherPct}%;"></div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <select class="form-select form-select-sm school-topup rounded-3" aria-label="Top-up for ${escapeAttr(school.name || 'school')}">
+                    <option value="">Select add-on...</option>
+                    ${topups}
+                  </select>
+                  <div class="d-flex gap-1 mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-warning apply-topup rounded-pill px-2" style="font-size:11px;"><i class="fas fa-plus me-1"></i>Apply Top-up</button>
+                    <button type="button" class="btn btn-sm btn-outline-info quick-extend-days rounded-pill px-2" style="font-size:11px;" title="Quick day-wise plan extender"><i class="fas fa-calendar-plus me-1"></i>+ Days</button>
+                  </div>
+                </td>
+                <td>
+                  <input class="form-control form-control-sm school-renewal rounded-3" type="date" aria-label="Subscription renewal date">
+                  <div class="d-flex align-items-center justify-content-between gap-1 mt-1">
+                    <div>${expiryBadge}</div>
+                    <div class="form-check form-switch mb-0" style="min-height:auto;">
+                      <input class="form-check-input school-auto-renew" type="checkbox" id="autoRenew-${escapeAttr(school.id)}" role="switch" title="Auto-renew toggle">
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <select class="form-select form-select-sm school-status rounded-3">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </td>
+                <td class="pe-4 text-end">
+                  <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm save-subscription-btn">
+                    <i class="fas fa-save me-1"></i>Save
+                  </button>
+                </td>
+            `;
+
             row.querySelector('.school-renewal').value = renewal ? new Date(renewal).toISOString().slice(0, 10) : '';
             row.querySelector('.school-auto-renew').checked = school.subscription?.autoRenew === true || (school.subscription?.autoRenew === undefined && basePlan?.autoRenew === true);
-            const expired = renewal && Date.parse(renewal) < Date.now();
+            const expired = renewal && Date.parse(renewal) < now;
             const status = String(school.status || 'Active').toLowerCase();
             const subscriptionStatus = String(school.subscription?.status || 'active').toLowerCase();
             row.querySelector('.school-status').value = status === 'inactive' || status === 'suspended' || subscriptionStatus === 'inactive' || expired ? 'Inactive' : 'Active';
             row.querySelector('.apply-topup').addEventListener('click', () => addSchoolTopup(school, row));
-            row.querySelector('td:last-child button').addEventListener('click', () => saveSchoolSubscription(school, row));
+            row.querySelector('.quick-extend-days').addEventListener('click', () => promptQuickDayExtender(school));
+            row.querySelector('.save-subscription-btn').addEventListener('click', () => saveSchoolSubscription(school, row));
             body.append(row);
         });
     }
@@ -1205,11 +1868,17 @@
             const quantity = Math.max(0, Math.min(99, Number(input.value) || 0));
             const plan = pricingPlans.find(item => item.id === input.closest('[data-plan-id]')?.dataset.planId && item.type === 'topup');
             if (!plan || quantity === 0) return [];
+            const isDays = plan.topupKind === 'days';
+            const isMonths = plan.topupKind === 'months';
+            const isTerm = isDays || isMonths;
             return Array.from({ length: quantity }, () => ({
                 planId: plan.id,
                 name: plan.name,
-                studentCapacity: Number(plan.studentCapacity || 0),
-                teacherCapacity: Number(plan.teacherCapacity || 0),
+                topupKind: plan.topupKind || (isTerm ? (isDays ? 'days' : 'months') : 'capacity'),
+                monthsAdded: isMonths ? Number(plan.durationMonths || 0) : 0,
+                daysAdded: isDays ? Number(plan.durationDays || plan.daysAdded || 0) : 0,
+                studentCapacity: isTerm ? 0 : Number(plan.studentCapacity || 0),
+                teacherCapacity: isTerm ? 0 : Number(plan.teacherCapacity || 0),
                 price: Number(plan.price || 0),
                 listPrice: Number(plan.price || 0),
                 currency: plan.currency || 'INR',
@@ -1265,40 +1934,124 @@
     async function addSchoolTopup(school, row) {
         const topup = pricingPlans.find(plan => plan.id === row.querySelector('.school-topup').value && plan.type === 'topup');
         const current = school.subscription || {};
-        const endDate = Date.parse(current.endDate || '');
-        const active = String(current.status || 'active').toLowerCase() === 'active' && endDate > Date.now();
+        const endDateParsed = Date.parse(current.endDate || '');
+        const isExpired = !endDateParsed || isNaN(endDateParsed) || endDateParsed < Date.now();
+        const active = String(current.status || 'active').toLowerCase() === 'active' && !isExpired;
+        const isTermTopup = topup?.topupKind === 'months' || topup?.topupKind === 'days';
         if (!topup) return notify('Select a top-up first.', 'warning');
         if (!current.planId && !current.plan) return notify('A main plan is required before adding a top-up.', 'warning');
-        if (!active) return notify('Top-ups can only be added while the main plan is active.', 'warning');
+        if (!active && !isTermTopup) return notify('Capacity top-ups can only be added while the main plan is active.', 'warning');
         const startDate = new Date();
-        if (topup.topupKind === 'months') {
-            const monthsAdded = Number(topup.durationMonths || 0);
-            if (!Number.isInteger(monthsAdded) || monthsAdded < 1) return notify('This extra-month top-up has an invalid month increment.', 'warning');
-            const previousEndDate = new Date(endDate);
-            const extendedEndDate = addCalendarMonths(previousEndDate, monthsAdded);
-            const entry = { planId: topup.id, name: topup.name || 'Extra months', topupKind: 'months', monthsAdded, studentCapacity: 0, teacherCapacity: 0, price: Number(topup.price || 0), listPrice: Number(topup.price || 0), currency: topup.currency || current.currency || 'INR', startDate: previousEndDate.toISOString(), endDate: extendedEndDate.toISOString(), assignedAt: startDate.toISOString() };
+        const baseStart = isExpired ? startDate : new Date(endDateParsed);
+
+        if (topup.topupKind === 'days') {
+            const daysAdded = Number(topup.durationDays || topup.daysAdded || 0);
+            if (!Number.isInteger(daysAdded) || daysAdded < 1) return notify('This day-wise top-up has an invalid day increment.', 'warning');
+            const extendedEndDate = new Date(baseStart.getTime() + daysAdded * 86400000);
+            const entry = {
+                planId: topup.id,
+                name: topup.name || 'Extra days',
+                topupKind: 'days',
+                daysAdded,
+                monthsAdded: 0,
+                studentCapacity: 0,
+                teacherCapacity: 0,
+                price: Number(topup.price || 0),
+                listPrice: Number(topup.price || 0),
+                currency: topup.currency || current.currency || 'INR',
+                startDate: baseStart.toISOString(),
+                endDate: extendedEndDate.toISOString(),
+                assignedAt: startDate.toISOString()
+            };
             const topups = [...(Array.isArray(current.topups) ? current.topups : []), entry];
             const priceBreakdown = { [current.currency || 'INR']: Number(current.basePlanPrice ?? current.price ?? 0) };
             topups.forEach(item => { const currency = item.currency || current.currency || 'INR'; priceBreakdown[currency] = Number(priceBreakdown[currency] || 0) + Number(item.price || 0); });
             const price = Object.keys(priceBreakdown).length === 1 ? Object.values(priceBreakdown)[0] : Number(current.basePlanPrice ?? current.price ?? 0);
-            const subscription = { ...current, endDate: extendedEndDate.toISOString(), termExtensionMonths: Number(current.termExtensionMonths || 0) + monthsAdded, topups, price, priceBreakdown, updatedAt: Date.now() };
+            const subscription = {
+                ...current,
+                status: 'active',
+                endDate: extendedEndDate.toISOString(),
+                termExtensionDays: Number(current.termExtensionDays || 0) + daysAdded,
+                topups,
+                price,
+                priceBreakdown,
+                updatedAt: Date.now()
+            };
             try {
                 const timestamp = Date.now();
                 await database.ref().update({
+                    [`schools/${school.id}/status`]: 'Active',
                     [`schools/${school.id}/subscription`]: subscription,
-                    [`schools/${school.id}/lastUpdated`]: new Date().toISOString(),
+                    [`schools/${school.id}/lastUpdated`]: startDate.toISOString(),
+                    [`owners/${currentUser.uid}/schools/${school.id}/status`]: 'Active',
                     [`owners/${currentUser.uid}/schools/${school.id}/subscription`]: subscription,
-                    [`owners/${currentUser.uid}/schools/${school.id}/lastUpdated`]: new Date().toISOString(),
+                    [`owners/${currentUser.uid}/schools/${school.id}/lastUpdated`]: startDate.toISOString(),
+                    [`publicSchools/${school.id}/status`]: 'Active',
                     [`publicSchools/${school.id}/subscriptionEndDate`]: subscription.endDate,
-                    [`publicSchools/${school.id}/updatedAt`]: timestamp
+                    [`publicSchools/${school.id}/updatedAt`]: timestamp,
+                    [`subscriptionExpiryOverlayCounts/${school.id}`]: null
+                });
+                notify(`${topup.name} added (+${daysAdded} days). The subscription now ends ${extendedEndDate.toLocaleDateString()}.`, 'success');
+                await refreshSchoolData();
+            } catch (error) { notify(`Could not add the day-wise top-up: ${error.message}`, 'danger'); }
+            return;
+        }
+
+        if (topup.topupKind === 'months') {
+            const monthsAdded = Number(topup.durationMonths || 0);
+            if (!Number.isInteger(monthsAdded) || monthsAdded < 1) return notify('This extra-month top-up has an invalid month increment.', 'warning');
+            const extendedEndDate = addCalendarMonths(baseStart, monthsAdded);
+            const entry = {
+                planId: topup.id,
+                name: topup.name || 'Extra months',
+                topupKind: 'months',
+                monthsAdded,
+                daysAdded: 0,
+                studentCapacity: 0,
+                teacherCapacity: 0,
+                price: Number(topup.price || 0),
+                listPrice: Number(topup.price || 0),
+                currency: topup.currency || current.currency || 'INR',
+                startDate: baseStart.toISOString(),
+                endDate: extendedEndDate.toISOString(),
+                assignedAt: startDate.toISOString()
+            };
+            const topups = [...(Array.isArray(current.topups) ? current.topups : []), entry];
+            const priceBreakdown = { [current.currency || 'INR']: Number(current.basePlanPrice ?? current.price ?? 0) };
+            topups.forEach(item => { const currency = item.currency || current.currency || 'INR'; priceBreakdown[currency] = Number(priceBreakdown[currency] || 0) + Number(item.price || 0); });
+            const price = Object.keys(priceBreakdown).length === 1 ? Object.values(priceBreakdown)[0] : Number(current.basePlanPrice ?? current.price ?? 0);
+            const subscription = {
+                ...current,
+                status: 'active',
+                endDate: extendedEndDate.toISOString(),
+                termExtensionMonths: Number(current.termExtensionMonths || 0) + monthsAdded,
+                topups,
+                price,
+                priceBreakdown,
+                updatedAt: Date.now()
+            };
+            try {
+                const timestamp = Date.now();
+                await database.ref().update({
+                    [`schools/${school.id}/status`]: 'Active',
+                    [`schools/${school.id}/subscription`]: subscription,
+                    [`schools/${school.id}/lastUpdated`]: startDate.toISOString(),
+                    [`owners/${currentUser.uid}/schools/${school.id}/status`]: 'Active',
+                    [`owners/${currentUser.uid}/schools/${school.id}/subscription`]: subscription,
+                    [`owners/${currentUser.uid}/schools/${school.id}/lastUpdated`]: startDate.toISOString(),
+                    [`publicSchools/${school.id}/status`]: 'Active',
+                    [`publicSchools/${school.id}/subscriptionEndDate`]: subscription.endDate,
+                    [`publicSchools/${school.id}/updatedAt`]: timestamp,
+                    [`subscriptionExpiryOverlayCounts/${school.id}`]: null
                 });
                 notify(`${topup.name} added. The subscription now ends ${extendedEndDate.toLocaleDateString()}.`, 'success');
                 await refreshSchoolData();
             } catch (error) { notify(`Could not add the month top-up: ${error.message}`, 'danger'); }
             return;
         }
-        const remainingDays = Math.max(1, Math.ceil((endDate - startDate.getTime()) / 86400000));
-        const originalDays = Math.max(1, (Number(current.durationMonths || 1) + Number(current.termExtensionMonths || 0)) * 30);
+
+        const remainingDays = Math.max(1, Math.ceil((endDateParsed - startDate.getTime()) / 86400000));
+        const originalDays = Math.max(1, (Number(current.durationMonths || 1) + Number(current.termExtensionMonths || 0)) * 30 + Number(current.termExtensionDays || 0));
         const chargedPrice = topup.bonus ? 0 : Math.round(Number(topup.price || 0) * remainingDays / originalDays * 100) / 100;
         const isBonus = topup.bonus === true;
         const entry = { planId: topup.id, name: topup.name, topupKind: 'capacity', studentCapacity: isBonus && topup.bonusStudentCapacity !== null && topup.bonusStudentCapacity !== undefined ? Number(topup.bonusStudentCapacity) : Number(topup.studentCapacity || 0), teacherCapacity: isBonus && topup.bonusTeacherCapacity !== null && topup.bonusTeacherCapacity !== undefined ? Number(topup.bonusTeacherCapacity) : Number(topup.teacherCapacity || 0), price: chargedPrice, listPrice: Number(topup.price || 0), currency: topup.currency || current.currency || 'INR', bonus: isBonus, startDate: startDate.toISOString(), endDate: current.endDate, assignedAt: startDate.toISOString() };
@@ -1321,6 +2074,174 @@
             notify(`${topup.name} added to ${school.name || 'school'}${topup.bonus ? ' as a bonus.' : ` for ${entry.currency} ${chargedPrice}.`}`, 'success');
             await refreshSchoolData();
         } catch (error) { notify(`Could not add the top-up: ${error.message}`, 'danger'); }
+    }
+
+    function promptQuickDayExtender(school) {
+        const current = school.subscription || {};
+        const endDateParsed = Date.parse(current.endDate || '');
+        const isExpired = !endDateParsed || isNaN(endDateParsed) || endDateParsed < Date.now();
+        const baseStart = isExpired ? new Date() : new Date(endDateParsed);
+        const modalId = 'quickDayExtenderModal';
+        document.getElementById(modalId)?.remove();
+
+        const modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'modal fade';
+        modal.tabIndex = -1;
+        modal.setAttribute('aria-label', `Extend subscription for ${school.name || 'school'}`);
+        modal.innerHTML = `
+            <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+                <div class="modal-content shadow-lg border-0" style="border-radius: 14px;">
+                    <div class="modal-header border-bottom pb-3">
+                        <div>
+                            <h5 class="modal-title fw-bold text-primary"><i class="fas fa-calendar-plus me-2"></i>Day-wise Plan Extender</h5>
+                            <div class="small text-muted">${escapeHtml(school.name || 'School')} · ${escapeHtml(school.code || '—')}</div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body py-3">
+                        <div class="alert alert-light border small mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Current Plan:</span>
+                                <strong>${escapeHtml(current.plan || 'Main plan')}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Current End Date:</span>
+                                <span class="${isExpired ? 'badge text-bg-danger' : 'fw-semibold'}">${current.endDate ? new Date(current.endDate).toLocaleDateString() : 'None'}${isExpired ? ' (Expired)' : ''}</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Extension Starts From:</span>
+                                <span class="fw-semibold text-primary">${baseStart.toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                        <label class="form-label fw-semibold small">Quick preset:</label>
+                        <div class="d-flex gap-2 flex-wrap mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-primary preset-day-btn" data-days="1">+1 Day</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary preset-day-btn" data-days="3">+3 Days</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary preset-day-btn active" data-days="7">+7 Days</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary preset-day-btn" data-days="15">+15 Days</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary preset-day-btn" data-days="30">+30 Days</button>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small" for="customExtenderDays">Days to add:</label>
+                            <div class="input-group">
+                                <input type="number" id="customExtenderDays" class="form-control" min="1" max="365" step="1" value="7" required>
+                                <span class="input-group-text">days</span>
+                            </div>
+                        </div>
+                        <div class="p-2 bg-light rounded text-center small mb-1 border">
+                            <span class="text-muted">New Subscription Expiry: </span>
+                            <strong id="newExpiryPreview" class="text-success fs-6"></strong>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top pt-2">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="confirmExtendDaysBtn"><i class="fas fa-check-circle me-1"></i>Apply Day Extender</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+
+        const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+        const daysInput = modal.querySelector('#customExtenderDays');
+        const preview = modal.querySelector('#newExpiryPreview');
+        const presetButtons = modal.querySelectorAll('.preset-day-btn');
+        const confirmBtn = modal.querySelector('#confirmExtendDaysBtn');
+
+        const updatePreview = () => {
+            const count = Math.max(1, Math.min(365, parseInt(daysInput.value, 10) || 1));
+            const newDate = new Date(baseStart.getTime() + count * 86400000);
+            preview.textContent = newDate.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+        };
+        updatePreview();
+
+        presetButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                presetButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                daysInput.value = btn.dataset.days;
+                updatePreview();
+            });
+        });
+
+        daysInput.addEventListener('input', () => {
+            presetButtons.forEach(b => b.classList.toggle('active', b.dataset.days === daysInput.value));
+            updatePreview();
+        });
+
+        confirmBtn.addEventListener('click', async () => {
+            const daysToAdd = parseInt(daysInput.value, 10);
+            if (!Number.isInteger(daysToAdd) || daysToAdd < 1) {
+                notify('Please enter a valid number of days (1 to 365).', 'warning');
+                return;
+            }
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Extending...';
+            try {
+                await applyDirectDayExtension(school, daysToAdd);
+                bsModal.hide();
+            } catch (err) {
+                notify(`Could not extend subscription: ${err.message}`, 'danger');
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i>Apply Day Extender';
+            }
+        });
+
+        modal.addEventListener('hidden.bs.modal', () => modal.remove(), { once: true });
+        bsModal.show();
+    }
+
+    async function applyDirectDayExtension(school, daysToAdd) {
+        const current = school.subscription || {};
+        const endDateParsed = Date.parse(current.endDate || '');
+        const isExpired = !endDateParsed || isNaN(endDateParsed) || endDateParsed < Date.now();
+        const startDate = new Date();
+        const baseStart = isExpired ? startDate : new Date(endDateParsed);
+        const extendedEndDate = new Date(baseStart.getTime() + daysToAdd * 86400000);
+
+        const entry = {
+            planId: 'day-extender',
+            name: `Day Extender (+${daysToAdd} days)`,
+            topupKind: 'days',
+            daysAdded: daysToAdd,
+            monthsAdded: 0,
+            studentCapacity: 0,
+            teacherCapacity: 0,
+            price: 0,
+            listPrice: 0,
+            currency: current.currency || 'INR',
+            bonus: false,
+            startDate: baseStart.toISOString(),
+            endDate: extendedEndDate.toISOString(),
+            assignedAt: startDate.toISOString()
+        };
+
+        const topups = [...(Array.isArray(current.topups) ? current.topups : []), entry];
+        const subscription = {
+            ...current,
+            status: 'active',
+            endDate: extendedEndDate.toISOString(),
+            termExtensionDays: Number(current.termExtensionDays || 0) + daysToAdd,
+            topups,
+            updatedAt: Date.now()
+        };
+
+        const timestamp = Date.now();
+        await database.ref().update({
+            [`schools/${school.id}/status`]: 'Active',
+            [`schools/${school.id}/subscription`]: subscription,
+            [`schools/${school.id}/lastUpdated`]: startDate.toISOString(),
+            [`owners/${currentUser.uid}/schools/${school.id}/status`]: 'Active',
+            [`owners/${currentUser.uid}/schools/${school.id}/subscription`]: subscription,
+            [`owners/${currentUser.uid}/schools/${school.id}/lastUpdated`]: startDate.toISOString(),
+            [`publicSchools/${school.id}/status`]: 'Active',
+            [`publicSchools/${school.id}/subscriptionEndDate`]: subscription.endDate,
+            [`publicSchools/${school.id}/updatedAt`]: timestamp,
+            [`subscriptionExpiryOverlayCounts/${school.id}`]: null
+        });
+
+        notify(`${school.name || 'School'} subscription extended by ${daysToAdd} days (until ${extendedEndDate.toLocaleDateString()}).`, 'success');
+        await refreshSchoolData();
     }
 
     function escapeCodeForTable(school) { return escapeHtml(school.code || '—'); }
@@ -1447,9 +2368,16 @@
         const money = (currency, amount) => `${escapeHtml(currency || 'INR')} ${Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
         const topupMarkup = topups.length ? topups.map(item => {
             const expired = item.endDate && Date.parse(item.endDate) < now;
-            const title = item.topupKind === 'months' ? `${item.name || 'Extra months'} (+${Number(item.monthsAdded || 0)} months)` : item.name || 'Top-up';
-            const students = item.topupKind === 'months' ? '—' : Number(item.studentCapacity || 0).toLocaleString();
-            const teachers = item.topupKind === 'months' ? '—' : Number(item.teacherCapacity || 0).toLocaleString();
+            const isDays = item.topupKind === 'days';
+            const isMonths = item.topupKind === 'months';
+            const isTerm = isDays || isMonths;
+            const title = isDays
+                ? `${item.name || 'Extra days'} (+${Number(item.daysAdded || 0)} days)`
+                : isMonths
+                ? `${item.name || 'Extra months'} (+${Number(item.monthsAdded || 0)} months)`
+                : item.name || 'Top-up';
+            const students = isTerm ? '—' : Number(item.studentCapacity || 0).toLocaleString();
+            const teachers = isTerm ? '—' : Number(item.teacherCapacity || 0).toLocaleString();
             return `<tr><td>${escapeHtml(title)}</td><td>${students}</td><td>${teachers}</td><td>${item.bonus || item.includedWithPlan ? '<span class="badge text-bg-success">Included</span>' : money(item.currency || baseCurrency, item.price)}</td><td>${expired ? '<span class="badge text-bg-secondary">Expired</span>' : '<span class="badge text-bg-primary">Active</span>'}</td><td>${escapeHtml(item.endDate ? new Date(item.endDate).toLocaleDateString() : 'Plan end')}</td></tr>`;
         }).join('') : '<tr><td colspan="6" class="text-center text-muted">No top-ups assigned.</td></tr>';
         const bonusMarkup = currentPlan?.bonus && !topups.some(item => item.includedWithPlan && item.planId === currentPlan.id)
@@ -2620,6 +3548,7 @@
         document.querySelectorAll('.nav-links .nav-link').forEach(link => link.addEventListener('click', event => { event.preventDefault(); event.stopImmediatePropagation(); switchSection(link.hash.slice(1)); }, true));
         document.getElementById('schoolSearch')?.addEventListener('input', loadSchoolsTable);
         document.getElementById('previewRegistrationBtn')?.addEventListener('click', event => { event.preventDefault(); if (typeof previewRegistration === 'function') previewRegistration(); });
+        document.getElementById('schoolType')?.addEventListener('change', renderSchoolPlanOptions);
         document.getElementById('generalSettingsForm')?.addEventListener('submit', event => { event.preventDefault(); event.stopImmediatePropagation(); saveGeneralSettings(event); }, true);
         document.getElementById('notificationSettingsForm')?.addEventListener('submit', event => { event.preventDefault(); event.stopImmediatePropagation(); saveNotificationSettings(event); }, true);
         document.getElementById('sidebarToggleBtn')?.addEventListener('click', event => { event.preventDefault(); event.stopImmediatePropagation(); document.querySelector('.sidebar')?.classList.toggle(innerWidth <= 768 ? 'show' : 'collapsed'); document.querySelector('.main-content')?.classList.toggle('sidebar-collapsed', innerWidth > 768 && document.querySelector('.sidebar')?.classList.contains('collapsed')); }, true);

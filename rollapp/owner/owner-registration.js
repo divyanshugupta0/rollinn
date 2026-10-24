@@ -56,6 +56,9 @@
             if (field.type === 'checkbox') field.checked = draft[field.id] === true;
             else field.value = String(draft[field.id] ?? '');
         });
+        if (typeof window.renderSchoolPlanOptions === 'function') {
+            window.renderSchoolPlanOptions();
+        }
         if (draft.subscriptionPlan) {
             const plan = form.querySelector(`[name="subscriptionPlan"][value="${CSS.escape(String(draft.subscriptionPlan))}"]`);
             if (plan) plan.checked = true;
@@ -88,6 +91,9 @@
         const progress = document.getElementById('registrationProgress');
         if (indicator) indicator.textContent = String(step);
         if (progress) progress.style.width = `${step * 33.333}%`;
+        if (step === 3 && typeof window.renderSchoolPlanOptions === 'function') {
+            window.renderSchoolPlanOptions();
+        }
         if (persist) saveDraft();
     }
 
@@ -212,11 +218,15 @@
             const count = Math.max(0, Math.min(99, Number(input.value) || 0));
             const plan = plans().find(item => item.id === input.closest('[data-plan-id]')?.dataset.planId);
             if (!plan) return [];
+            const isMonths = plan.topupKind === 'months';
+            const isDays = plan.topupKind === 'days';
+            const topupKind = isMonths ? 'months' : (isDays ? 'days' : 'capacity');
             return Array.from({ length: count }, () => ({
-                planId: plan.id, name: plan.name, topupKind: plan.topupKind === 'months' ? 'months' : 'capacity',
-                monthsAdded: plan.topupKind === 'months' ? Number(plan.durationMonths || 0) : 0,
-                studentCapacity: plan.topupKind === 'months' ? 0 : Number(plan.studentCapacity || 0),
-                teacherCapacity: plan.topupKind === 'months' ? 0 : Number(plan.teacherCapacity || 0),
+                planId: plan.id, name: plan.name, topupKind,
+                monthsAdded: isMonths ? Number(plan.durationMonths || 0) : 0,
+                daysAdded: isDays ? Number(plan.durationDays || plan.daysAdded || 0) : 0,
+                studentCapacity: (isMonths || isDays) ? 0 : Number(plan.studentCapacity || 0),
+                teacherCapacity: (isMonths || isDays) ? 0 : Number(plan.teacherCapacity || 0),
                 price: Number(plan.price || 0),
                 listPrice: Number(plan.price || 0), currency: plan.currency || 'INR',
                 startDate: start.toISOString(), endDate: end.toISOString(), assignedAt: start.toISOString()
@@ -391,9 +401,11 @@
             }
             const basePlanEnd = end ? new Date(end) : null;
             const termExtensionMonths = selectedTopups.reduce((sum, item) => sum + Number(item.monthsAdded || 0), 0);
+            const termExtensionDays = selectedTopups.reduce((sum, item) => sum + Number(item.daysAdded || 0), 0);
             if (termExtensionMonths && end) end.setTime(addCalendarMonths(end, termExtensionMonths).getTime());
+            if (termExtensionDays && end) end.setTime(end.getTime() + (termExtensionDays * 86400000));
             selectedTopups.forEach(item => {
-                item.startDate = item.topupKind === 'months' ? basePlanEnd.toISOString() : start.toISOString();
+                item.startDate = (item.topupKind === 'months' || item.topupKind === 'days') ? basePlanEnd.toISOString() : start.toISOString();
                 item.endDate = end.toISOString();
             });
             const image = document.getElementById('schoolAdminPhotoUrl')?.files?.[0];
@@ -437,6 +449,7 @@
                 currency: plan.currency || 'INR',
                 durationMonths: Number(plan.durationMonths),
                 termExtensionMonths,
+                termExtensionDays,
                 autoRenew: plan.autoRenew === true,
                 studentCapacity: Number(plan.studentCapacity || 0),
                 teacherCapacity: Number(plan.teacherCapacity || 0),
@@ -453,6 +466,7 @@
                 currency: '',
                 durationMonths: 0,
                 termExtensionMonths: 0,
+                termExtensionDays: 0,
                 autoRenew: false,
                 studentCapacity: 0,
                 teacherCapacity: 0,
@@ -526,6 +540,11 @@
         }, true);
         form?.addEventListener('input', saveDraft);
         form?.addEventListener('change', saveDraft);
+        document.getElementById('schoolType')?.addEventListener('change', () => {
+            if (typeof window.renderSchoolPlanOptions === 'function') {
+                window.renderSchoolPlanOptions();
+            }
+        });
         document.getElementById('registerSchoolBtn')?.addEventListener('click', event => {
             event.preventDefault();
             event.stopImmediatePropagation();

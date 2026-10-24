@@ -23,10 +23,10 @@
         "subscriptionEndDate"
       ],
       "$schoolId": {
-        ".write": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || (!data.exists() && newData.child('code').isString() && root.child('schoolCodeReservations').child(newData.child('code').val()).child('ownerId').val() === auth.uid))",
+        ".write": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner' || (!data.exists() && newData.child('code').isString() && root.child('schoolCodeReservations').child(newData.child('code').val()).child('ownerId').val() === auth.uid))",
         "registrationLive": {
           ".read": true,
-          ".write": "auth != null && ((root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('schoolId').val() === $schoolId) || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)",
+          ".write": "auth != null && ((root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('schoolId').val() === $schoolId) || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
           ".validate": "newData.isBoolean()"
         }
       }
@@ -502,21 +502,26 @@
       ".write": false
     },
     "subscriptionExpiryOverlayCounts": {
+      ".read": "auth != null && (root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
+      ".write": "auth != null && (root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
       "$schoolId": {
+        ".read": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
+        ".write": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
         "$uid": {
-          ".read": "auth != null && (auth.uid === $uid || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)",
-          ".write": "auth != null && auth.uid === $uid && root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'teacher')"
+          ".read": "auth != null && (auth.uid === $uid || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
+          ".write": "auth != null && ((auth.uid === $uid && root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'teacher')) || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')"
         }
       }
     },
     "subscriptionResubscribeRequests": {
-      ".read": "auth != null && root.child('owners').child(auth.uid).exists()",
-      ".write": "auth != null && root.child('owners').child(auth.uid).exists()",
+      ".read": "auth != null && (root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
+      ".write": "auth != null && (root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
       "$schoolId": {
-        ".read": "auth != null && root.child('schools').child($schoolId).child('ownerId').val() === auth.uid",
+        ".read": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
+        ".write": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
         "$requesterUid": {
-          ".read": "auth != null && (auth.uid === $requesterUid || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)",
-          ".write": "auth != null && ((auth.uid === $requesterUid && root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'teacher')) || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid)"
+          ".read": "auth != null && (auth.uid === $requesterUid || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
+          ".write": "auth != null && ((auth.uid === $requesterUid && root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'teacher')) || root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')"
         }
       }
     },
