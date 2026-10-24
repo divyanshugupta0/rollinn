@@ -1,13 +1,26 @@
 /* Manage Batches Section Styles */
 :is(#manage-batches-section, #manage-batches-section-active) {
-    min-height: 0 !important;
+    min-height: 100% !important;
     height: auto !important;
-    flex: 0 0 auto !important;
-    width: 100%;
+    flex: 1 0 auto !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-y: visible !important;
+    display: block !important;
+}
+
+/* Ensure the admin content wrapper is actively scrollable when manage batches is open */
+#content-wrapper:has(#manage-batches-section-active),
+.content-wrapper:has(#manage-batches-section-active) {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
 }
 
 .mb-workspace {
-    padding: clamp(16px, 2.5vw, 32px);
+    padding: clamp(14px, 2.5vw, 28px);
+    padding-bottom: 110px !important;
     max-width: 1400px;
     margin: 0 auto;
     font-family: inherit;
@@ -419,7 +432,8 @@
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 16px;
-    overflow: hidden;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
     box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
 }
 
@@ -666,4 +680,377 @@
 
 .mb-distribution-item strong {
     color: #0f172a;
+}
+
+/* ==========================================================================
+   Mobile UI - Minimized, High-Efficiency Responsive Design (<= 768px & <= 480px)
+   ========================================================================== */
+@media (max-width: 768px) {
+    :is(#manage-batches-section, #manage-batches-section-active) {
+        overflow-x: hidden !important;
+        width: 100% !important;
+    }
+
+    .mb-workspace {
+        padding: 10px 10px 110px 10px !important;
+    }
+
+    /* Page Header */
+    .mb-page-header {
+        margin-bottom: 12px !important;
+        padding-bottom: 12px !important;
+        gap: 10px !important;
+    }
+
+    .mb-heading {
+        gap: 10px !important;
+        width: 100% !important;
+    }
+
+    .mb-heading-icon {
+        width: 38px !important;
+        height: 38px !important;
+        font-size: 1.1rem !important;
+        border-radius: 10px !important;
+    }
+
+    .mb-heading-copy h2 {
+        font-size: 1.22rem !important;
+        line-height: 1.2 !important;
+    }
+
+    .mb-heading-copy p {
+        font-size: 0.78rem !important;
+        margin-top: 2px !important;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .mb-eyebrow {
+        font-size: 0.65rem !important;
+    }
+
+    .mb-header-actions {
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 6px !important;
+    }
+
+    .mb-header-actions .mb-btn {
+        padding: 7px 6px !important;
+        font-size: 0.75rem !important;
+        justify-content: center !important;
+        border-radius: 8px !important;
+        gap: 5px !important;
+    }
+
+    /* Stats Grid - Minimized 2x2 */
+    .mb-stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+        margin-bottom: 12px !important;
+    }
+
+    .mb-stat-card {
+        padding: 10px 12px !important;
+        border-radius: 12px !important;
+        gap: 10px !important;
+    }
+
+    .mb-stat-icon {
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 0.95rem !important;
+        border-radius: 9px !important;
+    }
+
+    .mb-stat-value {
+        font-size: 1.25rem !important;
+    }
+
+    .mb-stat-label {
+        font-size: 0.68rem !important;
+        letter-spacing: 0.02em !important;
+        margin-bottom: 1px !important;
+    }
+
+    .mb-stat-subtext {
+        font-size: 0.68rem !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    /* 1-Click Class Assignment Hero Card */
+    .mb-class-assign-card {
+        padding: 14px 14px !important;
+        border-radius: 14px !important;
+        margin-bottom: 12px !important;
+    }
+
+    .mb-class-assign-header {
+        margin-bottom: 10px !important;
+        gap: 8px !important;
+    }
+
+    .mb-class-assign-title {
+        gap: 8px !important;
+    }
+
+    .mb-class-assign-title span.mb-stat-icon {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 0.9rem !important;
+    }
+
+    .mb-class-assign-title h3 {
+        font-size: 0.95rem !important;
+    }
+
+    .mb-class-assign-title .text-muted {
+        font-size: 0.75rem !important;
+    }
+
+    .mb-badge-pill {
+        font-size: 0.68rem !important;
+        padding: 3px 8px !important;
+    }
+
+    .mb-class-assign-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+
+    .mb-input-group label {
+        font-size: 0.76rem !important;
+        margin-bottom: 4px !important;
+    }
+
+    .mb-select, .mb-input {
+        padding: 8px 12px !important;
+        font-size: 0.85rem !important;
+        border-radius: 8px !important;
+    }
+
+    .mb-class-preview-note {
+        font-size: 0.75rem !important;
+        margin-top: 4px !important;
+    }
+
+    /* Toolbar & Filters */
+    .mb-toolbar {
+        padding: 10px 12px !important;
+        border-radius: 12px !important;
+        margin-bottom: 12px !important;
+        gap: 8px !important;
+    }
+
+    .mb-filters-row {
+        flex: 1 1 100% !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+    }
+
+    .mb-search-box {
+        grid-column: 1 / -1 !important;
+        min-width: 0 !important;
+    }
+
+    .mb-search-box input {
+        font-size: 0.84rem !important;
+        padding: 8px 10px 8px 34px !important;
+        border-radius: 8px !important;
+    }
+
+    .mb-filters-row select {
+        max-width: none !important;
+        width: 100% !important;
+        font-size: 0.80rem !important;
+        padding: 8px 10px !important;
+        border-radius: 8px !important;
+    }
+
+    .mb-selection-buttons {
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 6px !important;
+        padding-top: 4px !important;
+        border-top: 1px dashed #e2e8f0 !important;
+    }
+
+    .mb-selection-buttons span {
+        font-size: 0.72rem !important;
+        flex-shrink: 0 !important;
+    }
+
+    .mb-selection-buttons .mb-btn {
+        flex: 1 !important;
+        padding: 5px 6px !important;
+        font-size: 0.70rem !important;
+        text-align: center !important;
+        justify-content: center !important;
+        border-radius: 6px !important;
+    }
+
+    /* Table Container & Touch Scroll */
+    .mb-table-container {
+        border-radius: 12px !important;
+        margin-bottom: 14px !important;
+    }
+
+    .mb-table th {
+        padding: 9px 10px !important;
+        font-size: 0.72rem !important;
+        white-space: nowrap !important;
+    }
+
+    .mb-table td {
+        padding: 10px 10px !important;
+        font-size: 0.82rem !important;
+    }
+
+    .mb-student-cell {
+        gap: 8px !important;
+    }
+
+    .mb-student-avatar, .mb-student-avatar-fallback {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.75rem !important;
+    }
+
+    .mb-student-name {
+        font-size: 0.83rem !important;
+        line-height: 1.25 !important;
+    }
+
+    .mb-student-email {
+        font-size: 0.70rem !important;
+        max-width: 130px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .mb-class-pill {
+        font-size: 0.72rem !important;
+        padding: 2px 6px !important;
+        white-space: nowrap !important;
+    }
+
+    .mb-batch-badge {
+        font-size: 0.72rem !important;
+        padding: 3px 8px !important;
+        white-space: nowrap !important;
+    }
+
+    .mb-row-action-btn {
+        padding: 5px 8px !important;
+        font-size: 0.72rem !important;
+        white-space: nowrap !important;
+        border-radius: 6px !important;
+    }
+
+    /* Floating Bulk Actions Bar - Mobile Minimized */
+    .mb-bulk-bar {
+        left: 10px !important;
+        right: 10px !important;
+        bottom: 12px !important;
+        padding: 12px 14px !important;
+        border-radius: 14px !important;
+        gap: 10px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    .mb-bulk-left {
+        justify-content: space-between !important;
+        width: 100% !important;
+    }
+
+    .mb-bulk-left span:last-child {
+        font-size: 0.78rem !important;
+        color: #94a3b8 !important;
+    }
+
+    .mb-bulk-count {
+        font-size: 0.78rem !important;
+        padding: 3px 8px !important;
+    }
+
+    .mb-bulk-right {
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+    }
+
+    .mb-bulk-select {
+        grid-column: 1 / -1 !important;
+        width: 100% !important;
+        padding: 9px 12px !important;
+        font-size: 0.84rem !important;
+        border-radius: 8px !important;
+    }
+
+    .mb-bulk-right .mb-btn {
+        justify-content: center !important;
+        padding: 9px 10px !important;
+        font-size: 0.80rem !important;
+        border-radius: 8px !important;
+    }
+
+    .mb-bulk-right #mbBulkCancelBtn {
+        grid-column: 1 / -1 !important;
+        padding: 6px !important;
+        font-size: 0.76rem !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .mb-workspace {
+        padding: 8px 8px 110px 8px !important;
+    }
+
+    .mb-header-actions .mb-btn span {
+        display: none;
+    }
+
+    .mb-header-actions .mb-btn {
+        padding: 8px 12px !important;
+        font-size: 0.85rem !important;
+    }
+
+    .mb-stat-card {
+        padding: 8px 10px !important;
+    }
+
+    .mb-stat-value {
+        font-size: 1.15rem !important;
+    }
+
+    .mb-modal-card {
+        max-width: 95vw !important;
+        margin: 10px !important;
+        border-radius: 14px !important;
+    }
+
+    .mb-modal-header {
+        padding: 14px 16px !important;
+    }
+
+    .mb-modal-body {
+        padding: 16px !important;
+    }
+
+    .mb-modal-footer {
+        padding: 12px 16px !important;
+    }
 }

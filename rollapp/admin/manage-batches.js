@@ -847,10 +847,22 @@
         activeRoot = root || document.getElementById(SECTION_ID);
         if (!activeRoot) return;
 
+        // Ensure scrolling is enabled on the admin content wrapper
+        const content = document.getElementById('content-wrapper');
+        if (content) {
+            content.style.removeProperty('overflow-y');
+            content.style.removeProperty('height');
+            content.style.removeProperty('max-height');
+            content.style.setProperty('overflow-y', 'auto', 'important');
+            content.style.setProperty('height', '100vh', 'important');
+            content.style.setProperty('max-height', '100vh', 'important');
+            content.style.setProperty('min-height', '0', 'important');
+        }
+
         setupEventListeners();
         loadSchoolData();
     }
 
     window.initManageBatchesSection = mount;
-    window.AdminPanelAPI?.register('manage-batches', mount, { contentSized: true });
+    window.AdminPanelAPI?.register('manage-batches', mount, { contentSized: false });
 })();
