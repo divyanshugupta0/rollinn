@@ -649,49 +649,7 @@
         ".read": "auth != null && root.child('owners').child(auth.uid).exists()",
         ".write": "auth != null"
       }
-    },
-
-    "user_attendance": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      "$uid": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
-
-    "attendance_by_location": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      "$locationId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
-
-    "locations": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      ".indexOn": ["schoolId", "name", "createdAt"],
-      "$locationId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
-
-    "blockedUsers": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      ".indexOn": ["schoolId", "blockedDate", "role"],
-      "$uid": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
-
-    "accessibility_settings": {
-      ".read": "auth != null",
-      ".write": "auth != null"
     }
   }
 }
+
