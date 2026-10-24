@@ -10348,12 +10348,14 @@
             if (!cleanSchoolId) return {};
 
             // Parallel school-scoped fetches
-            const [usersSnap, schoolUsersSnap, locsSnap, schClassesSnap, schCoursesSnap] = await Promise.all([
+            const [usersSnap, schoolUsersSnap, locsSnap, schClassesSnap, schCoursesSnap, attByLocSnap, userAttSnap] = await Promise.all([
                 get(query(ref(database, 'users'), orderByChild('schoolId'), equalTo(cleanSchoolId))),
                 get(ref(database, `schoolUsers/${cleanSchoolId}`)),
-                get(query(ref(database, 'locations'), orderByChild('schoolId'), equalTo(cleanSchoolId))),
+                get(ref(database, 'locations')),
                 get(ref(database, `schoolClasses/${cleanSchoolId}`)),
-                get(ref(database, `schoolCourses/${cleanSchoolId}`))
+                get(ref(database, `schoolCourses/${cleanSchoolId}`)),
+                get(ref(database, 'attendance_by_location')),
+                get(ref(database, 'user_attendance'))
             ]);
 
             const records = {};
@@ -10395,47 +10397,162 @@
                 });
             }
 
-            // 4. Collect location IDs strictly for this school
-            const schoolLocIds = new Set();
-            if (locsSnap.exists()) {
-                locsSnap.forEach(child => {
-                    schoolLocIds.add(child.key);
-                    const val = child.val() || {};
-                    const locName = val.name || val.className;
-                    if (locName && !schoolClassesCache[child.key]) {
-                        schoolClassesCache[child.key] = locName;
-                    }
-                });
-            }
-            Object.keys(schoolClassesCache).forEach(id => schoolLocIds.add(id));
+            // 4. Collect location names
+            const allLocations = locsSnap.exists() ? (locsSnap.val() || {}) : {};
+            Object.entries(allLocations).forEach(([locId, val]) => {
+                const locName = val?.name || val?.className;
+                if (locName && !schoolClassesCache[locId]) {
+                    schoolClassesCache[locId] = locName;
+                }
+            });
 
-            // 5. Load attendance exclusively for this school's locations
+            // 5. Unified attendance aggregation matching viewAttendance exactly
             schoolAttendanceCache = {};
             try {
-                const locIdArray = Array.from(schoolLocIds);
-                if (locIdArray.length > 0) {
-                    const attSnapshots = await Promise.all(locIdArray.map(lid =>
-                        get(ref(database, `attendance_by_location/${lid}`))
-                    ));
-                    locIdArray.forEach((lid, idx) => {
-                        const locAtt = attSnapshots[idx]?.val() || {};
-                        Object.keys(locAtt).forEach(date => {
-                            const dateRecords = locAtt[date] || {};
-                            Object.keys(dateRecords).forEach(uid => {
-                                if (records[uid]) { // strictly this school's students
-                                    if (!schoolAttendanceCache[uid]) {
-                                        schoolAttendanceCache[uid] = { present: 0, late: 0, absent: 0, total: 0 };
+                const normalizeSec = (val) => {
+                    if (!val) return [];
+                    if (Array.isArray(val)) return val.map(v => String(v).trim().toLowerCase()).filter(Boolean);
+                    if (typeof val === 'object') return Object.keys(val).filter(k => val[k]).map(v => String(v).trim().toLowerCase());
+                    let s = String(val).trim().toLowerCase();
+                    if (s.startsWith('section ')) s = s.slice(8).trim();
+                    if (s.startsWith('sec ')) s = s.slice(4).trim();
+                    if (s.includes(',')) return s.split(',').map(x => x.trim()).filter(Boolean);
+                    return s ? [s] : [];
+                };
+
+                const studentUserMaps = {};
+                const studentMeta = {};
+                Object.entries(records).forEach(([uid, u]) => {
+                    studentUserMaps[uid] = new Map();
+                    studentMeta[uid] = {
+                        secKeys: normalizeSec(u.section || u.classSection || u.assignedSection),
+                        classId: String(u.classId || u.enrolledClassId || u.courseId || '').trim()
+                    };
+                });
+
+                // A. Direct student logs from user_attendance
+                if (userAttSnap.exists()) {
+                    const allUserAtt = userAttSnap.val() || {};
+                    Object.keys(records).forEach(uid => {
+                        const userDirect = allUserAtt[uid];
+                        if (userDirect && typeof userDirect === 'object') {
+                            Object.entries(userDirect).forEach(([dateStr, sessionObj]) => {
+                                if (!sessionObj || typeof sessionObj !== 'object') return;
+                                Object.entries(sessionObj).forEach(([locOrSessionId, rec]) => {
+                                    if (!rec || typeof rec !== 'object') return;
+                                    const key = `${dateStr}_${locOrSessionId}`;
+                                    const status = String(rec.status || 'present').toLowerCase();
+                                    studentUserMaps[uid].set(key, status);
+                                });
+                            });
+                        }
+                    });
+                }
+
+                // B. Teacher class roll calls from attendance_by_location
+                if (attByLocSnap.exists()) {
+                    const globalAtt = attByLocSnap.val() || {};
+                    const schoolClasses = schClassesSnap.exists() ? (schClassesSnap.val() || {}) : {};
+
+                    Object.entries(globalAtt).forEach(([locId, dateSessions]) => {
+                        if (!dateSessions || typeof dateSessions !== 'object') return;
+                        const locMeta = allLocations[locId] || schoolClasses[locId] || {};
+                        const locSecKeys = normalizeSec(locMeta.section);
+                        const locSchool = String(locMeta.schoolId || '').trim();
+
+                        if (cleanSchoolId && locSchool && locSchool !== cleanSchoolId) {
+                            // Check explicit attendees only
+                            Object.entries(dateSessions).forEach(([dateStr, attendees]) => {
+                                if (!attendees || typeof attendees !== 'object') return;
+                                Object.keys(records).forEach(uid => {
+                                    if (attendees[uid]) {
+                                        const key = `${dateStr}_${locId}`;
+                                        if (!studentUserMaps[uid].has(key)) {
+                                            const userAtt = attendees[uid];
+                                            const status = (typeof userAtt === 'object' ? String(userAtt.status || 'present') : String(userAtt || 'present')).toLowerCase();
+                                            studentUserMaps[uid].set(key, status);
+                                        }
                                     }
-                                    const st = String(dateRecords[uid]?.status || 'present').toLowerCase();
-                                    schoolAttendanceCache[uid].total += 1;
-                                    if (st === 'present') schoolAttendanceCache[uid].present += 1;
-                                    else if (st === 'late') schoolAttendanceCache[uid].late += 1;
-                                    else if (st === 'absent') schoolAttendanceCache[uid].absent += 1;
+                                });
+                            });
+                            return;
+                        }
+
+                        Object.entries(dateSessions).forEach(([dateStr, attendees]) => {
+                            if (!attendees || typeof attendees !== 'object') return;
+                            const meta = attendees._meta || {};
+                            const sessionSchool = String(meta.schoolId || '').trim();
+                            if (cleanSchoolId && sessionSchool && sessionSchool !== cleanSchoolId) {
+                                Object.keys(records).forEach(uid => {
+                                    if (attendees[uid]) {
+                                        const key = `${dateStr}_${locId}`;
+                                        if (!studentUserMaps[uid].has(key)) {
+                                            const userAtt = attendees[uid];
+                                            const status = (typeof userAtt === 'object' ? String(userAtt.status || 'present') : String(userAtt || 'present')).toLowerCase();
+                                            studentUserMaps[uid].set(key, status);
+                                        }
+                                    }
+                                });
+                                return;
+                            }
+
+                            const sessionSecKeys = meta.section ? normalizeSec(meta.section) : locSecKeys;
+                            const isGeneral = sessionSecKeys.length === 0 || sessionSecKeys.includes('general') || sessionSecKeys.includes('all');
+
+                            const peerSections = [];
+                            const attEntries = Object.entries(attendees).filter(([k]) => k !== '_meta');
+                            attEntries.forEach(([, val]) => {
+                                if (val && typeof val === 'object' && val.section) {
+                                    peerSections.push(...normalizeSec(val.section));
+                                }
+                            });
+
+                            Object.keys(records).forEach(uid => {
+                                const hasUser = attendees[uid] !== undefined && attendees[uid] !== null;
+                                const sm = studentMeta[uid];
+
+                                let isRelevant = hasUser;
+                                if (!isRelevant) {
+                                    const matchesSec = sm.secKeys.length > 0 && sessionSecKeys.some(k => sm.secKeys.includes(k));
+                                    const matchesClass = sm.classId && (locId === sm.classId || locMeta.classId === sm.classId || locMeta.id === sm.classId);
+                                    const peerMatches = sm.secKeys.length > 0 && peerSections.some(k => sm.secKeys.includes(k));
+                                    isRelevant = isGeneral || matchesSec || matchesClass || peerMatches;
+                                }
+
+                                if (isRelevant) {
+                                    const key = `${dateStr}_${locId}`;
+                                    if (!studentUserMaps[uid].has(key)) {
+                                        let status = 'absent';
+                                        if (hasUser) {
+                                            const userAtt = attendees[uid];
+                                            status = (typeof userAtt === 'object' ? String(userAtt.status || 'present') : String(userAtt || 'present')).toLowerCase();
+                                        }
+                                        studentUserMaps[uid].set(key, status);
+                                    }
                                 }
                             });
                         });
                     });
                 }
+
+                // C. Tally totals
+                Object.keys(records).forEach(uid => {
+                    const userRecords = Array.from(studentUserMaps[uid].values());
+                    let present = 0;
+                    let late = 0;
+                    let absent = 0;
+                    userRecords.forEach(st => {
+                        if (st === 'present') present++;
+                        else if (st === 'late') late++;
+                        else if (st === 'absent') absent++;
+                    });
+                    schoolAttendanceCache[uid] = {
+                        present,
+                        late,
+                        absent,
+                        total: userRecords.length
+                    };
+                });
             } catch (attErr) {
                 console.warn('Could not load school attendance stats:', attErr);
             }
