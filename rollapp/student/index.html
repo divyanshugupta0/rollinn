@@ -3552,6 +3552,11 @@
                         <span>Homework</span>
                         <span class="nav-tab-badge" id="mobile-hw-badge" style="display:none;">0</span>
                     </button>
+                    <button type="button" class="mobile-sidebar-tab" data-tab="tab-tests">
+                        <i class="fas fa-file-pen"></i>
+                        <span>Tests &amp; Scores</span>
+                        <span class="nav-tab-badge" id="mobile-tests-badge" style="display:none;">0</span>
+                    </button>
                     <button type="button" class="mobile-sidebar-tab" data-tab="tab-analytics">
                         <i class="fas fa-calculator"></i>
                         <span>Analytics &amp; Bunk Calc</span>
@@ -3606,6 +3611,10 @@
                     <button class="nav-tab-btn" data-tab="tab-homework">
                         <i class="fas fa-book-bookmark"></i> Homework
                         <span class="nav-tab-badge" id="nav-hw-badge" style="display:none;">0</span>
+                    </button>
+                    <button class="nav-tab-btn" data-tab="tab-tests">
+                        <i class="fas fa-file-pen"></i> Tests &amp; Scores
+                        <span class="nav-tab-badge" id="nav-tests-badge" style="display:none;">0</span>
                     </button>
                     <button class="nav-tab-btn" data-tab="tab-analytics">
                         <i class="fas fa-calculator"></i> Analytics & Bunk Calc
@@ -3759,6 +3768,25 @@
                                     <div id="overview-homework-list" style="display:flex; flex-direction:column; gap:8px;">
                                         <div style="text-align:center; padding:16px; color:var(--sp-text-muted); font-size:0.8rem;">
                                             <i class="fas fa-spinner fa-spin" style="margin-right:6px; color:var(--sp-primary);"></i>Loading homework...
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Test Scores & Scheduled Assessments Widget -->
+                            <div class="modern-panel" id="overview-tests-panel">
+                                <div class="panel-header">
+                                    <h3 class="panel-title">
+                                        <i class="fas fa-file-pen"></i> Tests &amp; Scores
+                                    </h3>
+                                    <button type="button" class="panel-action-btn" id="ov-view-all-tests-btn" onclick="window.switchStudentTab('tab-tests')" style="color:var(--sp-primary); font-weight:600; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;">
+                                        View All <i class="fas fa-arrow-right"></i>
+                                    </button>
+                                </div>
+                                <div class="panel-body">
+                                    <div id="overview-tests-list" style="display:flex; flex-direction:column; gap:8px;">
+                                        <div style="text-align:center; padding:16px; color:var(--sp-text-muted); font-size:0.8rem;">
+                                            <i class="fas fa-spinner fa-spin" style="margin-right:6px; color:var(--sp-primary);"></i>Loading tests and scores...
                                         </div>
                                     </div>
                                 </div>
@@ -4073,6 +4101,52 @@
                             <div class="hw-loading-state">
                                 <i class="fas fa-spinner fa-spin"></i>
                                 <p>Loading assignments for your class...</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= TAB: TESTS & SCORES ================= -->
+                <section id="tab-tests" class="student-tab-panel">
+                    <div class="st-test-panel-card">
+                        <!-- Hero Banner -->
+                        <div class="st-test-hero-banner">
+                            <div class="st-test-hero-text">
+                                <div class="st-test-hero-kicker"><i class="fas fa-graduation-cap"></i> Academic Performance</div>
+                                <h2><i class="fas fa-file-pen"></i> Test Scores &amp; Assessments</h2>
+                                <p id="st-test-subtitle">Check your test scores, view upcoming scheduled assessments, and track subject performance.</p>
+                            </div>
+                            <div class="st-test-hero-pills">
+                                <span class="st-test-pill st-test-pill-avg" id="st-test-avg-pill"><i class="fas fa-chart-line"></i> -- % Avg</span>
+                                <span class="st-test-pill st-test-pill-count" id="st-test-count-pill"><i class="fas fa-layer-group"></i> 0 Tests</span>
+                            </div>
+                        </div>
+
+                        <!-- Filter Controls -->
+                        <div class="st-test-filter-bar">
+                            <div class="st-test-search-box">
+                                <i class="fas fa-magnifying-glass"></i>
+                                <input type="text" id="st-test-search-input" placeholder="Search tests by title, subject, or teacher...">
+                            </div>
+                            <div class="st-test-status-tabs" id="st-test-status-tabs">
+                                <button type="button" class="st-test-status-btn active" data-filter="all">All</button>
+                                <button type="button" class="st-test-status-btn" data-filter="upcoming">Upcoming</button>
+                                <button type="button" class="st-test-status-btn" data-filter="scored">Scored</button>
+                            </div>
+                        </div>
+
+                        <!-- Subject Chips -->
+                        <div class="st-test-subject-chips" id="st-test-subject-chips">
+                            <button type="button" class="st-test-chip active" data-subject="all">
+                                <i class="fas fa-shapes"></i> All Subjects
+                            </button>
+                        </div>
+
+                        <!-- Tests Cards Grid -->
+                        <div class="st-test-cards-grid" id="st-test-cards-grid">
+                            <div class="st-test-loading-state">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading your test scores...</p>
                             </div>
                         </div>
                     </div>

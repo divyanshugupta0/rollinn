@@ -16,7 +16,11 @@
         attendanceRecords: [],
         subjectStats: {},
         overallStats: { attended: 0, total: 0, percentage: 0 },
-        leaveRequests: []
+        leaveRequests: [],
+        studentTests: [],
+        studentTestsFilter: 'all',
+        studentTestsSubject: 'all',
+        studentTestsSearch: ''
     };
 
     function loadStableStudentReference(path, ttlMs, force = false) {
@@ -46,6 +50,7 @@
         initAttendanceRecordsModule();
         initStudentTimetableModule();
         loadClassTeacherInfo();
+        initStudentTestsControls();
     });
 
     /* ==========================================================================
@@ -178,6 +183,12 @@
                 initStudentHomeworkSync(curUser);
             }
             renderStudentHomework();
+        } else if (tabId === 'tab-tests') {
+            const curUser = state.currentUser || window.currentUser;
+            if (curUser && (!state.studentTests || state.studentTests.length === 0)) {
+                initStudentTestsSync(curUser);
+            }
+            renderStudentTests();
         } else if (tabId === 'tab-profile') {
             renderProfileDetails();
             if (typeof window.loadProfileData === 'function') {
@@ -249,12 +260,14 @@
                 renderProfileDetails();
                 loadClassTeacherInfo();
                 initStudentHomeworkSync(state.currentUser);
+                initStudentTestsSync(state.currentUser);
                 if (userData.schoolId || userData.instituteId) {
                     initStudentTimetableVersionSync(userData.schoolId || userData.instituteId);
                 }
             }
         });
         initStudentHomeworkSync(user);
+        initStudentTestsSync(user);
         if (user.schoolId || user.instituteId) {
             initStudentTimetableVersionSync(user.schoolId || user.instituteId);
         }
@@ -2439,6 +2452,418 @@
                 await db.ref(`studentHomeworkStatus/${uid}/${hwId}`).remove();
             }
         }
+    }
+
+    /* ==========================================================================
+       Student Portal - Tests & Assessment Scores Module
+       Realtime RTDB synchronization, score formatting, color-coding & filters
+       ========================================================================== */
+    let studentScoresCache = {}; // testId -> scoreRecord
+    let schoolTestsCache = {};   // testId -> testMeta
+
+    function isStudentMatchingTest(st, test) {
+        if (!st || !test) return false;
+        const testSec = String(test.section || '').trim().replace(/^section\s+/i, '').toUpperCase();
+        const stSec = String(st.section || st.classSection || st.assignedSection || '').trim().replace(/^section\s+/i, '').toUpperCase();
+        if (testSec && stSec && testSec !== 'ALL' && testSec !== stSec) {
+            return false;
+        }
+
+        const stClassId = String(st.classId || st.enrolledClassId || st.courseId || '').toLowerCase().trim();
+        const testClassId = String(test.classId || '').toLowerCase().trim();
+        if (stClassId && testClassId && stClassId === testClassId) return true;
+
+        const stNames = [st.className, st.courseName, st.course, st.class].filter(Boolean).map(x => String(x).toLowerCase().trim());
+        const testName = String(test.className || '').toLowerCase().trim();
+
+        if (testName && stNames.length > 0) {
+            if (stNames.some(name => name === testName || name.includes(testName) || testName.includes(name))) {
+                return true;
+            }
+        }
+
+        if (testSec && stSec && testSec === stSec) return true;
+        return false;
+    }
+
+    function initStudentTestsSync(user) {
+        if (!user || !window.firebase?.database) return;
+        const db = firebase.database();
+        const schoolId = user.schoolId || state.currentUser?.schoolId || window.currentUser?.schoolId;
+
+        if (!schoolId) {
+            if (user.uid) {
+                db.ref(`users/${user.uid}/schoolId`).once('value', snap => {
+                    const sid = snap.val();
+                    if (sid) {
+                        if (state.currentUser) state.currentUser.schoolId = sid;
+                        initStudentTestsSync({ ...user, schoolId: sid });
+                    }
+                });
+            }
+            return;
+        }
+
+        const uid = user.uid;
+
+        // 1. Sync student's personal scores from schoolStudentScores/${schoolId}/${uid}
+        db.ref(`schoolStudentScores/${schoolId}/${uid}`).on('value', snap => {
+            studentScoresCache = snap.val() || {};
+            rebuildStudentTestsList();
+        });
+
+        // 2. Sync all school tests from schoolTests/${schoolId} (captures upcoming scheduled tests)
+        db.ref(`schoolTests/${schoolId}`).on('value', snap => {
+            schoolTestsCache = snap.val() || {};
+            rebuildStudentTestsList();
+        });
+    }
+    window.initStudentTestsSync = initStudentTestsSync;
+
+    function rebuildStudentTestsList() {
+        const student = state.currentUser || {};
+        const combined = new Map();
+
+        // 1. Process matching school tests
+        Object.entries(schoolTestsCache).forEach(([id, test]) => {
+            if (isStudentMatchingTest(student, test)) {
+                combined.set(id, {
+                    testId: id,
+                    title: test.title || `${test.subject || 'Class'} Test`,
+                    classId: test.classId || '',
+                    className: test.className || '',
+                    section: test.section || '',
+                    subject: test.subject || 'General Assessment',
+                    maxMarks: parseFloat(test.maxMarks) || 50,
+                    marksObtained: null,
+                    isAbsent: false,
+                    testDate: test.testDate || '',
+                    teacherName: test.teacherName || 'Faculty',
+                    isFuture: !!test.isFuture || (test.testDate > getTodayDateString()),
+                    status: test.status || 'scheduled'
+                });
+            }
+        });
+
+        // 2. Merge personal scores (overrides with actual marks obtained / absent status)
+        Object.entries(studentScoresCache).forEach(([id, score]) => {
+            const existing = combined.get(id) || {};
+            combined.set(id, {
+                ...existing,
+                testId: id,
+                title: score.title || existing.title || 'Assessment Test',
+                classId: score.classId || existing.classId || '',
+                className: score.className || existing.className || '',
+                section: score.section || existing.section || '',
+                subject: score.subject || existing.subject || 'General Assessment',
+                maxMarks: parseFloat(score.maxMarks || existing.maxMarks) || 50,
+                marksObtained: (score.marksObtained !== null && score.marksObtained !== undefined) ? parseFloat(score.marksObtained) : null,
+                isAbsent: !!score.isAbsent,
+                testDate: score.testDate || existing.testDate || '',
+                teacherName: score.teacherName || existing.teacherName || 'Faculty',
+                isFuture: !!score.isFuture || (score.testDate > getTodayDateString())
+            });
+        });
+
+        const list = Array.from(combined.values());
+
+        // Sort: Upcoming assessments first (ascending date), then past/scored (descending date)
+        const today = getTodayDateString();
+        list.sort((a, b) => {
+            const aUpcoming = (a.isFuture || a.testDate > today) && a.marksObtained === null && !a.isAbsent;
+            const bUpcoming = (b.isFuture || b.testDate > today) && b.marksObtained === null && !b.isAbsent;
+            if (aUpcoming && !bUpcoming) return -1;
+            if (!aUpcoming && bUpcoming) return 1;
+            if (aUpcoming && bUpcoming) {
+                return String(a.testDate || '').localeCompare(String(b.testDate || ''));
+            }
+            return String(b.testDate || '').localeCompare(String(a.testDate || ''));
+        });
+
+        state.studentTests = list;
+        renderStudentTests();
+        renderOverviewTestsWidget();
+        updateTestsNavBadges();
+    }
+
+    function renderStudentTests() {
+        const grid = document.getElementById('st-test-cards-grid');
+        if (!grid) return;
+
+        const tests = state.studentTests || [];
+        const today = getTodayDateString();
+
+        // Extract distinct subjects
+        const subjects = new Set();
+        tests.forEach(t => {
+            if (t.subject) subjects.add(t.subject.trim());
+        });
+        renderTestSubjectChips(Array.from(subjects));
+
+        // Filter tests
+        const searchQ = (state.studentTestsSearch || '').toLowerCase().trim();
+        const activeSub = (state.studentTestsSubject || 'all').toLowerCase();
+        const activeFilter = state.studentTestsFilter || 'all';
+
+        const filtered = tests.filter(test => {
+            const isScored = test.marksObtained !== null || test.isAbsent;
+            const isUpcoming = (test.isFuture || test.testDate > today) && !isScored;
+
+            if (activeFilter === 'upcoming' && !isUpcoming) return false;
+            if (activeFilter === 'scored' && !isScored) return false;
+
+            if (activeSub !== 'all' && String(test.subject || '').toLowerCase() !== activeSub) {
+                return false;
+            }
+
+            if (searchQ) {
+                const title = String(test.title || '').toLowerCase();
+                const subj = String(test.subject || '').toLowerCase();
+                const teacher = String(test.teacherName || '').toLowerCase();
+                if (!title.includes(searchQ) && !subj.includes(searchQ) && !teacher.includes(searchQ)) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        // Compute performance stats
+        let totalScoredMarks = 0;
+        let totalMaxMarks = 0;
+        let scoredCount = 0;
+
+        tests.forEach(t => {
+            if (t.marksObtained !== null && !t.isAbsent) {
+                totalScoredMarks += t.marksObtained;
+                totalMaxMarks += t.maxMarks;
+                scoredCount++;
+            }
+        });
+
+        const avgPill = document.getElementById('st-test-avg-pill');
+        const countPill = document.getElementById('st-test-count-pill');
+        if (avgPill) {
+            if (totalMaxMarks > 0) {
+                const avgPct = Math.round((totalScoredMarks / totalMaxMarks) * 100);
+                avgPill.innerHTML = `<i class="fas fa-chart-line"></i> ${avgPct}% Avg`;
+                avgPill.className = `st-test-pill ${avgPct >= 75 ? 'st-test-pill-avg' : (avgPct >= 40 ? 'st-score-badge average' : 'st-score-badge low')}`;
+            } else {
+                avgPill.innerHTML = '<i class="fas fa-chart-line"></i> -- % Avg';
+            }
+        }
+        if (countPill) {
+            countPill.innerHTML = `<i class="fas fa-layer-group"></i> ${tests.length} Tests`;
+        }
+
+        if (filtered.length === 0) {
+            grid.innerHTML = `
+                <div class="st-test-loading-state">
+                    <i class="fas fa-clipboard-check" style="font-size:2rem; color:var(--sp-text-muted); margin-bottom:10px; display:block;"></i>
+                    <h4 style="margin:0 0 6px 0; color:var(--sp-text-main);">No test assessments found</h4>
+                    <p style="margin:0; font-size:0.84rem;">${tests.length === 0 ? 'Your subject teachers have not posted any tests or scores yet.' : 'No tests match your selected filter or search.'}</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        filtered.forEach(test => {
+            const isScored = test.marksObtained !== null;
+            const isAbsent = test.isAbsent;
+            const isFuture = (test.isFuture || test.testDate > today) && !isScored && !isAbsent;
+
+            // Score badge & color coding
+            let scoreNumHtml = '';
+            let scoreBadgeHtml = '';
+
+            if (isAbsent) {
+                scoreNumHtml = `<span class="st-score-num" style="color:#7e22ce;">AB</span> <span class="st-score-total">/ ${test.maxMarks}</span>`;
+                scoreBadgeHtml = `<span class="st-score-badge absent"><i class="fas fa-user-xmark"></i> Absent</span>`;
+            } else if (isScored) {
+                const pct = Math.round((test.marksObtained / test.maxMarks) * 100);
+                let badgeClass = 'excellent';
+                let label = 'Distinction';
+                let icon = 'fa-circle-check';
+
+                if (pct >= 75) {
+                    badgeClass = 'excellent';
+                    label = `${pct}% Distinction`;
+                    icon = 'fa-circle-check';
+                } else if (pct >= 40) {
+                    badgeClass = 'average';
+                    label = `${pct}% Pass`;
+                    icon = 'fa-check';
+                } else {
+                    badgeClass = 'low';
+                    label = `${pct}% Needs Imp.`;
+                    icon = 'fa-triangle-exclamation';
+                }
+
+                scoreNumHtml = `<span class="st-score-num">${test.marksObtained}</span> <span class="st-score-total">/ ${test.maxMarks}</span>`;
+                scoreBadgeHtml = `<span class="st-score-badge ${badgeClass}"><i class="fas ${icon}"></i> ${label}</span>`;
+            } else {
+                scoreNumHtml = `<span class="st-score-num" style="color:#0284c7;">--</span> <span class="st-score-total">/ ${test.maxMarks}</span>`;
+                scoreBadgeHtml = `<span class="st-score-badge upcoming"><i class="fas fa-clock"></i> Upcoming</span>`;
+            }
+
+            // Date formatting
+            const dateBadge = `<span class="st-test-date-badge"><i class="fas fa-calendar-day"></i> ${test.testDate || 'Scheduled'}</span>`;
+
+            html += `
+                <div class="st-test-card" id="stTestCard_${test.testId}">
+                    <div>
+                        <div class="st-test-card-top">
+                            <span class="st-test-subject-badge">${escapeHtml(test.subject)}</span>
+                            ${dateBadge}
+                        </div>
+                        <h3 class="st-test-title">${escapeHtml(test.title)}</h3>
+                        <div class="st-test-meta-line">
+                            <i class="fas fa-chalkboard-user"></i> Faculty: <strong>${escapeHtml(test.teacherName)}</strong>
+                        </div>
+                    </div>
+                    <div class="st-test-score-row">
+                        <div class="st-test-score-vals">
+                            ${scoreNumHtml}
+                        </div>
+                        ${scoreBadgeHtml}
+                    </div>
+                </div>
+            `;
+        });
+
+        grid.innerHTML = html;
+    }
+    window.renderStudentTests = renderStudentTests;
+
+    function renderTestSubjectChips(subjects) {
+        const container = document.getElementById('st-test-subject-chips');
+        if (!container) return;
+
+        let html = `
+            <button type="button" class="st-test-chip ${state.studentTestsSubject === 'all' ? 'active' : ''}" data-subject="all">
+                <i class="fas fa-shapes"></i> All Subjects
+            </button>
+        `;
+
+        subjects.forEach(sub => {
+            const isActive = state.studentTestsSubject.toLowerCase() === sub.toLowerCase();
+            html += `
+                <button type="button" class="st-test-chip ${isActive ? 'active' : ''}" data-subject="${escapeHtml(sub)}">
+                    <i class="fas fa-book"></i> ${escapeHtml(sub)}
+                </button>
+            `;
+        });
+
+        container.innerHTML = html;
+
+        container.querySelectorAll('.st-test-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                container.querySelectorAll('.st-test-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                state.studentTestsSubject = chip.getAttribute('data-subject') || 'all';
+                renderStudentTests();
+            });
+        });
+    }
+
+    function renderOverviewTestsWidget() {
+        const container = document.getElementById('overview-tests-list');
+        if (!container) return;
+
+        const tests = state.studentTests || [];
+        if (tests.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:16px; color:var(--sp-text-muted); font-size:0.80rem;">
+                    <i class="fas fa-clipboard-check" style="color:var(--sp-primary); margin-bottom:4px; display:block; font-size:1.1rem;"></i>
+                    No tests or assessment scores posted yet.
+                </div>
+            `;
+            return;
+        }
+
+        const today = getTodayDateString();
+        const displayList = tests.slice(0, 3);
+
+        let html = '';
+        displayList.forEach(t => {
+            const isScored = t.marksObtained !== null;
+            const isAbsent = t.isAbsent;
+            const isFuture = (t.isFuture || t.testDate > today) && !isScored && !isAbsent;
+
+            let badgeHtml = '';
+            if (isAbsent) {
+                badgeHtml = `<span class="st-score-badge absent" style="padding:2px 7px; font-size:0.70rem;">AB / ${t.maxMarks}</span>`;
+            } else if (isScored) {
+                const pct = Math.round((t.marksObtained / t.maxMarks) * 100);
+                const cls = pct >= 75 ? 'excellent' : (pct >= 40 ? 'average' : 'low');
+                badgeHtml = `<span class="st-score-badge ${cls}" style="padding:2px 7px; font-size:0.70rem;">${t.marksObtained}/${t.maxMarks} (${pct}%)</span>`;
+            } else {
+                badgeHtml = `<span class="st-score-badge upcoming" style="padding:2px 7px; font-size:0.70rem;">Upcoming • /${t.maxMarks}</span>`;
+            }
+
+            html += `
+                <div class="ov-test-item" onclick="window.switchStudentTab('tab-tests')">
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:0.82rem; font-weight:700; color:var(--sp-text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            ${escapeHtml(t.title)}
+                        </div>
+                        <div style="font-size:0.72rem; color:var(--sp-text-muted); display:flex; align-items:center; gap:6px;">
+                            <span style="font-weight:600; color:#0284c7;">${escapeHtml(t.subject)}</span> • <span>${t.testDate || 'Scheduled'}</span>
+                        </div>
+                    </div>
+                    <div style="flex-shrink:0;">
+                        ${badgeHtml}
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+    window.renderOverviewTestsWidget = renderOverviewTestsWidget;
+
+    function updateTestsNavBadges() {
+        const tests = state.studentTests || [];
+        const today = getTodayDateString();
+        const upcomingCount = tests.filter(t => (t.isFuture || t.testDate >= today) && t.marksObtained === null && !t.isAbsent).length;
+
+        const navBadge = document.getElementById('nav-tests-badge');
+        const mobBadge = document.getElementById('mobile-tests-badge');
+
+        [navBadge, mobBadge].forEach(badge => {
+            if (!badge) return;
+            if (upcomingCount > 0) {
+                badge.textContent = upcomingCount > 99 ? '99+' : upcomingCount;
+                badge.style.display = 'inline-flex';
+                badge.style.background = '#0284c7';
+            } else {
+                badge.style.display = 'none';
+            }
+        });
+    }
+
+    function initStudentTestsControls() {
+        const searchInput = document.getElementById('st-test-search-input');
+        if (searchInput && searchInput.dataset.bound !== 'true') {
+            searchInput.dataset.bound = 'true';
+            searchInput.addEventListener('input', (e) => {
+                state.studentTestsSearch = e.target.value;
+                renderStudentTests();
+            });
+        }
+
+        const filterBtns = document.querySelectorAll('.st-test-status-btn');
+        filterBtns.forEach(btn => {
+            if (btn.dataset.bound === 'true') return;
+            btn.dataset.bound = 'true';
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.studentTestsFilter = btn.getAttribute('data-filter') || 'all';
+                renderStudentTests();
+            });
+        });
     }
 
     function loadFirebaseNotifications() {

@@ -271,6 +271,48 @@
         ".write": "auth != null"
       }
     },
+    "schoolTests": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": [
+          "section",
+          "classId",
+          "className",
+          "teacherId",
+          "testDate",
+          "createdAt",
+          "status"
+        ]
+      }
+    },
+    "schoolTestScores": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "schoolStudentScores": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$studentId": {
+          ".read": "auth != null",
+          ".write": "auth != null",
+          ".indexOn": [
+            "testDate",
+            "subject",
+            "isAbsent"
+          ]
+        }
+      }
+    },
     "classTeacherProfileRequests": {
       ".read": "auth != null",
       ".write": "auth != null",

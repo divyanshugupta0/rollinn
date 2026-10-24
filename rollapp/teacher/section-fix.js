@@ -54,6 +54,10 @@
             return document.getElementById('homeworkSection') ||
                    document.getElementById('homework');
         }
+        if (sectionName === 'test-scores' || sectionName === 'testScores') {
+            return document.getElementById('testScoresSection') ||
+                   document.getElementById('test-scoresSection');
+        }
         return document.getElementById(sectionName + 'Section') ||
                document.getElementById(sectionName);
     }
@@ -64,6 +68,10 @@
 
         if (sectionName === 'homework') {
             item = document.querySelector('.sidebar-menu .menu-item[data-section="homework"]');
+            if (item) return item;
+        } else if (sectionName === 'test-scores' || sectionName === 'testScores') {
+            item = document.querySelector('.sidebar-menu .menu-item[data-section="test-scores"]') ||
+                   document.querySelector('.sidebar-menu .menu-item[data-section="testScores"]');
             if (item) return item;
         } else if (sectionName === 'class-teacher-requests') {
             item = document.querySelector('.sidebar-menu .menu-item[data-section="class-teacher-requests"]') ||
