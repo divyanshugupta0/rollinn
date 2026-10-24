@@ -3494,16 +3494,25 @@
             <div style="max-width:760px;margin:4vh auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.3);">
               <div class="d-flex justify-content-between align-items-center gap-2 mb-3"><div><h2 id="ownerPhotoModalTitle" class="h5 mb-1">Capture student profile photo</h2><div id="ownerPhotoProgress" class="small text-muted"></div></div><button id="ownerPhotoClose" type="button" class="btn btn-sm btn-outline-secondary"><i class="fas fa-unlock"></i> Unlock &amp; change details</button></div>
               <div class="row g-3"><div class="col-md-7"><div id="ownerPhotoStudentDetails" class="row g-2 border rounded p-3 mb-3"></div>
-                <video id="ownerPhotoVideo" autoplay playsinline muted style="display:block;width:100%;max-height:48vh;object-fit:cover;background:#111827;border-radius:12px;"></video>
-                <div id="ownerPhotoCameraStatus" class="small text-muted mt-2" role="status">Allow camera access to begin capturing.</div>
+                <style>
+                  .owner-photo-camera-container .camera-face-guide { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 4; }
+                  .owner-photo-camera-container .face-oval { width: min(68%, 230px); aspect-ratio: 3 / 4; border-radius: 50% 50% 48% 48% / 55% 55% 45% 45%; border: 2.5px dashed rgba(255, 255, 255, 0.9); box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.38), 0 0 25px rgba(56, 189, 248, 0.35); }
+                  .owner-photo-camera-container .face-guide-hint { margin-top: 12px; font-size: 12px; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.75); padding: 3px 12px; border-radius: 9999px; letter-spacing: 0.02em; backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.15); }
+                </style>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <div class="form-check form-switch mb-0">
                     <input id="ownerPhotoAutoUpload" class="form-check-input" type="checkbox">
                     <label class="form-check-label small" for="ownerPhotoAutoUpload">Auto upload after capture</label>
                   </div>
                 </div>
-                <video id="ownerPhotoVideo" autoplay playsinline muted style="display:block;width:100%;max-height:48vh;object-fit:cover;background:#111827;border-radius:12px;"></video>
-                <img id="ownerPhotoSnapshot" alt="Snapshot preview" hidden style="display:block;width:100%;max-height:48vh;object-fit:cover;background:#111827;border-radius:12px;">
+                <div class="owner-photo-camera-container position-relative overflow-hidden rounded-3 mb-2" style="background:#0f172a; aspect-ratio:3/4; max-height:48vh; display:flex; align-items:center; justify-content:center;">
+                  <video id="ownerPhotoVideo" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover; display:block;"></video>
+                  <img id="ownerPhotoSnapshot" alt="Snapshot preview" hidden style="width:100%; height:100%; object-fit:cover; display:block;">
+                  <div id="ownerPhotoFaceGuide" class="camera-face-guide" aria-hidden="true">
+                    <div class="face-oval"></div>
+                    <div class="face-guide-hint">Center face in circle</div>
+                  </div>
+                </div>
                 <div id="ownerPhotoCameraStatus" class="small text-muted mt-2" role="status">Allow camera access to begin capturing.</div>
                 <div id="ownerPhotoRemotePanel" class="border rounded p-3 mt-3" hidden>
                   <div class="d-flex justify-content-between align-items-center gap-2">
@@ -3547,7 +3556,7 @@
         main.appendChild(section);
         const schoolSelect = section.querySelector('#ownerPhotoSchool'); const classSelect = section.querySelector('#ownerPhotoClass'); const sectionSelect = section.querySelector('#ownerPhotoSection');
         const lockButton = section.querySelector('#ownerPhotoLock'); const rosterElement = section.querySelector('#ownerPhotoRoster'); const modal = section.querySelector('#ownerPhotoCameraModal');
-        const video = section.querySelector('#ownerPhotoVideo'); const snapshot = section.querySelector('#ownerPhotoSnapshot'); const details = section.querySelector('#ownerPhotoStudentDetails');
+        const video = section.querySelector('#ownerPhotoVideo'); const snapshot = section.querySelector('#ownerPhotoSnapshot'); const faceGuide = section.querySelector('#ownerPhotoFaceGuide'); const details = section.querySelector('#ownerPhotoStudentDetails');
         const captureButton = section.querySelector('#ownerPhotoCapture'); const doUploadButton = section.querySelector('#ownerPhotoDoUpload'); const stopUploadButton = section.querySelector('#ownerPhotoStopUpload');
         const retakeButton = section.querySelector('#ownerPhotoRetake'); const skipButton = section.querySelector('#ownerPhotoSkip'); const finishButton = section.querySelector('#ownerPhotoFinish');
         const cameraStatus = section.querySelector('#ownerPhotoCameraStatus'); const autoUploadToggle = section.querySelector('#ownerPhotoAutoUpload'); const pendingList = section.querySelector('#ownerPhotoPendingList');
@@ -3646,6 +3655,7 @@
             snapshot.hidden = true;
             snapshot.removeAttribute('src');
             video.hidden = false;
+            if (faceGuide) faceGuide.hidden = false;
             captureButton.hidden = false;
             captureButton.disabled = !cameraStream || !pendingStudents[captureIndex];
             doUploadButton.hidden = true;
@@ -3848,7 +3858,18 @@
         async function startCamera() {
             if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access is not supported here. Open the owner portal over HTTPS in a supported browser.');
             cameraStatus.textContent = 'Waiting for camera permission…';
-            cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 1920, min: 1280 },
+                        height: { ideal: 1080, min: 720 }
+                    },
+                    audio: false
+                });
+            } catch (e) {
+                cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+            }
             video.srcObject = cameraStream;
             await video.play(); captureButton.disabled = false; cameraStatus.textContent = 'Camera is ready.';
         }
@@ -3856,16 +3877,40 @@
             const student = pendingStudents[captureIndex];
             if (!student || !video.videoWidth) return notify('Position the student in frame before capturing.', 'warning');
             try {
-                const scale = Math.min(1, 640 / Math.max(video.videoWidth, video.videoHeight));
-                const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(video.videoWidth * scale)); canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-                const context = canvas.getContext('2d'); if (!context) throw new Error('Could not prepare the captured photo.');
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
+                const vw = video.videoWidth;
+                const vh = video.videoHeight;
+                const stageRect = video.getBoundingClientRect();
+                const targetAspect = (stageRect.width && stageRect.height) ? (stageRect.width / stageRect.height) : (3 / 4);
+                const videoAspect = vw / vh;
+
+                let sx = 0, sy = 0, sWidth = vw, sHeight = vh;
+                if (videoAspect > targetAspect) {
+                    sWidth = Math.round(vh * targetAspect);
+                    sx = Math.round((vw - sWidth) / 2);
+                } else {
+                    sHeight = Math.round(vw / targetAspect);
+                    sy = Math.round((vh - sHeight) / 2);
+                }
+
+                const outHeight = Math.min(Math.round(sHeight), 1280);
+                const outWidth = Math.round(outHeight * targetAspect);
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, outWidth);
+                canvas.height = Math.max(1, outHeight);
+
+                const context = canvas.getContext('2d', { alpha: false });
+                if (!context) throw new Error('Could not prepare the captured photo.');
+                context.imageSmoothingEnabled = true;
+                context.imageSmoothingQuality = 'high';
+                context.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, outWidth, outHeight);
+
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.90));
                 if (!blob || blob.size > 2 * 1024 * 1024) throw new Error('The captured photo exceeds 2 MB.');
                 currentSnapshotBlob = blob;
                 snapshot.src = URL.createObjectURL(blob);
                 snapshot.hidden = false;
                 video.hidden = true;
+                if (faceGuide) faceGuide.hidden = true;
                 if (autoUploadToggle.checked) {
                     await startUploadCurrentSnapshot();
                 } else {
