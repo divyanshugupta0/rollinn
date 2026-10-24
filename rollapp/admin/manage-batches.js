@@ -370,9 +370,7 @@
                 ? `<span class="mb-batch-badge"><i class="fas fa-tag"></i> ${escapeHtml(s.batch)}</span>`
                 : `<span class="mb-batch-badge unassigned"><i class="fas fa-exclamation-triangle"></i> Unassigned</span>`;
 
-            const avatar = s.photoURL
-                ? `<img src="${escapeHtml(s.photoURL)}" alt="" class="mb-student-avatar" loading="lazy">`
-                : `<div class="mb-student-avatar-fallback">${escapeHtml(s.name.charAt(0).toUpperCase())}</div>`;
+            const avatar = `<div class="mb-student-avatar-fallback">${escapeHtml(s.name ? s.name.charAt(0).toUpperCase() : 'S')}</div>`;
 
             html += `
                 <tr class="${isChecked ? 'selected' : ''}" data-student-id="${escapeHtml(s.id)}">

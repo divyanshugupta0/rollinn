@@ -9095,13 +9095,7 @@
                 const displayName = user.name || record.userName || 'Unknown Student';
                 const displayEmail = user.email || record.userEmail || '';
                 const initials = displayName.substring(0, 2).toUpperCase();
-
-                const profilePicUrl = user.profilePhoto || user.profilePic || user.profile_pic || user.profileImage || user.photoURL || user.avatar || user.image || user.profile_picture;
-
-                let avatarHtml = `<div class="user-avatar-sm">${initials}</div>`;
-                if (profilePicUrl) {
-                    avatarHtml = `<img src="${profilePicUrl}" class="user-avatar-sm" alt="${initials}" style="object-fit: cover; width: 36px; height: 36px; border-radius: 50%;">`;
-                }
+                let avatarHtml = `<div class="user-avatar-sm" style="width: 36px; height: 36px; border-radius: 50%; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0;">${initials}</div>`;
 
                 let rollHtml = '';
                 const rollVal = isSchool 
@@ -9345,10 +9339,7 @@
                                     const displayName = user.name || record?.userName || 'Unknown Student';
                                     const displayEmail = user.email || record?.userEmail || '';
                                     const initials = displayName.substring(0, 2).toUpperCase();
-                                    const profilePicUrl = user.profilePhoto || user.profilePic || user.profile_pic || user.profileImage || user.photoURL || user.avatar || user.image || user.profile_picture;
-                                    const avatarHtml = profilePicUrl
-                                        ? `<img src="${profilePicUrl}" class="user-avatar-sm" alt="${initials}" style="object-fit: cover; width: 36px; height: 36px; border-radius: 50%;">`
-                                        : `<div class="user-avatar-sm">${initials}</div>`;
+                                    const avatarHtml = `<div class="user-avatar-sm" style="width: 36px; height: 36px; border-radius: 50%; background: #fee2e2; color: #b91c1c; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0;">${initials}</div>`;
                                     
                                     const rollVal = isSchool 
                                         ? (user.rollNo || user.classRoll || 'N/A')
@@ -10701,11 +10692,8 @@
 
                             // Make sure we display the full name, not just the email name
                             const displayName = user.name || (user.email ? user.email.split('@')[0] : 'Unknown');
-                            const profilePicUrl = user.profilePhoto || user.profilePic || user.profile_pic || user.profileImage || user.photoURL || user.avatar || user.image || user.profile_picture;
                             const initials = displayName.substring(0, 2).toUpperCase();
-                            const avatarHtml = profilePicUrl
-                                ? `<img src="${profilePicUrl}" class="user-avatar-sm" alt="${initials}" style="object-fit:cover;width:38px;height:38px;border-radius:50%;border:1.5px solid #e2e8f0;">`
-                                : `<div class="user-avatar-sm" style="width:38px;height:38px;border-radius:50%;background:#e0e7ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;">${initials}</div>`;
+                            const avatarHtml = `<div class="user-avatar-sm" style="width:38px;height:38px;border-radius:50%;background:#e0e7ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;flex-shrink:0;">${escapeHtml(initials)}</div>`;
 
                             const branch = user.department || user.branch || 'General';
                             const blood = user.bloodGroup || user.blood || 'Not provided';
