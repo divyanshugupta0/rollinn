@@ -17,6 +17,8 @@
         h1 { margin: 0; font-size: 23px; line-height: 1.2; }
         .panel { padding: 18px; border: 1px solid #d9e1ea; border-radius: 12px; background: #fff; box-shadow: 0 8px 28px rgba(23,36,58,.08); }
         #status { min-height: 48px; margin: 0 0 14px; color: #42536a; line-height: 1.5; }
+        #student-target { margin: 0 0 14px; padding: 12px; border: 1px solid #d9e1ea; border-radius: 9px; background: #f5f8fb; }
+        #student-target strong { display: block; margin-top: 3px; color: #17243a; font-size: 18px; overflow-wrap: anywhere; }
         #pair-code { display: block; margin: 8px 0 16px; color: #17243a; font-size: 30px; font-variant-numeric: tabular-nums; letter-spacing: .12em; }
         video { display: block; width: 100%; max-height: 58vh; margin: 12px 0; border-radius: 10px; background: #111827; object-fit: cover; }
         .actions { display: grid; gap: 10px; }
@@ -36,6 +38,7 @@
     </header>
     <section class="panel" aria-live="polite">
         <p id="status" role="status">Checking the secure pairing link…</p>
+        <div id="student-target" hidden><span>Capturing photo for</span><strong id="student-name"></strong></div>
         <div id="approval" hidden>
             <span>Confirm this same code on the owner device:</span>
             <strong id="pair-code"></strong>
@@ -58,6 +61,8 @@
     const captureButton = document.getElementById('capture');
     const retryButton = document.getElementById('retry');
     const video = document.getElementById('camera');
+    const studentTarget = document.getElementById('student-target');
+    const studentName = document.getElementById('student-name');
     const params = new URLSearchParams(location.hash.slice(1));
     const sessionId = params.get('session') || '';
     const qrToken = params.get('token') || '';
@@ -115,12 +120,15 @@
             approved = result.status === 'approved';
             hasCapture = result.hasCapture === true;
             if (Number.isSafeInteger(result.captureSlot)) captureSlot = result.captureSlot;
+            const targetName = approved ? String(result.currentStudentName || '').trim() : '';
+            studentTarget.hidden = !targetName;
+            studentName.textContent = targetName;
             if (approved) {
                 approval.hidden = true;
-                startButton.hidden = !!stream;
-                status.textContent = hasCapture ? 'A photo is waiting for the owner. Capture the next photo after it has been received.' : stream ? 'Camera is ready. Frame the student and capture.' : 'The owner approved this device. Start the camera when ready.';
-                captureButton.hidden = !stream;
-                captureButton.disabled = !stream || hasCapture;
+                startButton.hidden = !!stream || !targetName;
+                status.textContent = !targetName ? 'The capture sequence is complete. Wait for the owner to finish.' : hasCapture ? 'Photo sent. Wait for the owner to upload or skip it before capturing another.' : stream ? 'Camera is ready. Frame the student and capture.' : 'The owner approved this device. Start the camera when ready.';
+                captureButton.hidden = !stream || !targetName;
+                captureButton.disabled = !stream || hasCapture || !targetName;
             } else if (result.status === 'pairing') {
                 startButton.hidden = true;
                 captureButton.hidden = true;
@@ -203,7 +211,7 @@
             const result = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(result.error || 'Photo could not be sent.');
             hasCapture = true;
-            status.textContent = 'Photo sent. Wait for the owner to receive it before capturing another.';
+            status.textContent = 'Photo sent. Wait for the owner to upload or skip it before capturing another.';
             await pollStatus();
         } catch (error) {
             status.textContent = error.message;

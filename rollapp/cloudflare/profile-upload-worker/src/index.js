@@ -2837,9 +2837,11 @@ async function ownerRemoteCapture(request, env, origin, action) {
             const sessionId = crypto.randomUUID();
             const qrToken = encodeBase64Url(crypto.getRandomValues(new Uint8Array(32)));
             const now = Date.now();
+            const studentName = String(payload?.studentName || '').trim().slice(0, 120);
             const record = {
                 ownerUid: owner.uid,
                 status: 'waiting',
+                currentStudentName: studentName,
                 qrTokenHash: await hashRemoteCaptureSecret(qrToken),
                 createdAt: now,
                 pairExpiresAt: now + REMOTE_CAPTURE_PAIR_TTL_MS,
@@ -2864,6 +2866,7 @@ async function ownerRemoteCapture(request, env, origin, action) {
             return uploadResponse({
                 status: record.status,
                 deviceName: record.deviceName || '',
+                currentStudentName: record.status === 'approved' ? String(record.currentStudentName || '').slice(0, 120) : '',
                 pairingCode: record.pairingCode || '',
                 pairExpired: record.status === 'waiting' && record.pairExpiresAt <= Date.now(),
                 hasCapture: !!record.captureKey,
@@ -2898,13 +2901,6 @@ async function ownerRemoteCapture(request, env, origin, action) {
             if (record.status !== 'approved') return uploadResponse({ error: 'Remote camera is not approved.' }, 409, origin);
             if (!record.captureKey) return uploadResponse({ empty: true }, 200, origin);
             const captureKey = record.captureKey;
-            record.captureKey = null;
-            record.captureContentType = null;
-            record.captureUploadedAt = null;
-            record.lastTakenAt = Date.now();
-            if (!await writeRemoteCaptureRecord(env, sessionId, record, etag, owner.accessToken)) {
-                return uploadResponse({ error: 'Capture is already being received.' }, 409, origin);
-            }
             const object = await env.PROFILE_PHOTOS.get(captureKey);
             if (!object) return uploadResponse({ error: 'Temporary capture is no longer available.' }, 404, origin);
             const bytes = await object.arrayBuffer();
@@ -2923,6 +2919,7 @@ async function ownerRemoteCapture(request, env, origin, action) {
         if (action === 'advance') {
             if (record.status !== 'approved') return uploadResponse({ error: 'Remote camera is not approved.' }, 409, origin);
             const captureKey = record.captureKey;
+            record.currentStudentName = String(payload?.studentName || '').trim().slice(0, 120);
             record.captureSlot = (Number.isSafeInteger(record.captureSlot) ? record.captureSlot : 0) + 1;
             record.captureKey = null;
             record.captureContentType = null;
@@ -3001,7 +2998,7 @@ async function remoteCaptureDeviceStatus(request, env, origin) {
         if (!remoteCaptureTokenMatches(record.deviceTokenHash, await hashRemoteCaptureSecret(tokenMatch[1]))) {
             return uploadResponse({ error: 'This device is not paired.' }, 403, origin);
         }
-        return uploadResponse({ status: record.status, hasCapture: !!record.captureKey, captureSlot: Number.isSafeInteger(record.captureSlot) ? record.captureSlot : 0, expiresAt: record.expiresAt }, 200, origin);
+        return uploadResponse({ status: record.status, currentStudentName: record.status === 'approved' ? String(record.currentStudentName || '').slice(0, 120) : '', hasCapture: !!record.captureKey, captureSlot: Number.isSafeInteger(record.captureSlot) ? record.captureSlot : 0, expiresAt: record.expiresAt }, 200, origin);
     } catch (error) {
         console.error('Remote capture device status failed:', error);
         return uploadResponse({ error: 'Could not check capture access.' }, 503, origin);
