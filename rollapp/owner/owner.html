@@ -2172,6 +2172,30 @@
                                                         <div id="registrationMainPlanOptions" class="row">
                                                             <div class="col-12"><div class="alert alert-light border text-muted mb-0">Loading available plans...</div></div>
                                                         </div>
+
+                                                        <!-- Custom Subscription End Date for Registration -->
+                                                        <div id="registrationPlanEndDateContainer" class="card border bg-light-subtle p-3 my-3" style="display:none; border-radius:12px;">
+                                                            <div class="row g-2 align-items-center">
+                                                                <div class="col-md-6">
+                                                                    <label class="form-label fw-semibold small mb-1" for="schoolRegistrationEndDate">
+                                                                        <i class="fas fa-calendar-alt text-primary me-1"></i>Subscription End Date
+                                                                    </label>
+                                                                    <input type="date" class="form-control form-control-sm rounded-3" id="schoolRegistrationEndDate" aria-label="Subscription plan custom end date">
+                                                                    <div class="form-text small text-muted" style="font-size:11px;">Calculated from plan duration. You can adjust this to any custom end date.</div>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <label class="form-label fw-semibold small mb-1 text-muted">Quick duration shortcuts:</label>
+                                                                    <div class="d-flex gap-1 flex-wrap">
+                                                                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 reg-preset-date" data-months="1" style="font-size:11px;">+1 Mo</button>
+                                                                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 reg-preset-date" data-months="3" style="font-size:11px;">+3 Mo</button>
+                                                                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 reg-preset-date" data-months="6" style="font-size:11px;">+6 Mo</button>
+                                                                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 reg-preset-date" data-months="12" style="font-size:11px;"><i class="fas fa-check me-1"></i>+1 Yr (12m)</button>
+                                                                    </div>
+                                                                    <div id="registrationEndDatePreview" class="small text-success fw-semibold mt-1" style="font-size:11px;"></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
                                                         <div class="alert alert-info">
                                                             <small><i class="fas fa-info-circle me-1"></i> Choose a
                                                                 subscription plan to activate it now, or register without
@@ -4096,7 +4120,7 @@
                                     <section class="registration-preview-section"><h6><i class="fas fa-user-tie"></i> Primary contact</h6>${field('Principal', value('principalName'))}${field('Email', value('principalEmail'))}${field('Phone', value('schoolPhone'))}</section>
                                 </div>
                                 <section class="registration-preview-section"><h6><i class="fas fa-user-shield"></i> School administrator</h6>${field('Name', value('adminName'))}${field('Username', value('schoolAdminUsername'))}${field('Email', value('schoolAdminContactEmail'))}${field('Profile image', value('schoolAdminPhotoUrl') === 'Not provided' ? 'Not provided' : 'Included')}<div class="registration-preview-field"><span>Password</span><strong>Will be shared after registration</strong></div></section>
-                                <section class="registration-preview-section"><h6><i class="fas fa-crown"></i> Subscription</h6><div class="registration-preview-line"><span>${escape(plan?.name || 'No subscription')}${plan?.erpPlan === true ? ' · RollCall ERP' : ''}</span><strong>${escape(plan ? `${planCurrency} ${Number(plan.price || 0).toLocaleString()} Â· ${plan.durationMonths || 1} months` : 'No plan assigned')}</strong></div>${plan ? `${topupMarkup}<div class="registration-preview-total"><span>Total${topupCount ? ` Â· ${topupCount} top-up${topupCount === 1 ? '' : 's'}` : ''}</span><strong>${escape(priceSummary)}</strong></div>` : '<p class="text-muted small mb-0">The owner can assign a subscription plan later.</p>'}</section>
+                                <section class="registration-preview-section"><h6><i class="fas fa-crown"></i> Subscription</h6><div class="registration-preview-line"><span>${escape(plan?.name || 'No subscription')}${plan?.erpPlan === true ? ' · RollCall ERP' : ''}</span><strong>${escape(plan ? `${planCurrency} ${Number(plan.price || 0).toLocaleString()} · ${plan.durationMonths || 1} months` : 'No plan assigned')}</strong></div>${document.getElementById('schoolRegistrationEndDate')?.value ? `<div class="registration-preview-line text-primary"><span>Plan ends on:</span><strong>${new Date(`${document.getElementById('schoolRegistrationEndDate').value}T23:59:59`).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</strong></div>` : ''}${plan ? `${topupMarkup}<div class="registration-preview-total"><span>Total${topupCount ? ` · ${topupCount} top-up${topupCount === 1 ? '' : 's'}` : ''}</span><strong>${escape(priceSummary)}</strong></div>` : '<p class="text-muted small mb-0">The owner can assign a subscription plan later.</p>'}</section>
                             </div>
                             <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Continue editing</button><button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="document.getElementById('registerSchoolBtn')?.focus()">Looks good</button></div>
                         </div>

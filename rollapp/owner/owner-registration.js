@@ -377,8 +377,13 @@
         let stage = 'preparing the registration';
         try {
             const start = new Date();
-            const end = plan ? new Date(start) : null;
-            if (end) end.setMonth(end.getMonth() + Math.max(1, Number(plan.durationMonths) || 1));
+            let end = plan ? new Date(start) : null;
+            const customEndDateInput = document.getElementById('schoolRegistrationEndDate')?.value;
+            if (plan && customEndDateInput) {
+                end = new Date(`${customEndDateInput}T23:59:59`);
+            } else if (end) {
+                end.setMonth(end.getMonth() + Math.max(1, Number(plan.durationMonths) || 1));
+            }
             stage = 'generating a unique school code';
             const code = await reserveCode(value('schoolType'));
             document.getElementById('schoolCode').value = code;

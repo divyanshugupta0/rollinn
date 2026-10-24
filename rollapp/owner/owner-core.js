@@ -697,7 +697,8 @@
                                 </div>
                               </div>
                               <div class="row g-3 mt-1">
-                                <div class="col-12"><label class="form-label" for="request-main-plan-${index}">Main plan</label><select id="request-main-plan-${index}" class="form-select request-main-plan" ${mainPlans.length ? '' : 'disabled'}>${planOptions || '<option value="">No active main plans</option>'}</select></div>
+                                <div class="col-md-6"><label class="form-label" for="request-main-plan-${index}">Main plan</label><select id="request-main-plan-${index}" class="form-select request-main-plan" ${mainPlans.length ? '' : 'disabled'}>${planOptions || '<option value="">No active main plans</option>'}</select></div>
+                                <div class="col-md-6"><label class="form-label" for="request-end-date-${index}"><i class="fas fa-calendar-alt text-primary me-1"></i>Subscription End Date</label><input type="date" id="request-end-date-${index}" class="form-control request-end-date" value="${(() => { const p = mainPlans.find(item => item.id === selectedPlanId) || mainPlans[0]; return p ? addCalendarMonths(new Date(), Number(p.durationMonths || 1)).toISOString().slice(0, 10) : ''; })()}"><div class="form-text small" style="font-size:11px;">Calculated from plan duration. You can adjust this to set an exact custom end date.</div></div>
                                 <div class="col-12"><div class="small fw-semibold mb-2">Optional top-ups (quantity)</div><div class="d-grid gap-2">${topupOptions}</div></div>
                                 <div class="col-12"><button type="button" class="btn btn-primary fulfill-subscription-request" ${mainPlans.length ? '' : 'disabled'}>Apply plan and top-ups</button></div>
                               </div>
@@ -708,15 +709,26 @@
                 list.querySelectorAll('.open-request-subscription').forEach(button => {
                     button.addEventListener('click', () => switchSection('owner-pricing'));
                 });
+                list.querySelectorAll('.request-main-plan').forEach(select => {
+                    select.addEventListener('change', () => {
+                        const card = select.closest('[data-request-index]');
+                        const chosenPlan = mainPlans.find(item => item.id === select.value);
+                        const dateInput = card?.querySelector('.request-end-date');
+                        if (chosenPlan && dateInput) {
+                            dateInput.value = addCalendarMonths(new Date(), Number(chosenPlan.durationMonths || 1)).toISOString().slice(0, 10);
+                        }
+                    });
+                });
                 list.querySelectorAll('.fulfill-subscription-request').forEach(button => {
                     button.addEventListener('click', async () => {
                         const card = button.closest('[data-request-index]');
                         const request = requests[Number(card?.dataset.requestIndex)];
                         const planId = card?.querySelector('.request-main-plan')?.value;
+                        const customEndDate = card?.querySelector('.request-end-date')?.value || null;
                         const selectedTopups = Array.from(card?.querySelectorAll('.request-topup-quantity') || []).map(input => ({ id: input.dataset.topupId, quantity: Number(input.value || 0) }));
                         button.disabled = true;
                         try {
-                            await fulfillSubscriptionRequest(request, planId, selectedTopups, ownerUid);
+                            await fulfillSubscriptionRequest(request, planId, selectedTopups, ownerUid, customEndDate);
                             notify('Subscription renewed and request fulfilled.', 'success');
                             await refreshSchoolData();
                             await render();
@@ -755,14 +767,16 @@
         section.querySelector('#refresh-subscription-requests').addEventListener('click', render);
         section._renderSubscriptionRequests = render;
 
-        async function fulfillSubscriptionRequest(request, planId, selectedTopups, ownerUid) {
+        async function fulfillSubscriptionRequest(request, planId, selectedTopups, ownerUid, customEndDate) {
             if (!request?.schoolId || !request?.requesterUid || !ownerUid) throw new Error('Request or owner session is missing. Refresh and try again.');
             const selectedPlan = pricingPlans.find(item => item.id === planId && item.active !== false && item.type !== 'topup');
             if (!selectedPlan) throw new Error('Select an active main plan.');
             const startDate = new Date();
-            let endDate = new Date(startDate);
-            endDate.setMonth(endDate.getMonth() + Number(selectedPlan.durationMonths || 0));
-            if (!Number.isFinite(endDate.getTime()) || endDate <= startDate) throw new Error('The selected plan has an invalid duration.');
+            let endDate = customEndDate ? new Date(`${customEndDate}T23:59:59`) : new Date(startDate);
+            if (!customEndDate) {
+                endDate.setMonth(endDate.getMonth() + Number(selectedPlan.durationMonths || 0));
+            }
+            if (!Number.isFinite(endDate.getTime()) || endDate <= startDate) throw new Error('The subscription end date is invalid.');
 
             const termExtensionMonths = (selectedTopups || []).reduce((total, selection) => {
                 const item = pricingPlans.find(plan => plan.id === selection.id && plan.active !== false && plan.type === 'topup' && plan.topupKind === 'months');
@@ -1288,6 +1302,62 @@
         summary.textContent = hasPlan
             ? `${plan.name} · Total: ${priceSummary} · Profile limits: ${mainStudents + topupTotals.students} students, ${mainTeachers + topupTotals.teachers} teachers${topupTotals.months ? ` · +${topupTotals.months} months` : ''}${topupTotals.days ? ` · +${topupTotals.days} days` : ''}${topupTotals.count ? ` · ${topupTotals.count} top-up${topupTotals.count === 1 ? '' : 's'}` : ''}`
             : 'No subscription plan selected. Optional top-ups are unavailable until a main plan is selected.';
+
+        const dateInput = document.getElementById('schoolRegistrationEndDate');
+        const container = document.getElementById('registrationPlanEndDateContainer');
+        const preview = document.getElementById('registrationEndDatePreview');
+        if (container) container.style.display = hasPlan ? 'block' : 'none';
+        if (hasPlan) {
+            if (dateInput) {
+                if (!dateInput.dataset.userModified || !dateInput.value) {
+                    const start = new Date();
+                    let end = addCalendarMonths(start, Number(plan.durationMonths || 1) + (topupTotals.months || 0));
+                    if (topupTotals.days) end = new Date(end.getTime() + topupTotals.days * 86400000);
+                    dateInput.value = end.toISOString().slice(0, 10);
+                }
+                if (preview) {
+                    try {
+                        const val = dateInput.value ? new Date(`${dateInput.value}T23:59:59`) : null;
+                        preview.textContent = val && !isNaN(val.getTime())
+                            ? `Ends on: ${val.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`
+                            : 'No date set';
+                    } catch (e) {
+                        preview.textContent = 'Invalid date';
+                    }
+                }
+            }
+        } else {
+            if (dateInput) {
+                dateInput.value = '';
+                delete dateInput.dataset.userModified;
+            }
+            if (preview) preview.textContent = 'No date set';
+        }
+
+        if (dateInput && !dateInput._presetBound) {
+            dateInput._presetBound = true;
+            dateInput.addEventListener('input', () => {
+                dateInput.dataset.userModified = 'true';
+                if (preview) {
+                    const val = dateInput.value ? new Date(`${dateInput.value}T23:59:59`) : null;
+                    preview.textContent = val && !isNaN(val.getTime())
+                        ? `Ends on: ${val.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`
+                        : 'No date set';
+                }
+            });
+            document.querySelectorAll('.reg-preset-date').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const months = Number(btn.dataset.months || 1);
+                    const now = new Date();
+                    const newEnd = addCalendarMonths(now, months);
+                    dateInput.value = newEnd.toISOString().slice(0, 10);
+                    dateInput.dataset.userModified = 'true';
+                    if (preview) {
+                        preview.textContent = `Ends on: ${newEnd.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`;
+                    }
+                });
+            });
+        }
     }
 
     function installSchoolEditModal() {
@@ -1790,12 +1860,18 @@
                   </div>
                 </td>
                 <td>
-                  <input class="form-control form-control-sm school-renewal rounded-3" type="date" aria-label="Subscription renewal date">
+                  <input class="form-control form-control-sm school-renewal rounded-3" type="date" aria-label="Subscription renewal date" title="Subscription end date">
                   <div class="d-flex align-items-center justify-content-between gap-1 mt-1">
-                    <div>${expiryBadge}</div>
+                    <div class="school-expiry-badge-container">${expiryBadge}</div>
                     <div class="form-check form-switch mb-0" style="min-height:auto;">
                       <input class="form-check-input school-auto-renew" type="checkbox" id="autoRenew-${escapeAttr(school.id)}" role="switch" title="Auto-renew toggle">
                     </div>
+                  </div>
+                  <div class="btn-group btn-group-sm mt-1 w-100" role="group" aria-label="End date quick presets">
+                    <button type="button" class="btn btn-outline-secondary py-0 px-1 table-preset-date" data-months="1" style="font-size:10px;" title="Set end date to 1 month from now">+1M</button>
+                    <button type="button" class="btn btn-outline-secondary py-0 px-1 table-preset-date" data-months="3" style="font-size:10px;" title="Set end date to 3 months from now">+3M</button>
+                    <button type="button" class="btn btn-outline-secondary py-0 px-1 table-preset-date" data-months="6" style="font-size:10px;" title="Set end date to 6 months from now">+6M</button>
+                    <button type="button" class="btn btn-outline-secondary py-0 px-1 table-preset-date" data-months="12" style="font-size:10px;" title="Set end date to 1 year from now">+1Y</button>
                   </div>
                 </td>
                 <td>
@@ -1805,20 +1881,73 @@
                   </select>
                 </td>
                 <td class="pe-4 text-end">
-                  <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm save-subscription-btn">
-                    <i class="fas fa-save me-1"></i>Save
-                  </button>
+                  <div class="d-flex align-items-center justify-content-end gap-1">
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2 open-set-plan-end-date" title="Set plan & custom end date">
+                      <i class="fas fa-calendar-alt me-1"></i>Set End Date
+                    </button>
+                    <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm save-subscription-btn">
+                      <i class="fas fa-save me-1"></i>Save
+                    </button>
+                  </div>
                 </td>
             `;
 
-            row.querySelector('.school-renewal').value = renewal ? new Date(renewal).toISOString().slice(0, 10) : '';
+            const renewalInput = row.querySelector('.school-renewal');
+            const badgeContainer = row.querySelector('.school-expiry-badge-container');
+            const planSelect = row.querySelector('.school-plan');
+            const statusSelect = row.querySelector('.school-status');
+
+            renewalInput.value = renewal ? new Date(renewal).toISOString().slice(0, 10) : '';
             row.querySelector('.school-auto-renew').checked = school.subscription?.autoRenew === true || (school.subscription?.autoRenew === undefined && basePlan?.autoRenew === true);
             const expired = renewal && Date.parse(renewal) < now;
             const status = String(school.status || 'Active').toLowerCase();
             const subscriptionStatus = String(school.subscription?.status || 'active').toLowerCase();
-            row.querySelector('.school-status').value = status === 'inactive' || status === 'suspended' || subscriptionStatus === 'inactive' || expired ? 'Inactive' : 'Active';
+            statusSelect.value = status === 'inactive' || status === 'suspended' || subscriptionStatus === 'inactive' || expired ? 'Inactive' : 'Active';
+
+            function updateRowBadge(targetDateStr) {
+                if (!badgeContainer) return;
+                const d = targetDateStr ? new Date(`${targetDateStr}T23:59:59`) : null;
+                if (!d || isNaN(d.getTime())) {
+                    badgeContainer.innerHTML = '<span class="badge bg-secondary-subtle text-secondary small">No renewal date</span>';
+                    return;
+                }
+                const days = Math.ceil((d.getTime() - Date.now()) / 86400000);
+                if (days < 0) {
+                    badgeContainer.innerHTML = `<span class="badge bg-danger-subtle text-danger small"><i class="fas fa-exclamation-triangle me-1"></i>Expired (${Math.abs(days)}d ago)</span>`;
+                } else if (days <= 14) {
+                    badgeContainer.innerHTML = `<span class="badge bg-warning-subtle text-warning small"><i class="fas fa-clock me-1"></i>Expiring in ${days}d</span>`;
+                } else {
+                    badgeContainer.innerHTML = `<span class="badge bg-success-subtle text-success small"><i class="fas fa-check-circle me-1"></i>${days}d remaining</span>`;
+                }
+            }
+
+            renewalInput.addEventListener('input', () => {
+                updateRowBadge(renewalInput.value);
+            });
+
+            planSelect.addEventListener('change', () => {
+                const chosen = pricingPlans.find(item => item.id === planSelect.value);
+                if (chosen) {
+                    const newEnd = addCalendarMonths(new Date(), Number(chosen.durationMonths || 1));
+                    renewalInput.value = newEnd.toISOString().slice(0, 10);
+                    statusSelect.value = 'Active';
+                    updateRowBadge(renewalInput.value);
+                }
+            });
+
+            row.querySelectorAll('.table-preset-date').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const m = Number(btn.dataset.months || 1);
+                    const newEnd = addCalendarMonths(new Date(), m);
+                    renewalInput.value = newEnd.toISOString().slice(0, 10);
+                    statusSelect.value = 'Active';
+                    updateRowBadge(renewalInput.value);
+                });
+            });
+
             row.querySelector('.apply-topup').addEventListener('click', () => addSchoolTopup(school, row));
             row.querySelector('.quick-extend-days').addEventListener('click', () => promptQuickDayExtender(school));
+            row.querySelector('.open-set-plan-end-date').addEventListener('click', () => promptSetPlanEndDate(school));
             row.querySelector('.save-subscription-btn').addEventListener('click', () => saveSchoolSubscription(school, row));
             body.append(row);
         });
@@ -1925,9 +2054,11 @@
                 [`owners/${currentUser.uid}/schools/${school.id}/lastUpdated`]: lastUpdated,
                 [`publicSchools/${school.id}/status`]: active ? 'Active' : 'Inactive',
                 [`publicSchools/${school.id}/subscriptionEndDate`]: subscription.endDate,
-                [`publicSchools/${school.id}/updatedAt`]: timestamp
+                [`publicSchools/${school.id}/updatedAt`]: timestamp,
+                [`subscriptionExpiryOverlayCounts/${school.id}`]: null
             });
             notify(`${school.name || 'School'} subscription updated.`, 'success');
+            await refreshSchoolData();
         } catch (error) { notify(`Could not update the school record: ${error.message}`, 'danger'); }
     }
 
@@ -2074,6 +2205,263 @@
             notify(`${topup.name} added to ${school.name || 'school'}${topup.bonus ? ' as a bonus.' : ` for ${entry.currency} ${chargedPrice}.`}`, 'success');
             await refreshSchoolData();
         } catch (error) { notify(`Could not add the top-up: ${error.message}`, 'danger'); }
+    }
+
+    function promptSetPlanEndDate(school) {
+        const current = school.subscription || {};
+        const endDateParsed = Date.parse(current.endDate || '');
+        const isExpired = !endDateParsed || isNaN(endDateParsed) || endDateParsed < Date.now();
+        const modalId = 'setSchoolPlanEndDateModal';
+        document.getElementById(modalId)?.remove();
+
+        const activeMainPlans = pricingPlans.filter(p => p.active !== false && p.type !== 'topup');
+        const currentPlanId = current.planId || current.plan || '';
+        const selectedPlan = activeMainPlans.find(p => p.id === currentPlanId || p.name === currentPlanId) || activeMainPlans[0];
+
+        const defaultEndDate = current.endDate
+            ? new Date(current.endDate).toISOString().slice(0, 10)
+            : (selectedPlan ? addCalendarMonths(new Date(), Number(selectedPlan.durationMonths || 1)).toISOString().slice(0, 10) : '');
+
+        const planOptionsHtml = activeMainPlans.map(p => {
+            const isSel = selectedPlan && p.id === selectedPlan.id;
+            const typeLabel = (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'erp' ? ' · RollCall ERP' : '';
+            return `<option value="${escapeAttr(p.id)}" ${isSel ? 'selected' : ''}>${escapeHtml(p.name)}${typeLabel} (${p.durationMonths || 1} mo · ${p.currency || 'INR'} ${Number(p.price || 0).toLocaleString()})</option>`;
+        }).join('');
+
+        const modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'modal fade';
+        modal.tabIndex = -1;
+        modal.setAttribute('aria-label', `Set subscription plan and end date for ${school.name || 'school'}`);
+        modal.innerHTML = `
+            <div class="modal-dialog modal-dialog-centered" style="max-width: 520px;">
+                <div class="modal-content shadow-lg border-0" style="border-radius: 14px;">
+                    <div class="modal-header border-bottom pb-3">
+                        <div>
+                            <h5 class="modal-title fw-bold text-primary"><i class="fas fa-calendar-check me-2"></i>Set School Plan &amp; End Date</h5>
+                            <div class="small text-muted">${escapeHtml(school.name || 'School')} · <span class="font-monospace">${escapeHtml(school.code || '—')}</span></div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body py-3">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small" for="modalPlanSelect"><i class="fas fa-tag text-primary me-1"></i>Subscription Plan</label>
+                            <select id="modalPlanSelect" class="form-select rounded-3">
+                                ${planOptionsHtml || '<option value="">No active plans</option>'}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small d-flex justify-content-between">
+                                <span><i class="fas fa-calendar-day text-primary me-1"></i>Subscription End Date</span>
+                                <span id="modalDateDiffBadge" class="badge bg-light text-primary border"></span>
+                            </label>
+                            <input type="date" id="modalEndDateInput" class="form-control rounded-3" value="${defaultEndDate}">
+                            <div class="form-text small mt-1">Pick an exact calendar end date or use quick duration presets below.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small text-muted">Quick Duration Presets</label>
+                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary modal-preset-btn" data-days="15">+15 Days</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary modal-preset-btn" data-months="1">+1 Month</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary modal-preset-btn" data-months="3">+3 Months</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary modal-preset-btn" data-months="6">+6 Months</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary modal-preset-btn" data-months="12">+1 Year</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary modal-preset-btn" data-months="24">+2 Years</button>
+                            </div>
+                            <div class="d-flex align-items-center gap-3 small text-muted">
+                                <span>Calculate preset from:</span>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="modalCalcOrigin" id="modalCalcToday" value="today" checked>
+                                    <label class="form-check-label" for="modalCalcToday">Today</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="radio" name="modalCalcOrigin" id="modalCalcCurrentEnd" value="currentEnd" ${!isExpired && endDateParsed ? '' : 'disabled'}>
+                                    <label class="form-check-label" for="modalCalcCurrentEnd">Current End Date</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold small" for="modalStatusSelect">Account Status</label>
+                                <select id="modalStatusSelect" class="form-select form-select-sm rounded-3">
+                                    <option value="Active" selected>Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                </select>
+                            </div>
+                            <div class="col-6 d-flex align-items-end">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="modalAutoRenewSwitch" ${current.autoRenew === true ? 'checked' : ''}>
+                                    <label class="form-check-label small" for="modalAutoRenewSwitch">Auto-renew</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="modalSummaryAlert" class="alert alert-light border small mb-0">
+                            Loading summary...
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top pt-2">
+                        <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary rounded-pill px-4" id="modalSaveEndDateBtn"><i class="fas fa-save me-1"></i>Save Subscription</button>
+                    </div>
+                </div>
+            </div>`;
+
+        document.body.appendChild(modal);
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+
+        const modalPlanSelect = modal.querySelector('#modalPlanSelect');
+        const modalDateInput = modal.querySelector('#modalEndDateInput');
+        const diffBadge = modal.querySelector('#modalDateDiffBadge');
+        const summaryAlert = modal.querySelector('#modalSummaryAlert');
+        const modalStatusSelect = modal.querySelector('#modalStatusSelect');
+        const autoRenewSwitch = modal.querySelector('#modalAutoRenewSwitch');
+        const saveBtn = modal.querySelector('#modalSaveEndDateBtn');
+
+        function updateModalSummary() {
+            const chosenPlan = activeMainPlans.find(p => p.id === modalPlanSelect.value);
+            const val = modalDateInput.value ? new Date(`${modalDateInput.value}T23:59:59`) : null;
+            if (!val || isNaN(val.getTime())) {
+                diffBadge.className = 'badge bg-danger text-white';
+                diffBadge.textContent = 'Invalid date';
+                summaryAlert.innerHTML = '<span class="text-danger"><i class="fas fa-times-circle me-1"></i>Please choose a valid end date.</span>';
+                saveBtn.disabled = true;
+                return;
+            }
+            saveBtn.disabled = false;
+            const days = Math.ceil((val.getTime() - Date.now()) / 86400000);
+            if (days < 0) {
+                diffBadge.className = 'badge bg-danger text-white';
+                diffBadge.textContent = `Expired (${Math.abs(days)}d ago)`;
+            } else if (days <= 14) {
+                diffBadge.className = 'badge bg-warning text-dark';
+                diffBadge.textContent = `Expiring in ${days}d`;
+            } else {
+                diffBadge.className = 'badge bg-success text-white';
+                diffBadge.textContent = `${days} days active`;
+            }
+
+            const formattedDate = val.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+            summaryAlert.innerHTML = `
+                <div class="d-flex justify-content-between mb-1">
+                    <span>Plan:</span>
+                    <strong>${escapeHtml(chosenPlan?.name || 'Custom plan')}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                    <span>Valid until:</span>
+                    <strong class="text-primary">${formattedDate}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Duration:</span>
+                    <span>${days > 0 ? `${days} day${days === 1 ? '' : 's'}` : 'Expired'}</span>
+                </div>`;
+        }
+
+        modalPlanSelect.addEventListener('change', () => {
+            const chosen = activeMainPlans.find(p => p.id === modalPlanSelect.value);
+            if (chosen) {
+                modalDateInput.value = addCalendarMonths(new Date(), Number(chosen.durationMonths || 1)).toISOString().slice(0, 10);
+            }
+            updateModalSummary();
+        });
+
+        modalDateInput.addEventListener('input', updateModalSummary);
+
+        modal.querySelectorAll('.modal-preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const originRadio = modal.querySelector('input[name="modalCalcOrigin"]:checked');
+                const originMode = originRadio ? originRadio.value : 'today';
+                const base = (originMode === 'currentEnd' && !isExpired && endDateParsed) ? new Date(endDateParsed) : new Date();
+                let next;
+                if (btn.dataset.days) {
+                    next = new Date(base.getTime() + Number(btn.dataset.days) * 86400000);
+                } else if (btn.dataset.months) {
+                    next = addCalendarMonths(base, Number(btn.dataset.months));
+                }
+                if (next) {
+                    modalDateInput.value = next.toISOString().slice(0, 10);
+                    updateModalSummary();
+                }
+            });
+        });
+
+        updateModalSummary();
+
+        saveBtn.addEventListener('click', async () => {
+            const chosenPlan = activeMainPlans.find(p => p.id === modalPlanSelect.value);
+            if (!chosenPlan) return notify('Please select a subscription plan.', 'warning');
+            const endVal = modalDateInput.value;
+            if (!endVal) return notify('Please specify an end date.', 'warning');
+            const targetEndDate = new Date(`${endVal}T23:59:59`);
+            if (isNaN(targetEndDate.getTime())) return notify('Invalid end date.', 'danger');
+
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+
+            try {
+                const active = modalStatusSelect.value === 'Active';
+                const currentEnd = Date.parse(current.endDate || '');
+                const startDate = current.startDate && currentEnd >= Date.now() ? new Date(current.startDate) : new Date();
+                const usage = schoolUserUsage[school.id] || { students: 0, teachers: 0 };
+                const topups = (Array.isArray(current.topups) ? current.topups : []).filter(item => !item.endDate || Date.parse(item.endDate) >= Date.now());
+                if (chosenPlan?.bonus && !topups.some(item => item.includedWithPlan && item.planId === chosenPlan.id && Date.parse(item.endDate || '') > Date.now())) {
+                    topups.push(createBonusTopupEntry(chosenPlan, startDate, targetEndDate));
+                }
+                const basePlanPrice = Number(chosenPlan?.price || 0);
+                const priceBreakdown = { [chosenPlan?.currency || 'INR']: basePlanPrice };
+                topups.forEach(item => {
+                    const currency = item.currency || chosenPlan?.currency || 'INR';
+                    priceBreakdown[currency] = Number(priceBreakdown[currency] || 0) + Number(item.price || 0);
+                });
+                const subscription = {
+                    ...current,
+                    plan: chosenPlan?.name || '',
+                    planId: chosenPlan?.id || '',
+                    price: Object.keys(priceBreakdown).length === 1 ? Object.values(priceBreakdown)[0] : basePlanPrice,
+                    basePlanPrice,
+                    priceBreakdown,
+                    currency: chosenPlan?.currency || 'INR',
+                    durationMonths: chosenPlan?.durationMonths || 0,
+                    autoRenew: autoRenewSwitch.checked,
+                    studentCapacity: Number(chosenPlan?.studentCapacity || 0),
+                    teacherCapacity: Number(chosenPlan?.teacherCapacity || 0),
+                    topups,
+                    usage: { students: usage.students, teachers: usage.teachers, updatedAt: Date.now() },
+                    startDate: startDate.toISOString(),
+                    endDate: targetEndDate.toISOString(),
+                    status: active ? 'active' : 'inactive',
+                    updatedAt: Date.now()
+                };
+
+                const lastUpdated = new Date().toISOString();
+                const timestamp = Date.now();
+                await database.ref().update({
+                    [`schools/${school.id}/status`]: active ? 'Active' : 'Inactive',
+                    [`schools/${school.id}/subscription`]: subscription,
+                    [`schools/${school.id}/lastUpdated`]: lastUpdated,
+                    [`owners/${currentUser.uid}/schools/${school.id}/status`]: active ? 'Active' : 'Inactive',
+                    [`owners/${currentUser.uid}/schools/${school.id}/subscription`]: subscription,
+                    [`owners/${currentUser.uid}/schools/${school.id}/lastUpdated`]: lastUpdated,
+                    [`publicSchools/${school.id}/status`]: active ? 'Active' : 'Inactive',
+                    [`publicSchools/${school.id}/subscriptionEndDate`]: subscription.endDate,
+                    [`publicSchools/${school.id}/updatedAt`]: timestamp,
+                    [`subscriptionExpiryOverlayCounts/${school.id}`]: null
+                });
+
+                notify(`Subscription and end date updated for ${school.name || 'school'}.`, 'success');
+                bsModal.hide();
+                await refreshSchoolData();
+            } catch (err) {
+                console.error('Error saving plan end date:', err);
+                notify(`Failed to save: ${err.message}`, 'danger');
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save Subscription';
+            }
+        });
     }
 
     function promptQuickDayExtender(school) {
