@@ -2,183 +2,260 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
     <meta name="referrer" content="no-referrer">
-    <meta name="theme-color" content="#17243a">
-    <title>Remote Photo Capture | RollCall</title>
+    <meta name="theme-color" content="#090d16">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Remote Student Photo Capture | RollCall Studio</title>
     <script src="https://rollcall-worker.divyanshugupta415.workers.dev/firebase-config"></script>
     <style>
         :root {
-            color-scheme: light;
+            color-scheme: dark;
+            --bg-base: #090d16;
+            --bg-card: #0f172a;
+            --bg-subtle: #172439;
+            --border-card: #1e293b;
+            --border-highlight: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-gradient: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+            --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --danger-gradient: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #0f172a;
-            color: #f8fafc;
         }
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             min-height: 100vh;
-            margin: 0;
-            padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+            background: var(--bg-base);
+            color: var(--text-main);
+            padding: max(14px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom));
             display: flex;
             flex-direction: column;
             align-items: center;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
         }
         main {
             width: min(100%, 480px);
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 12px;
         }
-        header {
-            text-align: center;
-            padding: 8px 0;
+        .remote-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 4px;
         }
-        h1 {
-            margin: 0;
-            font-size: 21px;
-            font-weight: 700;
-            color: #f8fafc;
+        .brand-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-gradient);
+            border-radius: 9px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
         }
-        header p {
-            margin: 4px 0 0;
-            color: #94a3b8;
-            font-size: 14px;
+        .brand-title {
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            color: #ffffff;
         }
-        .card {
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 16px;
-            padding: 18px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        .live-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.12);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 9999px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulseBlink 1.8s infinite;
+        }
+        @keyframes pulseBlink {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(0.8); }
         }
         #status-box {
-            font-size: 14px;
-            color: #cbd5e1;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
             text-align: center;
-            padding: 10px 14px;
-            background: rgba(51, 65, 85, 0.4);
-            border-radius: 10px;
-            margin-bottom: 12px;
+            padding: 8px 14px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-card);
+            border-radius: 12px;
+            line-height: 1.4;
+            backdrop-filter: blur(8px);
         }
-        #approval-box {
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 20px;
+            padding: 16px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        /* APPROVAL / PAIRING SCREEN */
+        .pair-container {
             text-align: center;
-            padding: 24px 16px;
+            padding: 24px 12px;
         }
-        #approval-box span {
-            display: block;
+        .pair-shield {
+            width: 58px;
+            height: 58px;
+            margin: 0 auto 16px;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+        }
+        .pair-hint {
             font-size: 14px;
-            color: #94a3b8;
+            color: var(--text-muted);
             margin-bottom: 8px;
         }
         #pair-code {
             display: block;
-            font-size: 38px;
+            font-size: 42px;
             font-weight: 800;
             color: #38bdf8;
-            letter-spacing: 0.18em;
+            letter-spacing: 0.22em;
+            text-shadow: 0 0 25px rgba(56, 189, 248, 0.45);
             font-variant-numeric: tabular-nums;
-            margin: 6px 0 16px;
+            margin: 10px 0 16px;
+        }
+        .pair-desc {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.5;
+            max-width: 320px;
+            margin: 0 auto;
+        }
+
+        /* STUDENT PROFILE CARD */
+        .student-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
         }
         .progress-pill {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            background: #0284c7;
-            color: #fff;
+            background: rgba(2, 132, 199, 0.18);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.35);
             padding: 4px 12px;
             border-radius: 9999px;
-            font-size: 13px;
-            font-weight: 600;
-            margin-bottom: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
         }
-        .toggle-container {
+        .toggle-wrap {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 8px 14px;
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid #334155;
-            border-radius: 10px;
-            margin-bottom: 12px;
-            font-size: 13px;
+            gap: 8px;
+            font-size: 12px;
             font-weight: 600;
-            color: #cbd5e1;
+            color: var(--text-muted);
         }
         .switch {
             position: relative;
             display: inline-block;
-            width: 44px;
-            height: 24px;
-            margin: 0;
+            width: 40px;
+            height: 22px;
         }
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
+        .switch input { opacity: 0; width: 0; height: 0; }
         .slider {
             position: absolute;
             cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
+            inset: 0;
             background-color: #334155;
             transition: .25s ease;
-            border-radius: 24px;
+            border-radius: 22px;
         }
         .slider:before {
             position: absolute;
             content: "";
-            height: 18px;
-            width: 18px;
+            height: 16px;
+            width: 16px;
             left: 3px;
             bottom: 3px;
-            background-color: white;
+            background-color: #ffffff;
             transition: .25s ease;
             border-radius: 50%;
         }
-        input:checked + .slider {
-            background-color: #0284c7;
-        }
-        input:checked + .slider:before {
-            transform: translateX(20px);
-        }
-        .student-details {
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 12px;
-            padding: 14px;
-            margin-bottom: 14px;
+        input:checked + .slider { background-color: #0284c7; }
+        input:checked + .slider:before { transform: translateX(18px); }
+
+        .student-info-box {
+            background: var(--bg-subtle);
+            border: 1px solid #1e293b;
+            border-radius: 14px;
+            padding: 12px 14px;
         }
         .student-name {
-            font-size: 20px;
-            font-weight: 700;
-            color: #f1f5f9;
-            margin-bottom: 8px;
+            font-size: 19px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .student-meta-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            font-size: 13px;
+            gap: 6px;
+            font-size: 12px;
             color: #94a3b8;
         }
         .student-meta-grid strong {
             color: #e2e8f0;
+            font-weight: 600;
         }
+
+        /* VIEWFINDER & CAMERA CONTAINER */
         .camera-container {
             position: relative;
             width: 100%;
-            border-radius: 14px;
+            aspect-ratio: 3 / 4;
+            max-height: 48vh;
+            border-radius: 18px;
             overflow: hidden;
-            background: #000;
-            aspect-ratio: 3/4;
+            background: #000000;
+            border: 1px solid #334155;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 14px;
         }
         video, #camera-snapshot {
             width: 100%;
@@ -186,21 +263,36 @@
             object-fit: cover;
             display: block;
         }
+        /* MIRRORED VIEW FOR FRONT CAMERA */
+        .camera-mirrored {
+            transform: scaleX(-1) !important;
+            -webkit-transform: scaleX(-1) !important;
+        }
         .flip-btn {
             position: absolute;
-            top: 12px;
-            right: 12px;
+            top: 10px;
+            right: 10px;
             background: rgba(15, 23, 42, 0.75);
-            color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.22);
             border-radius: 9999px;
-            padding: 8px 14px;
-            font-size: 13px;
-            font-weight: 600;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 700;
             cursor: pointer;
-            backdrop-filter: blur(4px);
+            backdrop-filter: blur(8px);
             z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.15s ease;
         }
+        .flip-btn:active { transform: scale(0.95); }
+        .flip-btn.is-front {
+            background: rgba(2, 132, 199, 0.75);
+            border-color: rgba(56, 189, 248, 0.6);
+        }
+
         .camera-face-guide {
             position: absolute;
             inset: 0;
@@ -212,60 +304,66 @@
             z-index: 4;
         }
         .camera-face-guide .face-oval {
-            width: min(68%, 230px);
+            width: min(68%, 220px);
             aspect-ratio: 3 / 4;
             border-radius: 50% 50% 48% 48% / 55% 55% 45% 45%;
-            border: 2.5px dashed rgba(255, 255, 255, 0.9);
-            box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.38), 0 0 25px rgba(56, 189, 248, 0.35);
+            border: 2.5px dashed rgba(56, 189, 248, 0.95);
+            box-shadow: 0 0 0 9999px rgba(9, 13, 22, 0.44), 0 0 25px rgba(56, 189, 248, 0.35);
         }
         .camera-face-guide .face-guide-hint {
-            margin-top: 12px;
-            font-size: 12px;
-            font-weight: 600;
+            margin-top: 10px;
+            font-size: 11px;
+            font-weight: 700;
             color: #f8fafc;
-            background: rgba(15, 23, 42, 0.75);
+            background: rgba(15, 23, 42, 0.85);
             padding: 3px 12px;
             border-radius: 9999px;
-            letter-spacing: 0.02em;
-            backdrop-filter: blur(4px);
+            letter-spacing: 0.03em;
+            backdrop-filter: blur(6px);
             border: 1px solid rgba(255, 255, 255, 0.15);
         }
+
+        /* ACTIONS */
         .actions {
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
         .btn-capture {
-            min-height: 52px;
-            background: linear-gradient(135deg, #0284c7, #2563eb);
+            min-height: 54px;
+            background: var(--accent-gradient);
             color: #ffffff;
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
             font-size: 17px;
-            font-weight: 700;
+            font-weight: 800;
             cursor: pointer;
-            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            transition: transform 0.1s ease, opacity 0.2s ease;
+            transition: transform 0.12s ease, opacity 0.2s ease, box-shadow 0.2s ease;
         }
-        .btn-capture:active {
-            transform: scale(0.98);
-        }
+        .btn-capture:active { transform: scale(0.97); }
         .btn-capture:disabled {
-            opacity: 0.5;
+            opacity: 0.55;
             cursor: not-allowed;
             transform: none;
+            box-shadow: none;
         }
         .btn-success {
-            background: linear-gradient(135deg, #10b981, #059669);
-            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+            background: var(--success-gradient);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
         }
         .btn-danger {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+            background: var(--danger-gradient);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
+            animation: pulseStop 1.8s infinite;
+        }
+        @keyframes pulseStop {
+            0%, 100% { box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45); }
+            50% { box-shadow: 0 6px 28px rgba(239, 68, 68, 0.75); }
         }
         .button-row {
             display: grid;
@@ -274,97 +372,121 @@
         }
         .btn-secondary {
             min-height: 44px;
-            background: transparent;
-            color: #94a3b8;
-            border: 1px solid #475569;
-            border-radius: 10px;
-            font-size: 15px;
-            font-weight: 600;
+            background: rgba(30, 41, 59, 0.6);
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
+            transition: background 0.15s ease;
         }
-        .btn-secondary:active {
-            background: #334155;
-        }
+        .btn-secondary:active { background: #334155; }
+        .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* COMPLETE CARD */
         .complete-card {
             text-align: center;
             padding: 36px 16px;
         }
         .complete-icon {
-            font-size: 56px;
-            color: #10b981;
-            margin-bottom: 16px;
+            width: 68px;
+            height: 68px;
+            margin: 0 auto 16px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 2px solid rgba(16, 185, 129, 0.4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #34d399;
+            box-shadow: 0 0 24px rgba(16, 185, 129, 0.3);
         }
         .complete-title {
             font-size: 22px;
-            font-weight: 700;
-            color: #f8fafc;
+            font-weight: 800;
+            color: #ffffff;
             margin-bottom: 8px;
         }
         .complete-desc {
             font-size: 14px;
-            color: #94a3b8;
+            color: var(--text-muted);
             line-height: 1.5;
+            max-width: 340px;
+            margin: 0 auto;
         }
+
         .toast {
             position: fixed;
             bottom: 24px;
             left: 50%;
             transform: translateX(-50%);
             background: #10b981;
-            color: #fff;
+            color: #ffffff;
             padding: 10px 20px;
             border-radius: 9999px;
             font-size: 14px;
             font-weight: 700;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
             z-index: 999;
             opacity: 0;
-            transition: opacity 0.25s ease;
+            transition: opacity 0.25s ease, transform 0.25s ease;
             pointer-events: none;
         }
         .toast.show {
             opacity: 1;
+            transform: translateX(-50%) translateY(-4px);
         }
         [hidden] { display: none !important; }
     </style>
 </head>
 <body>
 <main>
-    <header>
-        <h1><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Remote Student Photo Capture</h1>
-        <p>Direct upload to student profiles · Parallel capture</p>
-    </header>
+    <div class="remote-topbar">
+        <div class="brand-group">
+            <div class="brand-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+            </div>
+            <span class="brand-title">RollCall Studio</span>
+        </div>
+        <div class="live-tag">
+            <span class="pulse-dot"></span>
+            <span id="remote-live-label">Remote</span>
+        </div>
+    </div>
 
-    <div id="status-box" role="status">Connecting to secure session…</div>
+    <div id="status-box" role="status">Connecting to secure workstation session…</div>
 
-    <!-- Approval screen -->
+    <!-- APPROVAL SCREEN -->
     <section id="approval-section" class="card" hidden>
-        <div id="approval-box">
-            <span>Show this 6-digit code to the owner:</span>
-            <strong id="pair-code"></strong>
-            <p style="margin: 0; font-size: 13px; color: #94a3b8;">Once the owner approves, your assigned students will load and your camera will open automatically.</p>
+        <div class="pair-container">
+            <div class="pair-shield">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            </div>
+            <div class="pair-hint">Show this 6-digit confirmation code to owner:</div>
+            <strong id="pair-code">------</strong>
+            <p class="pair-desc">Once the owner confirms this code on their device, assigned students will load and your camera will open automatically.</p>
         </div>
     </section>
 
-    <!-- Active capture screen -->
+    <!-- ACTIVE CAPTURE WORKSTATION -->
     <section id="capture-section" class="card" hidden>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div class="student-header-row">
             <span id="progress-indicator" class="progress-pill">Student 1 of 0</span>
+            <div class="toggle-wrap">
+                <span>Auto-upload</span>
+                <label class="switch" for="remoteAutoUpload">
+                    <input type="checkbox" id="remoteAutoUpload" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
         </div>
 
-        <div class="toggle-container">
-            <span>Auto upload on capture</span>
-            <label class="switch" for="remoteAutoUpload">
-                <input type="checkbox" id="remoteAutoUpload" checked>
-                <span class="slider"></span>
-            </label>
-        </div>
-
-        <div class="student-details">
+        <div class="student-info-box">
             <div id="student-name" class="student-name">Loading student…</div>
             <div class="student-meta-grid">
                 <div>Roll No: <strong id="student-roll">-</strong></div>
@@ -380,44 +502,52 @@
                 <div class="face-oval"></div>
                 <div class="face-guide-hint">Center face in circle</div>
             </div>
-            <button id="btn-flip" type="button" class="flip-btn">Flip camera</button>
+            <button id="btn-flip" type="button" class="flip-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+                <span>Back Camera</span>
+            </button>
         </div>
 
         <div class="actions">
-            <!-- Normal live camera state -->
+            <!-- Capture button: Active and tactile -->
             <button id="btn-capture" type="button" class="btn-capture">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
                 Capture Photo
             </button>
 
-            <!-- Upload photo button (when auto upload is OFF, or when stopped) -->
+            <!-- Upload Photo button (when auto upload is OFF or stopped) -->
             <button id="btn-upload-now" type="button" class="btn-capture btn-success" hidden>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                 Upload Photo
             </button>
 
-            <!-- Stop upload button (while upload is in progress) -->
+            <!-- Stop Upload button (while upload is in progress) -->
             <button id="btn-stop-upload" type="button" class="btn-capture btn-danger" hidden>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect></svg>
                 Stop Upload
             </button>
 
             <div class="button-row">
                 <button id="btn-retake" type="button" class="btn-secondary" hidden>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"></path><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
                     Retake
                 </button>
-                <button id="btn-skip" type="button" class="btn-secondary">Skip this student</button>
+                <button id="btn-skip" type="button" class="btn-secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>
+                    Skip student
+                </button>
             </div>
         </div>
     </section>
 
-    <!-- Completed screen -->
+    <!-- COMPLETED SCREEN -->
     <section id="completed-section" class="card" hidden>
         <div class="complete-card">
-            <div class="complete-icon">✓</div>
-            <div class="complete-title">All Assigned Students Finished!</div>
-            <div id="complete-summary" class="complete-desc">All photos have been uploaded directly to the student accounts. You may now close this window or wait for the owner.</div>
+            <div class="complete-icon">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <div class="complete-title">All Students Finished!</div>
+            <div id="complete-summary" class="complete-desc">All photos processed and uploaded directly to student records. You may now close this window or wait for the owner to assign more students.</div>
         </div>
     </section>
 </main>
@@ -501,8 +631,23 @@
         return result;
     }
 
+    function updateMirrorState() {
+        if (facingMode === 'user') {
+            video.classList.add('camera-mirrored');
+            btnFlip.classList.add('is-front');
+            btnFlip.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 16.5L16 12l4-4.5M4 7.5L8 12l-4 4.5M2 12h20"/></svg> <span>Front (Mirrored)</span>';
+        } else {
+            video.classList.remove('camera-mirrored');
+            btnFlip.classList.remove('is-front');
+            btnFlip.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg> <span>Back Camera</span>';
+        }
+    }
+
     async function startCamera() {
-        if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access requires HTTPS and a supported browser.');
+        if (!navigator.mediaDevices?.getUserMedia) {
+            statusBox.textContent = 'Camera access requires HTTPS and a supported browser.';
+            throw new Error('Camera access requires HTTPS and a supported browser.');
+        }
         if (stream) {
             stream.getTracks().forEach(t => t.stop());
             stream = null;
@@ -523,8 +668,20 @@
             });
         }
         video.srcObject = stream;
-        await video.play();
+        updateMirrorState();
+        try {
+            await video.play();
+        } catch (e) {
+            // Autoplay policy fallback
+        }
+        btnCapture.disabled = false;
+        if (!isViewingSnapshot) {
+            btnCapture.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg> Capture Photo';
+        }
     }
+
+    video.addEventListener('loadedmetadata', () => { btnCapture.disabled = false; });
+    video.addEventListener('playing', () => { btnCapture.disabled = false; });
 
     function stopCamera() {
         if (stream) stream.getTracks().forEach(t => t.stop());
@@ -550,8 +707,8 @@
         btnFlip.hidden = false;
 
         btnCapture.hidden = false;
-        btnCapture.disabled = !stream;
-        btnCapture.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg> Capture Photo';
+        btnCapture.disabled = false;
+        btnCapture.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg> Capture Photo';
 
         btnUploadNow.hidden = true;
         btnStopUpload.hidden = true;
@@ -585,7 +742,7 @@
             completedSection.hidden = false;
             stopCamera();
             const totalUploaded = assignedStudents.filter(s => s.completed).length;
-            document.getElementById('complete-summary').textContent = `All photos processed (${totalUploaded} uploaded directly).`;
+            document.getElementById('complete-summary').textContent = `All photos processed (${totalUploaded} uploaded directly to student records).`;
             statusBox.textContent = 'All assigned students completed!';
             return;
         }
@@ -599,15 +756,27 @@
 
         captureSection.hidden = false;
         completedSection.hidden = true;
-        statusBox.textContent = 'Position student in frame and tap Capture Photo.';
+        btnCapture.disabled = false;
+        statusBox.textContent = 'Center student inside circle and tap Capture Photo.';
     }
 
     async function takeSnapshot() {
         const student = assignedStudents[currentIndex];
-        if (!student || !video.videoWidth || btnCapture.disabled) return;
+        if (!student || isUploading) return;
+
+        if (!stream || !video.videoWidth) {
+            try {
+                statusBox.textContent = 'Activating camera…';
+                await startCamera();
+            } catch (err) {
+                statusBox.textContent = `Camera error: ${err.message}. Please allow camera access.`;
+                return;
+            }
+        }
+
         try {
-            const vw = video.videoWidth;
-            const vh = video.videoHeight;
+            const vw = video.videoWidth || 1280;
+            const vh = video.videoHeight || 960;
             const stageRect = video.getBoundingClientRect();
             const targetAspect = (stageRect.width && stageRect.height) ? (stageRect.width / stageRect.height) : (3 / 4);
             const videoAspect = vw / vh;
@@ -631,6 +800,12 @@
             if (!context) throw new Error('Could not prepare camera frame.');
             context.imageSmoothingEnabled = true;
             context.imageSmoothingQuality = 'high';
+
+            // MIRROR CANVAS FOR FRONT CAMERA TO MATCH VIEWING EXPERIENCE
+            if (facingMode === 'user') {
+                context.translate(outWidth, 0);
+                context.scale(-1, 1);
+            }
             context.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, outWidth, outHeight);
 
             const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.90));
@@ -733,7 +908,7 @@
 
     function retake() {
         resetSnapshotView();
-        statusBox.textContent = 'Position student in frame and tap Capture Photo.';
+        statusBox.textContent = 'Center student inside circle and tap Capture Photo.';
     }
 
     function skipCurrentStudent() {
@@ -752,16 +927,15 @@
         try {
             const result = await jsonRequest('remote-photo-capture/status', { sessionId }, deviceToken);
             if (result.status === 'approved') {
+                approvalSection.hidden = true;
                 if (!approved) {
                     approved = true;
-                    approvalSection.hidden = true;
                     assignedStudents = Array.isArray(result.assignedStudents) ? result.assignedStudents : [];
                     currentIndex = assignedStudents.findIndex(s => !s.completed);
                     if (currentIndex === -1) currentIndex = 0;
-                    await startCamera().catch(err => { statusBox.textContent = `Camera error: ${err.message}`; });
+                    await startCamera().catch(err => { statusBox.textContent = `Camera error: ${err.message}. Tap to allow camera access.`; });
                     renderStudent();
                 } else if (Array.isArray(result.assignedStudents)) {
-                    // List synchronized from owner (e.g. owner sent more students or took some)
                     const newServerList = result.assignedStudents;
                     const localCompletedUids = new Set(assignedStudents.filter(s => s.completed).map(s => s.uid));
                     newServerList.forEach(s => {
@@ -775,7 +949,6 @@
                         const currentStudent = assignedStudents[currentIndex];
                         const currentUid = currentStudent ? currentStudent.uid : null;
 
-                        // Safeguard: If currently uploading or previewing snapshot, DO NOT change active student under user's feet!
                         if (isUploading || isViewingSnapshot) {
                             const foundInNew = newServerList.findIndex(s => s.uid === currentUid);
                             if (foundInNew !== -1) {
@@ -788,7 +961,6 @@
                                 updateProgressOnly();
                             }
                         } else {
-                            // Live framing mode: update assignedStudents safely
                             assignedStudents = newServerList;
                             if (currentUid) {
                                 const foundIndex = assignedStudents.findIndex(s => s.uid === currentUid);
@@ -806,6 +978,12 @@
                                 renderStudent();
                             }
                         }
+                    }
+
+                    if (!stream && assignedStudents.length > 0 && !isViewingSnapshot) {
+                        await startCamera().catch(err => {
+                            statusBox.textContent = `Camera error: ${err.message}`;
+                        });
                     }
                 }
             } else if (result.status === 'pairing') {
@@ -846,8 +1024,16 @@
     }
 
     btnFlip.addEventListener('click', async () => {
+        btnFlip.disabled = true;
         facingMode = (facingMode === 'environment') ? 'user' : 'environment';
-        try { await startCamera(); } catch (e) {}
+        updateMirrorState();
+        try {
+            await startCamera();
+        } catch (e) {
+            statusBox.textContent = `Camera flip error: ${e.message}`;
+        } finally {
+            btnFlip.disabled = false;
+        }
     });
 
     btnCapture.addEventListener('click', takeSnapshot);
