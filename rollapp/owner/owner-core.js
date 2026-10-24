@@ -3695,10 +3695,10 @@
               <div>
                 <div class="studio-hero-title">
                   <span class="studio-hero-icon"><i class="fas fa-camera"></i></span>
-                  Student Profile Photo Studio
+                  Profile Photo Capture Studio
                 </div>
                 <p class="text-secondary mb-0" style="color: #94a3b8 !important; font-size: 14px; max-width: 680px;">
-                  High-speed batch photography workstation with centered face guidance, high-clarity 0.90 WebP direct R2 cloud storage, and dual-device parallel distribution.
+                  High-speed batch photography workstation with centered face guidance, high-clarity 0.90 WebP direct R2 cloud storage, and dual-device parallel distribution for students and teachers.
                 </p>
               </div>
               <div class="d-flex align-items-center gap-2">
@@ -3709,7 +3709,7 @@
             <div class="studio-stats-grid">
               <div class="studio-stat-box">
                 <div id="ownerPhotoStatTotal" class="studio-stat-val">0</div>
-                <div class="studio-stat-lbl">Total Students</div>
+                <div id="ownerPhotoStatTotalLbl" class="studio-stat-lbl">Total Students</div>
               </div>
               <div class="studio-stat-box">
                 <div id="ownerPhotoStatDone" class="studio-stat-val text-success">0</div>
@@ -3723,16 +3723,31 @@
           </div>
 
           <div class="studio-selectors-card">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 pb-3 border-bottom border-secondary border-opacity-25">
+              <div class="d-flex align-items-center gap-2">
+                <span class="text-light small fw-bold"><i class="fas fa-users-cog me-1 text-primary"></i> Target Profile:</span>
+                <div class="btn-group" role="group" id="ownerPhotoRoleGroup" aria-label="Target Profile Role">
+                  <button type="button" class="btn btn-sm btn-primary active fw-semibold" id="ownerPhotoRoleStudent" style="border-radius: 8px 0 0 8px;">
+                    <i class="fas fa-user-graduate me-1"></i> Students
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary text-light fw-semibold" id="ownerPhotoRoleTeacher" style="border-radius: 0 8px 8px 0;">
+                    <i class="fas fa-chalkboard-teacher me-1"></i> Teachers &amp; Staff
+                  </button>
+                </div>
+              </div>
+              <span id="ownerPhotoRoleHint" class="badge bg-dark border border-secondary text-info">Class &amp; Section filtering</span>
+            </div>
+
             <div class="row g-3">
               <div class="col-md-4">
                 <label class="studio-sel-label" for="ownerPhotoSchool"><i class="fas fa-school me-1 text-primary"></i> 1. Select School</label>
                 <select id="ownerPhotoSchool" class="form-select studio-sel-input"><option value="">Select school</option></select>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-4" id="ownerPhotoClassCol">
                 <label class="studio-sel-label" for="ownerPhotoClass"><i class="fas fa-graduation-cap me-1 text-primary"></i> 2. Select Class</label>
                 <select id="ownerPhotoClass" class="form-select studio-sel-input" disabled><option value="">Select school first</option></select>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-4" id="ownerPhotoSectionCol">
                 <label class="studio-sel-label" for="ownerPhotoSection"><i class="fas fa-users-rectangle me-1 text-primary"></i> 3. Select Section</label>
                 <select id="ownerPhotoSection" class="form-select studio-sel-input" disabled><option value="">Select class first</option></select>
               </div>
@@ -3849,22 +3864,31 @@
             <aside class="studio-queue-pane">
               <div class="studio-student-card">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle text-uppercase" style="font-size:10px; font-weight:800; letter-spacing:0.05em;">Current Student</span>
+                  <span id="ownerPhotoQueueRoleBadge" class="badge bg-primary-subtle text-primary border border-primary-subtle text-uppercase" style="font-size:10px; font-weight:800; letter-spacing:0.05em;">Current Student</span>
                   <span class="text-secondary small">Live Queue</span>
                 </div>
                 <div id="ownerPhotoStudentDetails" class="row g-2"></div>
               </div>
 
               <div class="d-flex justify-content-between align-items-center mb-2 px-1">
-                <h3 class="h6 mb-0 text-light fw-bold">Student Sequence</h3>
+                <h3 id="ownerPhotoSeqTitle" class="h6 mb-0 text-light fw-bold">Student Sequence</h3>
                 <span class="badge bg-dark border border-secondary text-secondary small">Auto-sequencing</span>
               </div>
-              <p class="small text-secondary mb-2 px-1" style="font-size:12px;">Completed students mark green. Skipped students automatically queue at the end.</p>
+              <p id="ownerPhotoSeqHelp" class="small text-secondary mb-2 px-1" style="font-size:12px;">Completed students mark green. Skipped students automatically queue at the end.</p>
               <ol id="ownerPhotoPendingList" class="ps-0 mb-0 list-unstyled" style="overflow-y:auto; flex:1; max-height: calc(100vh - 350px);"></ol>
             </aside>
           </div>
         </div>`;
         main.appendChild(section);
+        const roleStudentBtn = section.querySelector('#ownerPhotoRoleStudent');
+        const roleTeacherBtn = section.querySelector('#ownerPhotoRoleTeacher');
+        const roleHint = section.querySelector('#ownerPhotoRoleHint');
+        const classCol = section.querySelector('#ownerPhotoClassCol');
+        const sectionCol = section.querySelector('#ownerPhotoSectionCol');
+        const statTotalLbl = section.querySelector('#ownerPhotoStatTotalLbl');
+        const queueRoleBadge = section.querySelector('#ownerPhotoQueueRoleBadge');
+        const seqTitle = section.querySelector('#ownerPhotoSeqTitle');
+        const seqHelp = section.querySelector('#ownerPhotoSeqHelp');
         const schoolSelect = section.querySelector('#ownerPhotoSchool'); const classSelect = section.querySelector('#ownerPhotoClass'); const sectionSelect = section.querySelector('#ownerPhotoSection');
         const lockButton = section.querySelector('#ownerPhotoLock'); const rosterElement = section.querySelector('#ownerPhotoRoster'); const modal = section.querySelector('#ownerPhotoCameraModal');
         function openStudioModal() {
@@ -3895,8 +3919,64 @@
         const fullscreenToggle = section.querySelector('#ownerPhotoFullscreenToggle');
         const accountCacheBySchool = new Map(); const classCacheBySchool = new Map();
         let accounts = []; let classes = []; let selectedStudents = []; let pendingStudents = []; let skippedStudents = []; let captureIndex = 0; let cameraStream = null; let selectionLocked = false;
+        let captureRole = 'student';
         let remoteCaptureSession = null; let remoteCaptureTimer = null; let remoteCaptureBusy = false; let remotePairingCode = ''; let currentRemoteAssigned = [];
         let currentSnapshotBlob = null; let uploadAbortController = null; let isUploading = false;
+
+        function setCaptureRole(role) {
+            if (selectionLocked || captureRole === role) return;
+            captureRole = role;
+            const isTeacher = captureRole === 'teacher';
+            if (isTeacher) {
+                if (roleStudentBtn) {
+                    roleStudentBtn.classList.remove('btn-primary', 'active');
+                    roleStudentBtn.classList.add('btn-outline-secondary', 'text-light');
+                }
+                if (roleTeacherBtn) {
+                    roleTeacherBtn.classList.remove('btn-outline-secondary', 'text-light');
+                    roleTeacherBtn.classList.add('btn-primary', 'active');
+                }
+                if (roleHint) {
+                    roleHint.textContent = 'School-wide Teacher roster';
+                    roleHint.className = 'badge bg-dark border border-secondary text-warning';
+                }
+                if (statTotalLbl) statTotalLbl.textContent = 'Total Teachers';
+                if (classCol) classCol.style.opacity = '0.5';
+                if (sectionCol) sectionCol.style.opacity = '0.5';
+                classSelect.disabled = true;
+                classSelect.replaceChildren(new Option('School-wide (All departments)', ''));
+                sectionSelect.disabled = true;
+                sectionSelect.replaceChildren(new Option('All Sections (Not required)', ''));
+                if (queueRoleBadge) queueRoleBadge.textContent = 'Current Teacher';
+                if (seqTitle) seqTitle.textContent = 'Teacher Sequence';
+                if (seqHelp) seqHelp.textContent = 'Completed teachers mark green. Skipped teachers automatically queue at the end.';
+            } else {
+                if (roleTeacherBtn) {
+                    roleTeacherBtn.classList.remove('btn-primary', 'active');
+                    roleTeacherBtn.classList.add('btn-outline-secondary', 'text-light');
+                }
+                if (roleStudentBtn) {
+                    roleStudentBtn.classList.remove('btn-outline-secondary', 'text-light');
+                    roleStudentBtn.classList.add('btn-primary', 'active');
+                }
+                if (roleHint) {
+                    roleHint.textContent = 'Class & Section filtering';
+                    roleHint.className = 'badge bg-dark border border-secondary text-info';
+                }
+                if (statTotalLbl) statTotalLbl.textContent = 'Total Students';
+                if (classCol) classCol.style.opacity = '1';
+                if (sectionCol) sectionCol.style.opacity = '1';
+                renderClassOptions();
+                populateSections();
+                if (queueRoleBadge) queueRoleBadge.textContent = 'Current Student';
+                if (seqTitle) seqTitle.textContent = 'Student Sequence';
+                if (seqHelp) seqHelp.textContent = 'Completed students mark green. Skipped students automatically queue at the end.';
+            }
+            refreshRoster();
+        }
+        if (roleStudentBtn) roleStudentBtn.addEventListener('click', () => setCaptureRole('student'));
+        if (roleTeacherBtn) roleTeacherBtn.addEventListener('click', () => setCaptureRole('teacher'));
+
         function isErpSchool(school) {
             if (!school) return false;
             const type = String(school.type || school.institutionType || school.schoolType || school.productType || '').trim().toLowerCase();
@@ -3915,10 +3995,17 @@
                 schoolSelect.value = '';
                 classes = [];
                 accounts = [];
-                classSelect.replaceChildren(new Option('Select school first', ''));
-                classSelect.disabled = true;
-                sectionSelect.replaceChildren(new Option('Select class first', ''));
-                sectionSelect.disabled = true;
+                if (captureRole === 'teacher') {
+                    classSelect.replaceChildren(new Option('School-wide (All departments)', ''));
+                    classSelect.disabled = true;
+                    sectionSelect.replaceChildren(new Option('All Sections (Not required)', ''));
+                    sectionSelect.disabled = true;
+                } else {
+                    classSelect.replaceChildren(new Option('Select school first', ''));
+                    classSelect.disabled = true;
+                    sectionSelect.replaceChildren(new Option('Select class first', ''));
+                    sectionSelect.disabled = true;
+                }
                 refreshRoster();
             }
         }
@@ -3932,6 +4019,11 @@
             const loadedClasses = [...map.values()].sort((a, b) => a.name.localeCompare(b.name)); classCacheBySchool.set(schoolId, loadedClasses); return loadedClasses;
         }
         function renderClassOptions() {
+            if (captureRole === 'teacher') {
+                classSelect.replaceChildren(new Option('School-wide (All departments)', ''));
+                classSelect.disabled = true;
+                return;
+            }
             classSelect.replaceChildren(new Option(classes.length ? 'Select class' : 'No classes found', ''));
             classes.forEach(record => classSelect.add(new Option(record.name, record.id)));
             classSelect.disabled = !classes.length || selectionLocked;
@@ -3939,8 +4031,27 @@
         async function loadPhotoAccounts(schoolId = schoolSelect.value) {
             if (accountCacheBySchool.has(schoolId)) return accountCacheBySchool.get(schoolId);
             if (!database) throw new Error('The owner database is not connected.');
-            const snapshot = await database.ref(`schoolUsers/${schoolId}`).once('value');
-            const loadedAccounts = Object.entries(snapshot.val() || {}).map(([uid, profile]) => ({ uid, ...(profile || {}), schoolId, _schoolUserLinked: true }));
+            const [schoolUsersSnap, usersSnap] = await Promise.all([
+                database.ref(`schoolUsers/${schoolId}`).once('value').catch(() => null),
+                database.ref('users').orderByChild('schoolId').equalTo(schoolId).once('value').catch(() => null)
+            ]);
+            const accountsMap = new Map();
+            if (usersSnap && usersSnap.val()) {
+                Object.entries(usersSnap.val()).forEach(([uid, profile]) => {
+                    if (profile && typeof profile === 'object') {
+                        accountsMap.set(uid, { uid, ...profile, schoolId });
+                    }
+                });
+            }
+            if (schoolUsersSnap && schoolUsersSnap.val()) {
+                Object.entries(schoolUsersSnap.val()).forEach(([uid, profile]) => {
+                    if (profile && typeof profile === 'object') {
+                        const existing = accountsMap.get(uid) || {};
+                        accountsMap.set(uid, { ...existing, ...profile, uid, schoolId, _schoolUserLinked: true });
+                    }
+                });
+            }
+            const loadedAccounts = [...accountsMap.values()];
             accountCacheBySchool.set(schoolId, loadedAccounts); return loadedAccounts;
         }
         const normalizedRoll = value => String(value || '').trim().toLowerCase().replace(/^0+(?=\d)/, '');
@@ -3950,41 +4061,94 @@
                 const nameMatch = String(profile.className || profile.courseName || profile.course || '').trim().toLowerCase() === selectedClass.name.toLowerCase();
                 return ids.includes(selectedClass.id) || nameMatch;
         };
-        function filteredStudents() {
+        function isAccountTeacher(profile) {
+            if (!profile) return false;
+            const role = String(profile.role || profile.accountType || '').trim().toLowerCase();
+            if (role === 'teacher' || role === 'classteacher') return true;
+            if (Array.isArray(profile.roles) && profile.roles.some(r => String(r).toLowerCase().includes('teacher'))) return true;
+            if (profile.teacherType || profile.designation || profile.subjectsTaught) return true;
+            return false;
+        }
+        function isAccountStudent(profile) {
+            if (!profile) return false;
+            if (isAccountTeacher(profile)) return false;
+            const role = String(profile.role || profile.accountType || '').trim().toLowerCase();
+            return role === 'student' || (!role && (!!profile.classRoll || !!profile.classId || !!profile.section));
+        }
+        function filteredAccounts() {
+            if (captureRole === 'teacher') {
+                if (!schoolSelect.value) return [];
+                return accounts.filter(isAccountTeacher).sort((a, b) => {
+                    const nameA = String(a.name || a.displayName || a.email || '').trim();
+                    const nameB = String(b.name || b.displayName || b.email || '').trim();
+                    return nameA.localeCompare(nameB);
+                });
+            }
             const selectedClass = classes.find(record => record.id === classSelect.value);
             if (!selectedClass || !sectionSelect.value) return [];
             return accounts.filter(profile => {
-                const role = String(profile.role || profile.accountType || '').trim().toLowerCase();
-                const isStudent = role === 'student' || (!role && !!profile.classRoll);
-                return isStudent && profileClassMatches(profile, selectedClass) && String(profile.section || '').trim().toLowerCase() === sectionSelect.value.toLowerCase();
+                return isAccountStudent(profile) && profileClassMatches(profile, selectedClass) && String(profile.section || '').trim().toLowerCase() === sectionSelect.value.toLowerCase();
             }).sort((a, b) => Number(a.classRoll || 0) - Number(b.classRoll || 0) || String(a.name || '').localeCompare(String(b.name || '')));
         }
+        const filteredStudents = filteredAccounts;
         function refreshRoster() {
-            const students = filteredStudents();
-            lockButton.disabled = selectionLocked || !schoolSelect.value || !classSelect.value || !sectionSelect.value || !students.length;
+            const list = filteredAccounts();
             const statTotal = section.querySelector('#ownerPhotoStatTotal');
             const statDone = section.querySelector('#ownerPhotoStatDone');
             const statPending = section.querySelector('#ownerPhotoStatPending');
+            const statusLabel = section.querySelector('#ownerPhotoStatus');
+            const isTeacher = captureRole === 'teacher';
 
+            if (isTeacher) {
+                lockButton.disabled = selectionLocked || !schoolSelect.value || !list.length;
+                if (!schoolSelect.value) {
+                    rosterElement.innerHTML = '<i class="fas fa-info-circle me-1 text-primary"></i> Select a school to view teacher roster details and photo status.';
+                    if (statusLabel) statusLabel.textContent = 'Select a school to unlock studio.';
+                    if (statTotal) statTotal.textContent = '0';
+                    if (statDone) statDone.textContent = '0';
+                    if (statPending) statPending.textContent = '0';
+                    return;
+                }
+                const alreadyHasPhoto = list.filter(profilePhotoValue).length;
+                const needsPhoto = list.length - alreadyHasPhoto;
+                if (statTotal) statTotal.textContent = String(list.length);
+                if (statDone) statDone.textContent = String(alreadyHasPhoto);
+                if (statPending) statPending.textContent = String(needsPhoto);
+
+                if (list.length) {
+                    rosterElement.innerHTML = `<div class="d-flex align-items-center gap-2 flex-wrap"><strong>${list.length} teachers loaded:</strong> <span class="badge bg-warning-subtle text-warning border border-warning-subtle">${needsPhoto} need photos</span> <span class="badge bg-success-subtle text-success border border-success-subtle">${alreadyHasPhoto} ready</span> <span class="text-muted ms-auto small">School-wide roster</span></div>`;
+                    if (statusLabel) statusLabel.textContent = `${list.length} teacher(s) available. Click Lock to enter studio.`;
+                } else {
+                    rosterElement.innerHTML = '<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i> No teacher accounts are linked to this school yet.</span>';
+                    if (statusLabel) statusLabel.textContent = 'No teachers found in this school.';
+                }
+                return;
+            }
+
+            // Student mode
+            lockButton.disabled = selectionLocked || !schoolSelect.value || !classSelect.value || !sectionSelect.value || !list.length;
             if (!schoolSelect.value || !classSelect.value || !sectionSelect.value) {
                 rosterElement.innerHTML = '<i class="fas fa-info-circle me-1 text-primary"></i> Select a school, class, and section to view student roster details and photo status.';
+                if (statusLabel) statusLabel.textContent = 'Choose a section to unlock studio.';
                 if (statTotal) statTotal.textContent = '0';
                 if (statDone) statDone.textContent = '0';
                 if (statPending) statPending.textContent = '0';
                 return;
             }
-            const alreadyHasPhoto = students.filter(profilePhotoValue).length;
-            const needsPhoto = students.length - alreadyHasPhoto;
-            if (statTotal) statTotal.textContent = String(students.length);
+            const alreadyHasPhoto = list.filter(profilePhotoValue).length;
+            const needsPhoto = list.length - alreadyHasPhoto;
+            if (statTotal) statTotal.textContent = String(list.length);
             if (statDone) statDone.textContent = String(alreadyHasPhoto);
             if (statPending) statPending.textContent = String(needsPhoto);
 
-            rosterElement.innerHTML = students.length
-                ? `<div class="d-flex align-items-center gap-2 flex-wrap"><strong>${students.length} students loaded:</strong> <span class="badge bg-warning-subtle text-warning border border-warning-subtle">${needsPhoto} need photos</span> <span class="badge bg-success-subtle text-success border border-success-subtle">${alreadyHasPhoto} ready</span> <span class="text-muted ms-auto small">Cached in-memory</span></div>`
+            rosterElement.innerHTML = list.length
+                ? `<div class="d-flex align-items-center gap-2 flex-wrap"><strong>${list.length} students loaded:</strong> <span class="badge bg-warning-subtle text-warning border border-warning-subtle">${needsPhoto} need photos</span> <span class="badge bg-success-subtle text-success border border-success-subtle">${alreadyHasPhoto} ready</span> <span class="text-muted ms-auto small">Cached in-memory</span></div>`
                 : '<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i> No students with matching class and section details were found.</span>';
+            if (statusLabel) statusLabel.textContent = list.length ? 'Ready to lock selection.' : 'No students found.';
         }
         function renderPendingStudents() {
             pendingList.replaceChildren();
+            const isTeacher = captureRole === 'teacher';
             selectedStudents.forEach((student, index) => {
                 const item = document.createElement('li');
                 item.className = 'studio-queue-item d-flex justify-content-between align-items-center';
@@ -4003,7 +4167,11 @@
                 seq.textContent = `#${index + 1}`;
                 const name = document.createElement('span');
                 name.className = isCurrent ? 'fw-bold text-white text-truncate' : 'text-light text-truncate';
-                name.textContent = `${student.name || student.email || 'Unnamed student'}${student.classRoll ? ` (Roll ${student.classRoll})` : ''}`;
+                if (isTeacher) {
+                    name.textContent = `${student.name || student.email || 'Unnamed teacher'}${student.designation ? ` (${student.designation})` : ''}`;
+                } else {
+                    name.textContent = `${student.name || student.email || 'Unnamed student'}${student.classRoll ? ` (Roll ${student.classRoll})` : ''}`;
+                }
                 left.append(seq, name);
 
                 const status = document.createElement('span');
@@ -4183,10 +4351,12 @@
         }
         async function startRemoteCapture() {
             if (typeof window.QRCode !== 'function') throw new Error('QR code support did not load. Reload the owner portal and try again.');
-            if (pendingStudents.length < 2) throw new Error('You need at least 2 pending students to divide the list between two devices.');
+            const isTeacher = captureRole === 'teacher';
+            const roleNoun = isTeacher ? 'teachers' : 'students';
+            if (pendingStudents.length < 2) throw new Error(`You need at least 2 pending ${roleNoun} to divide the list between two devices.`);
 
             const remaining = pendingStudents.slice(captureIndex + 1);
-            if (remaining.length === 0) throw new Error('No upcoming students remaining to assign to a remote device.');
+            if (remaining.length === 0) throw new Error(`No upcoming ${roleNoun} remaining to assign to a remote device.`);
             const halfRemaining = Math.ceil(remaining.length / 2);
             const remoteList = remaining.slice(halfRemaining);
             const keepRemaining = remaining.slice(0, halfRemaining);
@@ -4203,6 +4373,7 @@
             const owner = ownerAuth?.auth().currentUser;
             if (!owner) throw new Error('Sign in again before connecting a camera device.');
             const token = await owner.getIdToken();
+            const selectedSchool = (schools || []).find(s => String(s.id) === String(schoolSelect.value));
             const response = await fetch(remoteCaptureUrl('create'), {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -4210,10 +4381,11 @@
                     schoolId: schoolSelect.value,
                     assignedStudents: remoteList.map(s => ({
                         uid: s.uid,
-                        name: s.name || '',
-                        classRoll: s.classRoll || '',
-                        section: s.section || '',
-                        fatherName: s.fatherName || s.father_name || s.father || ''
+                        name: s.name || s.displayName || '',
+                        classRoll: isTeacher ? (s.designation || s.teacherId || 'Teacher') : (s.classRoll || ''),
+                        section: isTeacher ? (s.department || selectedSchool?.name || 'Staff') : (s.section || ''),
+                        fatherName: isTeacher ? (s.email || s.phone || 'Teacher Account') : (s.fatherName || s.father_name || s.father || ''),
+                        role: isTeacher ? 'teacher' : 'student'
                     }))
                 }),
                 credentials: 'omit',
@@ -4233,7 +4405,7 @@
             const captureUrl = new URL('../remote-photo-capture.html', window.location.href);
             captureUrl.hash = new URLSearchParams({ session: result.sessionId, token: result.qrToken }).toString();
             new window.QRCode(remoteQr, { text: captureUrl.href, width: 180, height: 180, colorDark: '#17243a', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.H });
-            remoteStatus.textContent = `Scan QR code with the second device to assign ${remoteList.length} students to it.`;
+            remoteStatus.textContent = `Scan QR code with the second device to assign ${remoteList.length} ${roleNoun} to it.`;
             remoteCaptureTimer = window.setInterval(pollRemoteCaptureStatus, 2500);
             await pollRemoteCaptureStatus();
         }
@@ -4296,54 +4468,87 @@
                 return;
             }
             selectionLocked = false; stopCamera(); resetSnapshotView(); closeStudioModal();
+            const isTeacher = captureRole === 'teacher';
             const modalTitle = section.querySelector('#ownerPhotoModalTitle');
-            if (modalTitle) modalTitle.textContent = 'Capture student profile photo';
+            if (modalTitle) modalTitle.textContent = isTeacher ? 'Capture teacher profile photo' : 'Capture student profile photo';
             const classBadge = section.querySelector('#ownerPhotoClassBadge');
             if (classBadge) classBadge.textContent = '';
-            schoolSelect.disabled = false; classSelect.disabled = !schoolSelect.value || !classes.length; sectionSelect.disabled = !classSelect.value || !sectionSelect.value;
+            schoolSelect.disabled = false;
+            if (roleStudentBtn) roleStudentBtn.disabled = false;
+            if (roleTeacherBtn) roleTeacherBtn.disabled = false;
+            if (isTeacher) {
+                classSelect.disabled = true;
+                sectionSelect.disabled = true;
+            } else {
+                classSelect.disabled = !schoolSelect.value || !classes.length;
+                sectionSelect.disabled = !classSelect.value || !sectionSelect.value;
+            }
             lockButton.innerHTML = '<i class="fas fa-lock me-2"></i> Lock Selection &amp; Enter Fullscreen Studio';
             lockButton.classList.remove('btn-outline-secondary'); lockButton.classList.add('btn-primary'); refreshRoster();
         }
         function renderCurrentStudent() {
             resetSnapshotView();
             const student = pendingStudents[captureIndex];
+            const isTeacher = captureRole === 'teacher';
+            const roleNoun = isTeacher ? 'Teacher' : 'Student';
             details.replaceChildren();
+            const modalTitle = section.querySelector('#ownerPhotoModalTitle');
+            const classBadge = section.querySelector('#ownerPhotoClassBadge');
+            if (modalTitle) modalTitle.textContent = isTeacher ? 'Capture teacher profile photo' : 'Capture student profile photo';
+            if (queueRoleBadge) queueRoleBadge.textContent = `Current ${roleNoun}`;
+            if (seqTitle) seqTitle.textContent = `${roleNoun} Sequence`;
+            if (seqHelp) seqHelp.textContent = `Completed ${isTeacher ? 'teachers' : 'students'} mark green. Skipped ${isTeacher ? 'teachers' : 'students'} automatically queue at the end.`;
+
             if (!student) {
                 if (skippedStudents.length > 0) {
                     pendingStudents = skippedStudents;
                     skippedStudents = [];
                     captureIndex = 0;
-                    notify('Regular student queue finished! Now capturing skipped students.', 'info');
+                    notify(`Regular ${isTeacher ? 'teacher' : 'student'} queue finished! Now capturing skipped ${isTeacher ? 'teachers' : 'students'}.`, 'info');
                     renderCurrentStudent();
                     return;
                 }
-                const modalTitle = section.querySelector('#ownerPhotoModalTitle');
-                if (modalTitle) modalTitle.textContent = 'Capture student profile photo';
-                const classBadge = section.querySelector('#ownerPhotoClassBadge');
                 if (classBadge) classBadge.textContent = '';
-                section.querySelector('#ownerPhotoProgress').textContent = pendingStudents.length ? `Complete: all ${pendingStudents.length} assigned photos processed on this device.` : `${selectedStudents.length} students selected; no photos are pending.`;
-                cameraStatus.textContent = 'All assigned students on this device have been processed.';
+                section.querySelector('#ownerPhotoProgress').textContent = pendingStudents.length ? `Complete: all ${pendingStudents.length} assigned photos processed on this device.` : `${selectedStudents.length} ${isTeacher ? 'teachers' : 'students'} selected; no photos are pending.`;
+                cameraStatus.textContent = `All assigned ${isTeacher ? 'teachers' : 'students'} on this device have been processed.`;
                 captureButton.hidden = true; skipButton.hidden = true; finishButton.hidden = false;
                 renderPendingStudents();
                 return;
             }
             const isSkippedRound = student._isSkippedRound;
-            const className = classes.find(record => record.id === classSelect.value)?.name || 'Class';
-            const modalTitle = section.querySelector('#ownerPhotoModalTitle');
-            if (modalTitle) modalTitle.textContent = 'Capture student profile photo';
-            const classBadge = section.querySelector('#ownerPhotoClassBadge');
-            if (classBadge) classBadge.textContent = `${className} · Section ${student.section || ''}`;
-            section.querySelector('#ownerPhotoProgress').textContent = `Photo ${captureIndex + 1} of ${pendingStudents.length}${isSkippedRound ? ' · Skipped queue' : ''} · Roll #${student.classRoll || 'N/A'}`;
-            const fatherName = student.fatherName || student.father_name || student.fathersName || student.father || student.guardianName || student.parentName || student.parent_name || 'Not provided';
-            const fatherMobile = student.fatherMobile || student.fatherMobileNumber || student.fatherPhone || student.guardianMobile || student.guardianPhone || student.parentMobile || student.parentPhone || student.emergencyContact || 'Not provided';
-            const values = [
-                ['Student Name', student.name || 'Not provided'],
-                ['Roll Number', student.classRoll ? `#${student.classRoll}` : 'Not provided'],
-                ['Class / Section', `${className} / ${student.section || ''}`],
-                ['Father / Guardian', fatherName],
-                ['Student Mobile', student.mobile || student.phone || 'Not provided'],
-                ['Father Mobile', fatherMobile]
-            ];
+            const selectedSchool = (schools || []).find(s => String(s.id) === String(schoolSelect.value));
+            let values = [];
+            if (isTeacher) {
+                if (classBadge) classBadge.textContent = `${student.designation || 'Teacher / Staff'} · ${selectedSchool?.name || 'School Staff'}`;
+                section.querySelector('#ownerPhotoProgress').textContent = `Photo ${captureIndex + 1} of ${pendingStudents.length}${isSkippedRound ? ' · Skipped queue' : ''} · ${student.name || 'Teacher'}`;
+                const designation = student.designation || student.title || 'Teacher / Staff';
+                const subjects = Array.isArray(student.subjectsTaught) ? student.subjectsTaught.join(', ') : (student.subjectsTaught || student.subject || 'All General Subjects');
+                const teacherId = student.teacherId || student.employeeId || student.id || student.uid?.slice(0, 8) || 'N/A';
+                values = [
+                    ['Teacher Name', student.name || student.displayName || 'Not provided'],
+                    ['Employee / ID', teacherId],
+                    ['Designation', designation],
+                    ['Subjects Taught', subjects],
+                    ['Mobile Number', student.phone || student.mobile || 'Not provided'],
+                    ['Email Address', student.email || 'Not provided']
+                ];
+                cameraStatus.textContent = 'Check teacher details, position teacher in frame, then capture.';
+            } else {
+                const className = classes.find(record => record.id === classSelect.value)?.name || 'Class';
+                if (classBadge) classBadge.textContent = `${className} · Section ${student.section || ''}`;
+                section.querySelector('#ownerPhotoProgress').textContent = `Photo ${captureIndex + 1} of ${pendingStudents.length}${isSkippedRound ? ' · Skipped queue' : ''} · Roll #${student.classRoll || 'N/A'}`;
+                const fatherName = student.fatherName || student.father_name || student.fathersName || student.father || student.guardianName || student.parentName || student.parent_name || 'Not provided';
+                const fatherMobile = student.fatherMobile || student.fatherMobileNumber || student.fatherPhone || student.guardianMobile || student.guardianPhone || student.parentMobile || student.parentPhone || student.emergencyContact || 'Not provided';
+                values = [
+                    ['Student Name', student.name || 'Not provided'],
+                    ['Roll Number', student.classRoll ? `#${student.classRoll}` : 'Not provided'],
+                    ['Class / Section', `${className} / ${student.section || ''}`],
+                    ['Father / Guardian', fatherName],
+                    ['Student Mobile', student.mobile || student.phone || 'Not provided'],
+                    ['Father Mobile', fatherMobile]
+                ];
+                cameraStatus.textContent = 'Check student details, position student in frame, then capture.';
+            }
             values.forEach(([label, value]) => {
                 const cell = document.createElement('div');
                 cell.className = 'col-6 small';
@@ -4358,7 +4563,6 @@
                 cell.append(strong, valSpan);
                 details.append(cell);
             });
-            cameraStatus.textContent = 'Check student details, position student in frame, then capture.';
             captureButton.hidden = false; skipButton.hidden = false; finishButton.hidden = true;
             captureButton.disabled = !cameraStream;
             renderPendingStudents();
@@ -4461,10 +4665,11 @@
                     [`users/${student.uid}/profilePhotoKey`]: result.key,
                     [`users/${student.uid}/profilePhotoUpdatedAt`]: timestamp
                 };
-                if (student._schoolUserLinked) {
-                    updates[`schoolUsers/${student.schoolId}/${student.uid}/profilePhoto`] = result.publicUrl;
-                    updates[`schoolUsers/${student.schoolId}/${student.uid}/profilePhotoKey`] = result.key;
-                    updates[`schoolUsers/${student.schoolId}/${student.uid}/profilePhotoUpdatedAt`] = timestamp;
+                const schoolId = student.schoolId || schoolSelect.value;
+                if (schoolId) {
+                    updates[`schoolUsers/${schoolId}/${student.uid}/profilePhoto`] = result.publicUrl;
+                    updates[`schoolUsers/${schoolId}/${student.uid}/profilePhotoKey`] = result.key;
+                    updates[`schoolUsers/${schoolId}/${student.uid}/profilePhotoUpdatedAt`] = timestamp;
                 }
                 await database.ref().update(updates);
                 student.profilePhoto = result.publicUrl; student.profilePhotoKey = result.key; student.profilePhotoUpdatedAt = timestamp; student._photoCaptureStatus = 'Uploaded';
@@ -4496,12 +4701,14 @@
         }
         async function sendRemainingStudentsToPhone() {
             if (!remoteCaptureSession) return notify('No remote device is connected.', 'warning');
+            const isTeacher = captureRole === 'teacher';
+            const roleNoun = isTeacher ? 'teachers' : 'students';
             const availableToSend = pendingStudents.slice(captureIndex + 1);
-            if (!availableToSend.length) return notify('You have no remaining upcoming students to send.', 'warning');
+            if (!availableToSend.length) return notify(`You have no remaining upcoming ${roleNoun} to send.`, 'warning');
 
             let count = availableToSend.length;
             if (availableToSend.length > 1) {
-                const answer = window.prompt(`How many upcoming students to send to remote device? (1 to ${availableToSend.length}, or press OK for all ${availableToSend.length}):`, String(availableToSend.length));
+                const answer = window.prompt(`How many upcoming ${roleNoun} to send to remote device? (1 to ${availableToSend.length}, or press OK for all ${availableToSend.length}):`, String(availableToSend.length));
                 if (answer === null) return;
                 const parsed = parseInt(String(answer).trim(), 10);
                 if (!isNaN(parsed) && parsed >= 1 && parsed <= availableToSend.length) {
@@ -4515,39 +4722,43 @@
                 sendStudentsButton.disabled = true;
                 const existingUncompleted = currentRemoteAssigned.filter(s => !s.completed);
                 const existingCompleted = currentRemoteAssigned.filter(s => s.completed);
+                const selectedSchool = (schools || []).find(s => String(s.id) === String(schoolSelect.value));
                 const updatedList = [
                     ...existingCompleted,
                     ...existingUncompleted,
                     ...toSend.map(s => ({
                         uid: s.uid,
-                        name: s.name || '',
-                        classRoll: s.classRoll || '',
-                        section: s.section || '',
-                        fatherName: s.fatherName || s.father || ''
+                        name: s.name || s.displayName || '',
+                        classRoll: isTeacher ? (s.designation || s.teacherId || 'Teacher') : (s.classRoll || ''),
+                        section: isTeacher ? (s.department || selectedSchool?.name || 'Staff') : (s.section || ''),
+                        fatherName: isTeacher ? (s.email || s.phone || 'Teacher Account') : (s.fatherName || s.father || ''),
+                        role: isTeacher ? 'teacher' : 'student'
                     }))
                 ];
                 await ownerRemoteCaptureRequest('sync-students', { assignedStudents: updatedList });
                 pendingStudents = [...pendingStudents.slice(0, captureIndex + 1), ...toKeep];
-                notify(`Transferred ${toSend.length} student(s) to the remote phone!`, 'success');
+                notify(`Transferred ${toSend.length} ${roleNoun} to the remote phone!`, 'success');
                 renderCurrentStudent();
                 await pollRemoteCaptureStatus();
             } catch (error) {
-                notify(error.message || 'Could not transfer students to phone.', 'danger');
+                notify(error.message || `Could not transfer ${roleNoun} to phone.`, 'danger');
             } finally {
                 sendStudentsButton.disabled = false;
             }
         }
         async function takeRemainingStudentsFromPhone() {
             if (!remoteCaptureSession) return notify('No remote device is connected.', 'warning');
+            const isTeacher = captureRole === 'teacher';
+            const roleNoun = isTeacher ? 'teachers' : 'students';
             try {
                 takeStudentsButton.disabled = true;
                 await pollRemoteCaptureStatus();
                 const uncompleted = currentRemoteAssigned.filter(s => !s.completed);
-                if (!uncompleted.length) return notify('Remote phone has no uncompleted students to take.', 'warning');
+                if (!uncompleted.length) return notify(`Remote phone has no uncompleted ${roleNoun} to take.`, 'warning');
 
                 let count = uncompleted.length;
                 if (uncompleted.length > 1) {
-                    const answer = window.prompt(`How many uncompleted students to reclaim from remote phone? (1 to ${uncompleted.length}, or press OK for all ${uncompleted.length}):`, String(uncompleted.length));
+                    const answer = window.prompt(`How many uncompleted ${roleNoun} to reclaim from remote phone? (1 to ${uncompleted.length}, or press OK for all ${uncompleted.length}):`, String(uncompleted.length));
                     if (answer === null) return;
                     const parsed = parseInt(String(answer).trim(), 10);
                     if (!isNaN(parsed) && parsed >= 1 && parsed <= uncompleted.length) {
@@ -4555,7 +4766,7 @@
                     }
                 }
 
-                // Reclaim from the tail of remote uncompleted to safeguard whichever student is currently active on the phone
+                // Reclaim from the tail of remote uncompleted to safeguard whichever person is currently active on the phone
                 const toReclaim = uncompleted.slice(uncompleted.length - count);
                 const remainingUncompletedOnPhone = uncompleted.slice(0, uncompleted.length - count);
                 const completedOnly = currentRemoteAssigned.filter(s => s.completed);
@@ -4567,11 +4778,11 @@
                     const fullRecord = selectedStudents.find(r => r.uid === s.uid) || s;
                     pendingStudents.push(fullRecord);
                 });
-                notify(`Reclaimed ${toReclaim.length} student(s) from the phone to this device!`, 'success');
+                notify(`Reclaimed ${toReclaim.length} ${roleNoun} from the phone to this device!`, 'success');
                 renderCurrentStudent();
                 await pollRemoteCaptureStatus();
             } catch (error) {
-                notify(error.message || 'Could not reclaim students from phone.', 'danger');
+                notify(error.message || `Could not reclaim ${roleNoun} from phone.`, 'danger');
             } finally {
                 takeStudentsButton.disabled = false;
             }
@@ -4595,13 +4806,25 @@
             }
         };
         schoolSelect.addEventListener('change', async () => {
-            classes = []; accounts = []; classSelect.replaceChildren(new Option('Loading…', '')); classSelect.disabled = true;
-            sectionSelect.replaceChildren(new Option('Select class first', '')); sectionSelect.disabled = true; refreshRoster();
+            classes = []; accounts = [];
+            const isTeacher = captureRole === 'teacher';
+            if (isTeacher) {
+                classSelect.replaceChildren(new Option('School-wide (All departments)', ''));
+                classSelect.disabled = true;
+                sectionSelect.replaceChildren(new Option('All Sections (Not required)', ''));
+                sectionSelect.disabled = true;
+            } else {
+                classSelect.replaceChildren(new Option('Loading…', ''));
+                classSelect.disabled = true;
+                sectionSelect.replaceChildren(new Option('Select class first', ''));
+                sectionSelect.disabled = true;
+            }
+            refreshRoster();
             if (!schoolSelect.value) return;
             const selectedSchoolId = schoolSelect.value;
             const selectedSchool = (schools || []).find(s => String(s.id) === String(selectedSchoolId));
             if (isErpSchool(selectedSchool)) {
-                notify('ERP institutions are not eligible for student photo capture.', 'warning');
+                notify(`ERP institutions are not eligible for ${isTeacher ? 'teacher' : 'student'} photo capture.`, 'warning');
                 schoolSelect.value = '';
                 refreshRoster();
                 return;
@@ -4609,7 +4832,13 @@
             try {
                 const [loadedAccounts, loadedClasses] = await Promise.all([loadPhotoAccounts(selectedSchoolId), loadPhotoClasses()]);
                 if (schoolSelect.value !== selectedSchoolId) return;
-                accounts = loadedAccounts; classes = loadedClasses; renderClassOptions(); populateSections();
+                accounts = loadedAccounts; classes = loadedClasses;
+                if (captureRole === 'student') {
+                    renderClassOptions();
+                    populateSections();
+                } else {
+                    refreshRoster();
+                }
             }
             catch (error) { notify(`Could not load this school's roster or classes: ${error.message}`, 'danger'); }
         });
@@ -4617,14 +4846,21 @@
         sectionSelect.addEventListener('change', refreshRoster);
         lockButton.addEventListener('click', async () => {
             if (selectionLocked) { unlockSelection(); return; }
-            selectedStudents = filteredStudents();
-            if (!schoolSelect.value || !classSelect.value || !sectionSelect.value || !selectedStudents.length) return notify('Select a school, class, and section with students before locking.', 'warning');
+            selectedStudents = filteredAccounts();
+            const isTeacher = captureRole === 'teacher';
+            if (isTeacher) {
+                if (!schoolSelect.value || !selectedStudents.length) return notify('Select a school with teachers before locking.', 'warning');
+            } else {
+                if (!schoolSelect.value || !classSelect.value || !sectionSelect.value || !selectedStudents.length) return notify('Select a school, class, and section with students before locking.', 'warning');
+            }
             const selectedSchool = (schools || []).find(s => String(s.id) === String(schoolSelect.value));
-            if (isErpSchool(selectedSchool)) return notify('ERP institutions cannot be locked for student photo capture.', 'warning');
-            selectedStudents.forEach(student => { if (!profilePhotoValue(student)) delete student._photoCaptureStatus; });
-            pendingStudents = selectedStudents.filter(student => !profilePhotoValue(student));
+            if (isErpSchool(selectedSchool)) return notify(`ERP institutions cannot be locked for ${isTeacher ? 'teacher' : 'student'} photo capture.`, 'warning');
+            selectedStudents.forEach(item => { if (!profilePhotoValue(item)) delete item._photoCaptureStatus; });
+            pendingStudents = selectedStudents.filter(item => !profilePhotoValue(item));
             skippedStudents = [];
             selectionLocked = true; captureIndex = 0; schoolSelect.disabled = true; classSelect.disabled = true; sectionSelect.disabled = true;
+            if (roleStudentBtn) roleStudentBtn.disabled = true;
+            if (roleTeacherBtn) roleTeacherBtn.disabled = true;
             lockButton.innerHTML = '<i class="fas fa-unlock me-2"></i> Unlock to change selection'; lockButton.classList.remove('btn-primary'); lockButton.classList.add('btn-outline-secondary');
 
             openStudioModal();
@@ -4683,13 +4919,14 @@
             catch (error) { remoteStatus.textContent = error.message; }
         });
         skipButton.addEventListener('click', () => {
+            const isTeacher = captureRole === 'teacher';
             const currentStudent = pendingStudents[captureIndex];
             if (currentStudent) {
                 currentStudent._photoCaptureStatus = 'Skipped (queued for later)';
                 currentStudent._isSkippedRound = true;
                 skippedStudents.push(currentStudent);
             }
-            cameraIndexNext('Student moved to skipped queue (will be captured later).');
+            cameraIndexNext(`${isTeacher ? 'Teacher' : 'Student'} moved to skipped queue (will be captured later).`);
         });
         finishButton.addEventListener('click', () => { void unlockSelection(); });
         section.querySelector('#ownerPhotoClose').addEventListener('click', () => { void unlockSelection(); });

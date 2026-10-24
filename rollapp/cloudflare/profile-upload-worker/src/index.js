@@ -2870,6 +2870,7 @@ async function ownerRemoteCapture(request, env, origin, action) {
                 classRoll: String(s?.classRoll || '').trim().slice(0, 40),
                 section: String(s?.section || '').trim().slice(0, 40),
                 fatherName: String(s?.fatherName || '').trim().slice(0, 120),
+                role: String(s?.role || '').trim().slice(0, 20) || 'student',
                 completed: false
             })).filter(s => s.uid);
 
@@ -2913,6 +2914,7 @@ async function ownerRemoteCapture(request, env, origin, action) {
                     classRoll: s.classRoll,
                     section: s.section,
                     fatherName: s.fatherName,
+                    role: s.role || 'student',
                     completed: !!s.completed,
                     publicUrl: s.publicUrl || null,
                     permanentKey: s.permanentKey || null,
@@ -2938,6 +2940,7 @@ async function ownerRemoteCapture(request, env, origin, action) {
                     classRoll: String(s?.classRoll || existing?.classRoll || '').trim().slice(0, 40),
                     section: String(s?.section || existing?.section || '').trim().slice(0, 40),
                     fatherName: String(s?.fatherName || existing?.fatherName || '').trim().slice(0, 120),
+                    role: String(s?.role || existing?.role || '').trim().slice(0, 20) || 'student',
                     completed: existing ? !!existing.completed : !!s.completed,
                     photoUploadedAt: existing?.photoUploadedAt || s.photoUploadedAt || null
                 };

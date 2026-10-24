@@ -489,9 +489,9 @@
         <div class="student-info-box">
             <div id="student-name" class="student-name">Loading student…</div>
             <div class="student-meta-grid">
-                <div>Roll No: <strong id="student-roll">-</strong></div>
-                <div>Section: <strong id="student-section">-</strong></div>
-                <div style="grid-column: span 2;">Guardian: <strong id="student-guardian">-</strong></div>
+                <div><span id="student-meta-lbl1">Roll No:</span> <strong id="student-roll">-</strong></div>
+                <div><span id="student-meta-lbl2">Section:</span> <strong id="student-section">-</strong></div>
+                <div style="grid-column: span 2;"><span id="student-meta-lbl3">Guardian:</span> <strong id="student-guardian">-</strong></div>
             </div>
         </div>
 
@@ -546,7 +546,7 @@
             <div class="complete-icon">
                 <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
-            <div class="complete-title">All Students Finished!</div>
+            <div id="complete-title" class="complete-title">All Students Finished!</div>
             <div id="complete-summary" class="complete-desc">All photos processed and uploaded directly to student records. You may now close this window or wait for the owner to assign more students.</div>
         </div>
     </section>
@@ -733,7 +733,8 @@
                 assignedStudents = [...skippedQueue];
                 skippedQueue = [];
                 currentIndex = 0;
-                showToast('Regular students done! Now capturing skipped students.');
+                const isTeacher = assignedStudents.some(s => s.role === 'teacher');
+                showToast(`Regular ${isTeacher ? 'teachers' : 'students'} done! Now capturing skipped.`);
                 renderStudent();
                 return;
             }
@@ -741,23 +742,46 @@
             captureSection.hidden = true;
             completedSection.hidden = false;
             stopCamera();
+            const isTeacher = assignedStudents.some(s => s.role === 'teacher');
             const totalUploaded = assignedStudents.filter(s => s.completed).length;
-            document.getElementById('complete-summary').textContent = `All photos processed (${totalUploaded} uploaded directly to student records).`;
-            statusBox.textContent = 'All assigned students completed!';
+            const completeTitle = document.getElementById('complete-title');
+            if (completeTitle) completeTitle.textContent = isTeacher ? 'All Teachers Finished!' : 'All Students Finished!';
+            document.getElementById('complete-summary').textContent = `All photos processed (${totalUploaded} uploaded directly to ${isTeacher ? 'teacher' : 'student'} records).`;
+            statusBox.textContent = `All assigned ${isTeacher ? 'teachers' : 'students'} completed!`;
             return;
         }
 
         const isSkipped = !!student._isSkipped;
-        progressIndicator.textContent = `Student ${currentIndex + 1} of ${assignedStudents.length}${isSkipped ? ' · Skipped queue' : ''} (${assignedStudents.filter(s => s.completed).length} uploaded)`;
-        studentNameEl.textContent = student.name || 'Unnamed student';
-        studentRollEl.textContent = student.classRoll ? `#${student.classRoll}` : 'Not provided';
-        studentSectionEl.textContent = student.section || 'Not provided';
-        studentGuardianEl.textContent = student.fatherName || 'Not provided';
+        const isTeacher = student.role === 'teacher';
+        const roleNoun = isTeacher ? 'Teacher' : 'Student';
+        progressIndicator.textContent = `${roleNoun} ${currentIndex + 1} of ${assignedStudents.length}${isSkipped ? ' · Skipped queue' : ''} (${assignedStudents.filter(s => s.completed).length} uploaded)`;
+        studentNameEl.textContent = student.name || `Unnamed ${roleNoun.toLowerCase()}`;
+
+        const lbl1 = document.getElementById('student-meta-lbl1');
+        const lbl2 = document.getElementById('student-meta-lbl2');
+        const lbl3 = document.getElementById('student-meta-lbl3');
+        if (isTeacher) {
+            if (lbl1) lbl1.textContent = 'Designation:';
+            if (lbl2) lbl2.textContent = 'Department:';
+            if (lbl3) lbl3.textContent = 'Email / Contact:';
+            studentRollEl.textContent = student.classRoll || 'Teacher';
+            studentSectionEl.textContent = student.section || 'Staff';
+            studentGuardianEl.textContent = student.fatherName || 'Not provided';
+            btnSkip.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg> Skip teacher';
+        } else {
+            if (lbl1) lbl1.textContent = 'Roll No:';
+            if (lbl2) lbl2.textContent = 'Section:';
+            if (lbl3) lbl3.textContent = 'Guardian:';
+            studentRollEl.textContent = student.classRoll ? (student.classRoll.startsWith('#') ? student.classRoll : `#${student.classRoll}`) : 'Not provided';
+            studentSectionEl.textContent = student.section || 'Not provided';
+            studentGuardianEl.textContent = student.fatherName || 'Not provided';
+            btnSkip.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg> Skip student';
+        }
 
         captureSection.hidden = false;
         completedSection.hidden = true;
         btnCapture.disabled = false;
-        statusBox.textContent = 'Center student inside circle and tap Capture Photo.';
+        statusBox.textContent = `Center ${roleNoun.toLowerCase()} inside circle and tap Capture Photo.`;
     }
 
     async function takeSnapshot() {
