@@ -673,7 +673,7 @@
                         </div>
 
                         <!-- Tip banner for mobile keyboard -->
-                        <div style="font-size:0.73rem; color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:6px 10px; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                        <div id="ttsTipBanner" style="font-size:0.73rem; color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:6px 10px; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
                             <i class="fas fa-keyboard" style="color:#0284c7;"></i>
                             <span>Enter marks and tap <strong>Next</strong> on mobile keyboard (or press <strong>Enter</strong>) to auto-jump to next student.</span>
                         </div>
@@ -793,10 +793,15 @@
                 notice.innerHTML = '<i class="fas fa-history"></i> Past Test';
             }
         }
-        dateInput.addEventListener('change', () => {
+
+        function handleDateChange() {
             updateDateNotice(dateInput.value);
+            renderStudentsRoster(currentStudents);
+            updateSummaryCounters();
             scheduleAutoDraftSave();
-        });
+        }
+        dateInput.addEventListener('change', handleDateChange);
+        dateInput.addEventListener('input', handleDateChange);
 
         // Toggle Views: Editor vs History
         const editorView = panel.querySelector('#ttsEditorView');
@@ -843,7 +848,7 @@
 
         // Teacher Resolution and Class Loading
         async function loadTeacherClasses(user, profile) {
-            schoolId = profile.schoolId || '';
+            schoolId = profile.schoolId || user.schoolId || window.currentTeacher?.schoolId || window.rollCallAdminMode?.schoolId || '';
             if (!schoolId) return;
 
             myClassesMap.clear();
@@ -988,6 +993,13 @@
                 select.appendChild(opt);
             });
 
+            // If teacher teaches only 1 class, automatically select it and load students on first open
+            if (sortedClasses.length === 1 && !activeEditingTestId) {
+                const single = sortedClasses[0];
+                select.value = `${single.classId}:::${single.section}`;
+                handleClassSelectionChange();
+            }
+
             // Update stats
             panel.querySelector('#ttsStatStudents').textContent = myClassesMap.size > 0 ? `${myClassesMap.size} Cls` : '0';
         }
@@ -998,10 +1010,11 @@
         const totalMarksInput = panel.querySelector('#ttsTotalMarksInput');
         const testTitleInput = panel.querySelector('#ttsTestTitleInput');
 
-        classSelect.addEventListener('change', async () => {
+        async function handleClassSelectionChange() {
             const val = classSelect.value;
             if (!val) {
                 currentStudents = [];
+                subjectSelect.innerHTML = '<option value="">Select Subject...</option>';
                 renderStudentsRoster([]);
                 updateBottomBarVisibility();
                 return;
@@ -1014,12 +1027,26 @@
             // Populate subjects
             populateSubjectDropdown(clsData);
 
-            // Load students
+            // Load students immediately on single selection
             await loadStudentsForClass(classId, section, clsData?.className);
 
             // Check device draft
             checkForLocalDraft();
-        });
+        }
+
+        classSelect.addEventListener('change', handleClassSelectionChange);
+        classSelect.addEventListener('input', handleClassSelectionChange);
+
+        async function ensureStudentsLoaded() {
+            if (!classSelect.value) return;
+            if (currentStudents.length === 0) {
+                const [classId, section] = classSelect.value.split(':::');
+                const key = `${classId}_${normSec(section)}`;
+                const clsData = myClassesMap.get(key);
+                await loadStudentsForClass(classId, section, clsData?.className);
+                checkForLocalDraft();
+            }
+        }
 
         function populateSubjectDropdown(clsData) {
             subjectSelect.innerHTML = '';
@@ -1045,14 +1072,20 @@
         }
 
         subjectSelect.addEventListener('change', () => {
+            ensureStudentsLoaded();
             checkForLocalDraft();
             scheduleAutoDraftSave();
         });
+        subjectSelect.addEventListener('focus', () => {
+            ensureStudentsLoaded();
+        });
         totalMarksInput.addEventListener('input', () => {
+            ensureStudentsLoaded();
             updateTotalMarksLabels();
             scheduleAutoDraftSave();
         });
         testTitleInput.addEventListener('input', () => {
+            ensureStudentsLoaded();
             scheduleAutoDraftSave();
         });
 
@@ -1153,110 +1186,158 @@
         // Render Student Roster with Minimized UI & Enter-Key Auto-Advance
         function renderStudentsRoster(students) {
             const listEl = panel.querySelector('#ttsStudentsList');
+            const isFuture = (dateInput.value || '') > getTodayStr();
+
             if (students.length === 0) {
+                const hasClass = !!classSelect.value;
                 listEl.innerHTML = `
                     <div style="text-align:center; padding:32px 16px; color:#64748b;">
-                        <i class="fas fa-user-slash" style="font-size:1.8rem; color:#cbd5e1; margin-bottom:8px; display:block;"></i>
-                        <p style="margin:0; font-weight:600;">No students found enrolled in this class and section.</p>
+                        <i class="fas ${hasClass ? 'fa-user-slash' : 'fa-chalkboard-user'}" style="font-size:1.8rem; color:#cbd5e1; margin-bottom:8px; display:block;"></i>
+                        <p style="margin:0; font-weight:600;">${hasClass ? 'No students found enrolled in this class and section.' : 'Please select a class &amp; section above to load students.'}</p>
+                        ${hasClass ? '<button type="button" class="tts-btn-secondary" style="margin-top:10px; font-size:0.75rem;" id="ttsRetryLoadStudents"><i class="fas fa-rotate"></i> Reload Students</button>' : ''}
                     </div>
                 `;
+                if (hasClass) {
+                    listEl.querySelector('#ttsRetryLoadStudents')?.addEventListener('click', () => {
+                        handleClassSelectionChange();
+                    });
+                }
+                updateSummaryCounters();
                 return;
             }
 
             const maxMarks = parseFloat(totalMarksInput.value) || 50;
+            const tipBanner = panel.querySelector('#ttsTipBanner');
+            if (tipBanner) {
+                if (isFuture) {
+                    tipBanner.style.background = '#f0f9ff';
+                    tipBanner.style.borderColor = '#bae6fd';
+                    tipBanner.style.color = '#0369a1';
+                    tipBanner.innerHTML = `
+                        <i class="fas fa-calendar-check" style="color:#0284c7; font-size:0.95rem;"></i>
+                        <span><strong>Upcoming Test:</strong> Scheduled for <strong>${escapeHtml(dateInput.value)}</strong>. Scores and attendance are not required now; students will see this scheduled test in their portal.</span>
+                    `;
+                } else {
+                    tipBanner.style.background = '#f8fafc';
+                    tipBanner.style.borderColor = '#e2e8f0';
+                    tipBanner.style.color = '#64748b';
+                    tipBanner.innerHTML = `
+                        <i class="fas fa-keyboard" style="color:#0284c7;"></i>
+                        <span>Enter marks and tap <strong>Next</strong> on mobile keyboard (or press <strong>Enter</strong>) to auto-jump to next student.</span>
+                    `;
+                }
+            }
 
             let html = '';
             students.forEach((st, idx) => {
                 const roll = st.classRoll || st.univRoll || st.rollNo || (idx + 1);
                 const name = st.name || st.displayName || 'Student';
-                html += `
-                    <div class="tts-student-row" id="ttsRow_${st.id}" data-uid="${st.id}">
-                        <div class="tts-student-meta">
-                            <span class="tts-roll-badge">#${roll}</span>
-                            <span class="tts-student-name" title="${name}">${name}</span>
+                if (isFuture) {
+                    html += `
+                        <div class="tts-student-row" id="ttsRow_${st.id}" data-uid="${st.id}">
+                            <div class="tts-student-meta">
+                                <span class="tts-roll-badge">#${roll}</span>
+                                <span class="tts-student-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+                            </div>
+                            <div class="tts-score-inputs-wrap">
+                                <span class="badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-weight:700; font-size:0.76rem; padding:4px 10px; border-radius:6px; display:inline-flex; align-items:center; gap:5px;">
+                                    <i class="fas fa-clock"></i> Scheduled
+                                </span>
+                            </div>
                         </div>
-                        <div class="tts-score-inputs-wrap">
-                            <span class="tts-pct-badge" id="ttsPct_${st.id}">--</span>
-                            <input type="number" 
-                                   class="student-score-input tts-score-input-box" 
-                                   id="ttsScoreInp_${st.id}"
-                                   data-uid="${st.id}" 
-                                   data-index="${idx}" 
-                                   min="0" 
-                                   max="${maxMarks}" 
-                                   step="any" 
-                                   inputmode="decimal" 
-                                   enterkeyhint="next" 
-                                   placeholder="0-${maxMarks}">
-                            <span class="tts-outof-lbl">/ ${maxMarks}</span>
-                            <button type="button" class="tts-ab-btn" data-uid="${st.id}" id="ttsAbBtn_${st.id}" title="Toggle Absent">AB</button>
+                    `;
+                } else {
+                    html += `
+                        <div class="tts-student-row" id="ttsRow_${st.id}" data-uid="${st.id}">
+                            <div class="tts-student-meta">
+                                <span class="tts-roll-badge">#${roll}</span>
+                                <span class="tts-student-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+                            </div>
+                            <div class="tts-score-inputs-wrap">
+                                <span class="tts-pct-badge" id="ttsPct_${st.id}">--</span>
+                                <input type="number" 
+                                       class="student-score-input tts-score-input-box" 
+                                       id="ttsScoreInp_${st.id}"
+                                       data-uid="${st.id}" 
+                                       data-index="${idx}" 
+                                       min="0" 
+                                       max="${maxMarks}" 
+                                       step="any" 
+                                       inputmode="decimal" 
+                                       enterkeyhint="next" 
+                                       placeholder="0-${maxMarks}">
+                                <span class="tts-outof-lbl">/ ${maxMarks}</span>
+                                <button type="button" class="tts-ab-btn" data-uid="${st.id}" id="ttsAbBtn_${st.id}" title="Toggle Absent">AB</button>
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                }
             });
 
             listEl.innerHTML = html;
 
-            // Attach Mobile Keyboard Enter / Next Auto-Advance Listeners
-            const inputs = listEl.querySelectorAll('.student-score-input');
-            inputs.forEach((inp, idx) => {
-                // Keydown listener for Enter / Next key
-                inp.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        const nextInput = listEl.querySelector(`.student-score-input[data-index="${idx + 1}"]`);
-                        if (nextInput) {
-                            nextInput.focus();
-                            nextInput.select();
-                        } else {
-                            // Last student, blur to close keyboard or focus submit
-                            inp.blur();
-                            panel.querySelector('#ttsSubmitBtn')?.focus();
+            if (!isFuture) {
+                // Attach Mobile Keyboard Enter / Next Auto-Advance Listeners
+                const inputs = listEl.querySelectorAll('.student-score-input');
+                inputs.forEach((inp, idx) => {
+                    // Keydown listener for Enter / Next key
+                    inp.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const nextInput = listEl.querySelector(`.student-score-input[data-index="${idx + 1}"]`);
+                            if (nextInput) {
+                                nextInput.focus();
+                                nextInput.select();
+                            } else {
+                                // Last student, blur to close keyboard or focus submit
+                                inp.blur();
+                                panel.querySelector('#ttsSubmitBtn')?.focus();
+                            }
                         }
-                    }
+                    });
+
+                    // Input listener for live feedback & auto caching
+                    inp.addEventListener('input', () => {
+                        // Validate max bounds
+                        const max = parseFloat(totalMarksInput.value) || 100;
+                        const val = parseFloat(inp.value);
+                        if (!isNaN(val) && val > max) {
+                            inp.value = max;
+                        }
+                        if (!isNaN(val) && val < 0) {
+                            inp.value = 0;
+                        }
+                        updateStudentScoreBadge(inp);
+                        updateSummaryCounters();
+                        scheduleAutoDraftSave();
+                    });
                 });
 
-                // Input listener for live feedback & auto caching
-                inp.addEventListener('input', () => {
-                    // Validate max bounds
-                    const max = parseFloat(totalMarksInput.value) || 100;
-                    const val = parseFloat(inp.value);
-                    if (!isNaN(val) && val > max) {
-                        inp.value = max;
-                    }
-                    if (!isNaN(val) && val < 0) {
-                        inp.value = 0;
-                    }
-                    updateStudentScoreBadge(inp);
-                    updateSummaryCounters();
-                    scheduleAutoDraftSave();
+                // Attach Absent (AB) toggles
+                listEl.querySelectorAll('.tts-ab-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const uid = btn.dataset.uid;
+                        const inp = listEl.querySelector(`#ttsScoreInp_${uid}`);
+                        const row = listEl.querySelector(`#ttsRow_${uid}`);
+                        const isNowAbsent = !btn.classList.contains('active');
+
+                        btn.classList.toggle('active', isNowAbsent);
+                        row.classList.toggle('is-absent', isNowAbsent);
+
+                        if (isNowAbsent) {
+                            inp.value = '';
+                            inp.disabled = true;
+                        } else {
+                            inp.disabled = false;
+                            inp.focus();
+                        }
+
+                        updateStudentScoreBadge(inp);
+                        updateSummaryCounters();
+                        scheduleAutoDraftSave();
+                    });
                 });
-            });
-
-            // Attach Absent (AB) toggles
-            listEl.querySelectorAll('.tts-ab-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const uid = btn.dataset.uid;
-                    const inp = listEl.querySelector(`#ttsScoreInp_${uid}`);
-                    const row = listEl.querySelector(`#ttsRow_${uid}`);
-                    const isNowAbsent = !btn.classList.contains('active');
-
-                    btn.classList.toggle('active', isNowAbsent);
-                    row.classList.toggle('is-absent', isNowAbsent);
-
-                    if (isNowAbsent) {
-                        inp.value = '';
-                        inp.disabled = true;
-                    } else {
-                        inp.disabled = false;
-                        inp.focus();
-                    }
-
-                    updateStudentScoreBadge(inp);
-                    updateSummaryCounters();
-                    scheduleAutoDraftSave();
-                });
-            });
+            }
 
             updateSummaryCounters();
         }
@@ -1301,6 +1382,25 @@
         }
 
         function updateSummaryCounters() {
+            const isFuture = (dateInput.value || '') > getTodayStr();
+            const total = currentStudents.length;
+            const summaryText = panel.querySelector('#ttsBottomScoreSummary');
+            const submitBtn = panel.querySelector('#ttsSubmitBtn');
+
+            if (isFuture) {
+                if (summaryText) {
+                    summaryText.innerHTML = `<strong>${total} Students Enrolled</strong> (Upcoming Scheduled Test)`;
+                }
+                if (submitBtn) {
+                    submitBtn.innerHTML = '<i class="fas fa-calendar-plus"></i> Assign &amp; Schedule Test';
+                }
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Submit &amp; Save Scores';
+            }
+
             let entered = 0;
             let absent = 0;
             currentStudents.forEach(st => {
@@ -1314,8 +1414,6 @@
                 }
             });
 
-            const total = currentStudents.length;
-            const summaryText = panel.querySelector('#ttsBottomScoreSummary');
             if (summaryText) {
                 summaryText.innerHTML = `<strong>${entered} of ${total} Scored</strong> (${absent} Absent)`;
             }
@@ -1437,7 +1535,7 @@
             currentStudents.forEach(st => {
                 const inp = panel.querySelector(`#ttsScoreInp_${st.id}`);
                 const abBtn = panel.querySelector(`#ttsAbBtn_${st.id}`);
-                const row = panel.querySelector(`#ttsRow_${uid}`);
+                const row = panel.querySelector(`#ttsRow_${st.id}`);
                 if (inp) {
                     inp.value = '';
                     inp.disabled = false;
@@ -1494,61 +1592,79 @@
                 return;
             }
 
+            // Confirm submission
+            const isFuture = testDate > getTodayStr();
+
             // Gather student scores
             const scoresMap = {};
             let scoredCount = 0;
             let invalidScore = false;
 
-            currentStudents.forEach(st => {
-                const inp = panel.querySelector(`#ttsScoreInp_${st.id}`);
-                const abBtn = panel.querySelector(`#ttsAbBtn_${st.id}`);
-                const isAbsent = abBtn?.classList.contains('active') || false;
-                const rollNo = st.classRoll || st.univRoll || st.rollNo || '';
-
-                if (isAbsent) {
+            if (isFuture) {
+                // Future test: do not ask for scores or absent
+                currentStudents.forEach(st => {
+                    const rollNo = st.classRoll || st.univRoll || st.rollNo || '';
                     scoresMap[st.id] = {
                         studentUid: st.id,
                         studentName: st.name || st.displayName || 'Student',
                         rollNo: rollNo,
                         marksObtained: null,
                         maxMarks: maxMarks,
-                        isAbsent: true
+                        isAbsent: false
                     };
-                    scoredCount++;
-                } else if (inp && inp.value.trim() !== '') {
-                    const marks = parseFloat(inp.value);
-                    if (isNaN(marks) || marks < 0 || marks > maxMarks) {
-                        invalidScore = true;
-                        inp.style.borderColor = '#dc2626';
-                    } else {
+                });
+            } else {
+                currentStudents.forEach(st => {
+                    const inp = panel.querySelector(`#ttsScoreInp_${st.id}`);
+                    const abBtn = panel.querySelector(`#ttsAbBtn_${st.id}`);
+                    const isAbsent = abBtn?.classList.contains('active') || false;
+                    const rollNo = st.classRoll || st.univRoll || st.rollNo || '';
+
+                    if (isAbsent) {
                         scoresMap[st.id] = {
                             studentUid: st.id,
                             studentName: st.name || st.displayName || 'Student',
                             rollNo: rollNo,
-                            marksObtained: marks,
+                            marksObtained: null,
                             maxMarks: maxMarks,
-                            isAbsent: false
+                            isAbsent: true
                         };
                         scoredCount++;
+                    } else if (inp && inp.value.trim() !== '') {
+                        const marks = parseFloat(inp.value);
+                        if (isNaN(marks) || marks < 0 || marks > maxMarks) {
+                            invalidScore = true;
+                            inp.style.borderColor = '#dc2626';
+                        } else {
+                            scoresMap[st.id] = {
+                                studentUid: st.id,
+                                studentName: st.name || st.displayName || 'Student',
+                                rollNo: rollNo,
+                                marksObtained: marks,
+                                maxMarks: maxMarks,
+                                isAbsent: false
+                            };
+                            scoredCount++;
+                        }
                     }
-                }
-            });
+                });
 
-            if (invalidScore) {
-                alert(`Some scores are invalid or exceed total marks (${maxMarks}). Please check inputs highlighted in red.`);
-                return;
+                if (invalidScore) {
+                    alert(`Some scores are invalid or exceed total marks (${maxMarks}). Please check inputs highlighted in red.`);
+                    return;
+                }
             }
 
-            // Confirm submission
-            const isFuture = testDate > getTodayStr();
             const confirmMsg = isFuture
-                ? `Assign this scheduled test on ${testDate} for ${className} Sec ${section}? Students will see this as an upcoming test.`
+                ? `Assign and schedule this test on ${testDate} for ${className} Sec ${section}? All ${currentStudents.length} students will see this as an upcoming test in their dashboard.`
                 : `Submit test scores for ${scoredCount} students (${className} Sec ${section})?`;
 
             if (!confirm(confirmMsg)) return;
 
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+            submitBtn.innerHTML = isFuture
+                ? '<i class="fas fa-spinner fa-spin"></i> Scheduling Test...'
+                : '<i class="fas fa-spinner fa-spin"></i> Submitting...';
 
             try {
                 const testId = activeEditingTestId || db.ref(`schoolTests/${schoolId}`).push().key;
@@ -1567,7 +1683,7 @@
                     createdAt: activeEditingTestId ? (testsList.find(t => t.id === testId)?.createdAt || Date.now()) : Date.now(),
                     updatedAt: Date.now(),
                     studentCount: currentStudents.length,
-                    scoredCount: scoredCount,
+                    scoredCount: isFuture ? 0 : scoredCount,
                     status: isFuture ? 'scheduled' : 'completed',
                     isFuture: isFuture
                 };
@@ -1611,7 +1727,7 @@
                 // Clear device cache
                 clearDeviceDraft();
 
-                alert('Test and student scores successfully saved and synced!');
+                alert(isFuture ? 'Test successfully scheduled and assigned to students!' : 'Test and student scores successfully saved and synced!');
 
                 // Refresh history & dashboard
                 loadSchoolTests();
@@ -1837,8 +1953,17 @@
             updateDateNotice(dateInput.value);
             totalMarksInput.value = '50';
             currentStudents = [];
-            renderStudentsRoster([]);
-            updateBottomBarVisibility();
+            const sortedClasses = Array.from(myClassesMap.values());
+            if (sortedClasses.length === 1) {
+                const single = sortedClasses[0];
+                classSelect.value = `${single.classId}:::${single.section}`;
+                handleClassSelectionChange();
+            } else {
+                classSelect.value = '';
+                subjectSelect.innerHTML = '<option value="">Select Subject...</option>';
+                renderStudentsRoster([]);
+                updateBottomBarVisibility();
+            }
         }
 
         // ======================================================================

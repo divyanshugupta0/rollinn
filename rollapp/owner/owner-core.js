@@ -3553,6 +3553,40 @@
             .studio-sel-input { border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 10px 14px; font-size: 14px; font-weight: 500; transition: all 0.2s ease; }
             .studio-sel-input:focus { border-color: #0284c7; box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15); }
 
+            .studio-role-pill-group {
+              display: inline-flex;
+              align-items: center;
+              background: #f1f5f9;
+              padding: 4px;
+              border-radius: 12px;
+              border: 1.5px solid #cbd5e1;
+              gap: 4px;
+            }
+            .studio-role-pill-btn {
+              border: none;
+              outline: none;
+              background: transparent;
+              color: #475569;
+              font-weight: 700;
+              font-size: 13px;
+              padding: 7px 18px;
+              border-radius: 8px;
+              cursor: pointer;
+              transition: all 0.18s ease;
+              display: inline-flex;
+              align-items: center;
+              gap: 7px;
+            }
+            .studio-role-pill-btn:hover {
+              color: #0f172a;
+              background: rgba(255, 255, 255, 0.7);
+            }
+            .studio-role-pill-btn.active {
+              background: #0284c7;
+              color: #ffffff !important;
+              box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+            }
+
             /* FULLSCREEN STUDIO MODAL WORKSPACE */
             #ownerPhotoCameraModal {
               display: none !important;
@@ -3723,19 +3757,21 @@
           </div>
 
           <div class="studio-selectors-card">
-            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 pb-3 border-bottom border-secondary border-opacity-25">
-              <div class="d-flex align-items-center gap-2">
-                <span class="text-light small fw-bold"><i class="fas fa-users-cog me-1 text-primary"></i> Target Profile:</span>
-                <div class="btn-group" role="group" id="ownerPhotoRoleGroup" aria-label="Target Profile Role">
-                  <button type="button" class="btn btn-sm btn-primary active fw-semibold" id="ownerPhotoRoleStudent" style="border-radius: 8px 0 0 8px;">
-                    <i class="fas fa-user-graduate me-1"></i> Students
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3 pb-3 border-bottom" style="border-color: #e2e8f0 !important;">
+              <div class="d-flex align-items-center gap-3 flex-wrap">
+                <span class="small fw-bold" style="color: #0f172a; font-size: 13px; letter-spacing: 0.02em;">
+                  <i class="fas fa-users-cog me-1 text-primary"></i> Target Profile:
+                </span>
+                <div class="studio-role-pill-group" role="group" id="ownerPhotoRoleGroup" aria-label="Target Profile Role">
+                  <button type="button" class="studio-role-pill-btn active" id="ownerPhotoRoleStudent">
+                    <i class="fas fa-user-graduate"></i> Students
                   </button>
-                  <button type="button" class="btn btn-sm btn-outline-secondary text-light fw-semibold" id="ownerPhotoRoleTeacher" style="border-radius: 0 8px 8px 0;">
-                    <i class="fas fa-chalkboard-teacher me-1"></i> Teachers &amp; Staff
+                  <button type="button" class="studio-role-pill-btn" id="ownerPhotoRoleTeacher">
+                    <i class="fas fa-chalkboard-teacher"></i> Teachers &amp; Staff
                   </button>
                 </div>
               </div>
-              <span id="ownerPhotoRoleHint" class="badge bg-dark border border-secondary text-info">Class &amp; Section filtering</span>
+              <span id="ownerPhotoRoleHint" class="badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-weight:700; font-size:12px; padding:6px 12px; border-radius:8px;">Class &amp; Section filtering</span>
             </div>
 
             <div class="row g-3">
@@ -3928,17 +3964,11 @@
             captureRole = role;
             const isTeacher = captureRole === 'teacher';
             if (isTeacher) {
-                if (roleStudentBtn) {
-                    roleStudentBtn.classList.remove('btn-primary', 'active');
-                    roleStudentBtn.classList.add('btn-outline-secondary', 'text-light');
-                }
-                if (roleTeacherBtn) {
-                    roleTeacherBtn.classList.remove('btn-outline-secondary', 'text-light');
-                    roleTeacherBtn.classList.add('btn-primary', 'active');
-                }
+                if (roleStudentBtn) roleStudentBtn.classList.remove('active');
+                if (roleTeacherBtn) roleTeacherBtn.classList.add('active');
                 if (roleHint) {
                     roleHint.textContent = 'School-wide Teacher roster';
-                    roleHint.className = 'badge bg-dark border border-secondary text-warning';
+                    roleHint.style.cssText = 'background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-weight:700; font-size:12px; padding:6px 12px; border-radius:8px;';
                 }
                 if (statTotalLbl) statTotalLbl.textContent = 'Total Teachers';
                 if (classCol) classCol.style.opacity = '0.5';
@@ -3951,17 +3981,11 @@
                 if (seqTitle) seqTitle.textContent = 'Teacher Sequence';
                 if (seqHelp) seqHelp.textContent = 'Completed teachers mark green. Skipped teachers automatically queue at the end.';
             } else {
-                if (roleTeacherBtn) {
-                    roleTeacherBtn.classList.remove('btn-primary', 'active');
-                    roleTeacherBtn.classList.add('btn-outline-secondary', 'text-light');
-                }
-                if (roleStudentBtn) {
-                    roleStudentBtn.classList.remove('btn-outline-secondary', 'text-light');
-                    roleStudentBtn.classList.add('btn-primary', 'active');
-                }
+                if (roleTeacherBtn) roleTeacherBtn.classList.remove('active');
+                if (roleStudentBtn) roleStudentBtn.classList.add('active');
                 if (roleHint) {
                     roleHint.textContent = 'Class & Section filtering';
-                    roleHint.className = 'badge bg-dark border border-secondary text-info';
+                    roleHint.style.cssText = 'background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-weight:700; font-size:12px; padding:6px 12px; border-radius:8px;';
                 }
                 if (statTotalLbl) statTotalLbl.textContent = 'Total Students';
                 if (classCol) classCol.style.opacity = '1';
