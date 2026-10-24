@@ -3278,9 +3278,10 @@
             : (user.course || user.department || user.branch || 'Undergraduate Student');
         if (roleEl) roleEl.innerText = courseDisplay;
 
-        // 3. College / Institution Name
-        const instName = user.institution || user.schoolName || user.collegeName || user.school || 'INSTITUTE OF TECHNOLOGY';
-        if (collegeEl) collegeEl.innerText = instName.toUpperCase();
+        // 3. College / Institution / School Name
+        const defaultInst = isSchoolMode ? 'ROLLCALL SCHOOL' : 'CAMPUS ACADEMY';
+        const instName = user.schoolName || user.school || user.institutionName || user.institution || user.collegeName || defaultInst;
+        if (collegeEl) collegeEl.innerText = String(instName).toUpperCase();
 
         // 4. University Roll & Class Roll
         if (univEl) univEl.innerText = user.univRoll || 'Not Set';
@@ -3312,9 +3313,15 @@
             codeValEl.innerText = user.univRoll || user.classRoll || (user.uid ? user.uid.slice(0, 10).toUpperCase() : 'ROLLCALL');
         }
 
-        // 8. Back Face: Blood Group & Emergency Contact
+        // 8. Back Face: Blood Group, Emergency Contact & Father Details
         if (bloodEl) bloodEl.innerText = user.bloodGroup || user.blood || 'Not Provided';
         if (emergencyEl) emergencyEl.innerText = user.emergencyContact || user.emergency || user.mobile || 'Not Provided';
+        const fatherEl = document.getElementById('id-card-father');
+        const fatherMobileEl = document.getElementById('id-card-father-mobile');
+        const fatherName = user.fatherName || user.father_name || user.fathersName || user.father || user.guardianName || user.parentName || 'Not Provided';
+        const fatherMobile = user.fatherMobile || user.fatherMobileNumber || user.fatherPhone || user.guardianMobile || user.guardianPhone || user.parentMobile || 'Not Provided';
+        if (fatherEl) fatherEl.innerText = fatherName;
+        if (fatherMobileEl) fatherMobileEl.innerText = fatherMobile;
 
         // 9. Back Face: Live Verification QR Code
         if (qrContainer) {

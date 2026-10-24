@@ -10678,6 +10678,7 @@
                                             <a href="#" onclick="event.preventDefault(); showStudentDigitalId('${user.id}')">
                                                 <i class="fas fa-id-card"></i> View Digital ID Pass
                                             </a>
+                                            ${isSchoolMode ? '' : `
                                             <a href="#" onclick="event.preventDefault(); generateFaceIdToken('${user.id}')">
                                                 <i class="fas fa-camera"></i> ${hasFaceId ? 'Re-enroll Face ID' : 'Send Face ID Link'}
                                             </a>
@@ -10687,14 +10688,15 @@
                                             </a>` : ''}
                                             <a href="#" onclick="event.preventDefault(); resetStudentDeviceLock('${user.id}')" style="color:#d97706;">
                                                 <i class="fas fa-mobile-screen"></i> Reset Device Lock
-                                            </a>
+                                            </a>`}
                                             <div class="dropdown-divider" style="height:1px;background:#e2e8f0;margin:4px 0;"></div>
                                             <a href="#" onclick="event.preventDefault(); viewAttendance('${user.id}', '${displayName.replace(/'/g, "\\'")}')">
                                                 <i class="fas fa-calendar-check"></i> View Attendance
                                             </a>
+                                            ${isSchoolMode ? '' : `
                                             <a href="#" onclick="event.preventDefault(); changeRole('${user.id}', '${user.role === 'admin' ? 'student' : 'admin'}')">
                                                 <i class="fas fa-user-tag"></i> Make ${user.role === 'admin' ? 'Student' : 'Admin'}
-                                            </a>
+                                            </a>`}
                                             <a href="#" onclick="event.preventDefault(); deleteUser('${user.id}')" class="delete-action" style="color:#ef4444;">
                                                 <i class="fas fa-trash"></i> Delete User
                                             </a>
@@ -12271,11 +12273,14 @@
             })();
         };
 
-        window.viewAttendance = function (userId, userName) {
+        window.viewAttendance = async function (userId, userName) {
             const existingModal = document.getElementById('attendance-history-modal');
             if (existingModal) {
                 existingModal.remove();
             }
+
+            const currentSchoolId = currentUser?.schoolId || window.rollCallAdminMode?.schoolId || '';
+            const safeName = escapeHtml(userName || 'Student');
 
             const modal = document.createElement('div');
             modal.id = 'attendance-history-modal';
@@ -12285,8 +12290,8 @@
                 <div class="attendance-history-card" role="dialog" aria-modal="true" aria-label="Attendance History">
                     <div class="attendance-history-header">
                         <div>
-                            <div class="attendance-history-title">Attendance History</div>
-                            <div class="attendance-history-subtitle">${userName} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Last 30 days</div>
+                            <div class="attendance-history-title"><i class="fas fa-calendar-check" style="margin-right:8px;"></i>Attendance History</div>
+                            <div class="attendance-history-subtitle">${safeName} &bull; Recent & Complete Records</div>
                         </div>
                         <button type="button" class="attendance-history-close">
                             <i class="fas fa-times"></i> Close
@@ -12294,7 +12299,7 @@
                     </div>
                     <div class="attendance-history-summary">
                         <div class="summary-chip">
-                            <span class="label">Total Records</span>
+                            <span class="label">Total Sessions</span>
                             <span class="value" id="attendance-total">0</span>
                         </div>
                         <div class="summary-chip present">
@@ -12311,7 +12316,10 @@
                         </div>
                     </div>
                     <div class="attendance-history-body">
-                        <div id="user-attendance-data" class="attendance-history-loading">Loading attendance history...</div>
+                        <div id="user-attendance-data" class="attendance-history-loading">
+                            <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:#4f46e5;margin-bottom:8px;display:block;"></i>
+                            Loading attendance records...
+                        </div>
                     </div>
                 </div>
             `;
@@ -12334,116 +12342,143 @@
             };
 
             const escHandler = (event) => {
-                if (event.key === 'Escape') {
-                    closeModal();
-                }
+                if (event.key === 'Escape') closeModal();
             };
 
             document.addEventListener('keydown', escHandler);
             modal.addEventListener('click', (event) => {
-                if (event.target === modal) {
-                    closeModal();
-                }
+                if (event.target === modal) closeModal();
             });
             modal.querySelector('.attendance-history-close').addEventListener('click', closeModal);
 
-            // Get user's attendance history from attendance_by_location
-            get(ref(database, `attendance_by_location`))
-                .then(snapshot => {
-                    const attendanceData = {};
+            try {
+                // 1. Fetch user attendance directly from user_attendance/{userId}
+                // 2. Fetch school locations to map location names
+                const [userAttSnap, locsSnap] = await Promise.all([
+                    get(ref(database, `user_attendance/${userId}`)),
+                    currentSchoolId ? get(query(ref(database, 'locations'), orderByChild('schoolId'), equalTo(currentSchoolId))) : get(ref(database, 'locations'))
+                ]);
 
-                    if (snapshot.exists()) {
-                        const attendanceByLocationData = snapshot.val();
+                const locations = locsSnap.exists() ? locsSnap.val() : {};
+                const recordsList = [];
 
-                        // Get attendance for the last 30 days
-                        const today = new Date();
-                        for (let i = 0; i < 30; i++) {
-                            const date = new Date(today);
-                            date.setDate(date.getDate() - i);
-                            const dateStr = date.toISOString().split('T')[0];
-
-                            // Check all locations for this user on this date
-                            for (const locationId in attendanceByLocationData) {
-                                const locationAttendance = attendanceByLocationData[locationId][dateStr] || {};
-                                if (locationAttendance[userId]) {
-                                    attendanceData[dateStr] = {
-                                        ...locationAttendance[userId],
-                                        locationId: locationId
-                                    };
+                if (userAttSnap.exists()) {
+                    const datesObj = userAttSnap.val() || {};
+                    Object.entries(datesObj).forEach(([dateKey, sessions]) => {
+                        if (sessions && typeof sessions === 'object') {
+                            Object.entries(sessions).forEach(([locId, record]) => {
+                                if (record && typeof record === 'object') {
+                                    const locInfo = locations[locId] || {};
+                                    recordsList.push({
+                                        date: record.date || dateKey,
+                                        time: record.time || '--',
+                                        locationId: locId,
+                                        locationName: record.locationName || locInfo.name || locInfo.className || 'Class Session',
+                                        status: (record.status || 'present').toLowerCase(),
+                                        verification: record.verificationMethod || record.attendanceType || ''
+                                    });
                                 }
-                            }
-                        }
-                    }
-
-                    const attendanceDates = Object.keys(attendanceData).sort().reverse();
-                    const totalCount = attendanceDates.length;
-                    let presentCount = 0;
-                    let lateCount = 0;
-                    let absentCount = 0;
-
-                    attendanceDates.forEach(date => {
-                        const status = (attendanceData[date].status || 'present').toLowerCase();
-                        if (status === 'present') presentCount += 1;
-                        if (status === 'late') lateCount += 1;
-                        if (status === 'absent') absentCount += 1;
-                    });
-
-                    const totalEl = document.getElementById('attendance-total');
-                    const presentEl = document.getElementById('attendance-present');
-                    const lateEl = document.getElementById('attendance-late');
-                    const absentEl = document.getElementById('attendance-absent');
-
-                    if (totalEl) totalEl.textContent = totalCount;
-                    if (presentEl) presentEl.textContent = presentCount;
-                    if (lateEl) lateEl.textContent = lateCount;
-                    if (absentEl) absentEl.textContent = absentCount;
-
-                    if (attendanceDates.length === 0) {
-                        document.getElementById('user-attendance-data').innerHTML =
-                            '<div class="attendance-history-empty">No attendance records found for this user in the last 30 days.</div>';
-                        return;
-                    }
-
-                    // Get locations for reference
-                    get(query(ref(database, 'locations'), orderByChild('schoolId'), equalTo(schoolId)))
-                        .then((locSnapshot) => {
-                            const locations = locSnapshot.exists() ? locSnapshot.val() : {};
-                            let html = '<div class="modern-table-container attendance-history-table">';
-                            html += '<table class="modern-table">';
-                            html += '<thead><tr><th>Date</th><th>Time</th><th>Location</th><th>Status</th></tr></thead><tbody>';
-
-                            attendanceDates.forEach(date => {
-                                const record = attendanceData[date];
-                                const locationName = locations[record.locationId] ?
-                                    locations[record.locationId].name : 'Unknown Location';
-                                const status = (record.status || 'present').toLowerCase();
-                                let statusBadge = '';
-
-                                if (status === 'present') {
-                                    statusBadge = '<span class="status-badge badge-present">Present</span>';
-                                } else if (status === 'absent') {
-                                    statusBadge = '<span class="status-badge badge-absent">Absent</span>';
-                                } else if (status === 'late') {
-                                    statusBadge = '<span class="status-badge badge-late">Late</span>';
-                                }
-
-                                html += `<tr>
-                                    <td>${date}</td>
-                                    <td>${record.time || '--'}</td>
-                                    <td>${locationName}</td>
-                                    <td>${statusBadge}</td>
-                                </tr>`;
                             });
+                        }
+                    });
+                }
 
-                            html += '</tbody></table></div>';
+                // If user_attendance was empty, fallback to searching locations of this school
+                if (recordsList.length === 0 && locsSnap.exists()) {
+                    const locIds = Object.keys(locations);
+                    const checks = locIds.slice(0, 20).map(async locId => {
+                        try {
+                            const snap = await get(ref(database, `attendance_by_location/${locId}`));
+                            if (snap.exists()) {
+                                const days = snap.val() || {};
+                                Object.entries(days).forEach(([dKey, dayUsers]) => {
+                                    if (dayUsers && dayUsers[userId]) {
+                                        const rec = dayUsers[userId];
+                                        recordsList.push({
+                                            date: rec.date || dKey,
+                                            time: rec.time || '--',
+                                            locationId: locId,
+                                            locationName: locations[locId]?.name || 'Class Session',
+                                            status: (rec.status || 'present').toLowerCase(),
+                                            verification: rec.verificationMethod || ''
+                                        });
+                                    }
+                                });
+                            }
+                        } catch (e) {}
+                    });
+                    await Promise.all(checks);
+                }
 
-                            document.getElementById('user-attendance-data').innerHTML = html;
-                        });
-                })
-                .catch(error => {
-                    document.getElementById('user-attendance-data').innerHTML =
-                        `<div class="attendance-history-empty">Error loading attendance data: ${error.message}</div>`;
+                // Sort records descending by date, then time
+                recordsList.sort((a, b) => {
+                    const dateComp = String(b.date || '').localeCompare(String(a.date || ''));
+                    if (dateComp !== 0) return dateComp;
+                    return String(b.time || '').localeCompare(String(a.time || ''));
                 });
+
+                let presentCount = 0;
+                let lateCount = 0;
+                let absentCount = 0;
+
+                recordsList.forEach(r => {
+                    if (r.status === 'present') presentCount++;
+                    else if (r.status === 'late') lateCount++;
+                    else if (r.status === 'absent') absentCount++;
+                });
+
+                const totalEl = document.getElementById('attendance-total');
+                const presentEl = document.getElementById('attendance-present');
+                const lateEl = document.getElementById('attendance-late');
+                const absentEl = document.getElementById('attendance-absent');
+
+                if (totalEl) totalEl.textContent = recordsList.length;
+                if (presentEl) presentEl.textContent = presentCount;
+                if (lateEl) lateEl.textContent = lateCount;
+                if (absentEl) absentEl.textContent = absentCount;
+
+                const dataEl = document.getElementById('user-attendance-data');
+                if (!dataEl) return;
+
+                if (recordsList.length === 0) {
+                    dataEl.innerHTML = '<div class="attendance-history-empty"><i class="fas fa-calendar-xmark" style="font-size:2rem;color:#cbd5e1;margin-bottom:10px;display:block;"></i>No attendance records found for this student.</div>';
+                    return;
+                }
+
+                let html = '<div class="modern-table-container attendance-history-table">';
+                html += '<table class="modern-table">';
+                html += '<thead><tr><th>Date</th><th>Time</th><th>Class / Location</th><th>Status</th><th>Verification</th></tr></thead><tbody>';
+
+                recordsList.forEach(r => {
+                    let statusBadge = '';
+                    if (r.status === 'present') {
+                        statusBadge = '<span class="status-badge badge-present"><i class="fas fa-check"></i> Present</span>';
+                    } else if (r.status === 'absent') {
+                        statusBadge = '<span class="status-badge badge-absent"><i class="fas fa-times"></i> Absent</span>';
+                    } else if (r.status === 'late') {
+                        statusBadge = '<span class="status-badge badge-late"><i class="fas fa-clock"></i> Late</span>';
+                    } else {
+                        statusBadge = `<span class="status-badge">${escapeHtml(r.status)}</span>`;
+                    }
+
+                    html += `<tr>
+                        <td><strong>${escapeHtml(r.date)}</strong></td>
+                        <td>${escapeHtml(r.time)}</td>
+                        <td><div style="font-weight:600;color:#0f172a;">${escapeHtml(r.locationName)}</div></td>
+                        <td>${statusBadge}</td>
+                        <td><span style="font-size:0.75rem;color:#64748b;text-transform:capitalize;">${escapeHtml(r.verification || 'Standard')}</span></td>
+                    </tr>`;
+                });
+
+                html += '</tbody></table></div>';
+                dataEl.innerHTML = html;
+
+            } catch (error) {
+                const dataEl = document.getElementById('user-attendance-data');
+                if (dataEl) {
+                    dataEl.innerHTML = `<div class="attendance-history-empty" style="color:#ef4444;"><i class="fas fa-triangle-exclamation" style="font-size:1.8rem;margin-bottom:8px;display:block;"></i>Error loading attendance data: ${escapeHtml(error.message)}</div>`;
+                }
+            }
         };
 
         window.showAttendanceDetails = function (userId, attendanceDates) {

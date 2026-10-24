@@ -4230,6 +4230,10 @@ function showUserDetails(userId) {
             const section = userData.section || '';
             const phone = userData.phone || userData.mobile || userData.emergencyContact || '';
 
+            const isSchoolMode = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
+            const fatherName = userData.fatherName || userData.father_name || userData.fathersName || userData.father || userData.guardianName || userData.parentName || '';
+            const fatherMobile = userData.fatherMobile || userData.fatherMobileNumber || userData.fatherPhone || userData.fatherContact || userData.guardianMobile || userData.guardianPhone || userData.parentMobile || '';
+
             const avatarHtml = photoUrl
                 ? `<img src="${photoUrl}" alt="${displayName}" style="width:68px;height:68px;border-radius:50%;object-fit:cover;border:3px solid #4f46e5;box-shadow:0 4px 14px rgba(79,70,229,0.3);">`
                 : `<div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg, #4f46e5, #7c3aed);color:white;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;box-shadow:0 4px 14px rgba(79,70,229,0.3);">${initials}</div>`;
@@ -4265,7 +4269,7 @@ function showUserDetails(userId) {
                         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
                             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                                 <div style="display:flex;align-items:center;gap:8px;font-weight:700;color:#0f172a;font-size:0.92rem;">
-                                    <i class="fas fa-fingerprint" style="color:#4f46e5;"></i> Face ID Biometrics
+                                    <i class="fas fa-id-card" style="color:#4f46e5;"></i> Identity & Pass Actions
                                 </div>
                                 ${hasFaceId
                                     ? `<span class="badge badge-success" style="display:inline-flex;align-items:center;gap:5px;font-weight:600;"><i class="fas fa-circle-check"></i> Enrolled</span>`
@@ -4273,24 +4277,23 @@ function showUserDetails(userId) {
                                 }
                             </div>
                             <p style="margin:0 0 12px;font-size:0.82rem;color:#64748b;">
-                                ${hasFaceId
-                                    ? 'Face biometric vector is active in the database. Student can authenticate via Face Recognition.'
-                                    : 'Face biometrics have not been enrolled yet. Send a registration token to allow registration.'
-                                }
+                                View student digital pass or manage identification settings.
                             </p>
                             <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                                <button type="button" class="primary-btn" onclick="generateFaceIdToken('${userId}')" style="font-size:0.82rem;padding:7px 14px;">
+                                <button type="button" class="primary-btn" onclick="showStudentDigitalId('${userId}')" style="font-size:0.82rem;padding:7px 14px;">
+                                    <i class="fas fa-id-card"></i> View Digital ID Pass
+                                </button>
+                                ${isSchoolMode ? '' : `
+                                <button type="button" class="secondary-btn" onclick="generateFaceIdToken('${userId}')" style="font-size:0.82rem;padding:7px 14px;">
                                     <i class="fas fa-key"></i> ${hasFaceId ? 'Re-enroll Face ID' : 'Generate Registration Link'}
                                 </button>
                                 ${hasFaceId ? `
                                 <button type="button" class="secondary-btn" onclick="resetStudentFaceId('${userId}')" style="font-size:0.82rem;padding:7px 14px;color:#d97706;">
                                     <i class="fas fa-undo"></i> Reset Face ID
-                                </button>` : ''}
-                                <button type="button" class="secondary-btn" onclick="showStudentDigitalId('${userId}')" style="font-size:0.82rem;padding:7px 14px;">
-                                    <i class="fas fa-id-card"></i> View Digital ID Pass
-                                </button>
+                                </button>` : ''}`}
                             </div>
 
+                            ${isSchoolMode ? '' : `
                             <!-- Hardware & Single-Device Lock Section -->
                             <div style="margin-top:14px;padding-top:14px;border-top:1px dashed #cbd5e1;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
                                 <div>
@@ -4312,6 +4315,7 @@ function showUserDetails(userId) {
                                     `}
                                 </div>
                             </div>
+                            `}
                         </div>
 
                         <!-- Editable Academic & Identity Information -->
@@ -4325,12 +4329,12 @@ function showUserDetails(userId) {
                                     <input type="text" id="detail-name" value="${displayName.replace(/"/g, '&quot;')}" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
                                 </div>
                                 <div>
-                                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#475569;margin-bottom:4px;">Branch / Department</label>
-                                    <input type="text" id="detail-branch" value="${branch.replace(/"/g, '&quot;')}" placeholder="e.g. Computer Science & Eng" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
+                                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#475569;margin-bottom:4px;">Branch / Department / Class</label>
+                                    <input type="text" id="detail-branch" value="${branch.replace(/"/g, '&quot;')}" placeholder="e.g. Class 10 or Computer Science" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
                                 </div>
                                 <div>
                                     <label style="display:block;font-size:0.8rem;font-weight:600;color:#475569;margin-bottom:4px;">Academic Batch</label>
-                                    <input type="text" id="detail-batch" value="${batch.replace(/"/g, '&quot;')}" placeholder="e.g. 2022-2026" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
+                                    <input type="text" id="detail-batch" value="${batch.replace(/"/g, '&quot;')}" placeholder="e.g. 2024-2025" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
                                 </div>
                                 <div>
                                     <label style="display:block;font-size:0.8rem;font-weight:600;color:#475569;margin-bottom:4px;">Blood Group</label>
@@ -4341,7 +4345,7 @@ function showUserDetails(userId) {
                                     <input type="text" id="detail-class-roll" value="${classRoll.replace(/"/g, '&quot;')}" placeholder="Class Roll" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
                                 </div>
                                 <div>
-                                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#475569;margin-bottom:4px;">University Roll</label>
+                                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#475569;margin-bottom:4px;">University / Registration Roll</label>
                                     <input type="text" id="detail-univ-roll" value="${univRoll.replace(/"/g, '&quot;')}" placeholder="Univ Roll" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
                                 </div>
                                 <div>
@@ -4349,8 +4353,16 @@ function showUserDetails(userId) {
                                     <input type="text" id="detail-section" value="${section.replace(/"/g, '&quot;')}" placeholder="e.g. A, B, General" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
                                 </div>
                                 <div>
-                                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#475569;margin-bottom:4px;">Emergency Contact / Phone</label>
+                                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#475569;margin-bottom:4px;">Emergency Contact / Student Phone</label>
                                     <input type="text" id="detail-phone" value="${phone.replace(/"/g, '&quot;')}" placeholder="+91 ..." style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#475569;margin-bottom:4px;">Father / Guardian Name</label>
+                                    <input type="text" id="detail-father-name" value="${fatherName.replace(/"/g, '&quot;')}" placeholder="Father or Guardian Name" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#475569;margin-bottom:4px;">Father / Guardian Mobile</label>
+                                    <input type="text" id="detail-father-mobile" value="${fatherMobile.replace(/"/g, '&quot;')}" placeholder="+91 ..." style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
                                 </div>
                             </form>
                         </div>
@@ -4382,6 +4394,8 @@ function showUserDetails(userId) {
                     const newURoll = modal.querySelector('#detail-univ-roll').value.trim();
                     const newSec = modal.querySelector('#detail-section').value.trim();
                     const newPhone = modal.querySelector('#detail-phone').value.trim();
+                    const newFatherName = modal.querySelector('#detail-father-name')?.value.trim() || '';
+                    const newFatherMobile = modal.querySelector('#detail-father-mobile')?.value.trim() || '';
 
                     saveBtn.disabled = true;
                     saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
@@ -4399,6 +4413,10 @@ function showUserDetails(userId) {
                         section: newSec,
                         phone: newPhone,
                         emergencyContact: newPhone,
+                        fatherName: newFatherName,
+                        father_name: newFatherName,
+                        fatherMobile: newFatherMobile,
+                        fatherPhone: newFatherMobile,
                         updatedAt: Date.now()
                     };
 
@@ -4571,19 +4589,71 @@ function resetStudentFaceId(userId) {
 }
 window.resetStudentFaceId = resetStudentFaceId;
 
-// Function to preview Student's Digital ID Card Pass with live data
+// Function to preview Student's Digital ID Card Pass with live data, school isolation & father details
 function showStudentDigitalId(userId) {
     if (!userId) return;
 
-    firebase.database().ref(`users/${userId}`).once('value').then(snapshot => {
+    const esc = (val) => String(val ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+    const userRef = firebase.database().ref(`users/${userId}`);
+    const blockedRef = firebase.database().ref(`blockedUsers/${userId}`);
+
+    Promise.all([
+        userRef.once('value'),
+        blockedRef.once('value')
+    ]).then(async ([snapshot, blockedSnapshot]) => {
         if (!snapshot.exists()) {
             showAlert('User not found', 'warning');
             return;
         }
         const user = snapshot.val() || {};
+        const studentSchoolId = String(user.schoolId || '').trim();
+
+        // Enforce School Isolation
+        let effectiveAdminSchoolId = String(window.rollCallAdminMode?.schoolId || (typeof currentUser !== 'undefined' ? currentUser?.schoolId : '') || '').trim();
+        if (!effectiveAdminSchoolId && firebase.auth().currentUser) {
+            try {
+                const adminSnap = await firebase.database().ref(`users/${firebase.auth().currentUser.uid}`).once('value');
+                effectiveAdminSchoolId = String(adminSnap.val()?.schoolId || '').trim();
+            } catch (e) {}
+        }
+
+        if (effectiveAdminSchoolId && studentSchoolId && studentSchoolId !== effectiveAdminSchoolId) {
+            showAlert('Access restricted: Student belongs to another school.', 'error');
+            return;
+        }
+
+        // School Blocked Isolation Check
+        const blockedData = blockedSnapshot.exists() ? (blockedSnapshot.val() || {}) : {};
+        const blockedSchoolId = String(blockedData.schoolId || user.blockedSchoolId || '').trim();
+        const isBlocked = !!(
+            (user.blocked && (!user.blockedSchoolId || !effectiveAdminSchoolId || user.blockedSchoolId === effectiveAdminSchoolId)) ||
+            (blockedSnapshot.exists() && (!blockedSchoolId || !effectiveAdminSchoolId || blockedSchoolId === effectiveAdminSchoolId))
+        );
+        const blockReason = blockedData.reason || user.blockedReason || 'Account restricted by school administration';
+
+        // Dynamically resolve actual school name (never show hardcoded INSTITUTE OF TECHNOLOGY)
+        const targetSchoolId = studentSchoolId || effectiveAdminSchoolId;
+        let loadedSchoolName = '';
+        if (targetSchoolId) {
+            try {
+                const schoolSnap = await firebase.database().ref(`schools/${targetSchoolId}`).once('value');
+                if (schoolSnap.exists()) {
+                    const sData = schoolSnap.val() || {};
+                    loadedSchoolName = sData.name || sData.schoolName || '';
+                }
+            } catch (e) {}
+        }
+
+        const isSchoolMode = document.body.classList.contains('admin-school-mode') || window.rollCallAdminMode?.isSchool;
+        const defaultSchoolName = isSchoolMode ? 'ROLLCALL SCHOOL' : 'CAMPUS ACADEMY';
+        const rawSchoolName = user.schoolName || loadedSchoolName || user.school || user.institutionName || user.institution || user.collegeName || defaultSchoolName;
+        const instName = String(rawSchoolName).trim().toUpperCase();
+
         const displayName = user.name || (user.email ? user.email.split('@')[0] : 'Student');
-        const courseDisplay = user.course || user.department || user.branch || 'Undergraduate Student';
-        const instName = (user.institution || user.collegeName || user.school || 'INSTITUTE OF TECHNOLOGY').toUpperCase();
+        const courseDisplay = isSchoolMode
+            ? (user.className || user.courseName || user.course || user.department || 'School Student')
+            : (user.course || user.department || user.branch || 'Undergraduate Student');
         const defaultAvatar = 'https://cdn.pixabay.com/photo/2016/11/14/17/39/person-1824144_960_720.png';
         const photoUrl = user.profilePhoto || user.photoURL || defaultAvatar;
         const univRoll = user.univRoll || 'Not Set';
@@ -4592,15 +4662,20 @@ function showStudentDigitalId(userId) {
         const blood = user.bloodGroup || user.blood || 'Not Provided';
         const emergency = user.emergencyContact || user.phone || 'Not Provided';
 
+        const fatherName = user.fatherName || user.father_name || user.fathersName || user.father || user.guardianName || user.parentName || 'Not Provided';
+        const fatherMobile = user.fatherMobile || user.fatherMobileNumber || user.fatherPhone || user.fatherContact || user.guardianMobile || user.guardianPhone || user.parentMobile || 'Not Provided';
+
         let validThru = user.academicBatch || user.batch;
         if (validThru) {
-            const match = String(validThru).match(/\\d{4}$/);
+            const match = String(validThru).match(/\d{4}$/);
             if (match) validThru = match[0];
         } else {
             validThru = (new Date().getFullYear() + 4).toString();
         }
 
-        const qrPayload = `ROLLCALL-PASS|UID:${userId}|NAME:${displayName}|UNIV:${univRoll}|ROLL:${classRoll}|BATCH:${validThru}`;
+        const qrPayload = isSchoolMode
+            ? `ROLLCALL-PASS|TYPE:SCHOOL|UID:${userId}|NAME:${displayName}|CLASS:${courseDisplay}|ROLL:${classRoll}|SECTION:${user.section || ''}`
+            : `ROLLCALL-PASS|UID:${userId}|NAME:${displayName}|UNIV:${univRoll}|ROLL:${classRoll}|BATCH:${validThru}`;
 
         const existingModal = document.getElementById('admin-digital-id-modal');
         if (existingModal) existingModal.remove();
@@ -4612,71 +4687,94 @@ function showStudentDigitalId(userId) {
         idModal.innerHTML = `
             <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
                 <!-- Flip card wrapper -->
-                <div id="admin-id-flipper" style="width:340px;height:520px;position:relative;transform-style:preserve-3d;transition:transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);cursor:pointer;">
+                <div id="admin-id-flipper" style="width:340px;min-height:530px;position:relative;transform-style:preserve-3d;transition:transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);cursor:pointer;">
                     <!-- FRONT FACE -->
                     <div style="position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:20px;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);background:linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #312e81 100%);color:white;display:flex;flex-direction:column;padding:22px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.15);">
                         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:12px;">
-                            <div>
-                                <div style="font-size:0.65rem;letter-spacing:1.5px;color:#a5b4fc;font-weight:700;">ROLLCALL PASS</div>
-                                <div style="font-size:0.8rem;font-weight:800;color:#ffffff;letter-spacing:0.5px;">${instName}</div>
+                            <div style="max-width:240px;">
+                                <div style="font-size:0.65rem;letter-spacing:1.5px;color:#a5b4fc;font-weight:700;">${isSchoolMode ? 'SCHOOL PASS' : 'ROLLCALL PASS'}</div>
+                                <div style="font-size:0.8rem;font-weight:800;color:#ffffff;letter-spacing:0.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(instName)}">${esc(instName)}</div>
                             </div>
                             <div style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(245,158,11,0.4);">
-                                <i class="fas fa-microchip" style="color:#78350f;font-size:0.85rem;"></i>
+                                <i class="fas ${isSchoolMode ? 'fa-school' : 'fa-microchip'}" style="color:#78350f;font-size:0.85rem;"></i>
                             </div>
                         </div>
 
-                        <div style="display:flex;flex-direction:column;align-items:center;margin:18px 0 14px;">
-                            <div style="width:96px;height:96px;border-radius:50%;overflow:hidden;border:3px solid #818cf8;box-shadow:0 8px 24px rgba(0,0,0,0.4);margin-bottom:10px;">
-                                <img src="${photoUrl}" alt="${displayName}" style="width:100%;height:100%;object-fit:cover;">
+                        <div style="display:flex;flex-direction:column;align-items:center;margin:16px 0 12px;">
+                            <div style="width:92px;height:92px;border-radius:50%;overflow:hidden;border:3px solid ${isBlocked ? '#ef4444' : '#818cf8'};box-shadow:0 8px 24px rgba(0,0,0,0.4);margin-bottom:8px;">
+                                <img src="${esc(photoUrl)}" alt="${esc(displayName)}" style="width:100%;height:100%;object-fit:cover;">
                             </div>
-                            <div style="font-size:1.15rem;font-weight:800;color:#ffffff;text-align:center;line-height:1.2;">${displayName}</div>
-                            <div style="font-size:0.75rem;color:#c7d2fe;font-weight:600;margin-top:4px;text-align:center;">${courseDisplay}</div>
+                            <div style="font-size:1.15rem;font-weight:800;color:#ffffff;text-align:center;line-height:1.2;">${esc(displayName)}</div>
+                            <div style="font-size:0.75rem;color:#c7d2fe;font-weight:600;margin-top:3px;text-align:center;">${esc(courseDisplay)}</div>
+                            ${isBlocked ? `
+                            <div style="background:linear-gradient(135deg,#dc2626,#991b1b);color:#ffffff;font-size:0.68rem;font-weight:700;padding:3px 10px;border-radius:6px;margin-top:6px;display:inline-flex;align-items:center;gap:5px;box-shadow:0 2px 8px rgba(220,38,38,0.5);letter-spacing:0.5px;">
+                                <i class="fas fa-ban"></i> ACCESS RESTRICTED / BLOCKED
+                            </div>` : ''}
                         </div>
 
                         <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:0.75rem;">
                             <div>
-                                <div style="color:#94a3b8;font-size:0.65rem;font-weight:600;text-transform:uppercase;">Univ Roll</div>
-                                <div style="color:#ffffff;font-weight:700;font-size:0.82rem;">${univRoll}</div>
+                                <div style="color:#94a3b8;font-size:0.65rem;font-weight:600;text-transform:uppercase;">${isSchoolMode ? 'Admission / Reg' : 'Univ Roll'}</div>
+                                <div style="color:#ffffff;font-weight:700;font-size:0.82rem;">${esc(univRoll)}</div>
                             </div>
                             <div>
                                 <div style="color:#94a3b8;font-size:0.65rem;font-weight:600;text-transform:uppercase;">Class Roll</div>
-                                <div style="color:#ffffff;font-weight:700;font-size:0.82rem;">${classRoll}</div>
+                                <div style="color:#ffffff;font-weight:700;font-size:0.82rem;">${esc(classRoll)}</div>
                             </div>
                             <div>
                                 <div style="color:#94a3b8;font-size:0.65rem;font-weight:600;text-transform:uppercase;">Section</div>
-                                <div style="color:#ffffff;font-weight:700;">${section}</div>
+                                <div style="color:#ffffff;font-weight:700;">${esc(section)}</div>
                             </div>
                             <div>
                                 <div style="color:#94a3b8;font-size:0.65rem;font-weight:600;text-transform:uppercase;">Blood Group</div>
-                                <div style="color:#f43f5e;font-weight:800;">${blood}</div>
+                                <div style="color:#f43f5e;font-weight:800;">${esc(blood)}</div>
                             </div>
                         </div>
 
                         <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.15);padding-top:10px;font-size:0.7rem;">
-                            <span style="color:#94a3b8;">VALID THRU: <strong style="color:#ffffff;">${validThru}</strong></span>
+                            <span style="color:#94a3b8;">VALID THRU: <strong style="color:#ffffff;">${esc(validThru)}</strong></span>
                             <span style="color:#a5b4fc;font-size:0.7rem;"><i class="fas fa-sync-alt" style="margin-right:4px;"></i> Tap to flip</span>
                         </div>
                     </div>
 
                     <!-- BACK FACE -->
                     <div style="position:absolute;width:100%;height:100%;backface-visibility:hidden;transform:rotateY(180deg);border-radius:20px;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);background:linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);color:white;display:flex;flex-direction:column;padding:22px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.15);text-align:center;">
-                        <div style="font-size:0.75rem;font-weight:800;letter-spacing:1px;color:#c7d2fe;margin-bottom:4px;">STUDENT ACCESS VERIFICATION</div>
-                        <div style="font-size:0.65rem;color:#94a3b8;margin-bottom:16px;">Scan QR for instant gate & exam authorization</div>
+                        <div style="font-size:0.75rem;font-weight:800;letter-spacing:1px;color:#c7d2fe;margin-bottom:3px;">STUDENT ACCESS VERIFICATION</div>
+                        <div style="font-size:0.65rem;color:#94a3b8;margin-bottom:12px;">Scan QR for gate and campus authorization</div>
 
-                        <div id="admin-id-qr-box" style="width:110px;height:110px;background:#ffffff;border-radius:12px;padding:6px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,0.3);">
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=98x98&data=${encodeURIComponent(qrPayload)}&color=0f172a&bgcolor=ffffff" alt="ID QR" style="width:98px;height:98px;border-radius:6px;">
+                        <div id="admin-id-qr-box" style="width:102px;height:102px;background:#ffffff;border-radius:12px;padding:6px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,0.3);">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(qrPayload)}&color=0f172a&bgcolor=ffffff" alt="ID QR" style="width:90px;height:90px;border-radius:6px;">
                         </div>
 
-                        <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px;font-size:0.75rem;margin-bottom:12px;text-align:left;">
-                            <div style="color:#94a3b8;font-size:0.65rem;font-weight:600;">EMERGENCY CONTACT</div>
-                            <div style="color:#ffffff;font-weight:700;margin-top:2px;">${emergency}</div>
+                        ${isBlocked ? `
+                        <div style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.4);border-radius:8px;padding:6px 10px;font-size:0.7rem;margin-bottom:8px;text-align:left;color:#fca5a5;">
+                            <div style="font-weight:700;color:#f87171;display:flex;align-items:center;gap:4px;"><i class="fas fa-shield-halved"></i> School Block Active</div>
+                            <div style="font-size:0.65rem;color:#fecaca;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Reason: ${esc(blockReason)}</div>
+                        </div>` : ''}
+
+                        <!-- FATHER / GUARDIAN DETAILS GRID -->
+                        <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:8px 12px;font-size:0.75rem;margin-bottom:8px;text-align:left;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                            <div>
+                                <div style="color:#94a3b8;font-size:0.62rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Father / Guardian</div>
+                                <div style="color:#ffffff;font-weight:700;margin-top:2px;font-size:0.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(fatherName)}">${esc(fatherName)}</div>
+                            </div>
+                            <div>
+                                <div style="color:#94a3b8;font-size:0.62rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Father Mobile</div>
+                                <div style="color:#ffffff;font-weight:700;margin-top:2px;font-size:0.78rem;">${esc(fatherMobile)}</div>
+                            </div>
+                        </div>
+
+                        <!-- EMERGENCY CONTACT -->
+                        <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:8px 12px;font-size:0.75rem;margin-bottom:10px;text-align:left;">
+                            <div style="color:#94a3b8;font-size:0.62rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Emergency Contact</div>
+                            <div style="color:#ffffff;font-weight:700;margin-top:2px;">${esc(emergency)}</div>
                         </div>
 
                         <div style="font-size:0.62rem;color:#94a3b8;line-height:1.4;margin-top:auto;">
-                            This digital pass is the property of ${instName}. Valid with active university enrollment.
+                            This digital pass is the property of ${esc(instName)}. Valid with active school enrollment.
                         </div>
 
-                        <div style="margin-top:10px;border-top:1px solid rgba(255,255,255,0.15);padding-top:10px;display:flex;justify-content:space-between;font-size:0.7rem;color:#a5b4fc;">
+                        <div style="margin-top:8px;border-top:1px solid rgba(255,255,255,0.15);padding-top:8px;display:flex;justify-content:space-between;font-size:0.7rem;color:#a5b4fc;">
                             <span>ID: ${userId.slice(0, 8).toUpperCase()}</span>
                             <span><i class="fas fa-sync-alt" style="margin-right:4px;"></i> Tap to flip</span>
                         </div>
@@ -4706,6 +4804,8 @@ function showStudentDigitalId(userId) {
         const closeIdModal = () => idModal.remove();
         idModal.querySelector('#admin-close-id-btn').addEventListener('click', closeIdModal);
         idModal.addEventListener('click', (e) => { if (e.target === idModal) closeIdModal(); });
+    }).catch(err => {
+        showAlert('Failed to load Digital ID: ' + err.message, 'error');
     });
 }
 window.showStudentDigitalId = showStudentDigitalId;
