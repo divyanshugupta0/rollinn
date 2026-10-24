@@ -23,6 +23,11 @@
 
   const style = document.createElement('style');
   style.textContent = `
+    @media (max-width: 720px) {
+      input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+      select,
+      textarea { font-size: 16px !important; }
+    }
     .pwa-install-banner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10000;background:var(--sp-bg-card,var(--gray-50,#fff));border:1px solid var(--sp-border,var(--gray-200,#e2e8f0));border-radius:var(--sp-radius-md,var(--border-radius,14px));padding:16px 20px;box-shadow:var(--sp-shadow-lg,0 10px 40px rgba(15,23,42,.25));display:none;flex-direction:column;align-items:center;gap:12px;min-width:280px;max-width:340px;text-align:center;font-family:var(--sp-font,'Roboto',system-ui,sans-serif);color:var(--sp-text-main,var(--gray-800,#0f172a))}
     .pwa-install-banner.show{display:flex}
     .pwa-install-banner button{border:none;background:var(--sp-primary,var(--primary-color,#4f46e5));color:#fff;padding:8px 12px;border-radius:var(--sp-radius-sm,var(--border-radius,8px));cursor:pointer;font-weight:600}
