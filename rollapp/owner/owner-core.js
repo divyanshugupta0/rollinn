@@ -3483,76 +3483,384 @@
         const item = document.createElement('li'); item.className = 'nav-item';
         item.innerHTML = '<a class="nav-link" href="#owner-bulk-profile-photos"><i class="fas fa-images"></i>Bulk profile photos</a>'; nav.appendChild(item);
         const section = document.createElement('section'); section.id = 'owner-bulk-profile-photos'; section.className = 'animated-section'; section.style.display = 'none';
-        section.innerHTML = `<div class="section-card"><div class="mb-3"><h2><i class="fas fa-camera"></i> Student profile photo capture</h2><p class="text-muted mb-0">Choose and lock a school, class, and section. The portal loads that school's student roster once, then filters it locally as you capture.</p></div>
-          <div class="alert alert-info">The roster is read from this school's schoolUsers record in one Firebase request and kept in memory while this page is open. Selecting a class and section does not download the roster again.</div>
-          <div class="row g-3"><div class="col-md-4"><label class="form-label" for="ownerPhotoSchool">School</label><select id="ownerPhotoSchool" class="form-select"><option value="">Select school</option></select></div>
-          <div class="col-md-4"><label class="form-label" for="ownerPhotoClass">Class</label><select id="ownerPhotoClass" class="form-select" disabled><option value="">Select school first</option></select></div>
-          <div class="col-md-4"><label class="form-label" for="ownerPhotoSection">Section</label><select id="ownerPhotoSection" class="form-select" disabled><option value="">Select class first</option></select></div>
-          <div class="col-12 d-flex align-items-center gap-3 flex-wrap"><button id="ownerPhotoLock" type="button" class="btn btn-primary" disabled><i class="fas fa-lock"></i> Lock selection &amp; open camera</button><span id="ownerPhotoStatus" class="small text-muted" role="status">Select a school, class, and section.</span></div>
-          <div class="col-12"><div id="ownerPhotoRoster" class="small text-muted">Student details will appear here after selecting a section.</div></div></div></div>
-          <div id="ownerPhotoCameraModal" hidden role="dialog" aria-modal="true" aria-labelledby="ownerPhotoModalTitle" style="position:fixed;inset:0;z-index:3000;background:rgba(15,23,42,.72);padding:16px;overflow:auto;">
-            <div style="max-width:760px;margin:4vh auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.3);">
-              <div class="d-flex justify-content-between align-items-center gap-2 mb-3"><div><h2 id="ownerPhotoModalTitle" class="h5 mb-1">Capture student profile photo</h2><div id="ownerPhotoProgress" class="small text-muted"></div></div><button id="ownerPhotoClose" type="button" class="btn btn-sm btn-outline-secondary"><i class="fas fa-unlock"></i> Unlock &amp; change details</button></div>
-              <div class="row g-3"><div class="col-md-7"><div id="ownerPhotoStudentDetails" class="row g-2 border rounded p-3 mb-3"></div>
-                <style>
-                  .owner-photo-camera-container .camera-face-guide { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 4; }
-                  .owner-photo-camera-container .face-oval { width: min(68%, 230px); aspect-ratio: 3 / 4; border-radius: 50% 50% 48% 48% / 55% 55% 45% 45%; border: 2.5px dashed rgba(255, 255, 255, 0.9); box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.38), 0 0 25px rgba(56, 189, 248, 0.35); }
-                  .owner-photo-camera-container .face-guide-hint { margin-top: 12px; font-size: 12px; font-weight: 600; color: #f8fafc; background: rgba(15, 23, 42, 0.75); padding: 3px 12px; border-radius: 9999px; letter-spacing: 0.02em; backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.15); }
-                </style>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div class="form-check form-switch mb-0">
-                    <input id="ownerPhotoAutoUpload" class="form-check-input" type="checkbox">
-                    <label class="form-check-label small" for="ownerPhotoAutoUpload">Auto upload after capture</label>
-                  </div>
+        section.innerHTML = `<div class="bulk-studio-panel-wrap">
+          <style>
+            .bulk-studio-panel-wrap { --studio-accent: #38bdf8; }
+            .studio-hero-card {
+              background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+              border: 1px solid rgba(56, 189, 248, 0.25);
+              border-radius: 20px;
+              padding: 26px 28px;
+              box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+              position: relative;
+              overflow: hidden;
+            }
+            .studio-hero-card::after {
+              content: '';
+              position: absolute;
+              top: -50%;
+              right: -20%;
+              width: 380px;
+              height: 380px;
+              background: radial-gradient(circle, rgba(56, 189, 248, 0.1) 0%, transparent 70%);
+              pointer-events: none;
+            }
+            .studio-hero-title {
+              font-size: 24px;
+              font-weight: 800;
+              color: #f8fafc;
+              letter-spacing: -0.02em;
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin-bottom: 6px;
+            }
+            .studio-hero-icon {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              width: 44px;
+              height: 44px;
+              border-radius: 12px;
+              background: linear-gradient(135deg, #0284c7, #2563eb);
+              color: #fff;
+              box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+            }
+            .studio-stats-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+              gap: 14px;
+              margin: 20px 0 6px;
+            }
+            .studio-stat-box {
+              background: rgba(15, 23, 42, 0.65);
+              border: 1px solid rgba(255, 255, 255, 0.08);
+              border-radius: 14px;
+              padding: 12px 16px;
+              backdrop-filter: blur(8px);
+            }
+            .studio-stat-val { font-size: 24px; font-weight: 800; color: #f8fafc; line-height: 1.2; }
+            .studio-stat-lbl { font-size: 12px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; }
+            .studio-selectors-card {
+              background: #ffffff;
+              border-radius: 16px;
+              padding: 22px;
+              border: 1px solid #e2e8f0;
+              box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+              margin-top: 16px;
+            }
+            .studio-sel-label { font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.03em; }
+            .studio-sel-input { border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 10px 14px; font-size: 14px; font-weight: 500; transition: all 0.2s ease; }
+            .studio-sel-input:focus { border-color: #0284c7; box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15); }
+
+            /* FULLSCREEN STUDIO MODAL WORKSPACE */
+            #ownerPhotoCameraModal {
+              position: fixed !important;
+              inset: 0 !important;
+              width: 100vw !important;
+              height: 100vh !important;
+              z-index: 999999 !important;
+              background: #090d16 !important;
+              color: #f8fafc !important;
+              display: flex !important;
+              flex-direction: column !important;
+              overflow: hidden !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+            #ownerPhotoCameraModal:fullscreen,
+            #ownerPhotoCameraModal:-webkit-full-screen {
+              width: 100vw !important;
+              height: 100vh !important;
+              background: #090d16 !important;
+              z-index: 999999 !important;
+            }
+            :fullscreen #ownerPhotoCameraModal,
+            :-webkit-full-screen #ownerPhotoCameraModal {
+              width: 100vw !important;
+              height: 100vh !important;
+            }
+            body.studio-fullscreen-active { overflow: hidden !important; }
+            .studio-topbar {
+              height: 60px;
+              background: #0f172a;
+              border-bottom: 1px solid #1e293b;
+              padding: 0 20px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 16px;
+              flex-shrink: 0;
+            }
+            .studio-live-tag {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              background: rgba(16, 185, 129, 0.12);
+              color: #34d399;
+              border: 1px solid rgba(16, 185, 129, 0.28);
+              border-radius: 9999px;
+              padding: 3px 10px;
+              font-size: 11px;
+              font-weight: 800;
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+            }
+            .studio-live-tag i { font-size: 8px; color: #10b981; animation: studioBlink 1.8s infinite; }
+            @keyframes studioBlink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.25; transform: scale(0.8); } }
+            .studio-workspace-grid {
+              flex: 1;
+              display: flex;
+              overflow: hidden;
+              height: calc(100vh - 60px);
+            }
+            .studio-stage-pane {
+              flex: 1;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              padding: 16px 20px 20px;
+              overflow-y: auto;
+              border-right: 1px solid #1e293b;
+            }
+            .studio-queue-pane {
+              width: 380px;
+              min-width: 320px;
+              max-width: 440px;
+              background: #0c1322;
+              display: flex;
+              flex-direction: column;
+              padding: 16px 20px;
+              overflow-y: auto;
+            }
+            @media (max-width: 991px) {
+              .studio-workspace-grid { flex-direction: column; overflow-y: auto; height: auto; }
+              .studio-queue-pane { width: 100%; max-width: none; border-right: none; border-top: 1px solid #1e293b; }
+            }
+            .studio-camera-card { width: min(100%, 520px); display: flex; flex-direction: column; gap: 10px; }
+            .owner-photo-camera-container {
+              position: relative;
+              width: 100%;
+              aspect-ratio: 3/4;
+              max-height: 52vh;
+              border-radius: 18px;
+              overflow: hidden;
+              background: #000;
+              border: 1px solid #334155;
+              box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .owner-photo-camera-container video, .owner-photo-camera-container img { width: 100%; height: 100%; object-fit: cover; display: block; }
+            .camera-face-guide {
+              position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 4;
+            }
+            .camera-face-guide .face-oval {
+              width: min(68%, 230px);
+              aspect-ratio: 3 / 4;
+              border-radius: 50% 50% 48% 48% / 55% 55% 45% 45%;
+              border: 2.5px dashed rgba(255, 255, 255, 0.9);
+              box-shadow: 0 0 0 9999px rgba(11, 17, 32, 0.44), 0 0 25px rgba(56, 189, 248, 0.35);
+            }
+            .camera-face-guide .face-guide-hint {
+              margin-top: 12px; font-size: 12px; font-weight: 700; color: #f8fafc; background: rgba(15, 23, 42, 0.8); padding: 3px 12px; border-radius: 9999px; letter-spacing: 0.02em; backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.15);
+            }
+            .studio-btn-primary {
+              min-height: 50px; background: linear-gradient(135deg, #0284c7, #2563eb); color: #ffffff; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.15s ease;
+            }
+            .studio-btn-primary:active { transform: scale(0.98); }
+            .studio-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+            .studio-btn-success {
+              min-height: 48px; background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4); display: flex; align-items: center; justify-content: center; gap: 8px;
+            }
+            .studio-btn-danger {
+              min-height: 48px; background: linear-gradient(135deg, #ef4444, #dc2626); color: #ffffff; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4); display: flex; align-items: center; justify-content: center; gap: 8px;
+            }
+            .studio-btn-ghost {
+              min-height: 42px; background: rgba(30, 41, 59, 0.7); color: #cbd5e1; border: 1px solid #334155; border-radius: 10px; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s ease;
+            }
+            .studio-btn-ghost:hover { background: #334155; color: #fff; }
+            .studio-student-card { background: #131d33; border: 1px solid #223254; border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+            .studio-queue-item { background: #10192d; border: 1px solid #1e293b; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; transition: all 0.15s ease; font-size: 13px; }
+            .studio-queue-item.active { border-color: #38bdf8; background: rgba(56, 189, 248, 0.1); box-shadow: 0 0 12px rgba(56, 189, 248, 0.25); }
+            .studio-queue-item.completed { border-color: rgba(16, 185, 129, 0.3); opacity: 0.85; }
+          </style>
+
+          <div class="studio-hero-card">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+              <div>
+                <div class="studio-hero-title">
+                  <span class="studio-hero-icon"><i class="fas fa-camera"></i></span>
+                  Student Profile Photo Studio
                 </div>
-                <div class="owner-photo-camera-container position-relative overflow-hidden rounded-3 mb-2" style="background:#0f172a; aspect-ratio:3/4; max-height:48vh; display:flex; align-items:center; justify-content:center;">
-                  <video id="ownerPhotoVideo" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover; display:block;"></video>
-                  <img id="ownerPhotoSnapshot" alt="Snapshot preview" hidden style="width:100%; height:100%; object-fit:cover; display:block;">
+                <p class="text-secondary mb-0" style="color: #94a3b8 !important; font-size: 14px; max-width: 680px;">
+                  High-speed batch photography workstation with centered face guidance, high-clarity 0.90 WebP direct R2 cloud storage, and dual-device parallel distribution.
+                </p>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill"><i class="fas fa-bolt me-1"></i> Fullscreen Ready</span>
+              </div>
+            </div>
+
+            <div class="studio-stats-grid">
+              <div class="studio-stat-box">
+                <div id="ownerPhotoStatTotal" class="studio-stat-val">0</div>
+                <div class="studio-stat-lbl">Total Students</div>
+              </div>
+              <div class="studio-stat-box">
+                <div id="ownerPhotoStatDone" class="studio-stat-val text-success">0</div>
+                <div class="studio-stat-lbl">Photos Ready</div>
+              </div>
+              <div class="studio-stat-box">
+                <div id="ownerPhotoStatPending" class="studio-stat-val text-warning">0</div>
+                <div class="studio-stat-lbl">Photos Needed</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="studio-selectors-card">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="studio-sel-label" for="ownerPhotoSchool"><i class="fas fa-school me-1 text-primary"></i> 1. Select School</label>
+                <select id="ownerPhotoSchool" class="form-select studio-sel-input"><option value="">Select school</option></select>
+              </div>
+              <div class="col-md-4">
+                <label class="studio-sel-label" for="ownerPhotoClass"><i class="fas fa-graduation-cap me-1 text-primary"></i> 2. Select Class</label>
+                <select id="ownerPhotoClass" class="form-select studio-sel-input" disabled><option value="">Select school first</option></select>
+              </div>
+              <div class="col-md-4">
+                <label class="studio-sel-label" for="ownerPhotoSection"><i class="fas fa-users-rectangle me-1 text-primary"></i> 3. Select Section</label>
+                <select id="ownerPhotoSection" class="form-select studio-sel-input" disabled><option value="">Select class first</option></select>
+              </div>
+              <div class="col-12 mt-3">
+                <div id="ownerPhotoRoster" class="p-3 bg-light rounded-3 border text-muted small"><i class="fas fa-info-circle me-1 text-primary"></i> Student roster details will appear here after selecting school, class, and section.</div>
+              </div>
+              <div class="col-12 d-flex align-items-center justify-content-between gap-3 flex-wrap mt-3 pt-2 border-top">
+                <button id="ownerPhotoLock" type="button" class="btn btn-primary btn-lg px-4 py-2 fw-bold shadow-sm" disabled style="border-radius: 12px;">
+                  <i class="fas fa-lock me-2"></i> Lock Selection &amp; Enter Fullscreen Studio
+                </button>
+                <span id="ownerPhotoStatus" class="small text-muted" role="status">Choose a section to unlock studio.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FULLSCREEN CAPTURE STUDIO WORKSTATION -->
+        <div id="ownerPhotoCameraModal" hidden role="dialog" aria-modal="true" aria-labelledby="ownerPhotoModalTitle">
+          <header class="studio-topbar">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <span class="studio-live-tag"><i class="fas fa-circle"></i> Live Studio</span>
+              <h2 id="ownerPhotoModalTitle" class="h6 mb-0 text-white fw-bold">Capture student profile photo</h2>
+              <span id="ownerPhotoClassBadge" class="badge bg-secondary-subtle text-info border border-secondary-subtle px-2 py-1"></span>
+              <span id="ownerPhotoProgress" class="badge bg-secondary-subtle text-white border border-secondary-subtle px-2 py-1"></span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <button id="ownerPhotoFullscreenToggle" type="button" class="btn btn-sm btn-outline-light" title="Toggle Fullscreen" style="border-radius:8px;">
+                <i class="fas fa-expand me-1"></i> <span class="d-none d-sm-inline">Fullscreen</span>
+              </button>
+              <button id="ownerPhotoClose" type="button" class="btn btn-sm btn-outline-danger" style="border-radius:8px;">
+                <i class="fas fa-unlock me-1"></i> Unlock &amp; Exit
+              </button>
+            </div>
+          </header>
+
+          <div class="studio-workspace-grid">
+            <main class="studio-stage-pane">
+              <div class="studio-camera-card">
+                <div class="d-flex justify-content-between align-items-center px-1">
+                  <div class="form-check form-switch mb-0">
+                    <input id="ownerPhotoAutoUpload" class="form-check-input" type="checkbox" checked style="cursor:pointer;">
+                    <label class="form-check-label small fw-semibold text-light" for="ownerPhotoAutoUpload">Auto upload after capture</label>
+                  </div>
+                  <span class="badge bg-dark border border-secondary text-info">3:4 Studio View</span>
+                </div>
+
+                <div class="owner-photo-camera-container">
+                  <video id="ownerPhotoVideo" autoplay playsinline muted></video>
+                  <img id="ownerPhotoSnapshot" alt="Snapshot preview" hidden>
                   <div id="ownerPhotoFaceGuide" class="camera-face-guide" aria-hidden="true">
                     <div class="face-oval"></div>
-                    <div class="face-guide-hint">Center face in circle</div>
+                    <div class="face-guide-hint">Align face within circle</div>
                   </div>
                 </div>
-                <div id="ownerPhotoCameraStatus" class="small text-muted mt-2" role="status">Allow camera access to begin capturing.</div>
-                <div id="ownerPhotoRemotePanel" class="border rounded p-3 mt-3" hidden>
-                  <div class="d-flex justify-content-between align-items-center gap-2">
-                    <strong><i class="fas fa-mobile-alt me-1"></i> Connected phone / second device</strong>
-                    <button id="ownerPhotoRemoteDisconnect" type="button" class="btn btn-sm btn-outline-danger">Disconnect</button>
+
+                <div id="ownerPhotoCameraStatus" class="small text-center text-secondary py-1" role="status">Position student in frame and capture.</div>
+
+                <div class="d-flex flex-column gap-2 mt-1">
+                  <button id="ownerPhotoCapture" type="button" class="studio-btn-primary" disabled>
+                    <i class="fas fa-camera"></i> Capture Photo
+                  </button>
+                  <button id="ownerPhotoDoUpload" type="button" class="studio-btn-success" hidden>
+                    <i class="fas fa-cloud-upload-alt"></i> Upload Photo
+                  </button>
+                  <button id="ownerPhotoStopUpload" type="button" class="studio-btn-danger" hidden>
+                    <i class="fas fa-stop-circle"></i> Stop Upload
+                  </button>
+
+                  <div class="d-grid gap-2" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <button id="ownerPhotoRetake" type="button" class="studio-btn-ghost" hidden>
+                      <i class="fas fa-redo"></i> Retake
+                    </button>
+                    <button id="ownerPhotoSkip" type="button" class="studio-btn-ghost">
+                      <i class="fas fa-forward"></i> Skip
+                    </button>
+                    <button id="ownerPhotoRemoteConnect" type="button" class="studio-btn-ghost text-info">
+                      <i class="fas fa-mobile-alt"></i> 2nd Device
+                    </button>
+                    <button id="ownerPhotoFinish" type="button" class="studio-btn-success" hidden style="grid-column: span 3;">
+                      <i class="fas fa-check-circle"></i> All Finished - Exit Studio
+                    </button>
                   </div>
-                  <div class="row g-3 align-items-center mt-1">
-                    <div class="col-sm-auto"><div id="ownerPhotoRemoteQr" aria-label="Remote camera pairing QR code"></div></div>
+                </div>
+
+                <!-- Remote Device Panel -->
+                <div id="ownerPhotoRemotePanel" class="p-3 rounded-3 mt-2" hidden style="background: rgba(15, 23, 42, 0.85); border: 1px solid #334155;">
+                  <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                    <strong class="text-light small"><i class="fas fa-mobile-alt me-1 text-info"></i> Connected Phone / 2nd Device</strong>
+                    <button id="ownerPhotoRemoteDisconnect" type="button" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:12px;">Disconnect</button>
+                  </div>
+                  <div class="row g-2 align-items-center">
+                    <div class="col-auto"><div id="ownerPhotoRemoteQr" aria-label="Remote camera pairing QR code" style="background:#fff; padding:6px; border-radius:8px;"></div></div>
                     <div class="col">
-                      <p id="ownerPhotoRemoteStatus" class="small mb-2" role="status">Preparing a secure camera session…</p>
+                      <p id="ownerPhotoRemoteStatus" class="small text-secondary mb-2" role="status">Preparing remote pairing session…</p>
                       <div id="ownerPhotoRemoteApproval" hidden>
-                        <p class="small mb-2">Approve only if this code matches the code on that phone: <strong id="ownerPhotoRemoteCode" class="fs-5 text-primary"></strong></p>
-                        <button id="ownerPhotoRemoteApprove" type="button" class="btn btn-sm btn-success"><i class="fas fa-check"></i> Approve &amp; Split List</button>
-                        <button id="ownerPhotoRemoteReject" type="button" class="btn btn-sm btn-outline-danger ms-2">Reject</button>
+                        <p class="small text-warning mb-2">Confirm code matches phone: <strong id="ownerPhotoRemoteCode" class="fs-5 text-primary"></strong></p>
+                        <button id="ownerPhotoRemoteApprove" type="button" class="btn btn-sm btn-success me-1"><i class="fas fa-check"></i> Approve &amp; Split</button>
+                        <button id="ownerPhotoRemoteReject" type="button" class="btn btn-sm btn-outline-danger">Reject</button>
                       </div>
                       <div id="ownerPhotoRemoteProgress" class="mt-2" hidden>
                         <div id="ownerPhotoRemoteBadge" class="badge bg-info text-dark text-wrap mb-1">Remote device active</div>
-                        <div id="ownerPhotoRemoteCount" class="small text-muted mb-2"></div>
+                        <div id="ownerPhotoRemoteCount" class="small text-secondary mb-2"></div>
                         <div id="ownerPhotoTransferControls" class="d-flex flex-wrap gap-2" hidden>
-                          <button id="ownerPhotoSendStudents" type="button" class="btn btn-sm btn-outline-primary"><i class="fas fa-arrow-right"></i> Send remaining students to phone</button>
+                          <button id="ownerPhotoSendStudents" type="button" class="btn btn-sm btn-outline-primary"><i class="fas fa-arrow-right"></i> Send students to phone</button>
                           <button id="ownerPhotoTakeStudents" type="button" class="btn btn-sm btn-outline-warning"><i class="fas fa-arrow-left"></i> Take list from phone</button>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-                <div class="d-flex justify-content-between align-items-center gap-2 mt-3 flex-wrap">
-                  <button id="ownerPhotoSkip" type="button" class="btn btn-outline-secondary">Skip student</button>
-                  <div class="d-flex gap-2 flex-wrap justify-content-end">
-                    <button id="ownerPhotoRemoteConnect" type="button" class="btn btn-outline-primary"><i class="fas fa-mobile-alt"></i> Divide list with 2nd device</button>
-                    <button id="ownerPhotoCapture" type="button" class="btn btn-primary" disabled><i class="fas fa-camera"></i> Capture</button>
-                    <button id="ownerPhotoDoUpload" type="button" class="btn btn-success" hidden><i class="fas fa-cloud-upload-alt"></i> Upload photo</button>
-                    <button id="ownerPhotoStopUpload" type="button" class="btn btn-danger" hidden><i class="fas fa-stop-circle"></i> Stop upload</button>
-                    <button id="ownerPhotoRetake" type="button" class="btn btn-outline-secondary" hidden><i class="fas fa-redo"></i> Retake</button>
-                    <button id="ownerPhotoFinish" type="button" class="btn btn-success" hidden>Finish</button>
-                  </div>
+              </div>
+            </main>
+
+            <aside class="studio-queue-pane">
+              <div class="studio-student-card">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle text-uppercase" style="font-size:10px; font-weight:800; letter-spacing:0.05em;">Current Student</span>
+                  <span class="text-secondary small">Live Queue</span>
                 </div>
-              </div><aside class="col-md-5"><h3 class="h6">Student sequence</h3><p class="small text-muted">Students with saved photos are marked complete. Skipped students will be captured at the end.</p><ol id="ownerPhotoPendingList" class="small ps-4 mb-0" style="max-height:60vh;overflow:auto;"></ol></aside></div>
-            </div>
-          </div>`;
+                <div id="ownerPhotoStudentDetails" class="row g-2"></div>
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                <h3 class="h6 mb-0 text-light fw-bold">Student Sequence</h3>
+                <span class="badge bg-dark border border-secondary text-secondary small">Auto-sequencing</span>
+              </div>
+              <p class="small text-secondary mb-2 px-1" style="font-size:12px;">Completed students mark green. Skipped students automatically queue at the end.</p>
+              <ol id="ownerPhotoPendingList" class="ps-0 mb-0 list-unstyled" style="overflow-y:auto; flex:1; max-height: calc(100vh - 350px);"></ol>
+            </aside>
+          </div>
+        </div>`;
         main.appendChild(section);
         const schoolSelect = section.querySelector('#ownerPhotoSchool'); const classSelect = section.querySelector('#ownerPhotoClass'); const sectionSelect = section.querySelector('#ownerPhotoSection');
         const lockButton = section.querySelector('#ownerPhotoLock'); const rosterElement = section.querySelector('#ownerPhotoRoster'); const modal = section.querySelector('#ownerPhotoCameraModal');
@@ -3564,6 +3872,7 @@
         const remoteStatus = section.querySelector('#ownerPhotoRemoteStatus'); const remoteApproval = section.querySelector('#ownerPhotoRemoteApproval'); const remoteProgressBox = section.querySelector('#ownerPhotoRemoteProgress');
         const remoteBadge = section.querySelector('#ownerPhotoRemoteBadge'); const remoteCount = section.querySelector('#ownerPhotoRemoteCount'); const transferControls = section.querySelector('#ownerPhotoTransferControls');
         const sendStudentsButton = section.querySelector('#ownerPhotoSendStudents'); const takeStudentsButton = section.querySelector('#ownerPhotoTakeStudents');
+        const fullscreenToggle = section.querySelector('#ownerPhotoFullscreenToggle');
         const accountCacheBySchool = new Map(); const classCacheBySchool = new Map();
         let accounts = []; let classes = []; let selectedStudents = []; let pendingStudents = []; let skippedStudents = []; let captureIndex = 0; let cameraStream = null; let selectionLocked = false;
         let remoteCaptureSession = null; let remoteCaptureTimer = null; let remoteCaptureBusy = false; let remotePairingCode = ''; let currentRemoteAssigned = [];
@@ -3613,23 +3922,65 @@
         function refreshRoster() {
             const students = filteredStudents();
             lockButton.disabled = selectionLocked || !schoolSelect.value || !classSelect.value || !sectionSelect.value || !students.length;
+            const statTotal = section.querySelector('#ownerPhotoStatTotal');
+            const statDone = section.querySelector('#ownerPhotoStatDone');
+            const statPending = section.querySelector('#ownerPhotoStatPending');
+
             if (!schoolSelect.value || !classSelect.value || !sectionSelect.value) {
-                rosterElement.textContent = 'Select a school, class, and section to view the student count.';
+                rosterElement.innerHTML = '<i class="fas fa-info-circle me-1 text-primary"></i> Select a school, class, and section to view student roster details and photo status.';
+                if (statTotal) statTotal.textContent = '0';
+                if (statDone) statDone.textContent = '0';
+                if (statPending) statPending.textContent = '0';
                 return;
             }
             const alreadyHasPhoto = students.filter(profilePhotoValue).length;
-            rosterElement.textContent = students.length ? `${students.length} students loaded; ${students.length - alreadyHasPhoto} need a photo and ${alreadyHasPhoto} already have one. Roster and photo status are cached in memory; no per-student fetch is needed.` : 'No students with matching class and section details were found.';
+            const needsPhoto = students.length - alreadyHasPhoto;
+            if (statTotal) statTotal.textContent = String(students.length);
+            if (statDone) statDone.textContent = String(alreadyHasPhoto);
+            if (statPending) statPending.textContent = String(needsPhoto);
+
+            rosterElement.innerHTML = students.length
+                ? `<div class="d-flex align-items-center gap-2 flex-wrap"><strong>${students.length} students loaded:</strong> <span class="badge bg-warning-subtle text-warning border border-warning-subtle">${needsPhoto} need photos</span> <span class="badge bg-success-subtle text-success border border-success-subtle">${alreadyHasPhoto} ready</span> <span class="text-muted ms-auto small">Cached in-memory</span></div>`
+                : '<span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i> No students with matching class and section details were found.</span>';
         }
         function renderPendingStudents() {
             pendingList.replaceChildren();
             selectedStudents.forEach((student, index) => {
-                const item = document.createElement('li'); item.className = 'mb-2';
-                const name = document.createElement('span'); name.textContent = `${student.name || student.email || 'Unnamed student'}${student.classRoll ? ` · Roll ${student.classRoll}` : ''}`;
-                const status = document.createElement('span'); status.className = 'd-block text-muted';
-                status.textContent = profilePhotoValue(student) ? 'Photo already set' : student._photoCaptureStatus || 'Pending photo';
-                if (pendingStudents[captureIndex]?.uid === student.uid) { item.classList.add('fw-bold'); item.setAttribute('aria-current', 'step'); }
-                const sequence = document.createElement('span'); sequence.className = 'me-1'; sequence.textContent = `${index + 1}.`;
-                item.append(sequence, name, status); pendingList.append(item);
+                const item = document.createElement('li');
+                item.className = 'studio-queue-item d-flex justify-content-between align-items-center';
+                const hasPhoto = profilePhotoValue(student);
+                const isCurrent = pendingStudents[captureIndex]?.uid === student.uid;
+                if (isCurrent) item.classList.add('active');
+                if (hasPhoto) item.classList.add('completed');
+
+                const left = document.createElement('div');
+                left.className = 'd-flex align-items-center gap-2 text-truncate me-2';
+                const seq = document.createElement('span');
+                seq.className = 'badge bg-secondary-subtle text-secondary';
+                seq.style.fontSize = '10px';
+                seq.textContent = `#${index + 1}`;
+                const name = document.createElement('span');
+                name.className = isCurrent ? 'fw-bold text-white text-truncate' : 'text-light text-truncate';
+                name.textContent = `${student.name || student.email || 'Unnamed student'}${student.classRoll ? ` (Roll ${student.classRoll})` : ''}`;
+                left.append(seq, name);
+
+                const status = document.createElement('span');
+                if (hasPhoto) {
+                    status.className = 'badge bg-success-subtle text-success border border-success-subtle';
+                    status.innerHTML = '<i class="fas fa-check"></i> Ready';
+                } else if (student._photoCaptureStatus?.includes('Skipped')) {
+                    status.className = 'badge bg-warning-subtle text-warning border border-warning-subtle';
+                    status.textContent = 'Skipped';
+                } else if (isCurrent) {
+                    status.className = 'badge bg-info text-dark fw-bold';
+                    status.textContent = 'Active';
+                } else {
+                    status.className = 'badge bg-dark text-secondary border border-secondary-subtle';
+                    status.textContent = 'Pending';
+                }
+
+                item.append(left, status);
+                pendingList.append(item);
             });
         }
         function populateSections() {
@@ -3804,6 +4155,38 @@
             remoteConnectButton.hidden = false;
             remoteConnectButton.disabled = false;
         }
+        function enterStudioFullscreen() {
+            try {
+                if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+                    const docEl = document.documentElement;
+                    const req = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+                    if (req) {
+                        const p = req.call(docEl);
+                        if (p && typeof p.catch === 'function') {
+                            p.catch(() => {
+                                if (modal) {
+                                    const mReq = modal.requestFullscreen || modal.webkitRequestFullscreen || modal.mozRequestFullScreen || modal.msRequestFullscreen;
+                                    if (mReq) mReq.call(modal)?.catch?.(() => {});
+                                }
+                            });
+                        }
+                    } else if (modal) {
+                        const mReq = modal.requestFullscreen || modal.webkitRequestFullscreen || modal.mozRequestFullScreen || modal.msRequestFullscreen;
+                        if (mReq) mReq.call(modal)?.catch?.(() => {});
+                    }
+                }
+            } catch (e) {}
+        }
+        function exitStudioFullscreen() {
+            try {
+                if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+                    if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+                    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                    else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+                    else if (document.msExitFullscreen) document.msExitFullscreen();
+                }
+            } catch (e) {}
+        }
         function unlockSelection() {
             if (remoteCaptureSession) {
                 closeRemoteCapture().then(() => unlockSelection()).catch(error => {
@@ -3812,8 +4195,14 @@
                 return;
             }
             selectionLocked = false; stopCamera(); resetSnapshotView(); modal.hidden = true;
+            document.body.classList.remove('studio-fullscreen-active');
+            exitStudioFullscreen();
+            const modalTitle = section.querySelector('#ownerPhotoModalTitle');
+            if (modalTitle) modalTitle.textContent = 'Capture student profile photo';
+            const classBadge = section.querySelector('#ownerPhotoClassBadge');
+            if (classBadge) classBadge.textContent = '';
             schoolSelect.disabled = false; classSelect.disabled = !schoolSelect.value || !classes.length; sectionSelect.disabled = !classSelect.value || !sectionSelect.value;
-            lockButton.innerHTML = '<i class="fas fa-lock"></i> Lock selection &amp; open camera';
+            lockButton.innerHTML = '<i class="fas fa-lock me-2"></i> Lock Selection &amp; Enter Fullscreen Studio';
             lockButton.classList.remove('btn-outline-secondary'); lockButton.classList.add('btn-primary'); refreshRoster();
         }
         function renderCurrentStudent() {
@@ -3829,6 +4218,10 @@
                     renderCurrentStudent();
                     return;
                 }
+                const modalTitle = section.querySelector('#ownerPhotoModalTitle');
+                if (modalTitle) modalTitle.textContent = 'Capture student profile photo';
+                const classBadge = section.querySelector('#ownerPhotoClassBadge');
+                if (classBadge) classBadge.textContent = '';
                 section.querySelector('#ownerPhotoProgress').textContent = pendingStudents.length ? `Complete: all ${pendingStudents.length} assigned photos processed on this device.` : `${selectedStudents.length} students selected; no photos are pending.`;
                 cameraStatus.textContent = 'All assigned students on this device have been processed.';
                 captureButton.hidden = true; skipButton.hidden = true; finishButton.hidden = false;
@@ -3836,19 +4229,35 @@
                 return;
             }
             const isSkippedRound = student._isSkippedRound;
-            const rosterIndex = selectedStudents.findIndex(record => record.uid === student.uid);
-            section.querySelector('#ownerPhotoProgress').textContent = `Photo ${captureIndex + 1} of ${pendingStudents.length} (This device)${isSkippedRound ? ' · Skipped queue' : ''} · Roll #${student.classRoll || 'N/A'}`;
+            const className = classes.find(record => record.id === classSelect.value)?.name || 'Class';
+            const modalTitle = section.querySelector('#ownerPhotoModalTitle');
+            if (modalTitle) modalTitle.textContent = 'Capture student profile photo';
+            const classBadge = section.querySelector('#ownerPhotoClassBadge');
+            if (classBadge) classBadge.textContent = `${className} · Section ${student.section || ''}`;
+            section.querySelector('#ownerPhotoProgress').textContent = `Photo ${captureIndex + 1} of ${pendingStudents.length}${isSkippedRound ? ' · Skipped queue' : ''} · Roll #${student.classRoll || 'N/A'}`;
             const fatherName = student.fatherName || student.father_name || student.fathersName || student.father || student.guardianName || student.parentName || student.parent_name || 'Not provided';
             const fatherMobile = student.fatherMobile || student.fatherMobileNumber || student.fatherPhone || student.guardianMobile || student.guardianPhone || student.parentMobile || student.parentPhone || student.emergencyContact || 'Not provided';
             const values = [
-                ['Student name', student.name || 'Not provided'], ['Father / guardian name', fatherName],
-                ['Student mobile', student.mobile || student.phone || 'Not provided'], ['Father / guardian mobile', fatherMobile],
-                ['Class / section', `${classes.find(record => record.id === classSelect.value)?.name || ''} / ${student.section || ''}`],
-                ['Roll number', student.classRoll || 'Not provided']
+                ['Student Name', student.name || 'Not provided'],
+                ['Roll Number', student.classRoll ? `#${student.classRoll}` : 'Not provided'],
+                ['Class / Section', `${className} / ${student.section || ''}`],
+                ['Father / Guardian', fatherName],
+                ['Student Mobile', student.mobile || student.phone || 'Not provided'],
+                ['Father Mobile', fatherMobile]
             ];
             values.forEach(([label, value]) => {
-                const cell = document.createElement('div'); cell.className = 'col-sm-6 small';
-                const strong = document.createElement('strong'); strong.textContent = `${label}: `; cell.append(strong, document.createTextNode(String(value))); details.append(cell);
+                const cell = document.createElement('div');
+                cell.className = 'col-6 small';
+                cell.style.color = '#94a3b8';
+                const strong = document.createElement('strong');
+                strong.style.color = '#e2e8f0';
+                strong.className = 'd-block text-truncate';
+                strong.textContent = `${label}`;
+                const valSpan = document.createElement('span');
+                valSpan.className = 'text-truncate d-block text-white fw-semibold';
+                valSpan.textContent = String(value);
+                cell.append(strong, valSpan);
+                details.append(cell);
             });
             cameraStatus.textContent = 'Check student details, position student in frame, then capture.';
             captureButton.hidden = false; skipButton.hidden = false; finishButton.hidden = true;
@@ -4099,12 +4508,33 @@
             pendingStudents = selectedStudents.filter(student => !profilePhotoValue(student));
             skippedStudents = [];
             selectionLocked = true; captureIndex = 0; schoolSelect.disabled = true; classSelect.disabled = true; sectionSelect.disabled = true;
-            lockButton.innerHTML = '<i class="fas fa-unlock"></i> Unlock to change selection'; lockButton.classList.remove('btn-primary'); lockButton.classList.add('btn-outline-secondary');
-            modal.hidden = false; renderCurrentStudent();
+            lockButton.innerHTML = '<i class="fas fa-unlock me-2"></i> Unlock to change selection'; lockButton.classList.remove('btn-primary'); lockButton.classList.add('btn-outline-secondary');
+
+            document.body.classList.add('studio-fullscreen-active');
+            enterStudioFullscreen();
+            modal.hidden = false;
+            renderCurrentStudent();
             if (!pendingStudents.length) return;
             try { await startCamera(); }
             catch (error) { stopCamera(); cameraStatus.textContent = error.message; captureButton.disabled = true; notify(error.message, 'warning'); }
         });
+        if (fullscreenToggle) {
+            fullscreenToggle.addEventListener('click', () => {
+                if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+                    exitStudioFullscreen();
+                } else {
+                    enterStudioFullscreen();
+                }
+            });
+            const updateFsIcon = () => {
+                const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+                fullscreenToggle.innerHTML = isFs
+                    ? '<i class="fas fa-compress me-1"></i> <span class="d-none d-sm-inline">Exit Fullscreen</span>'
+                    : '<i class="fas fa-expand me-1"></i> <span class="d-none d-sm-inline">Fullscreen</span>';
+            };
+            document.addEventListener('fullscreenchange', updateFsIcon);
+            document.addEventListener('webkitfullscreenchange', updateFsIcon);
+        }
         captureButton.addEventListener('click', takeSnapshot);
         doUploadButton.addEventListener('click', startUploadCurrentSnapshot);
         stopUploadButton.addEventListener('click', stopCurrentUpload);
