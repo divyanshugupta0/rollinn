@@ -3496,21 +3496,69 @@
               <div class="row g-3"><div class="col-md-7"><div id="ownerPhotoStudentDetails" class="row g-2 border rounded p-3 mb-3"></div>
                 <video id="ownerPhotoVideo" autoplay playsinline muted style="display:block;width:100%;max-height:48vh;object-fit:cover;background:#111827;border-radius:12px;"></video>
                 <div id="ownerPhotoCameraStatus" class="small text-muted mt-2" role="status">Allow camera access to begin capturing.</div>
-                <div id="ownerPhotoRemotePanel" class="border rounded p-3 mt-3" hidden><div class="d-flex justify-content-between align-items-center gap-2"><strong>Remote camera</strong><button id="ownerPhotoRemoteDisconnect" type="button" class="btn btn-sm btn-outline-secondary">Disconnect</button></div><div class="row g-3 align-items-center mt-1"><div class="col-sm-auto"><div id="ownerPhotoRemoteQr" aria-label="Remote camera pairing QR code"></div></div><div class="col"><p id="ownerPhotoRemoteStatus" class="small mb-2" role="status">Preparing a secure camera session…</p><div id="ownerPhotoRemoteApproval" hidden><p class="small mb-2">Approve only if this code matches the code shown on that device: <strong id="ownerPhotoRemoteCode" class="fs-5"></strong></p><button id="ownerPhotoRemoteApprove" type="button" class="btn btn-sm btn-success">Approve device</button><button id="ownerPhotoRemoteReject" type="button" class="btn btn-sm btn-outline-danger ms-2">Reject</button></div></div></div><div class="d-flex flex-wrap gap-3 mt-3"><div class="form-check form-switch"><input id="ownerPhotoAutoReceive" class="form-check-input" type="checkbox"><label class="form-check-label" for="ownerPhotoAutoReceive">Auto receive</label></div><div class="form-check form-switch"><input id="ownerPhotoAutoUpload" class="form-check-input" type="checkbox"><label class="form-check-label" for="ownerPhotoAutoUpload">Auto upload</label></div></div><img id="ownerPhotoRemotePreview" alt="Received profile photo preview" hidden style="display:block;max-width:100%;max-height:360px;margin:14px auto 0;border-radius:10px;object-fit:contain;background:#111827;"><div class="d-flex flex-wrap justify-content-end gap-2 mt-3"><button id="ownerPhotoRemoteReceive" type="button" class="btn btn-outline-primary" disabled>Receive photo</button><button id="ownerPhotoRemoteUpload" type="button" class="btn btn-primary" hidden disabled>Upload to current student</button></div></div>
-                <div class="d-flex justify-content-between align-items-center gap-2 mt-3"><button id="ownerPhotoSkip" type="button" class="btn btn-outline-secondary">Skip student</button><div class="d-flex gap-2 flex-wrap justify-content-end"><button id="ownerPhotoRemoteConnect" type="button" class="btn btn-outline-primary"><i class="fas fa-mobile-alt"></i> Use another device</button><button id="ownerPhotoCapture" type="button" class="btn btn-primary" disabled><i class="fas fa-camera"></i> Capture &amp; upload</button><button id="ownerPhotoFinish" type="button" class="btn btn-success" hidden>Finish</button></div></div>
-              </div><aside class="col-md-5"><h3 class="h6">Student sequence</h3><p class="small text-muted">Students with saved photos are marked complete. This list updates locally after each upload.</p><ol id="ownerPhotoPendingList" class="small ps-4 mb-0" style="max-height:60vh;overflow:auto;"></ol></aside></div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div class="form-check form-switch mb-0">
+                    <input id="ownerPhotoAutoUpload" class="form-check-input" type="checkbox">
+                    <label class="form-check-label small" for="ownerPhotoAutoUpload">Auto upload after capture</label>
+                  </div>
+                </div>
+                <video id="ownerPhotoVideo" autoplay playsinline muted style="display:block;width:100%;max-height:48vh;object-fit:cover;background:#111827;border-radius:12px;"></video>
+                <img id="ownerPhotoSnapshot" alt="Snapshot preview" hidden style="display:block;width:100%;max-height:48vh;object-fit:cover;background:#111827;border-radius:12px;">
+                <div id="ownerPhotoCameraStatus" class="small text-muted mt-2" role="status">Allow camera access to begin capturing.</div>
+                <div id="ownerPhotoRemotePanel" class="border rounded p-3 mt-3" hidden>
+                  <div class="d-flex justify-content-between align-items-center gap-2">
+                    <strong><i class="fas fa-mobile-alt me-1"></i> Connected phone / second device</strong>
+                    <button id="ownerPhotoRemoteDisconnect" type="button" class="btn btn-sm btn-outline-danger">Disconnect</button>
+                  </div>
+                  <div class="row g-3 align-items-center mt-1">
+                    <div class="col-sm-auto"><div id="ownerPhotoRemoteQr" aria-label="Remote camera pairing QR code"></div></div>
+                    <div class="col">
+                      <p id="ownerPhotoRemoteStatus" class="small mb-2" role="status">Preparing a secure camera session…</p>
+                      <div id="ownerPhotoRemoteApproval" hidden>
+                        <p class="small mb-2">Approve only if this code matches the code on that phone: <strong id="ownerPhotoRemoteCode" class="fs-5 text-primary"></strong></p>
+                        <button id="ownerPhotoRemoteApprove" type="button" class="btn btn-sm btn-success"><i class="fas fa-check"></i> Approve &amp; Split List</button>
+                        <button id="ownerPhotoRemoteReject" type="button" class="btn btn-sm btn-outline-danger ms-2">Reject</button>
+                      </div>
+                      <div id="ownerPhotoRemoteProgress" class="mt-2" hidden>
+                        <div id="ownerPhotoRemoteBadge" class="badge bg-info text-dark text-wrap mb-1">Remote device active</div>
+                        <div id="ownerPhotoRemoteCount" class="small text-muted mb-2"></div>
+                        <div id="ownerPhotoTransferControls" class="d-flex flex-wrap gap-2" hidden>
+                          <button id="ownerPhotoSendStudents" type="button" class="btn btn-sm btn-outline-primary"><i class="fas fa-arrow-right"></i> Send remaining students to phone</button>
+                          <button id="ownerPhotoTakeStudents" type="button" class="btn btn-sm btn-outline-warning"><i class="fas fa-arrow-left"></i> Take list from phone</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center gap-2 mt-3 flex-wrap">
+                  <button id="ownerPhotoSkip" type="button" class="btn btn-outline-secondary">Skip student</button>
+                  <div class="d-flex gap-2 flex-wrap justify-content-end">
+                    <button id="ownerPhotoRemoteConnect" type="button" class="btn btn-outline-primary"><i class="fas fa-mobile-alt"></i> Divide list with 2nd device</button>
+                    <button id="ownerPhotoCapture" type="button" class="btn btn-primary" disabled><i class="fas fa-camera"></i> Capture</button>
+                    <button id="ownerPhotoDoUpload" type="button" class="btn btn-success" hidden><i class="fas fa-cloud-upload-alt"></i> Upload photo</button>
+                    <button id="ownerPhotoStopUpload" type="button" class="btn btn-danger" hidden><i class="fas fa-stop-circle"></i> Stop upload</button>
+                    <button id="ownerPhotoRetake" type="button" class="btn btn-outline-secondary" hidden><i class="fas fa-redo"></i> Retake</button>
+                    <button id="ownerPhotoFinish" type="button" class="btn btn-success" hidden>Finish</button>
+                  </div>
+                </div>
+              </div><aside class="col-md-5"><h3 class="h6">Student sequence</h3><p class="small text-muted">Students with saved photos are marked complete. Skipped students will be captured at the end.</p><ol id="ownerPhotoPendingList" class="small ps-4 mb-0" style="max-height:60vh;overflow:auto;"></ol></aside></div>
             </div>
           </div>`;
         main.appendChild(section);
         const schoolSelect = section.querySelector('#ownerPhotoSchool'); const classSelect = section.querySelector('#ownerPhotoClass'); const sectionSelect = section.querySelector('#ownerPhotoSection');
         const lockButton = section.querySelector('#ownerPhotoLock'); const rosterElement = section.querySelector('#ownerPhotoRoster'); const modal = section.querySelector('#ownerPhotoCameraModal');
-        const video = section.querySelector('#ownerPhotoVideo'); const details = section.querySelector('#ownerPhotoStudentDetails'); const captureButton = section.querySelector('#ownerPhotoCapture'); const pendingList = section.querySelector('#ownerPhotoPendingList');
-        const skipButton = section.querySelector('#ownerPhotoSkip'); const finishButton = section.querySelector('#ownerPhotoFinish'); const cameraStatus = section.querySelector('#ownerPhotoCameraStatus');
-        const remoteConnectButton = section.querySelector('#ownerPhotoRemoteConnect'); const remotePanel = section.querySelector('#ownerPhotoRemotePanel'); const remoteQr = section.querySelector('#ownerPhotoRemoteQr'); const remoteStatus = section.querySelector('#ownerPhotoRemoteStatus'); const remoteApproval = section.querySelector('#ownerPhotoRemoteApproval');
-        const remotePreview = section.querySelector('#ownerPhotoRemotePreview'); const remoteReceiveButton = section.querySelector('#ownerPhotoRemoteReceive'); const remoteUploadButton = section.querySelector('#ownerPhotoRemoteUpload'); const autoReceiveToggle = section.querySelector('#ownerPhotoAutoReceive'); const autoUploadToggle = section.querySelector('#ownerPhotoAutoUpload');
+        const video = section.querySelector('#ownerPhotoVideo'); const snapshot = section.querySelector('#ownerPhotoSnapshot'); const details = section.querySelector('#ownerPhotoStudentDetails');
+        const captureButton = section.querySelector('#ownerPhotoCapture'); const doUploadButton = section.querySelector('#ownerPhotoDoUpload'); const stopUploadButton = section.querySelector('#ownerPhotoStopUpload');
+        const retakeButton = section.querySelector('#ownerPhotoRetake'); const skipButton = section.querySelector('#ownerPhotoSkip'); const finishButton = section.querySelector('#ownerPhotoFinish');
+        const cameraStatus = section.querySelector('#ownerPhotoCameraStatus'); const autoUploadToggle = section.querySelector('#ownerPhotoAutoUpload'); const pendingList = section.querySelector('#ownerPhotoPendingList');
+        const remoteConnectButton = section.querySelector('#ownerPhotoRemoteConnect'); const remotePanel = section.querySelector('#ownerPhotoRemotePanel'); const remoteQr = section.querySelector('#ownerPhotoRemoteQr');
+        const remoteStatus = section.querySelector('#ownerPhotoRemoteStatus'); const remoteApproval = section.querySelector('#ownerPhotoRemoteApproval'); const remoteProgressBox = section.querySelector('#ownerPhotoRemoteProgress');
+        const remoteBadge = section.querySelector('#ownerPhotoRemoteBadge'); const remoteCount = section.querySelector('#ownerPhotoRemoteCount'); const transferControls = section.querySelector('#ownerPhotoTransferControls');
+        const sendStudentsButton = section.querySelector('#ownerPhotoSendStudents'); const takeStudentsButton = section.querySelector('#ownerPhotoTakeStudents');
         const accountCacheBySchool = new Map(); const classCacheBySchool = new Map();
-        let accounts = []; let classes = []; let selectedStudents = []; let pendingStudents = []; let captureIndex = 0; let cameraStream = null; let selectionLocked = false;
-        let remoteCaptureSession = null; let remoteCaptureTimer = null; let remoteCaptureBusy = false; let remoteReceiveBusy = false; let remoteUploadBusy = false; let remoteCaptureHasImage = false; let remoteCaptureBlob = null; let remotePreviewUrl = ''; let remoteCaptureSlot = 0; let remotePairingCode = '';
+        let accounts = []; let classes = []; let selectedStudents = []; let pendingStudents = []; let skippedStudents = []; let captureIndex = 0; let cameraStream = null; let selectionLocked = false;
+        let remoteCaptureSession = null; let remoteCaptureTimer = null; let remoteCaptureBusy = false; let remotePairingCode = ''; let currentRemoteAssigned = [];
+        let currentSnapshotBlob = null; let uploadAbortController = null; let isUploading = false;
         function renderPhotoSchools() {
             const previous = schoolSelect.value; schoolSelect.replaceChildren(new Option('Select school', ''));
             (schools || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).forEach(school => schoolSelect.add(new Option(`${school.name || 'Unnamed school'} · ${school.code || 'No code'}`, school.id)));
@@ -3593,6 +3641,18 @@
             if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
             cameraStream = null; video.srcObject = null; captureButton.disabled = true;
         }
+        function resetSnapshotView() {
+            currentSnapshotBlob = null;
+            snapshot.hidden = true;
+            snapshot.removeAttribute('src');
+            video.hidden = false;
+            captureButton.hidden = false;
+            captureButton.disabled = !cameraStream || !pendingStudents[captureIndex];
+            doUploadButton.hidden = true;
+            stopUploadButton.hidden = true;
+            retakeButton.hidden = true;
+            skipButton.hidden = false;
+        }
         function remoteCaptureUrl(action) {
             const endpoint = String(APP_FIREBASE?.profileUploadWorkerUrl || '').trim();
             const base = new URL(endpoint);
@@ -3619,116 +3679,102 @@
             }
             return responseType === 'blob' ? response.blob() : response.json();
         }
-        function clearRemotePreview() {
-            remoteCaptureBlob = null;
-            if (remotePreviewUrl) URL.revokeObjectURL(remotePreviewUrl);
-            remotePreviewUrl = '';
-            remotePreview.removeAttribute('src');
-            remotePreview.hidden = true;
-            remoteUploadButton.hidden = true;
-            remoteUploadButton.disabled = true;
-        }
-        function syncRemoteCaptureButton() {
-            const studentPending = !!pendingStudents[captureIndex];
-            if (remoteCaptureSession) {
-                remoteConnectButton.hidden = true;
-                captureButton.hidden = true;
-                remoteReceiveButton.hidden = false;
-                remoteReceiveButton.disabled = !remoteCaptureHasImage || !!remoteCaptureBlob || remoteReceiveBusy;
-                remoteUploadButton.hidden = !remoteCaptureBlob;
-                remoteUploadButton.disabled = !studentPending || !remoteCaptureBlob || remoteUploadBusy;
-            } else {
-                remoteConnectButton.hidden = !studentPending;
-                captureButton.hidden = false;
-                captureButton.innerHTML = '<i class="fas fa-camera"></i> Capture &amp; upload';
-                captureButton.disabled = !studentPending || !cameraStream;
-                remoteReceiveButton.hidden = true;
-                remoteUploadButton.hidden = true;
-            }
-        }
-        async function receiveRemotePhoto() {
-            if (!remoteCaptureSession || !remoteCaptureHasImage || remoteCaptureBlob || remoteReceiveBusy) return;
-            remoteReceiveBusy = true;
-            remoteReceiveButton.disabled = true;
-            remoteStatus.textContent = 'Receiving the photo for preview…';
-            try {
-                const blob = await ownerRemoteCaptureRequest('take', {}, 'blob');
-                if (!blob || !blob.size || !blob.type.startsWith('image/')) throw new Error('The pending capture is not a valid image.');
-                remoteCaptureBlob = blob;
-                remotePreviewUrl = URL.createObjectURL(blob);
-                remotePreview.src = remotePreviewUrl;
-                remotePreview.hidden = false;
-                remoteStatus.textContent = 'Photo preview ready. Review it, then upload it to the current student or capture another after upload/skip.';
-                syncRemoteCaptureButton();
-                if (autoUploadToggle.checked) await captureAndUpload();
-            } catch (error) {
-                remoteStatus.textContent = error.message || 'Could not receive the photo preview.';
-            } finally {
-                remoteReceiveBusy = false;
-                syncRemoteCaptureButton();
-            }
-        }
         async function pollRemoteCaptureStatus() {
             if (!remoteCaptureSession || remoteCaptureBusy) return;
             remoteCaptureBusy = true;
             try {
                 const result = await ownerRemoteCaptureRequest('status');
                 if (!remoteCaptureSession) return;
-                remoteCaptureHasImage = result.hasCapture === true;
-                remoteCaptureSlot = Number.isSafeInteger(result.captureSlot) ? result.captureSlot : remoteCaptureSlot;
+                currentRemoteAssigned = Array.isArray(result.remoteStudents) ? result.remoteStudents : [];
                 if (result.pairExpired) {
                     remoteApproval.hidden = true;
-                    remoteStatus.textContent = 'This QR code expired. Disconnect and create a new one.';
+                    remoteStatus.textContent = 'This QR code expired. Disconnect and try again.';
                 } else if (result.status === 'pairing') {
                     remotePairingCode = result.pairingCode;
                     section.querySelector('#ownerPhotoRemoteCode').textContent = remotePairingCode;
                     remoteApproval.hidden = false;
-                    remoteStatus.textContent = `A device named “${result.deviceName || 'Camera device'}” is requesting access. Confirm the code on that device.`;
+                    remoteStatus.textContent = `A device named “${result.deviceName || 'Camera device'}” is requesting connection. Confirm code:`;
+                } else if (result.status === 'approved') {
+                    remoteApproval.hidden = true;
+                    remoteProgressBox.hidden = false;
+                    transferControls.hidden = false;
+                    const completed = Number(result.completedCount) || 0;
+                    const total = Number(result.totalCount) || remoteCaptureSession.totalAssigned || 0;
+                    if (completed >= total && total > 0) {
+                        remoteBadge.textContent = 'Remote device finished!';
+                        remoteBadge.className = 'badge bg-success text-wrap mb-1';
+                        remoteCount.textContent = `All ${total} assigned photos uploaded directly.`;
+                        remoteStatus.textContent = 'Remote device completed all its assigned photos.';
+                    } else {
+                        remoteBadge.textContent = `Remote device: ${completed} / ${total} uploaded`;
+                        remoteBadge.className = 'badge bg-info text-dark text-wrap mb-1';
+                        remoteCount.textContent = `${total - completed} students remaining on remote device.`;
+                        remoteStatus.textContent = `Connected to ${result.deviceName || 'phone'}. Capturing & uploading in parallel.`;
+                    }
                 } else {
                     remoteApproval.hidden = true;
-                    if (result.status === 'approved') remoteStatus.textContent = remoteCaptureHasImage ? (remoteCaptureBlob ? 'Photo preview ready. Upload it or skip this student before the next capture.' : 'Photo received securely. Preview it, then upload it or skip this student.') : `Connected to ${result.deviceName || 'camera device'}. Waiting for a photo.`;
-                    else remoteStatus.textContent = 'Waiting for a camera device to scan the QR code.';
+                    remoteStatus.textContent = 'Waiting for second device to scan the QR code.';
                 }
-                syncRemoteCaptureButton();
-                if (remoteCaptureHasImage && !remoteCaptureBlob && autoReceiveToggle.checked) await receiveRemotePhoto();
             } catch (error) {
                 if (error.status === 410) {
                     clearInterval(remoteCaptureTimer); remoteCaptureTimer = null;
-                    remoteStatus.textContent = 'This remote camera session expired. Disconnect and create a new one.';
+                    remoteStatus.textContent = 'This remote camera session expired.';
                 }
             } finally { remoteCaptureBusy = false; }
         }
         async function startRemoteCapture() {
             if (typeof window.QRCode !== 'function') throw new Error('QR code support did not load. Reload the owner portal and try again.');
-            stopCamera();
-            video.style.display = 'none';
+            if (pendingStudents.length < 2) throw new Error('You need at least 2 pending students to divide the list between two devices.');
+
+            const remaining = pendingStudents.slice(captureIndex + 1);
+            if (remaining.length === 0) throw new Error('No upcoming students remaining to assign to a remote device.');
+            const halfRemaining = Math.ceil(remaining.length / 2);
+            const remoteList = remaining.slice(halfRemaining);
+            const keepRemaining = remaining.slice(0, halfRemaining);
+            const ownerList = [...pendingStudents.slice(0, captureIndex + 1), ...keepRemaining];
+
             remoteConnectButton.disabled = true;
             remotePanel.hidden = false;
             remoteQr.replaceChildren();
-            remoteStatus.textContent = 'Creating a private pairing code…';
+            remoteStatus.textContent = `Divided list (${ownerList.length} for this device, ${remoteList.length} for second device). Creating pairing code…`;
             remoteApproval.hidden = true;
+            remoteProgressBox.hidden = true;
+            transferControls.hidden = true;
+
             const owner = ownerAuth?.auth().currentUser;
             if (!owner) throw new Error('Sign in again before connecting a camera device.');
             const token = await owner.getIdToken();
             const response = await fetch(remoteCaptureUrl('create'), {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ studentName: pendingStudents[captureIndex]?.name || 'Unnamed student' }),
+                body: JSON.stringify({
+                    schoolId: schoolSelect.value,
+                    assignedStudents: remoteList.map(s => ({
+                        uid: s.uid,
+                        name: s.name || '',
+                        classRoll: s.classRoll || '',
+                        section: s.section || '',
+                        fatherName: s.fatherName || s.father_name || s.father || ''
+                    }))
+                }),
                 credentials: 'omit',
                 redirect: 'error',
                 referrerPolicy: 'no-referrer'
             });
             const result = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(result.error || 'Could not start remote capture.');
-            remoteCaptureSession = { sessionId: result.sessionId };
-            remoteCaptureSlot = Number.isSafeInteger(result.captureSlot) ? result.captureSlot : 0;
+            remoteCaptureSession = { sessionId: result.sessionId, totalAssigned: remoteList.length };
+
+            pendingStudents = ownerList;
+            captureIndex = Math.min(captureIndex, Math.max(0, pendingStudents.length - 1));
+            renderCurrentStudent();
+
             const captureUrl = new URL('../remote-photo-capture.html', window.location.href);
             captureUrl.hash = new URLSearchParams({ session: result.sessionId, token: result.qrToken }).toString();
-            new window.QRCode(remoteQr, { text: captureUrl.href, width: 190, height: 190, colorDark: '#17243a', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.H });
-            remoteStatus.textContent = 'Scan this QR code with the camera device. The owner must approve its matching code before camera access starts.';
-            remoteCaptureTimer = window.setInterval(pollRemoteCaptureStatus, 1800);
+            new window.QRCode(remoteQr, { text: captureUrl.href, width: 180, height: 180, colorDark: '#17243a', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.H });
+            remoteStatus.textContent = `Scan QR code with the second device to assign ${remoteList.length} students to it.`;
+            remoteCaptureTimer = window.setInterval(pollRemoteCaptureStatus, 2500);
             await pollRemoteCaptureStatus();
-            syncRemoteCaptureButton();
         }
         async function closeRemoteCapture() {
             if (remoteCaptureTimer) window.clearInterval(remoteCaptureTimer);
@@ -3736,17 +3782,15 @@
             const session = remoteCaptureSession;
             if (session) {
                 try { await ownerRemoteCaptureRequest('revoke'); }
-                catch (error) { throw error; }
+                catch (error) {}
             }
             remoteCaptureSession = null;
-            remoteCaptureHasImage = false;
-            remoteCaptureSlot = 0;
             remotePairingCode = '';
-            clearRemotePreview();
+            currentRemoteAssigned = [];
             remoteApproval.hidden = true;
             remotePanel.hidden = true;
+            transferControls.hidden = true;
             remoteQr.replaceChildren();
-            video.style.display = 'block';
             remoteConnectButton.hidden = false;
             remoteConnectButton.disabled = false;
         }
@@ -3757,24 +3801,33 @@
                 });
                 return;
             }
-            selectionLocked = false; stopCamera(); modal.hidden = true;
+            selectionLocked = false; stopCamera(); resetSnapshotView(); modal.hidden = true;
             schoolSelect.disabled = false; classSelect.disabled = !schoolSelect.value || !classes.length; sectionSelect.disabled = !classSelect.value || !sectionSelect.value;
             lockButton.innerHTML = '<i class="fas fa-lock"></i> Lock selection &amp; open camera';
             lockButton.classList.remove('btn-outline-secondary'); lockButton.classList.add('btn-primary'); refreshRoster();
         }
         function renderCurrentStudent() {
+            resetSnapshotView();
             const student = pendingStudents[captureIndex];
             details.replaceChildren();
             if (!student) {
-                section.querySelector('#ownerPhotoProgress').textContent = pendingStudents.length ? `Complete: ${pendingStudents.length} pending photos processed.` : `${selectedStudents.length} students selected; no photos are pending.`;
-                cameraStatus.textContent = pendingStudents.length ? 'All pending students have been processed.' : 'Every student in this section already has a profile photo.';
+                if (skippedStudents.length > 0) {
+                    pendingStudents = skippedStudents;
+                    skippedStudents = [];
+                    captureIndex = 0;
+                    notify('Regular student queue finished! Now capturing skipped students.', 'info');
+                    renderCurrentStudent();
+                    return;
+                }
+                section.querySelector('#ownerPhotoProgress').textContent = pendingStudents.length ? `Complete: all ${pendingStudents.length} assigned photos processed on this device.` : `${selectedStudents.length} students selected; no photos are pending.`;
+                cameraStatus.textContent = 'All assigned students on this device have been processed.';
                 captureButton.hidden = true; skipButton.hidden = true; finishButton.hidden = false;
-                remoteConnectButton.hidden = true;
                 renderPendingStudents();
                 return;
             }
+            const isSkippedRound = student._isSkippedRound;
             const rosterIndex = selectedStudents.findIndex(record => record.uid === student.uid);
-            section.querySelector('#ownerPhotoProgress').textContent = `Pending photo ${captureIndex + 1} of ${pendingStudents.length} · Class sequence ${rosterIndex + 1} of ${selectedStudents.length}`;
+            section.querySelector('#ownerPhotoProgress').textContent = `Photo ${captureIndex + 1} of ${pendingStudents.length} (This device)${isSkippedRound ? ' · Skipped queue' : ''} · Roll #${student.classRoll || 'N/A'}`;
             const fatherName = student.fatherName || student.father_name || student.fathersName || student.father || student.guardianName || student.parentName || student.parent_name || 'Not provided';
             const fatherMobile = student.fatherMobile || student.fatherMobileNumber || student.fatherPhone || student.guardianMobile || student.guardianPhone || student.parentMobile || student.parentPhone || student.emergencyContact || 'Not provided';
             const values = [
@@ -3787,9 +3840,9 @@
                 const cell = document.createElement('div'); cell.className = 'col-sm-6 small';
                 const strong = document.createElement('strong'); strong.textContent = `${label}: `; cell.append(strong, document.createTextNode(String(value))); details.append(cell);
             });
-            cameraStatus.textContent = 'Check the student details, position the student in frame, then capture and upload.';
+            cameraStatus.textContent = 'Check student details, position student in frame, then capture.';
             captureButton.hidden = false; skipButton.hidden = false; finishButton.hidden = true;
-            syncRemoteCaptureButton();
+            captureButton.disabled = !cameraStream;
             renderPendingStudents();
         }
         async function startCamera() {
@@ -3799,26 +3852,58 @@
             video.srcObject = cameraStream;
             await video.play(); captureButton.disabled = false; cameraStatus.textContent = 'Camera is ready.';
         }
-        async function captureAndUpload() {
-            if (remoteCaptureSession && remoteUploadBusy) return;
-            const student = pendingStudents[captureIndex]; const owner = ownerAuth?.auth().currentUser;
-            if (!student || !owner || !window.RollCallProfileUpload || (!remoteCaptureSession && !video.videoWidth) || (remoteCaptureSession && !remoteCaptureBlob)) return notify('The camera or secure photo upload service is not ready.', 'warning');
-            if (remoteCaptureSession) remoteUploadBusy = true;
-            captureButton.disabled = true; skipButton.disabled = true; cameraStatus.textContent = remoteCaptureSession ? 'Receiving and uploading the photo to R2…' : 'Preparing and uploading the photo to R2…';
+        async function takeSnapshot() {
+            const student = pendingStudents[captureIndex];
+            if (!student || !video.videoWidth) return notify('Position the student in frame before capturing.', 'warning');
             try {
-                let blob;
-                if (remoteCaptureSession) {
-                    blob = remoteCaptureBlob;
+                const scale = Math.min(1, 640 / Math.max(video.videoWidth, video.videoHeight));
+                const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(video.videoWidth * scale)); canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+                const context = canvas.getContext('2d'); if (!context) throw new Error('Could not prepare the captured photo.');
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
+                if (!blob || blob.size > 2 * 1024 * 1024) throw new Error('The captured photo exceeds 2 MB.');
+                currentSnapshotBlob = blob;
+                snapshot.src = URL.createObjectURL(blob);
+                snapshot.hidden = false;
+                video.hidden = true;
+                if (autoUploadToggle.checked) {
+                    await startUploadCurrentSnapshot();
                 } else {
-                    const scale = Math.min(1, 640 / Math.max(video.videoWidth, video.videoHeight));
-                    const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(video.videoWidth * scale)); canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-                    const context = canvas.getContext('2d'); if (!context) throw new Error('Could not prepare the captured photo.');
-                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
+                    captureButton.hidden = true;
+                    skipButton.hidden = true;
+                    doUploadButton.hidden = false;
+                    retakeButton.hidden = false;
+                    cameraStatus.textContent = 'Preview ready. Tap Upload photo or Retake.';
                 }
-                if (!blob || blob.size > 2 * 1024 * 1024) throw new Error('The captured photo could not be compressed under the 2 MB upload limit.');
-                const result = await window.RollCallProfileUpload.upload(blob, { uid: student.uid, getIdToken: () => owner.getIdToken() });
-                const timestamp = Date.now(); const updates = {
+            } catch (error) {
+                notify(error.message || 'Capture failed.', 'danger');
+            }
+        }
+        async function startUploadCurrentSnapshot() {
+            const student = pendingStudents[captureIndex];
+            const owner = ownerAuth?.auth().currentUser;
+            if (!student || !owner || !window.RollCallProfileUpload || !currentSnapshotBlob) {
+                return notify('No captured photo is ready to upload.', 'warning');
+            }
+            isUploading = true;
+            captureButton.hidden = true;
+            doUploadButton.hidden = true;
+            retakeButton.hidden = true;
+            skipButton.hidden = true;
+            stopUploadButton.hidden = false;
+            cameraStatus.textContent = 'Uploading photo to R2… Click Stop upload to cancel.';
+            uploadAbortController = new AbortController();
+
+            try {
+                const blob = currentSnapshotBlob;
+                const result = await window.RollCallProfileUpload.upload(blob, {
+                    uid: student.uid,
+                    getIdToken: () => owner.getIdToken(),
+                    signal: uploadAbortController.signal
+                });
+                if (!isUploading) return;
+                const timestamp = Date.now();
+                const updates = {
                     [`users/${student.uid}/profilePhoto`]: result.publicUrl,
                     [`users/${student.uid}/profilePhotoKey`]: result.key,
                     [`users/${student.uid}/profilePhotoUpdatedAt`]: timestamp
@@ -3830,22 +3915,113 @@
                 }
                 await database.ref().update(updates);
                 student.profilePhoto = result.publicUrl; student.profilePhotoKey = result.key; student.profilePhotoUpdatedAt = timestamp; student._photoCaptureStatus = 'Uploaded';
-                await cameraIndexNext('Photo uploaded.');
+                isUploading = false;
+                stopUploadButton.hidden = true;
+                cameraIndexNext('Photo uploaded directly.');
             } catch (error) {
-                cameraStatus.textContent = error.message || 'Photo upload failed. You can try again.';
-                if (remoteCaptureSession) syncRemoteCaptureButton(); else captureButton.disabled = false;
-            } finally { remoteUploadBusy = false; skipButton.disabled = false; syncRemoteCaptureButton(); }
-        }
-        async function cameraIndexNext(message) {
-            if (remoteCaptureSession) {
-                const nextStudent = pendingStudents[captureIndex + 1];
-                const result = await ownerRemoteCaptureRequest('advance', { studentName: nextStudent?.name || '' });
-                remoteCaptureSlot = Number.isSafeInteger(result.captureSlot) ? result.captureSlot : remoteCaptureSlot + 1;
-                remoteCaptureHasImage = false;
-                clearRemotePreview();
+                isUploading = false;
+                stopUploadButton.hidden = true;
+                doUploadButton.hidden = false;
+                retakeButton.hidden = false;
+                cameraStatus.textContent = error.message || 'Photo upload failed. You can Retake or click Upload photo to retry.';
             }
+        }
+        function stopCurrentUpload() {
+            if (!isUploading) return;
+            isUploading = false;
+            if (uploadAbortController) uploadAbortController.abort();
+            stopUploadButton.hidden = true;
+            doUploadButton.hidden = false;
+            retakeButton.hidden = false;
+            cameraStatus.textContent = 'Upload stopped. Tap Retake or Upload photo to retry.';
+            notify('Upload cancelled.', 'info');
+        }
+        function cameraIndexNext(message) {
+            resetSnapshotView();
             captureIndex += 1; cameraStatus.textContent = message; renderCurrentStudent();
-            if (pendingStudents[captureIndex]) syncRemoteCaptureButton();
+            if (pendingStudents[captureIndex]) captureButton.disabled = !cameraStream;
+        }
+        async function sendRemainingStudentsToPhone() {
+            if (!remoteCaptureSession) return notify('No remote device is connected.', 'warning');
+            const availableToSend = pendingStudents.slice(captureIndex + 1);
+            if (!availableToSend.length) return notify('You have no remaining upcoming students to send.', 'warning');
+
+            let count = availableToSend.length;
+            if (availableToSend.length > 1) {
+                const answer = window.prompt(`How many upcoming students to send to remote device? (1 to ${availableToSend.length}, or press OK for all ${availableToSend.length}):`, String(availableToSend.length));
+                if (answer === null) return;
+                const parsed = parseInt(String(answer).trim(), 10);
+                if (!isNaN(parsed) && parsed >= 1 && parsed <= availableToSend.length) {
+                    count = parsed;
+                }
+            }
+            const toSend = availableToSend.slice(0, count);
+            const toKeep = availableToSend.slice(count);
+
+            try {
+                sendStudentsButton.disabled = true;
+                const existingUncompleted = currentRemoteAssigned.filter(s => !s.completed);
+                const existingCompleted = currentRemoteAssigned.filter(s => s.completed);
+                const updatedList = [
+                    ...existingCompleted,
+                    ...existingUncompleted,
+                    ...toSend.map(s => ({
+                        uid: s.uid,
+                        name: s.name || '',
+                        classRoll: s.classRoll || '',
+                        section: s.section || '',
+                        fatherName: s.fatherName || s.father || ''
+                    }))
+                ];
+                await ownerRemoteCaptureRequest('sync-students', { assignedStudents: updatedList });
+                pendingStudents = [...pendingStudents.slice(0, captureIndex + 1), ...toKeep];
+                notify(`Transferred ${toSend.length} student(s) to the remote phone!`, 'success');
+                renderCurrentStudent();
+                await pollRemoteCaptureStatus();
+            } catch (error) {
+                notify(error.message || 'Could not transfer students to phone.', 'danger');
+            } finally {
+                sendStudentsButton.disabled = false;
+            }
+        }
+        async function takeRemainingStudentsFromPhone() {
+            if (!remoteCaptureSession) return notify('No remote device is connected.', 'warning');
+            try {
+                takeStudentsButton.disabled = true;
+                await pollRemoteCaptureStatus();
+                const uncompleted = currentRemoteAssigned.filter(s => !s.completed);
+                if (!uncompleted.length) return notify('Remote phone has no uncompleted students to take.', 'warning');
+
+                let count = uncompleted.length;
+                if (uncompleted.length > 1) {
+                    const answer = window.prompt(`How many uncompleted students to reclaim from remote phone? (1 to ${uncompleted.length}, or press OK for all ${uncompleted.length}):`, String(uncompleted.length));
+                    if (answer === null) return;
+                    const parsed = parseInt(String(answer).trim(), 10);
+                    if (!isNaN(parsed) && parsed >= 1 && parsed <= uncompleted.length) {
+                        count = parsed;
+                    }
+                }
+
+                // Reclaim from the tail of remote uncompleted to safeguard whichever student is currently active on the phone
+                const toReclaim = uncompleted.slice(uncompleted.length - count);
+                const remainingUncompletedOnPhone = uncompleted.slice(0, uncompleted.length - count);
+                const completedOnly = currentRemoteAssigned.filter(s => s.completed);
+
+                const updatedList = [...completedOnly, ...remainingUncompletedOnPhone];
+                await ownerRemoteCaptureRequest('sync-students', { assignedStudents: updatedList });
+
+                toReclaim.forEach(s => {
+                    const fullRecord = selectedStudents.find(r => r.uid === s.uid) || s;
+                    pendingStudents.push(fullRecord);
+                });
+                notify(`Reclaimed ${toReclaim.length} student(s) from the phone to this device!`, 'success');
+                renderCurrentStudent();
+                await pollRemoteCaptureStatus();
+            } catch (error) {
+                notify(error.message || 'Could not reclaim students from phone.', 'danger');
+            } finally {
+                takeStudentsButton.disabled = false;
+            }
         }
         section._onBulkPhotosOpen = async () => {
             const cached = await readSchoolsCache();
@@ -3876,6 +4052,7 @@
             if (!schoolSelect.value || !classSelect.value || !sectionSelect.value || !selectedStudents.length) return notify('Select a school, class, and section with students before locking.', 'warning');
             selectedStudents.forEach(student => { if (!profilePhotoValue(student)) delete student._photoCaptureStatus; });
             pendingStudents = selectedStudents.filter(student => !profilePhotoValue(student));
+            skippedStudents = [];
             selectionLocked = true; captureIndex = 0; schoolSelect.disabled = true; classSelect.disabled = true; sectionSelect.disabled = true;
             lockButton.innerHTML = '<i class="fas fa-unlock"></i> Unlock to change selection'; lockButton.classList.remove('btn-primary'); lockButton.classList.add('btn-outline-secondary');
             modal.hidden = false; renderCurrentStudent();
@@ -3883,22 +4060,18 @@
             try { await startCamera(); }
             catch (error) { stopCamera(); cameraStatus.textContent = error.message; captureButton.disabled = true; notify(error.message, 'warning'); }
         });
-        captureButton.addEventListener('click', captureAndUpload);
-        remoteReceiveButton.addEventListener('click', receiveRemotePhoto);
-        remoteUploadButton.addEventListener('click', captureAndUpload);
-        autoReceiveToggle.addEventListener('change', () => {
-            if (autoReceiveToggle.checked) void pollRemoteCaptureStatus();
-        });
-        autoUploadToggle.addEventListener('change', () => {
-            if (autoUploadToggle.checked && remoteCaptureBlob) void captureAndUpload();
-        });
+        captureButton.addEventListener('click', takeSnapshot);
+        doUploadButton.addEventListener('click', startUploadCurrentSnapshot);
+        stopUploadButton.addEventListener('click', stopCurrentUpload);
+        retakeButton.addEventListener('click', resetSnapshotView);
+        sendStudentsButton.addEventListener('click', sendRemainingStudentsToPhone);
+        takeStudentsButton.addEventListener('click', takeRemainingStudentsFromPhone);
         remoteConnectButton.addEventListener('click', async () => {
             try { await startRemoteCapture(); }
             catch (error) {
                 remoteStatus.textContent = error.message;
                 remoteConnectButton.disabled = false;
-                video.style.display = 'block';
-                await startCamera().catch(() => {});
+                notify(error.message, 'warning');
             }
         });
         section.querySelector('#ownerPhotoRemoteApprove').addEventListener('click', async event => {
@@ -3907,23 +4080,26 @@
                 await ownerRemoteCaptureRequest('approve', { pairingCode: remotePairingCode });
                 remotePairingCode = '';
                 await pollRemoteCaptureStatus();
+                notify('Second device approved! Students are divided and both devices can now capture photos simultaneously.', 'success');
             } catch (error) { remoteStatus.textContent = error.message; }
             finally { button.disabled = false; }
         });
         section.querySelector('#ownerPhotoRemoteReject').addEventListener('click', async () => {
-            try { await ownerRemoteCaptureRequest('reject', { pairingCode: remotePairingCode }); await closeRemoteCapture(); await startCamera(); }
+            try { await ownerRemoteCaptureRequest('reject', { pairingCode: remotePairingCode }); await closeRemoteCapture(); }
             catch (error) { remoteStatus.textContent = error.message; }
         });
         section.querySelector('#ownerPhotoRemoteDisconnect').addEventListener('click', async () => {
-            try { await closeRemoteCapture(); await startCamera(); syncRemoteCaptureButton(); }
+            try { await closeRemoteCapture(); }
             catch (error) { remoteStatus.textContent = error.message; }
         });
-        skipButton.addEventListener('click', async () => {
-            skipButton.disabled = true;
-            if (pendingStudents[captureIndex]) pendingStudents[captureIndex]._photoCaptureStatus = 'Skipped';
-            try { await cameraIndexNext('Student skipped. No photo was uploaded.'); }
-            catch (error) { cameraStatus.textContent = `Could not advance the remote capture sequence: ${error.message}`; syncRemoteCaptureButton(); }
-            skipButton.disabled = !pendingStudents[captureIndex];
+        skipButton.addEventListener('click', () => {
+            const currentStudent = pendingStudents[captureIndex];
+            if (currentStudent) {
+                currentStudent._photoCaptureStatus = 'Skipped (queued for later)';
+                currentStudent._isSkippedRound = true;
+                skippedStudents.push(currentStudent);
+            }
+            cameraIndexNext('Student moved to skipped queue (will be captured later).');
         });
         finishButton.addEventListener('click', () => { void unlockSelection(); });
         section.querySelector('#ownerPhotoClose').addEventListener('click', () => { void unlockSelection(); });

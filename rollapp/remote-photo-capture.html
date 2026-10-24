@@ -8,61 +8,412 @@
     <title>Remote Photo Capture | RollCall</title>
     <script src="https://rollcall-worker.divyanshugupta415.workers.dev/firebase-config"></script>
     <style>
-        :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #eef2f6; color: #17243a; }
+        :root {
+            color-scheme: light;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+        }
         * { box-sizing: border-box; }
-        body { min-height: 100vh; margin: 0; padding: max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom)); }
-        main { width: min(100%, 520px); margin: 0 auto; }
-        header { margin: 8px 0 18px; }
-        header p { margin: 6px 0 0; color: #607086; line-height: 1.5; }
-        h1 { margin: 0; font-size: 23px; line-height: 1.2; }
-        .panel { padding: 18px; border: 1px solid #d9e1ea; border-radius: 12px; background: #fff; box-shadow: 0 8px 28px rgba(23,36,58,.08); }
-        #status { min-height: 48px; margin: 0 0 14px; color: #42536a; line-height: 1.5; }
-        #student-target { margin: 0 0 14px; padding: 12px; border: 1px solid #d9e1ea; border-radius: 9px; background: #f5f8fb; }
-        #student-target strong { display: block; margin-top: 3px; color: #17243a; font-size: 18px; overflow-wrap: anywhere; }
-        #pair-code { display: block; margin: 8px 0 16px; color: #17243a; font-size: 30px; font-variant-numeric: tabular-nums; letter-spacing: .12em; }
-        video { display: block; width: 100%; max-height: 58vh; margin: 12px 0; border-radius: 10px; background: #111827; object-fit: cover; }
-        .actions { display: grid; gap: 10px; }
-        button { min-height: 48px; padding: 11px 14px; border: 0; border-radius: 9px; background: #2563a6; color: #fff; font: inherit; font-weight: 700; }
-        button.secondary { border: 1px solid #cbd5e1; background: #fff; color: #27364a; }
-        button:disabled { opacity: .5; }
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        main {
+            width: min(100%, 480px);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        header {
+            text-align: center;
+            padding: 8px 0;
+        }
+        h1 {
+            margin: 0;
+            font-size: 21px;
+            font-weight: 700;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        header p {
+            margin: 4px 0 0;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 18px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        }
+        #status-box {
+            font-size: 14px;
+            color: #cbd5e1;
+            text-align: center;
+            padding: 10px 14px;
+            background: rgba(51, 65, 85, 0.4);
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+        #approval-box {
+            text-align: center;
+            padding: 24px 16px;
+        }
+        #approval-box span {
+            display: block;
+            font-size: 14px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+        #pair-code {
+            display: block;
+            font-size: 38px;
+            font-weight: 800;
+            color: #38bdf8;
+            letter-spacing: 0.18em;
+            font-variant-numeric: tabular-nums;
+            margin: 6px 0 16px;
+        }
+        .progress-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #0284c7;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #334155;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            margin: 0;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #334155;
+            transition: .25s ease;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .25s ease;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #0284c7;
+        }
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+        .student-details {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+        .student-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 8px;
+        }
+        .student-meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        .student-meta-grid strong {
+            color: #e2e8f0;
+        }
+        .camera-container {
+            position: relative;
+            width: 100%;
+            border-radius: 14px;
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 3/4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 14px;
+        }
+        video, #camera-snapshot {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .flip-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(15, 23, 42, 0.75);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 9999px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            z-index: 5;
+        }
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .btn-capture {
+            min-height: 52px;
+            background: linear-gradient(135deg, #0284c7, #2563eb);
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: transform 0.1s ease, opacity 0.2s ease;
+        }
+        .btn-capture:active {
+            transform: scale(0.98);
+        }
+        .btn-capture:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+        }
+        .button-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .btn-secondary {
+            min-height: 44px;
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #475569;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn-secondary:active {
+            background: #334155;
+        }
+        .complete-card {
+            text-align: center;
+            padding: 36px 16px;
+        }
+        .complete-icon {
+            font-size: 56px;
+            color: #10b981;
+            margin-bottom: 16px;
+        }
+        .complete-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-bottom: 8px;
+        }
+        .complete-desc {
+            font-size: 14px;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #10b981;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 9999px;
+            font-size: 14px;
+            font-weight: 700;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+            pointer-events: none;
+        }
+        .toast.show {
+            opacity: 1;
+        }
         [hidden] { display: none !important; }
-        .hint { margin: 14px 0 0; color: #69788a; font-size: 13px; line-height: 1.5; }
-        @media (max-width: 520px) { input, select, textarea, button { font-size: 16px; } .panel { padding: 15px; } }
     </style>
 </head>
 <body>
 <main>
     <header>
-        <h1>Remote student photo capture</h1>
-        <p>This device can only send camera images to the owner who created this pairing.</p>
+        <h1><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> Remote Student Photo Capture</h1>
+        <p>Direct upload to student profiles · Parallel capture</p>
     </header>
-    <section class="panel" aria-live="polite">
-        <p id="status" role="status">Checking the secure pairing link…</p>
-        <div id="student-target" hidden><span>Capturing photo for</span><strong id="student-name"></strong></div>
-        <div id="approval" hidden>
-            <span>Confirm this same code on the owner device:</span>
+
+    <div id="status-box" role="status">Connecting to secure session…</div>
+
+    <!-- Approval screen -->
+    <section id="approval-section" class="card" hidden>
+        <div id="approval-box">
+            <span>Show this 6-digit code to the owner:</span>
             <strong id="pair-code"></strong>
+            <p style="margin: 0; font-size: 13px; color: #94a3b8;">Once the owner approves, your assigned students will load and your camera will open automatically.</p>
         </div>
-        <button id="start-camera" type="button" hidden>Start camera</button>
-        <video id="camera" autoplay playsinline muted hidden></video>
+    </section>
+
+    <!-- Active capture screen -->
+    <section id="capture-section" class="card" hidden>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span id="progress-indicator" class="progress-pill">Student 1 of 0</span>
+        </div>
+
+        <div class="toggle-container">
+            <span>Auto upload on capture</span>
+            <label class="switch" for="remoteAutoUpload">
+                <input type="checkbox" id="remoteAutoUpload" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="student-details">
+            <div id="student-name" class="student-name">Loading student…</div>
+            <div class="student-meta-grid">
+                <div>Roll No: <strong id="student-roll">-</strong></div>
+                <div>Section: <strong id="student-section">-</strong></div>
+                <div style="grid-column: span 2;">Guardian: <strong id="student-guardian">-</strong></div>
+            </div>
+        </div>
+
+        <div class="camera-container">
+            <video id="camera-feed" autoplay playsinline muted></video>
+            <img id="camera-snapshot" hidden alt="Captured Snapshot Preview">
+            <button id="btn-flip" type="button" class="flip-btn">Flip camera</button>
+        </div>
+
         <div class="actions">
-            <button id="capture" type="button" disabled hidden>Capture and send photo</button>
-            <button id="retry" class="secondary" type="button" hidden>Retry connection</button>
+            <!-- Normal live camera state -->
+            <button id="btn-capture" type="button" class="btn-capture">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+                Capture Photo
+            </button>
+
+            <!-- Upload photo button (when auto upload is OFF, or when stopped) -->
+            <button id="btn-upload-now" type="button" class="btn-capture btn-success" hidden>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Upload Photo
+            </button>
+
+            <!-- Stop upload button (while upload is in progress) -->
+            <button id="btn-stop-upload" type="button" class="btn-capture btn-danger" hidden>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+                Stop Upload
+            </button>
+
+            <div class="button-row">
+                <button id="btn-retake" type="button" class="btn-secondary" hidden>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"></path><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                    Retake
+                </button>
+                <button id="btn-skip" type="button" class="btn-secondary">Skip this student</button>
+            </div>
         </div>
-        <p class="hint">Keep this page open while capturing. The owner reviews each photo against the selected student before saving it.</p>
+    </section>
+
+    <!-- Completed screen -->
+    <section id="completed-section" class="card" hidden>
+        <div class="complete-card">
+            <div class="complete-icon">✓</div>
+            <div class="complete-title">All Assigned Students Finished!</div>
+            <div id="complete-summary" class="complete-desc">All photos have been uploaded directly to the student accounts. You may now close this window or wait for the owner.</div>
+        </div>
     </section>
 </main>
+
+<div id="toast" class="toast">Photo uploaded successfully!</div>
+
 <script>
 (function () {
-    const status = document.getElementById('status');
-    const approval = document.getElementById('approval');
-    const codeElement = document.getElementById('pair-code');
-    const startButton = document.getElementById('start-camera');
-    const captureButton = document.getElementById('capture');
-    const retryButton = document.getElementById('retry');
-    const video = document.getElementById('camera');
-    const studentTarget = document.getElementById('student-target');
-    const studentName = document.getElementById('student-name');
+    const statusBox = document.getElementById('status-box');
+    const approvalSection = document.getElementById('approval-section');
+    const pairCodeElement = document.getElementById('pair-code');
+    const captureSection = document.getElementById('capture-section');
+    const completedSection = document.getElementById('completed-section');
+    const progressIndicator = document.getElementById('progress-indicator');
+    const studentNameEl = document.getElementById('student-name');
+    const studentRollEl = document.getElementById('student-roll');
+    const studentSectionEl = document.getElementById('student-section');
+    const studentGuardianEl = document.getElementById('student-guardian');
+    const autoUploadToggle = document.getElementById('remoteAutoUpload');
+    const video = document.getElementById('camera-feed');
+    const snapshotImg = document.getElementById('camera-snapshot');
+    const btnFlip = document.getElementById('btn-flip');
+    const btnCapture = document.getElementById('btn-capture');
+    const btnUploadNow = document.getElementById('btn-upload-now');
+    const btnStopUpload = document.getElementById('btn-stop-upload');
+    const btnRetake = document.getElementById('btn-retake');
+    const btnSkip = document.getElementById('btn-skip');
+    const toast = document.getElementById('toast');
+
     const params = new URLSearchParams(location.hash.slice(1));
     const sessionId = params.get('session') || '';
     const qrToken = params.get('token') || '';
@@ -73,14 +424,26 @@
     let stream = null;
     let busy = false;
     let approved = false;
-    let hasCapture = false;
-    let captureSlot = 0;
+    let facingMode = 'environment';
+    let assignedStudents = [];
+    let skippedQueue = [];
+    let currentIndex = 0;
+    let currentSnapshotBlob = null;
+    let isUploading = false;
+    let isViewingSnapshot = false;
+    let uploadAbortController = null;
     let workerBase;
+
+    function showToast(text) {
+        toast.textContent = text;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2200);
+    }
 
     function randomToken() {
         const bytes = crypto.getRandomValues(new Uint8Array(32));
         let binary = '';
-        bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+        bytes.forEach(b => { binary += String.fromCharCode(b); });
         return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
     }
 
@@ -104,12 +467,216 @@
         return result;
     }
 
+    async function startCamera() {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access requires HTTPS and a supported browser.');
+        if (stream) {
+            stream.getTracks().forEach(t => t.stop());
+            stream = null;
+        }
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+    }
+
     function stopCamera() {
-        if (stream) stream.getTracks().forEach(track => track.stop());
+        if (stream) stream.getTracks().forEach(t => t.stop());
         stream = null;
         video.srcObject = null;
-        video.hidden = true;
-        captureButton.disabled = true;
+    }
+
+    function resetSnapshotView() {
+        if (snapshotImg.src) {
+            URL.revokeObjectURL(snapshotImg.src);
+            snapshotImg.src = '';
+        }
+        currentSnapshotBlob = null;
+        isViewingSnapshot = false;
+        isUploading = false;
+        if (uploadAbortController) {
+            try { uploadAbortController.abort(); } catch (e) {}
+            uploadAbortController = null;
+        }
+        snapshotImg.hidden = true;
+        video.hidden = false;
+        btnFlip.hidden = false;
+
+        btnCapture.hidden = false;
+        btnCapture.disabled = !stream;
+        btnCapture.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg> Capture Photo';
+
+        btnUploadNow.hidden = true;
+        btnStopUpload.hidden = true;
+        btnRetake.hidden = true;
+        btnSkip.hidden = false;
+        btnSkip.disabled = false;
+    }
+
+    function updateProgressOnly() {
+        const student = assignedStudents[currentIndex];
+        if (student) {
+            const isSkipped = !!student._isSkipped;
+            progressIndicator.textContent = `Student ${currentIndex + 1} of ${assignedStudents.length}${isSkipped ? ' · Skipped queue' : ''} (${assignedStudents.filter(s => s.completed).length} uploaded)`;
+        }
+    }
+
+    function renderStudent() {
+        resetSnapshotView();
+        const student = assignedStudents[currentIndex];
+        if (!student) {
+            if (skippedQueue.length > 0) {
+                assignedStudents = [...skippedQueue];
+                skippedQueue = [];
+                currentIndex = 0;
+                showToast('Regular students done! Now capturing skipped students.');
+                renderStudent();
+                return;
+            }
+
+            captureSection.hidden = true;
+            completedSection.hidden = false;
+            stopCamera();
+            const totalUploaded = assignedStudents.filter(s => s.completed).length;
+            document.getElementById('complete-summary').textContent = `All photos processed (${totalUploaded} uploaded directly).`;
+            statusBox.textContent = 'All assigned students completed!';
+            return;
+        }
+
+        const isSkipped = !!student._isSkipped;
+        progressIndicator.textContent = `Student ${currentIndex + 1} of ${assignedStudents.length}${isSkipped ? ' · Skipped queue' : ''} (${assignedStudents.filter(s => s.completed).length} uploaded)`;
+        studentNameEl.textContent = student.name || 'Unnamed student';
+        studentRollEl.textContent = student.classRoll ? `#${student.classRoll}` : 'Not provided';
+        studentSectionEl.textContent = student.section || 'Not provided';
+        studentGuardianEl.textContent = student.fatherName || 'Not provided';
+
+        captureSection.hidden = false;
+        completedSection.hidden = true;
+        statusBox.textContent = 'Position student in frame and tap Capture Photo.';
+    }
+
+    async function takeSnapshot() {
+        const student = assignedStudents[currentIndex];
+        if (!student || !video.videoWidth || btnCapture.disabled) return;
+        try {
+            const scale = Math.min(1, 800 / Math.max(video.videoWidth, video.videoHeight));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+            canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('Could not prepare camera frame.');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
+            if (!blob || blob.size < 1 || blob.size > 2 * 1024 * 1024) throw new Error('Photo must be under 2 MB.');
+
+            currentSnapshotBlob = blob;
+            snapshotImg.src = URL.createObjectURL(blob);
+            snapshotImg.hidden = false;
+            video.hidden = true;
+            btnFlip.hidden = true;
+            isViewingSnapshot = true;
+
+            if (autoUploadToggle.checked) {
+                await startUploadCurrentSnapshot();
+            } else {
+                btnCapture.hidden = true;
+                btnSkip.hidden = true;
+                btnUploadNow.hidden = false;
+                btnUploadNow.disabled = false;
+                btnRetake.hidden = false;
+                btnRetake.disabled = false;
+                statusBox.textContent = 'Preview ready. Tap Upload Photo to save or Retake to try again.';
+            }
+        } catch (error) {
+            statusBox.textContent = error.message || 'Capture failed.';
+        }
+    }
+
+    async function startUploadCurrentSnapshot() {
+        const student = assignedStudents[currentIndex];
+        if (!student || !currentSnapshotBlob || isUploading) return;
+
+        isUploading = true;
+        btnCapture.hidden = true;
+        btnUploadNow.hidden = true;
+        btnRetake.hidden = true;
+        btnSkip.hidden = true;
+        btnStopUpload.hidden = false;
+        btnStopUpload.disabled = false;
+        statusBox.textContent = `Uploading photo for ${student.name}… Tap Stop Upload to cancel.`;
+
+        uploadAbortController = new AbortController();
+
+        try {
+            const uploadUrl = endpoint('remote-photo-capture/upload-student-photo');
+            uploadUrl.searchParams.set('sessionId', sessionId);
+            uploadUrl.searchParams.set('studentUid', student.uid);
+
+            const response = await fetch(uploadUrl, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${deviceToken}`, 'Content-Type': currentSnapshotBlob.type },
+                body: currentSnapshotBlob,
+                credentials: 'omit',
+                redirect: 'error',
+                referrerPolicy: 'no-referrer',
+                signal: uploadAbortController.signal
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.error || 'Failed to upload photo.');
+
+            student.completed = true;
+            student.photoUploadedAt = Date.now();
+            isUploading = false;
+            btnStopUpload.hidden = true;
+            showToast(`Photo saved for ${student.name}!`);
+
+            currentIndex += 1;
+            renderStudent();
+        } catch (error) {
+            isUploading = false;
+            btnStopUpload.hidden = true;
+            btnUploadNow.hidden = false;
+            btnUploadNow.disabled = false;
+            btnRetake.hidden = false;
+            btnRetake.disabled = false;
+            if (error.name === 'AbortError') {
+                statusBox.textContent = 'Upload stopped. You can tap Retake or Upload Photo to retry.';
+                showToast('Upload stopped.');
+            } else {
+                statusBox.textContent = error.message || 'Upload failed. Tap Upload Photo or Retake.';
+            }
+        }
+    }
+
+    function stopCurrentUpload() {
+        if (!isUploading) return;
+        isUploading = false;
+        if (uploadAbortController) {
+            uploadAbortController.abort();
+        }
+        btnStopUpload.hidden = true;
+        btnUploadNow.hidden = false;
+        btnUploadNow.disabled = false;
+        btnRetake.hidden = false;
+        btnRetake.disabled = false;
+        statusBox.textContent = 'Upload stopped. You can tap Retake or Upload Photo to retry.';
+        showToast('Upload stopped.');
+    }
+
+    function retake() {
+        resetSnapshotView();
+        statusBox.textContent = 'Position student in frame and tap Capture Photo.';
+    }
+
+    function skipCurrentStudent() {
+        const student = assignedStudents[currentIndex];
+        if (student) {
+            student._isSkipped = true;
+            skippedQueue.push(student);
+        }
+        currentIndex += 1;
+        renderStudent();
     }
 
     async function pollStatus() {
@@ -117,22 +684,66 @@
         busy = true;
         try {
             const result = await jsonRequest('remote-photo-capture/status', { sessionId }, deviceToken);
-            approved = result.status === 'approved';
-            hasCapture = result.hasCapture === true;
-            if (Number.isSafeInteger(result.captureSlot)) captureSlot = result.captureSlot;
-            const targetName = approved ? String(result.currentStudentName || '').trim() : '';
-            studentTarget.hidden = !targetName;
-            studentName.textContent = targetName;
-            if (approved) {
-                approval.hidden = true;
-                startButton.hidden = !!stream || !targetName;
-                status.textContent = !targetName ? 'The capture sequence is complete. Wait for the owner to finish.' : hasCapture ? 'Photo sent. Wait for the owner to upload or skip it before capturing another.' : stream ? 'Camera is ready. Frame the student and capture.' : 'The owner approved this device. Start the camera when ready.';
-                captureButton.hidden = !stream || !targetName;
-                captureButton.disabled = !stream || hasCapture || !targetName;
+            if (result.status === 'approved') {
+                if (!approved) {
+                    approved = true;
+                    approvalSection.hidden = true;
+                    assignedStudents = Array.isArray(result.assignedStudents) ? result.assignedStudents : [];
+                    currentIndex = assignedStudents.findIndex(s => !s.completed);
+                    if (currentIndex === -1) currentIndex = 0;
+                    await startCamera().catch(err => { statusBox.textContent = `Camera error: ${err.message}`; });
+                    renderStudent();
+                } else if (Array.isArray(result.assignedStudents)) {
+                    // List synchronized from owner (e.g. owner sent more students or took some)
+                    const newServerList = result.assignedStudents;
+                    const localCompletedUids = new Set(assignedStudents.filter(s => s.completed).map(s => s.uid));
+                    newServerList.forEach(s => {
+                        if (localCompletedUids.has(s.uid)) s.completed = true;
+                    });
+
+                    const listChanged = newServerList.length !== assignedStudents.length ||
+                        newServerList.some((s, idx) => !assignedStudents[idx] || s.uid !== assignedStudents[idx].uid || s.completed !== assignedStudents[idx].completed);
+
+                    if (listChanged) {
+                        const currentStudent = assignedStudents[currentIndex];
+                        const currentUid = currentStudent ? currentStudent.uid : null;
+
+                        // Safeguard: If currently uploading or previewing snapshot, DO NOT change active student under user's feet!
+                        if (isUploading || isViewingSnapshot) {
+                            const foundInNew = newServerList.findIndex(s => s.uid === currentUid);
+                            if (foundInNew !== -1) {
+                                assignedStudents = newServerList;
+                                currentIndex = foundInNew;
+                                updateProgressOnly();
+                            } else {
+                                const remainingServer = newServerList.filter(s => s.uid !== currentUid);
+                                assignedStudents = [...assignedStudents.slice(0, currentIndex), currentStudent, ...remainingServer];
+                                updateProgressOnly();
+                            }
+                        } else {
+                            // Live framing mode: update assignedStudents safely
+                            assignedStudents = newServerList;
+                            if (currentUid) {
+                                const foundIndex = assignedStudents.findIndex(s => s.uid === currentUid);
+                                if (foundIndex !== -1) {
+                                    currentIndex = foundIndex;
+                                    updateProgressOnly();
+                                } else {
+                                    currentIndex = assignedStudents.findIndex(s => !s.completed);
+                                    if (currentIndex === -1) currentIndex = assignedStudents.length;
+                                    renderStudent();
+                                }
+                            } else {
+                                currentIndex = assignedStudents.findIndex(s => !s.completed);
+                                if (currentIndex === -1) currentIndex = assignedStudents.length;
+                                renderStudent();
+                            }
+                        }
+                    }
+                }
             } else if (result.status === 'pairing') {
-                startButton.hidden = true;
-                captureButton.hidden = true;
-                status.textContent = 'Waiting for the owner to verify the matching code and approve this device.';
+                approvalSection.hidden = false;
+                statusBox.textContent = 'Waiting for owner to confirm code and approve…';
             }
         } catch (error) {
             if (error.status === 410 || error.status === 403) {
@@ -140,9 +751,11 @@
                 if (timer) clearInterval(timer);
                 timer = null;
                 approved = false;
-                status.textContent = 'This capture session has ended. Ask the owner to create a new QR code.';
+                captureSection.hidden = true;
+                approvalSection.hidden = true;
+                statusBox.textContent = 'This capture session has ended or was revoked by the owner.';
             } else {
-                status.textContent = error.message;
+                statusBox.textContent = error.message;
             }
         } finally { busy = false; }
     }
@@ -151,76 +764,31 @@
         try {
             if (!window.ROLLCALL_FIREBASE_CONFIG?.profileUploadWorkerUrl) throw new Error('The secure capture service is not configured.');
             workerBase = new URL(window.ROLLCALL_FIREBASE_CONFIG.profileUploadWorkerUrl);
-            if (workerBase.protocol !== 'https:' || workerBase.username || workerBase.password || workerBase.search || workerBase.hash) throw new Error('The secure capture service URL is invalid.');
-            if (!/^[0-9a-f-]{36}$/i.test(sessionId) || !/^[A-Za-z0-9_-]{40,64}$/.test(qrToken)) throw new Error('The pairing link is incomplete. Scan the QR code again.');
+            if (workerBase.protocol !== 'https:' || workerBase.username || workerBase.password || workerBase.search || workerBase.hash) throw new Error('Invalid capture service URL.');
+            if (!/^[0-9a-f-]{36}$/i.test(sessionId) || !/^[A-Za-z0-9_-]{40,64}$/.test(qrToken)) throw new Error('Pairing link is invalid. Scan the QR code again.');
             deviceToken = randomToken();
-            const result = await jsonRequest('remote-photo-capture/pair', { sessionId, qrToken, deviceToken, deviceName: 'Camera device' });
-            approval.hidden = false;
-            codeElement.textContent = result.pairingCode;
-            status.textContent = 'Show this code to the owner. Camera access stays off until the owner approves it.';
-            retryButton.hidden = true;
-            timer = window.setInterval(pollStatus, 1600);
+            const result = await jsonRequest('remote-photo-capture/pair', { sessionId, qrToken, deviceToken, deviceName: 'Mobile phone' });
+            approvalSection.hidden = false;
+            pairCodeElement.textContent = result.pairingCode;
+            statusBox.textContent = 'Show this 6-digit code to the owner to connect.';
+            timer = window.setInterval(pollStatus, 1800);
             await pollStatus();
         } catch (error) {
-            status.textContent = error.message;
-            retryButton.hidden = false;
+            statusBox.textContent = error.message;
         }
     }
 
-    startButton.addEventListener('click', async () => {
-        startButton.disabled = true;
-        try {
-            if (!approved) throw new Error('Wait for the owner to approve this device first.');
-            if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access requires HTTPS and a supported browser.');
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
-            video.srcObject = stream;
-            video.hidden = false;
-            await video.play();
-            startButton.hidden = true;
-            captureButton.hidden = false;
-            status.textContent = 'Camera is ready. Frame the student and capture.';
-            await pollStatus();
-        } catch (error) {
-            stopCamera();
-            status.textContent = error.message || 'Could not start the camera.';
-        } finally { startButton.disabled = false; }
+    btnFlip.addEventListener('click', async () => {
+        facingMode = (facingMode === 'environment') ? 'user' : 'environment';
+        try { await startCamera(); } catch (e) {}
     });
 
-    captureButton.addEventListener('click', async () => {
-        if (!approved || hasCapture || !video.videoWidth || !deviceToken) return;
-        captureButton.disabled = true;
-        status.textContent = 'Preparing and sending the photo securely…';
-        try {
-            const scale = Math.min(1, 800 / Math.max(video.videoWidth, video.videoHeight));
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-            canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-            const context = canvas.getContext('2d');
-            if (!context) throw new Error('Could not prepare the captured photo.');
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
-            if (!blob || blob.size < 1 || blob.size > 2 * 1024 * 1024) throw new Error('Photo must be under 2 MB. Move closer and try again.');
-            const uploadUrl = endpoint('remote-photo-capture/image');
-            uploadUrl.searchParams.set('sessionId', sessionId);
-            uploadUrl.searchParams.set('slot', String(captureSlot));
-            const response = await fetch(uploadUrl, {
-                method: 'PUT',
-                headers: { Authorization: `Bearer ${deviceToken}`, 'Content-Type': blob.type },
-                body: blob, credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer'
-            });
-            const result = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(result.error || 'Photo could not be sent.');
-            hasCapture = true;
-            status.textContent = 'Photo sent. Wait for the owner to upload or skip it before capturing another.';
-            await pollStatus();
-        } catch (error) {
-            status.textContent = error.message;
-            await pollStatus();
-            if (approved && !hasCapture && stream) captureButton.disabled = false;
-        }
-    });
+    btnCapture.addEventListener('click', takeSnapshot);
+    btnUploadNow.addEventListener('click', startUploadCurrentSnapshot);
+    btnStopUpload.addEventListener('click', stopCurrentUpload);
+    btnRetake.addEventListener('click', retake);
+    btnSkip.addEventListener('click', skipCurrentStudent);
 
-    retryButton.addEventListener('click', () => { retryButton.hidden = true; void pair(); });
     window.addEventListener('pagehide', stopCamera);
     void pair();
 })();

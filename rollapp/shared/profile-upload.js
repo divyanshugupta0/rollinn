@@ -76,7 +76,8 @@
             }),
             credentials: 'omit',
             redirect: 'error',
-            referrerPolicy: 'no-referrer'
+            referrerPolicy: 'no-referrer',
+            signal: user.signal
         });
         let result;
         try {
@@ -112,7 +113,8 @@
             body: blob,
             credentials: 'omit',
             redirect: 'error',
-            referrerPolicy: 'no-referrer'
+            referrerPolicy: 'no-referrer',
+            signal: user.signal
         });
         if (!uploadResponse.ok) throw new Error('The secure profile-photo upload failed.');
         return { publicUrl: photoUrl.href, key: result.key };

@@ -2857,26 +2857,35 @@ async function ownerRemoteCapture(request, env, origin, action) {
     try {
         const owner = await authenticateRemoteCaptureOwner(request, env);
         if (!owner) return uploadResponse({ error: 'Authorized platform owner access is required.' }, 403, origin);
-        const payload = await readJsonWithinLimit(request, 4096);
+        const payload = await readJsonWithinLimit(request, 65536);
         if (action === 'create') {
             const sessionId = crypto.randomUUID();
             const qrToken = encodeBase64Url(crypto.getRandomValues(new Uint8Array(32)));
             const now = Date.now();
-            const studentName = String(payload?.studentName || '').trim().slice(0, 120);
+            const schoolId = String(payload?.schoolId || '').trim();
+            const rawStudents = Array.isArray(payload?.assignedStudents) ? payload.assignedStudents : [];
+            const assignedStudents = rawStudents.slice(0, 500).map(s => ({
+                uid: String(s?.uid || '').trim(),
+                name: String(s?.name || '').trim().slice(0, 120),
+                classRoll: String(s?.classRoll || '').trim().slice(0, 40),
+                section: String(s?.section || '').trim().slice(0, 40),
+                fatherName: String(s?.fatherName || '').trim().slice(0, 120),
+                completed: false
+            })).filter(s => s.uid);
+
             const record = {
                 ownerUid: owner.uid,
+                schoolId,
                 status: 'waiting',
-                currentStudentName: studentName,
                 qrTokenHash: await hashRemoteCaptureSecret(qrToken),
                 createdAt: now,
                 pairExpiresAt: now + REMOTE_CAPTURE_PAIR_TTL_MS,
                 expiresAt: now + REMOTE_CAPTURE_TTL_MS,
-                captureSlot: 0,
-                captureKey: null
+                assignedStudents
             };
             const saved = await writeRemoteCaptureRecord(env, sessionId, record, 'null_etag', owner.accessToken);
             if (!saved) return uploadResponse({ error: 'Could not create a unique remote capture session.' }, 503, origin);
-            return uploadResponse({ sessionId, qrToken, expiresAt: record.expiresAt, captureSlot: record.captureSlot }, 200, origin);
+            return uploadResponse({ sessionId, qrToken, expiresAt: record.expiresAt, totalAssigned: assignedStudents.length }, 200, origin);
         }
 
         const sessionId = String(payload?.sessionId || '').trim();
@@ -2888,15 +2897,59 @@ async function ownerRemoteCapture(request, env, origin, action) {
         }
 
         if (action === 'status') {
+            const assigned = Array.isArray(record.assignedStudents) ? record.assignedStudents : [];
+            const completedCount = assigned.filter(s => s.completed).length;
             return uploadResponse({
                 status: record.status,
                 deviceName: record.deviceName || '',
-                currentStudentName: record.status === 'approved' ? String(record.currentStudentName || '').slice(0, 120) : '',
                 pairingCode: record.pairingCode || '',
                 pairExpired: record.status === 'waiting' && record.pairExpiresAt <= Date.now(),
-                hasCapture: !!record.captureKey,
-                captureSlot: Number.isSafeInteger(record.captureSlot) ? record.captureSlot : 0,
-                expiresAt: record.expiresAt
+                expiresAt: record.expiresAt,
+                totalCount: assigned.length,
+                completedCount,
+                remoteStudents: assigned.map(s => ({
+                    uid: s.uid,
+                    name: s.name,
+                    classRoll: s.classRoll,
+                    section: s.section,
+                    fatherName: s.fatherName,
+                    completed: !!s.completed,
+                    photoUploadedAt: s.photoUploadedAt || null
+                }))
+            }, 200, origin);
+        }
+
+        if (action === 'sync-students') {
+            if (record.status !== 'approved') {
+                return uploadResponse({ error: 'Remote device is not approved yet.' }, 409, origin);
+            }
+            const rawStudents = Array.isArray(payload?.assignedStudents) ? payload.assignedStudents : [];
+            const existingAssigned = Array.isArray(record.assignedStudents) ? record.assignedStudents : [];
+            const existingMap = new Map(existingAssigned.map(s => [s.uid, s]));
+
+            const updatedAssigned = rawStudents.slice(0, 500).map(s => {
+                const uid = String(s?.uid || '').trim();
+                const existing = existingMap.get(uid);
+                return {
+                    uid,
+                    name: String(s?.name || existing?.name || '').trim().slice(0, 120),
+                    classRoll: String(s?.classRoll || existing?.classRoll || '').trim().slice(0, 40),
+                    section: String(s?.section || existing?.section || '').trim().slice(0, 40),
+                    fatherName: String(s?.fatherName || existing?.fatherName || '').trim().slice(0, 120),
+                    completed: existing ? !!existing.completed : !!s.completed,
+                    photoUploadedAt: existing?.photoUploadedAt || s.photoUploadedAt || null
+                };
+            }).filter(s => s.uid);
+
+            record.assignedStudents = updatedAssigned;
+            if (!await writeRemoteCaptureRecord(env, sessionId, record, etag, owner.accessToken)) {
+                return uploadResponse({ error: 'Remote session changed. Refresh and try again.' }, 409, origin);
+            }
+            return uploadResponse({
+                ok: true,
+                totalCount: updatedAssigned.length,
+                completedCount: updatedAssigned.filter(s => s.completed).length,
+                assignedStudents: updatedAssigned
             }, 200, origin);
         }
 
@@ -2922,51 +2975,11 @@ async function ownerRemoteCapture(request, env, origin, action) {
             return uploadResponse({ status: 'approved' }, 200, origin);
         }
 
-        if (action === 'take') {
-            if (record.status !== 'approved') return uploadResponse({ error: 'Remote camera is not approved.' }, 409, origin);
-            if (!record.captureKey) return uploadResponse({ empty: true }, 200, origin);
-            const captureKey = record.captureKey;
-            const object = await env.PROFILE_PHOTOS.get(captureKey);
-            if (!object) return uploadResponse({ error: 'Temporary capture is no longer available.' }, 404, origin);
-            const bytes = await object.arrayBuffer();
-            await env.PROFILE_PHOTOS.delete(captureKey);
-            return new Response(bytes, {
-                status: 200,
-                headers: {
-                    ...corsHeaders(origin),
-                    'Cache-Control': 'no-store',
-                    'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
-                    'X-Content-Type-Options': 'nosniff'
-                }
-            });
-        }
-
-        if (action === 'advance') {
-            if (record.status !== 'approved') return uploadResponse({ error: 'Remote camera is not approved.' }, 409, origin);
-            const captureKey = record.captureKey;
-            record.currentStudentName = String(payload?.studentName || '').trim().slice(0, 120);
-            record.captureSlot = (Number.isSafeInteger(record.captureSlot) ? record.captureSlot : 0) + 1;
-            record.captureKey = null;
-            record.captureContentType = null;
-            record.captureUploadedAt = null;
-            if (!await writeRemoteCaptureRecord(env, sessionId, record, etag, owner.accessToken)) {
-                return uploadResponse({ error: 'Capture sequence changed. Try again.' }, 409, origin);
-            }
-            if (captureKey) await env.PROFILE_PHOTOS.delete(captureKey);
-            return uploadResponse({ captureSlot: record.captureSlot }, 200, origin);
-        }
-
         if (action === 'revoke') {
-            const captureKey = record.captureKey;
             record.status = 'revoked';
             record.qrTokenHash = null;
             record.deviceTokenHash = null;
             record.pairingCode = null;
-            record.captureKey = null;
-            if (!await writeRemoteCaptureRecord(env, sessionId, record, etag, owner.accessToken)) {
-                return uploadResponse({ error: 'Session changed while closing. Try again.' }, 409, origin);
-            }
-            if (captureKey) await env.PROFILE_PHOTOS.delete(captureKey);
             await fetch(databasePathUrl(env, `${REMOTE_CAPTURE_ROOT}/${sessionId}`, owner.accessToken), { method: 'DELETE' });
             return uploadResponse({ status: 'revoked' }, 200, origin);
         }
@@ -3023,54 +3036,79 @@ async function remoteCaptureDeviceStatus(request, env, origin) {
         if (!remoteCaptureTokenMatches(record.deviceTokenHash, await hashRemoteCaptureSecret(tokenMatch[1]))) {
             return uploadResponse({ error: 'This device is not paired.' }, 403, origin);
         }
-        return uploadResponse({ status: record.status, currentStudentName: record.status === 'approved' ? String(record.currentStudentName || '').slice(0, 120) : '', hasCapture: !!record.captureKey, captureSlot: Number.isSafeInteger(record.captureSlot) ? record.captureSlot : 0, expiresAt: record.expiresAt }, 200, origin);
+        const assigned = Array.isArray(record.assignedStudents) ? record.assignedStudents : [];
+        return uploadResponse({
+            status: record.status,
+            assignedStudents: record.status === 'approved' ? assigned : [],
+            expiresAt: record.expiresAt
+        }, 200, origin);
     } catch (error) {
         console.error('Remote capture device status failed:', error);
         return uploadResponse({ error: 'Could not check capture access.' }, 503, origin);
     }
 }
 
-async function receiveRemoteCapture(request, env, origin, url) {
+async function uploadRemoteStudentPhoto(request, env, origin, url) {
     const tokenMatch = (request.headers.get('Authorization') || '').match(/^Bearer\s+([A-Za-z0-9_-]{40,64})$/);
     const sessionId = String(url.searchParams.get('sessionId') || '').trim();
-    const slotText = String(url.searchParams.get('slot') || '');
-    const captureSlot = /^\d+$/.test(slotText) ? Number(slotText) : -1;
+    const studentUid = String(url.searchParams.get('studentUid') || '').trim();
     const contentType = String(request.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
     const extension = CONTENT_TYPES.get(contentType);
-    if (!tokenMatch || !/^[0-9a-f-]{36}$/i.test(sessionId) || !Number.isSafeInteger(captureSlot) || captureSlot < 0 || !extension) {
-        return uploadResponse({ error: 'Invalid remote photo capture request.' }, 400, origin);
+
+    if (!tokenMatch || !/^[0-9a-f-]{36}$/i.test(sessionId) || !/^[A-Za-z0-9_-]{1,128}$/.test(studentUid) || !extension) {
+        return uploadResponse({ error: 'Invalid photo upload request.' }, 400, origin);
     }
-    let temporaryKey = '';
+
     try {
         const accessToken = await getFirebaseAccessToken(env);
-        const initial = await readRemoteCaptureRecord(env, sessionId, accessToken);
-        if (!initial.record || initial.record.status !== 'approved' || initial.record.expiresAt <= Date.now() || initial.record.captureSlot !== captureSlot ||
-            !remoteCaptureTokenMatches(initial.record.deviceTokenHash, await hashRemoteCaptureSecret(tokenMatch[1]))) {
-            return uploadResponse({ error: 'This camera is not authorized for capture.' }, 403, origin);
+        const { record, etag } = await readRemoteCaptureRecord(env, sessionId, accessToken);
+        if (!record || record.status !== 'approved' || record.expiresAt <= Date.now() ||
+            !remoteCaptureTokenMatches(record.deviceTokenHash, await hashRemoteCaptureSecret(tokenMatch[1]))) {
+            return uploadResponse({ error: 'This device is not authorized to upload photos.' }, 403, origin);
         }
-        if (initial.record.captureKey) return uploadResponse({ error: 'The owner must receive the current image first.' }, 409, origin);
+
+        const assignedList = Array.isArray(record.assignedStudents) ? record.assignedStudents : [];
+        const targetStudent = assignedList.find(s => s.uid === studentUid);
+        if (!targetStudent) {
+            return uploadResponse({ error: 'This student is not assigned to this remote device.' }, 403, origin);
+        }
+
         const bytes = await readBodyWithinLimit(request);
-        if (!bytes || !validImage(bytes, contentType)) return uploadResponse({ error: 'Image is invalid or exceeds the 2 MB limit.' }, 413, origin);
-        temporaryKey = `remote-photo-captures/${sessionId}/${crypto.randomUUID()}.${extension}`;
-        await env.PROFILE_PHOTOS.put(temporaryKey, bytes, { httpMetadata: { contentType } });
-        const current = await readRemoteCaptureRecord(env, sessionId, accessToken);
-        if (!current.record || current.record.status !== 'approved' || current.record.expiresAt <= Date.now() || current.record.captureSlot !== captureSlot || current.record.captureKey ||
-            !remoteCaptureTokenMatches(current.record.deviceTokenHash, await hashRemoteCaptureSecret(tokenMatch[1]))) {
-            await env.PROFILE_PHOTOS.delete(temporaryKey);
-            return uploadResponse({ error: 'Capture session changed. Ask the owner to reconnect.' }, 409, origin);
+        if (!bytes || !validImage(bytes, contentType)) {
+            return uploadResponse({ error: 'Image is invalid or exceeds the 2 MB limit.' }, 413, origin);
         }
-        current.record.captureKey = temporaryKey;
-        current.record.captureContentType = contentType;
-        current.record.captureUploadedAt = Date.now();
-        if (!await writeRemoteCaptureRecord(env, sessionId, current.record, current.etag, accessToken)) {
-            await env.PROFILE_PHOTOS.delete(temporaryKey);
-            return uploadResponse({ error: 'Another capture is waiting for the owner.' }, 409, origin);
+
+        const permanentKey = `profile-photos/${encodeURIComponent(studentUid)}/${crypto.randomUUID()}.${extension}`;
+        await env.PROFILE_PHOTOS.put(permanentKey, bytes, {
+            httpMetadata: {
+                contentType,
+                cacheControl: 'public, max-age=31536000, immutable'
+            }
+        });
+
+        const publicUrl = publicPhotoUrl(env.PUBLIC_BASE_URL, permanentKey);
+        const timestamp = Date.now();
+
+        const updates = {
+            [`users/${studentUid}/profilePhoto`]: publicUrl,
+            [`users/${studentUid}/profilePhotoKey`]: permanentKey,
+            [`users/${studentUid}/profilePhotoUpdatedAt`]: timestamp
+        };
+        if (record.schoolId) {
+            updates[`schoolUsers/${record.schoolId}/${studentUid}/profilePhoto`] = publicUrl;
+            updates[`schoolUsers/${record.schoolId}/${studentUid}/profilePhotoKey`] = permanentKey;
+            updates[`schoolUsers/${record.schoolId}/${studentUid}/profilePhotoUpdatedAt`] = timestamp;
         }
-        return uploadResponse({ received: true }, 200, origin);
+        await updateDatabaseWithAccessToken(env, updates, accessToken);
+
+        targetStudent.completed = true;
+        targetStudent.photoUploadedAt = timestamp;
+        await writeRemoteCaptureRecord(env, sessionId, record, etag, accessToken);
+
+        return uploadResponse({ ok: true, publicUrl, key: permanentKey }, 200, origin);
     } catch (error) {
-        if (temporaryKey) await env.PROFILE_PHOTOS.delete(temporaryKey).catch(() => {});
-        console.error('Remote profile photo receive failed:', error);
-        return uploadResponse({ error: 'Photo could not be sent to the owner device.' }, 503, origin);
+        console.error('Remote student photo upload failed:', error);
+        return uploadResponse({ error: error.message || 'Could not upload student photo.' }, 503, origin);
     }
 }
 
@@ -3080,25 +3118,9 @@ async function cleanupExpiredRemoteCaptureSessions(env) {
     const updates = {};
     for (const [sessionId, record] of Object.entries(records || {})) {
         if (!record || Number(record.expiresAt) > Date.now()) continue;
-        if (typeof record.captureKey === 'string' && record.captureKey.startsWith(`remote-photo-captures/${sessionId}/`)) {
-            await env.PROFILE_PHOTOS.delete(record.captureKey).catch(() => {});
-        }
         updates[`${REMOTE_CAPTURE_ROOT}/${sessionId}`] = null;
     }
     if (Object.keys(updates).length) await updateDatabaseWithAccessToken(env, updates, accessToken);
-}
-
-async function cleanupOrphanedRemoteCaptureObjects(env) {
-    const cutoff = Date.now() - REMOTE_CAPTURE_TTL_MS - 60 * 60 * 1000;
-    let cursor;
-    do {
-        const page = await env.PROFILE_PHOTOS.list({ prefix: 'remote-photo-captures/', cursor, limit: 1000 });
-        const expiredKeys = page.objects
-            .filter(object => object.uploaded && object.uploaded.getTime() < cutoff)
-            .map(object => object.key);
-        if (expiredKeys.length) await env.PROFILE_PHOTOS.delete(expiredKeys);
-        cursor = page.truncated ? page.cursor : undefined;
-    } while (cursor);
 }
 
 async function uploadProfilePhoto(request, env, origin, url) {
@@ -3178,7 +3200,7 @@ export default {
             if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
             if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
             const action = routePath.slice('/owner/remote-photo-capture/'.length);
-            if (!['create', 'status', 'approve', 'reject', 'take', 'advance', 'revoke'].includes(action)) {
+            if (!['create', 'status', 'approve', 'reject', 'sync-students', 'revoke'].includes(action)) {
                 return uploadResponse({ error: 'Not found.' }, 404, allowedOrigin);
             }
             return ownerRemoteCapture(request, env, allowedOrigin, action);
@@ -3193,10 +3215,10 @@ export default {
             if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
             return remoteCaptureDeviceStatus(request, env, allowedOrigin);
         }
-        if (routePath === '/remote-photo-capture/image') {
+        if (routePath === '/remote-photo-capture/upload-student-photo') {
             if (!allowedOrigin) return uploadResponse({ error: 'Origin is not allowed.' }, 403, null);
-            if (request.method !== 'PUT') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
-            return receiveRemoteCapture(request, env, allowedOrigin, url);
+            if (request.method !== 'POST') return uploadResponse({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            return uploadRemoteStudentPhoto(request, env, allowedOrigin, url);
         }
 
         if (routePath === '/owner/delete-school') {
@@ -3259,8 +3281,7 @@ export default {
     async scheduled(_event, env, context) {
         context.waitUntil(Promise.all([
             cleanupExpiredErpLicenses(env).catch(error => console.error('Scheduled ERP license cleanup failed:', error)),
-            cleanupExpiredRemoteCaptureSessions(env).catch(error => console.error('Scheduled remote capture cleanup failed:', error)),
-            cleanupOrphanedRemoteCaptureObjects(env).catch(error => console.error('Scheduled remote capture object cleanup failed:', error))
+            cleanupExpiredRemoteCaptureSessions(env).catch(error => console.error('Scheduled remote capture cleanup failed:', error))
         ]));
     }
 };
