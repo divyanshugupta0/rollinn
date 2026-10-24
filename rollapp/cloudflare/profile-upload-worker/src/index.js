@@ -2914,6 +2914,8 @@ async function ownerRemoteCapture(request, env, origin, action) {
                     section: s.section,
                     fatherName: s.fatherName,
                     completed: !!s.completed,
+                    publicUrl: s.publicUrl || null,
+                    permanentKey: s.permanentKey || null,
                     photoUploadedAt: s.photoUploadedAt || null
                 }))
             }, 200, origin);
@@ -3103,6 +3105,8 @@ async function uploadRemoteStudentPhoto(request, env, origin, url) {
 
         targetStudent.completed = true;
         targetStudent.photoUploadedAt = timestamp;
+        targetStudent.publicUrl = publicUrl;
+        targetStudent.permanentKey = permanentKey;
         await writeRemoteCaptureRecord(env, sessionId, record, etag, accessToken);
 
         return uploadResponse({ ok: true, publicUrl, key: permanentKey }, 200, origin);

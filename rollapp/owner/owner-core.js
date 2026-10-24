@@ -3928,7 +3928,7 @@
             accountCacheBySchool.set(schoolId, loadedAccounts); return loadedAccounts;
         }
         const normalizedRoll = value => String(value || '').trim().toLowerCase().replace(/^0+(?=\d)/, '');
-        const profilePhotoValue = profile => profile?.profilePhoto || profile?.profilePhotoKey || profile?.profilePic || profile?.profileImage || profile?.photoURL || profile?.profile_photo || '';
+        const profilePhotoValue = profile => profile?.profilePhoto || profile?.profilePhotoKey || profile?.profilePic || profile?.profileImage || profile?.photoURL || profile?.profile_photo || (profile?._remoteCompleted ? 'remote-completed' : '');
         const profileClassMatches = (profile, selectedClass) => {
                 const ids = [profile.courseId, profile.classId, profile.enrolledClassId].filter(Boolean).map(String);
                 const nameMatch = String(profile.className || profile.courseName || profile.course || '').trim().toLowerCase() === selectedClass.name.toLowerCase();
@@ -3973,9 +3973,11 @@
                 const item = document.createElement('li');
                 item.className = 'studio-queue-item d-flex justify-content-between align-items-center';
                 const hasPhoto = profilePhotoValue(student);
+                const isRemoteCompleted = !!student._remoteCompleted || currentRemoteAssigned.some(r => r.uid === student.uid && r.completed);
+                const isAssignedToRemote = currentRemoteAssigned.some(r => r.uid === student.uid && !r.completed);
                 const isCurrent = pendingStudents[captureIndex]?.uid === student.uid;
                 if (isCurrent) item.classList.add('active');
-                if (hasPhoto) item.classList.add('completed');
+                if (hasPhoto || isRemoteCompleted) item.classList.add('completed');
 
                 const left = document.createElement('div');
                 left.className = 'd-flex align-items-center gap-2 text-truncate me-2';
@@ -3989,9 +3991,15 @@
                 left.append(seq, name);
 
                 const status = document.createElement('span');
-                if (hasPhoto) {
+                if (isRemoteCompleted) {
                     status.className = 'badge bg-success-subtle text-success border border-success-subtle';
-                    status.innerHTML = '<i class="fas fa-check"></i> Ready';
+                    status.innerHTML = '<i class="fas fa-check me-1"></i> Ready (Phone)';
+                } else if (hasPhoto) {
+                    status.className = 'badge bg-success-subtle text-success border border-success-subtle';
+                    status.innerHTML = '<i class="fas fa-check me-1"></i> Ready';
+                } else if (isAssignedToRemote) {
+                    status.className = 'badge bg-info-subtle text-info border border-info-subtle';
+                    status.innerHTML = '<i class="fas fa-mobile-alt me-1"></i> On Phone';
                 } else if (student._photoCaptureStatus?.includes('Skipped')) {
                     status.className = 'badge bg-warning-subtle text-warning border border-warning-subtle';
                     status.textContent = 'Skipped';
@@ -4070,7 +4078,57 @@
             try {
                 const result = await ownerRemoteCaptureRequest('status');
                 if (!remoteCaptureSession) return;
-                currentRemoteAssigned = Array.isArray(result.remoteStudents) ? result.remoteStudents : [];
+                const remoteList = Array.isArray(result.remoteStudents) ? result.remoteStudents : [];
+                currentRemoteAssigned = remoteList;
+
+                let queueChanged = false;
+                remoteList.forEach(remoteStudent => {
+                    if (remoteStudent.completed) {
+                        const inSelected = selectedStudents.find(s => s.uid === remoteStudent.uid);
+                        if (inSelected && (!inSelected.profilePhoto || !inSelected._remoteCompleted)) {
+                            inSelected.profilePhoto = remoteStudent.publicUrl || inSelected.profilePhoto || `uploaded-remote-${remoteStudent.photoUploadedAt || Date.now()}`;
+                            inSelected.profilePhotoKey = remoteStudent.permanentKey || inSelected.profilePhotoKey || 'remote-uploaded';
+                            inSelected._photoCaptureStatus = 'Completed on phone';
+                            inSelected._remoteCompleted = true;
+                            queueChanged = true;
+                        }
+
+                        const inAccounts = accounts.find(s => s.uid === remoteStudent.uid);
+                        if (inAccounts && (!inAccounts.profilePhoto || !inAccounts._remoteCompleted)) {
+                            inAccounts.profilePhoto = remoteStudent.publicUrl || inAccounts.profilePhoto || `uploaded-remote-${remoteStudent.photoUploadedAt || Date.now()}`;
+                            inAccounts.profilePhotoKey = remoteStudent.permanentKey || inAccounts.profilePhotoKey || 'remote-uploaded';
+                            inAccounts._remoteCompleted = true;
+                            queueChanged = true;
+                        }
+
+                        const pendingIdx = pendingStudents.findIndex(s => s.uid === remoteStudent.uid);
+                        if (pendingIdx !== -1) {
+                            pendingStudents.splice(pendingIdx, 1);
+                            if (captureIndex >= pendingIdx && captureIndex > 0) {
+                                captureIndex--;
+                            }
+                            queueChanged = true;
+                        }
+
+                        const skippedIdx = skippedStudents.findIndex(s => s.uid === remoteStudent.uid);
+                        if (skippedIdx !== -1) {
+                            skippedStudents.splice(skippedIdx, 1);
+                            queueChanged = true;
+                        }
+                    }
+                });
+
+                if (queueChanged) {
+                    renderPendingStudents();
+                    refreshRoster();
+                    const currentOnOwner = pendingStudents[captureIndex];
+                    if (!currentOnOwner || profilePhotoValue(currentOnOwner)) {
+                        renderCurrentStudent();
+                    }
+                } else if (remoteList.length > 0) {
+                    renderPendingStudents();
+                }
+
                 if (result.pairExpired) {
                     remoteApproval.hidden = true;
                     remoteStatus.textContent = 'This QR code expired. Disconnect and try again.';
@@ -4150,9 +4208,11 @@
             if (!response.ok) throw new Error(result.error || 'Could not start remote capture.');
             remoteCaptureSession = { sessionId: result.sessionId, totalAssigned: remoteList.length };
 
+            currentRemoteAssigned = remoteList.map(s => ({ uid: s.uid, name: s.name, classRoll: s.classRoll, completed: false }));
             pendingStudents = ownerList;
             captureIndex = Math.min(captureIndex, Math.max(0, pendingStudents.length - 1));
             renderCurrentStudent();
+            renderPendingStudents();
 
             const captureUrl = new URL('../remote-photo-capture.html', window.location.href);
             captureUrl.hash = new URLSearchParams({ session: result.sessionId, token: result.qrToken }).toString();
@@ -4172,6 +4232,7 @@
             remoteCaptureSession = null;
             remotePairingCode = '';
             currentRemoteAssigned = [];
+            renderPendingStudents();
             remoteApproval.hidden = true;
             remotePanel.hidden = true;
             transferControls.hidden = true;
