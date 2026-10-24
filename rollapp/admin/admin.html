@@ -12279,8 +12279,9 @@
                 existingModal.remove();
             }
 
+            const esc = (val) => String(val ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
             const currentSchoolId = currentUser?.schoolId || window.rollCallAdminMode?.schoolId || '';
-            const safeName = escapeHtml(userName || 'Student');
+            const safeName = esc(userName || 'Student');
 
             const modal = document.createElement('div');
             modal.id = 'attendance-history-modal';
@@ -12299,11 +12300,11 @@
                     </div>
                     <div class="attendance-history-summary">
                         <div class="summary-chip">
-                            <span class="label">Total Sessions</span>
+                            <span class="label">Total Classes</span>
                             <span class="value" id="attendance-total">0</span>
                         </div>
                         <div class="summary-chip present">
-                            <span class="label">Present</span>
+                            <span class="label">Attended</span>
                             <span class="value" id="attendance-present">0</span>
                         </div>
                         <div class="summary-chip late">
@@ -12313,6 +12314,10 @@
                         <div class="summary-chip absent">
                             <span class="label">Absent</span>
                             <span class="value" id="attendance-absent">0</span>
+                        </div>
+                        <div class="summary-chip" style="background:#eef2ff;border-color:#c7d2fe;">
+                            <span class="label" style="color:#4338ca;">Percentage</span>
+                            <span class="value" id="attendance-percentage" style="color:#4f46e5;">0%</span>
                         </div>
                     </div>
                     <div class="attendance-history-body">
@@ -12352,65 +12357,145 @@
             modal.querySelector('.attendance-history-close').addEventListener('click', closeModal);
 
             try {
-                // 1. Fetch user attendance directly from user_attendance/{userId}
-                // 2. Fetch school locations to map location names
-                const [userAttSnap, locsSnap] = await Promise.all([
-                    get(ref(database, `user_attendance/${userId}`)),
-                    currentSchoolId ? get(query(ref(database, 'locations'), orderByChild('schoolId'), equalTo(currentSchoolId))) : get(ref(database, 'locations'))
-                ]);
+                // Section normalization helper
+                const normalizeSec = (val) => {
+                    if (!val) return [];
+                    if (Array.isArray(val)) return val.map(v => String(v).trim().toLowerCase()).filter(Boolean);
+                    if (typeof val === 'object') return Object.keys(val).filter(k => val[k]).map(v => String(v).trim().toLowerCase());
+                    let s = String(val).trim().toLowerCase();
+                    if (s.startsWith('section ')) s = s.slice(8).trim();
+                    if (s.startsWith('sec ')) s = s.slice(4).trim();
+                    if (s.includes(',')) return s.split(',').map(x => x.trim()).filter(Boolean);
+                    return s ? [s] : [];
+                };
 
-                const locations = locsSnap.exists() ? locsSnap.val() : {};
-                const recordsList = [];
+                // Fetch user data, attendance by location, locations, and user_attendance in parallel
+                const fetchPromises = [
+                    get(ref(database, `users/${userId}`)),
+                    get(ref(database, 'attendance_by_location')),
+                    get(ref(database, 'locations')),
+                    get(ref(database, `user_attendance/${userId}`))
+                ];
 
-                if (userAttSnap.exists()) {
-                    const datesObj = userAttSnap.val() || {};
-                    Object.entries(datesObj).forEach(([dateKey, sessions]) => {
-                        if (sessions && typeof sessions === 'object') {
-                            Object.entries(sessions).forEach(([locId, record]) => {
-                                if (record && typeof record === 'object') {
-                                    const locInfo = locations[locId] || {};
-                                    recordsList.push({
-                                        date: record.date || dateKey,
-                                        time: record.time || '--',
-                                        locationId: locId,
-                                        locationName: record.locationName || locInfo.name || locInfo.className || 'Class Session',
-                                        status: (record.status || 'present').toLowerCase(),
-                                        verification: record.verificationMethod || record.attendanceType || ''
-                                    });
+                if (currentSchoolId) {
+                    fetchPromises.push(get(ref(database, `schoolClasses/${currentSchoolId}`)));
+                }
+
+                const [userSnap, attSnap, locSnap, userAttSnap, schoolClassesSnap] = await Promise.all(fetchPromises);
+
+                const userProfile = userSnap.exists() ? (userSnap.val() || {}) : {};
+                const globalAtt = attSnap.exists() ? (attSnap.val() || {}) : {};
+                const locations = locSnap.exists() ? (locSnap.val() || {}) : {};
+                const userDirectAtt = userAttSnap.exists() ? (userAttSnap.val() || {}) : {};
+                const schoolClasses = (schoolClassesSnap && schoolClassesSnap.exists()) ? (schoolClassesSnap.val() || {}) : {};
+
+                const userSecKeys = normalizeSec(userProfile.section);
+                const studentClassId = String(userProfile.classId || '').trim();
+
+                const recordsMap = new Map();
+
+                // 1. Ingest direct user logs (e.g. mobile/face scan attendance)
+                Object.entries(userDirectAtt).forEach(([dateStr, sessionObj]) => {
+                    if (!sessionObj || typeof sessionObj !== 'object') return;
+                    Object.entries(sessionObj).forEach(([locOrSessionId, record]) => {
+                        if (!record || typeof record !== 'object') return;
+                        const key = `${dateStr}_${locOrSessionId}`;
+                        const locMeta = locations[locOrSessionId] || schoolClasses[locOrSessionId] || {};
+                        const className = record.locationName || record.className || locMeta.name || locMeta.className || locMeta.courseName || 'Class Session';
+                        const status = String(record.status || 'present').toLowerCase();
+                        recordsMap.set(key, {
+                            date: record.date || dateStr,
+                            time: record.time || '--',
+                            locationId: locOrSessionId,
+                            locationName: className,
+                            status: status,
+                            verification: record.verificationMethod || record.attendanceType || 'Face / Verified'
+                        });
+                    });
+                });
+
+                // 2. Ingest class sessions from attendance_by_location
+                Object.entries(globalAtt).forEach(([locId, dateSessions]) => {
+                    if (!dateSessions || typeof dateSessions !== 'object') return;
+                    const locMeta = locations[locId] || schoolClasses[locId] || {};
+                    const locName = locMeta.name || locMeta.className || locMeta.courseName || 'Class Session';
+                    const locSecKeys = normalizeSec(locMeta.section);
+                    const locSchool = String(locMeta.schoolId || '').trim();
+
+                    // If in school mode, only check classes belonging to current school (or where student explicitly has an entry)
+                    const isOtherSchool = currentSchoolId && locSchool && locSchool !== currentSchoolId;
+
+                    Object.entries(dateSessions).forEach(([dateStr, attendees]) => {
+                        if (!attendees || typeof attendees !== 'object') return;
+                        const meta = attendees._meta || {};
+                        const sessionSchool = String(meta.schoolId || '').trim();
+
+                        const userAtt = attendees[userId];
+                        const hasUserAttendee = userAtt !== undefined && userAtt !== null;
+
+                        if (currentSchoolId && sessionSchool && sessionSchool !== currentSchoolId && !hasUserAttendee) return;
+                        if (isOtherSchool && !hasUserAttendee) return;
+
+                        const sessionName = meta.className || meta.subjectName || locName;
+                        const sessionSecKeys = meta.section ? normalizeSec(meta.section) : locSecKeys;
+
+                        // Check section relevance (or if general/all, or if student attended, or peer in section attended)
+                        let isRelevant = hasUserAttendee;
+                        if (!isRelevant) {
+                            const isGeneral = sessionSecKeys.length === 0 || sessionSecKeys.includes('general') || sessionSecKeys.includes('all');
+                            const matchesSection = userSecKeys.length > 0 && sessionSecKeys.some(k => userSecKeys.includes(k));
+                            const matchesClass = studentClassId && (locId === studentClassId || locMeta.classId === studentClassId || locMeta.id === studentClassId);
+
+                            let peerMatches = false;
+                            if (userSecKeys.length > 0) {
+                                const attEntries = Object.entries(attendees).filter(([k]) => k !== '_meta');
+                                peerMatches = attEntries.some(([, val]) => {
+                                    if (val && typeof val === 'object' && val.section) {
+                                        const peerSecs = normalizeSec(val.section);
+                                        return userSecKeys.some(k => peerSecs.includes(k));
+                                    }
+                                    return false;
+                                });
+                            }
+
+                            isRelevant = isGeneral || matchesSection || matchesClass || peerMatches;
+                        }
+
+                        if (isRelevant) {
+                            const key = `${dateStr}_${locId}`;
+                            if (recordsMap.has(key)) return;
+
+                            let status = 'absent';
+                            let time = meta.time || (meta.timestamp ? new Date(meta.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--');
+                            let verification = 'Missed';
+
+                            if (hasUserAttendee) {
+                                if (typeof userAtt === 'string') {
+                                    status = userAtt.toLowerCase();
+                                    verification = 'Class Roll Call';
+                                } else if (typeof userAtt === 'object') {
+                                    status = String(userAtt.status || 'present').toLowerCase();
+                                    if (userAtt.time) time = userAtt.time;
+                                    verification = userAtt.verificationMethod || userAtt.attendanceType || 'Class Roll Call';
                                 }
+                            }
+
+                            const secSuffix = sessionSecKeys.length > 0 ? ` (Sec ${sessionSecKeys[0].toUpperCase()})` : '';
+
+                            recordsMap.set(key, {
+                                date: dateStr,
+                                time: time,
+                                locationId: locId,
+                                locationName: `${sessionName}${secSuffix}`,
+                                status: status,
+                                verification: verification
                             });
                         }
                     });
-                }
+                });
 
-                // If user_attendance was empty, fallback to searching locations of this school
-                if (recordsList.length === 0 && locsSnap.exists()) {
-                    const locIds = Object.keys(locations);
-                    const checks = locIds.slice(0, 20).map(async locId => {
-                        try {
-                            const snap = await get(ref(database, `attendance_by_location/${locId}`));
-                            if (snap.exists()) {
-                                const days = snap.val() || {};
-                                Object.entries(days).forEach(([dKey, dayUsers]) => {
-                                    if (dayUsers && dayUsers[userId]) {
-                                        const rec = dayUsers[userId];
-                                        recordsList.push({
-                                            date: rec.date || dKey,
-                                            time: rec.time || '--',
-                                            locationId: locId,
-                                            locationName: locations[locId]?.name || 'Class Session',
-                                            status: (rec.status || 'present').toLowerCase(),
-                                            verification: rec.verificationMethod || ''
-                                        });
-                                    }
-                                });
-                            }
-                        } catch (e) {}
-                    });
-                    await Promise.all(checks);
-                }
-
-                // Sort records descending by date, then time
+                // Convert to array and sort descending by date, then time
+                const recordsList = Array.from(recordsMap.values());
                 recordsList.sort((a, b) => {
                     const dateComp = String(b.date || '').localeCompare(String(a.date || ''));
                     if (dateComp !== 0) return dateComp;
@@ -12427,15 +12512,20 @@
                     else if (r.status === 'absent') absentCount++;
                 });
 
+                const totalClasses = recordsList.length;
+                const percentage = totalClasses > 0 ? Math.round(((presentCount + lateCount) / totalClasses) * 100) : 0;
+
                 const totalEl = document.getElementById('attendance-total');
                 const presentEl = document.getElementById('attendance-present');
                 const lateEl = document.getElementById('attendance-late');
                 const absentEl = document.getElementById('attendance-absent');
+                const pctEl = document.getElementById('attendance-percentage');
 
-                if (totalEl) totalEl.textContent = recordsList.length;
+                if (totalEl) totalEl.textContent = totalClasses;
                 if (presentEl) presentEl.textContent = presentCount;
                 if (lateEl) lateEl.textContent = lateCount;
                 if (absentEl) absentEl.textContent = absentCount;
+                if (pctEl) pctEl.textContent = `${percentage}%`;
 
                 const dataEl = document.getElementById('user-attendance-data');
                 if (!dataEl) return;
@@ -12447,7 +12537,7 @@
 
                 let html = '<div class="modern-table-container attendance-history-table">';
                 html += '<table class="modern-table">';
-                html += '<thead><tr><th>Date</th><th>Time</th><th>Class / Location</th><th>Status</th><th>Verification</th></tr></thead><tbody>';
+                html += '<thead><tr><th>Date</th><th>Time</th><th>Class / Subject</th><th>Status</th><th>Verification</th></tr></thead><tbody>';
 
                 recordsList.forEach(r => {
                     let statusBadge = '';
@@ -12458,15 +12548,15 @@
                     } else if (r.status === 'late') {
                         statusBadge = '<span class="status-badge badge-late"><i class="fas fa-clock"></i> Late</span>';
                     } else {
-                        statusBadge = `<span class="status-badge">${escapeHtml(r.status)}</span>`;
+                        statusBadge = `<span class="status-badge">${esc(r.status)}</span>`;
                     }
 
                     html += `<tr>
-                        <td><strong>${escapeHtml(r.date)}</strong></td>
-                        <td>${escapeHtml(r.time)}</td>
-                        <td><div style="font-weight:600;color:#0f172a;">${escapeHtml(r.locationName)}</div></td>
+                        <td><strong>${esc(r.date)}</strong></td>
+                        <td>${esc(r.time)}</td>
+                        <td><div style="font-weight:600;color:#0f172a;">${esc(r.locationName)}</div></td>
                         <td>${statusBadge}</td>
-                        <td><span style="font-size:0.75rem;color:#64748b;text-transform:capitalize;">${escapeHtml(r.verification || 'Standard')}</span></td>
+                        <td><span style="font-size:0.75rem;color:#64748b;text-transform:capitalize;">${esc(r.verification || 'Standard')}</span></td>
                     </tr>`;
                 });
 
@@ -12474,9 +12564,10 @@
                 dataEl.innerHTML = html;
 
             } catch (error) {
+                console.error('Error loading attendance history:', error);
                 const dataEl = document.getElementById('user-attendance-data');
                 if (dataEl) {
-                    dataEl.innerHTML = `<div class="attendance-history-empty" style="color:#ef4444;"><i class="fas fa-triangle-exclamation" style="font-size:1.8rem;margin-bottom:8px;display:block;"></i>Error loading attendance data: ${escapeHtml(error.message)}</div>`;
+                    dataEl.innerHTML = `<div class="attendance-history-empty" style="color:#ef4444;"><i class="fas fa-triangle-exclamation" style="font-size:1.8rem;margin-bottom:8px;display:block;"></i>Error loading attendance data: ${esc(error.message)}</div>`;
                 }
             }
         };
