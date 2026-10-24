@@ -3554,7 +3554,10 @@
             .studio-sel-input:focus { border-color: #0284c7; box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15); }
 
             /* FULLSCREEN STUDIO MODAL WORKSPACE */
-            #ownerPhotoCameraModal {
+            #ownerPhotoCameraModal[hidden] {
+              display: none !important;
+            }
+            #ownerPhotoCameraModal:not([hidden]) {
               position: fixed !important;
               inset: 0 !important;
               width: 100vw !important;
@@ -3568,15 +3571,15 @@
               padding: 0 !important;
               margin: 0 !important;
             }
-            #ownerPhotoCameraModal:fullscreen,
-            #ownerPhotoCameraModal:-webkit-full-screen {
+            #ownerPhotoCameraModal:not([hidden]):fullscreen,
+            #ownerPhotoCameraModal:not([hidden]):-webkit-full-screen {
               width: 100vw !important;
               height: 100vh !important;
               background: #090d16 !important;
               z-index: 999999 !important;
             }
-            :fullscreen #ownerPhotoCameraModal,
-            :-webkit-full-screen #ownerPhotoCameraModal {
+            :fullscreen #ownerPhotoCameraModal:not([hidden]),
+            :-webkit-full-screen #ownerPhotoCameraModal:not([hidden]) {
               width: 100vw !important;
               height: 100vh !important;
             }
@@ -3864,6 +3867,7 @@
         main.appendChild(section);
         const schoolSelect = section.querySelector('#ownerPhotoSchool'); const classSelect = section.querySelector('#ownerPhotoClass'); const sectionSelect = section.querySelector('#ownerPhotoSection');
         const lockButton = section.querySelector('#ownerPhotoLock'); const rosterElement = section.querySelector('#ownerPhotoRoster'); const modal = section.querySelector('#ownerPhotoCameraModal');
+        if (modal) modal.hidden = true;
         const video = section.querySelector('#ownerPhotoVideo'); const snapshot = section.querySelector('#ownerPhotoSnapshot'); const faceGuide = section.querySelector('#ownerPhotoFaceGuide'); const details = section.querySelector('#ownerPhotoStudentDetails');
         const captureButton = section.querySelector('#ownerPhotoCapture'); const doUploadButton = section.querySelector('#ownerPhotoDoUpload'); const stopUploadButton = section.querySelector('#ownerPhotoStopUpload');
         const retakeButton = section.querySelector('#ownerPhotoRetake'); const skipButton = section.querySelector('#ownerPhotoSkip'); const finishButton = section.querySelector('#ownerPhotoFinish');
@@ -3877,10 +3881,30 @@
         let accounts = []; let classes = []; let selectedStudents = []; let pendingStudents = []; let skippedStudents = []; let captureIndex = 0; let cameraStream = null; let selectionLocked = false;
         let remoteCaptureSession = null; let remoteCaptureTimer = null; let remoteCaptureBusy = false; let remotePairingCode = ''; let currentRemoteAssigned = [];
         let currentSnapshotBlob = null; let uploadAbortController = null; let isUploading = false;
+        function isErpSchool(school) {
+            if (!school) return false;
+            const type = String(school.type || school.institutionType || school.schoolType || school.productType || '').trim().toLowerCase();
+            const code = String(school.code || '').trim().toUpperCase();
+            if (type === 'erp' || type.includes('erp')) return true;
+            if (code.startsWith('ERP')) return true;
+            if (school.erpPlan === true || school.isErp === true) return true;
+            return false;
+        }
         function renderPhotoSchools() {
             const previous = schoolSelect.value; schoolSelect.replaceChildren(new Option('Select school', ''));
-            (schools || []).slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).forEach(school => schoolSelect.add(new Option(`${school.name || 'Unnamed school'} · ${school.code || 'No code'}`, school.id)));
-            if ((schools || []).some(school => String(school.id) === previous)) schoolSelect.value = previous;
+            const eligibleSchools = (schools || []).filter(school => !isErpSchool(school));
+            eligibleSchools.slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).forEach(school => schoolSelect.add(new Option(`${school.name || 'Unnamed school'} · ${school.code || 'No code'}`, school.id)));
+            if (eligibleSchools.some(school => String(school.id) === previous)) schoolSelect.value = previous;
+            else if (previous) {
+                schoolSelect.value = '';
+                classes = [];
+                accounts = [];
+                classSelect.replaceChildren(new Option('Select school first', ''));
+                classSelect.disabled = true;
+                sectionSelect.replaceChildren(new Option('Select class first', ''));
+                sectionSelect.disabled = true;
+                refreshRoster();
+            }
         }
         async function loadPhotoClasses() {
             const schoolId = schoolSelect.value; classSelect.disabled = true;
@@ -4478,12 +4502,23 @@
             }
         }
         section._onBulkPhotosOpen = async () => {
+            if (!selectionLocked) {
+                if (modal) modal.hidden = true;
+                document.body.classList.remove('studio-fullscreen-active');
+                exitStudioFullscreen();
+            }
             const cached = await readSchoolsCache();
             if (Array.isArray(cached)) schools = cached;
             renderPhotoSchools();
             if (database) {
-                try { const snapshot = await database.ref('schools').once('value'); schools = Object.entries(snapshot.val() || {}).map(([id, school]) => ({ id, ...(school || {}) })); await writeSchoolsCache(); renderPhotoSchools(); }
-                catch (error) { if (!Array.isArray(cached)) notify(`Could not load schools for profile photos: ${error.message}`, 'danger'); }
+                try {
+                    const snapshot = await database.ref('schools').once('value');
+                    schools = Object.entries(snapshot.val() || {}).map(([id, school]) => ({ id, ...(school || {}) }));
+                    await writeSchoolsCache();
+                    renderPhotoSchools();
+                } catch (error) {
+                    if (!Array.isArray(cached)) notify(`Could not load schools for profile photos: ${error.message}`, 'danger');
+                }
             }
         };
         schoolSelect.addEventListener('change', async () => {
@@ -4491,6 +4526,13 @@
             sectionSelect.replaceChildren(new Option('Select class first', '')); sectionSelect.disabled = true; refreshRoster();
             if (!schoolSelect.value) return;
             const selectedSchoolId = schoolSelect.value;
+            const selectedSchool = (schools || []).find(s => String(s.id) === String(selectedSchoolId));
+            if (isErpSchool(selectedSchool)) {
+                notify('ERP institutions are not eligible for student photo capture.', 'warning');
+                schoolSelect.value = '';
+                refreshRoster();
+                return;
+            }
             try {
                 const [loadedAccounts, loadedClasses] = await Promise.all([loadPhotoAccounts(selectedSchoolId), loadPhotoClasses()]);
                 if (schoolSelect.value !== selectedSchoolId) return;
@@ -4504,6 +4546,8 @@
             if (selectionLocked) { unlockSelection(); return; }
             selectedStudents = filteredStudents();
             if (!schoolSelect.value || !classSelect.value || !sectionSelect.value || !selectedStudents.length) return notify('Select a school, class, and section with students before locking.', 'warning');
+            const selectedSchool = (schools || []).find(s => String(s.id) === String(schoolSelect.value));
+            if (isErpSchool(selectedSchool)) return notify('ERP institutions cannot be locked for student photo capture.', 'warning');
             selectedStudents.forEach(student => { if (!profilePhotoValue(student)) delete student._photoCaptureStatus; });
             pendingStudents = selectedStudents.filter(student => !profilePhotoValue(student));
             skippedStudents = [];
@@ -4578,8 +4622,24 @@
         });
         finishButton.addEventListener('click', () => { void unlockSelection(); });
         section.querySelector('#ownerPhotoClose').addEventListener('click', () => { void unlockSelection(); });
-        section._onBulkPhotosClose = () => { if (selectionLocked) unlockSelection(); };
-        item.querySelector('a').addEventListener('click', event => { event.preventDefault(); switchSection('owner-bulk-profile-photos'); renderPhotoSchools(); });
+        section._onBulkPhotosClose = () => {
+            if (selectionLocked) unlockSelection();
+            else {
+                if (modal) modal.hidden = true;
+                document.body.classList.remove('studio-fullscreen-active');
+                exitStudioFullscreen();
+            }
+        };
+        item.querySelector('a').addEventListener('click', event => {
+            event.preventDefault();
+            if (!selectionLocked) {
+                if (modal) modal.hidden = true;
+                document.body.classList.remove('studio-fullscreen-active');
+                exitStudioFullscreen();
+            }
+            switchSection('owner-bulk-profile-photos');
+            renderPhotoSchools();
+        });
     }
 
     function install() {
