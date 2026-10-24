@@ -56,7 +56,7 @@ The Worker cannot stop interception on a compromised device, extension, endpoint
 
 ## Brevo password-reset delivery
 
-The same Worker handles `/password-reset`. It asks Firebase Authentication to create a real password-reset action link, then sends a branded HTML and plain-text transactional email through Brevo's HTTPS API. The link remains a Firebase action link; Brevo is only the delivery provider. Campaign creation credentials and list IDs are not used. The email uses a text RollCall wordmark; a sender avatar shown by a recipient's email provider is configured separately and is not controlled by the email template.
+The same Worker handles `/password-reset`. It uses the Firebase service account to call the authenticated Identity Toolkit endpoint to create a real password-reset action link, then sends a branded HTML and plain-text transactional email through Brevo's HTTPS API. The Firebase Web API key is still required for the browser Firebase configuration, but reset-link generation uses the service account. The link remains a Firebase action link; Brevo is only the delivery provider. Campaign creation credentials and list IDs are not used. The email uses a text RollCall wordmark; a sender avatar shown by a recipient's email provider is configured separately and is not controlled by the email template.
 
 1. In Cloudflare Worker settings, add `FIREBASE_DATABASE_URL`, `FIREBASE_API_KEY`, `BREVO_SENDER_EMAIL`, and `BREVO_SENDER_NAME` as non-secret variables. Use the Firebase project's Realtime Database URL, Web API key, and a sender verified in Brevo.
 2. Add these as **Worker secrets**, never web-app build variables or checked-in files:
