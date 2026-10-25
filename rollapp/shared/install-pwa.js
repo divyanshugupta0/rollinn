@@ -59,7 +59,7 @@
     banner.classList.add('show');
   });
 
-  banner.querySelector('.install-btn').addEventListener('click', async () => {
+  banner.querySelector('.install-btn')?.addEventListener('click', async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     await deferredPrompt.userChoice;
@@ -69,6 +69,12 @@
   banner.querySelector('.dismiss').addEventListener('click', () => banner.classList.remove('show'));
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register(new URL('sw.js', appRoot)).catch(() => {});
+    const isStudentPortal = /\/student(?:\/|$)/i.test(window.location.pathname);
+    if (isStudentPortal) {
+      const studentRoot = new URL('student/', appRoot);
+      navigator.serviceWorker.register(new URL('student/sw.js', appRoot), { scope: studentRoot.pathname }).catch(() => {});
+    } else {
+      navigator.serviceWorker.register(new URL('sw.js', appRoot)).catch(() => {});
+    }
   }
 })();
