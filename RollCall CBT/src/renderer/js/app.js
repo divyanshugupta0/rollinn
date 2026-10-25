@@ -55,6 +55,7 @@
         // Setup Exam View
         el.setupInstTitle = document.getElementById('setup-inst-title');
         el.setupLicenseExpiry = document.getElementById('setup-license-expiry');
+        el.setupLicenseDevices = document.getElementById('setup-license-devices');
         el.btnRelicense = document.getElementById('btn-relicense');
         el.examDropzone = document.getElementById('exam-file-dropzone');
         el.inputHiddenExamFile = document.getElementById('input-hidden-exam-file');
@@ -230,27 +231,11 @@
         el.topbarSchoolCode.textContent = schoolCode;
         el.setupInstTitle.textContent = `${instName} (${schoolCode})`;
         el.setupLicenseExpiry.textContent = `Offline Enterprise License · Valid until ${license.expiryDate || 'N/A'}`;
+        if (el.setupLicenseDevices) el.setupLicenseDevices.textContent = `Devices remaining: ${Number(license.remainingDevices ?? 0)} / ${Number(license.maxDevices || 1)}`;
     }
 
-    async function handleLicenseFileUpload(file) {
-        try {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const text = e.target.result;
-                const result = await window.rollcallCBT.activateFromLicenseContent(text);
-                if (result.success) {
-                    showToast(`License activated successfully for ${result.license.institutionName}!`, 'success');
-                    state.license = result.license;
-                    applyActiveLicenseUI(result.license);
-                    switchView('setup');
-                } else {
-                    showToast(result.error || 'Invalid license file.', 'error');
-                }
-            };
-            reader.readAsText(file);
-        } catch (err) {
-            showToast('Failed to read license file: ' + err.message, 'error');
-        }
+    async function handleLicenseFileUpload() {
+        showToast('For security, use Select .rolllic File and choose it directly from removable external storage.', 'error');
     }
 
     // =========================================================================
@@ -1100,10 +1085,7 @@
                 el.licenseDropzone.classList.remove('dragover');
             });
         });
-        el.licenseDropzone.addEventListener('drop', (e) => {
-            const file = e.dataTransfer.files[0];
-            if (file) handleLicenseFileUpload(file);
-        });
+        el.licenseDropzone.addEventListener('drop', () => handleLicenseFileUpload());
 
         // Manual License Code form
         el.btnToggleManualLicense.addEventListener('click', () => {

@@ -14,8 +14,11 @@ RollCall CBT is a standalone, 100% offline Electron application engineered for h
    - Question answer keys are encrypted with AES-256-CBC and protected by SHA-256 HMAC digital signatures, preventing students from inspecting local files or memory to view answers.
 
 3. **Offline License Activation (`.rolllic`)**:
-   - Licenses are issued from the RollCall Admin Panel (in **any mode**: School, College, Coaching, ERP).
-   - Admin downloads `<school_code>-cbt-license.rolllic` and uploads it to the CBT client application to activate the device.
+   - Licenses are issued only to schools with an active standalone CBT plan from the RollCall Admin Panel.
+   - Admin sets the activation start, expiry, and maximum device count.
+   - The IDE accepts the license only when selected directly from removable external storage.
+   - Each activation consumes one device seat and writes a signed replacement license with the reduced count back to the same external device.
+   - Manual license-key activation and raw in-app license content activation are disabled.
 
 4. **Kiosk Lockdown & Anti-Cheat Proctoring**:
    - Fullscreen kiosk lockdown prevents window switching, Alt+Tab, and unauthorized shortcuts.

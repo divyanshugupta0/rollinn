@@ -5724,11 +5724,16 @@
 
                     <div class="cbt-box">
                         <h3><i class="fas fa-key"></i> Offline License Code</h3>
-                        <p style="color:#64748b; font-size:0.9rem;">Active offline enterprise license code for student computers.</p>
+                        <p style="color:#64748b; font-size:0.9rem;">Issue a signed license only while this school has an active CBT plan.</p>
+                        <div class="cbt-license-meta-grid">
+                            <div><span>Activation starts</span><strong id="cbt-license-start-date">—</strong></div>
+                            <div><span>Plan expiry</span><strong id="cbt-license-expiry-date">—</strong></div>
+                            <label><span>Maximum devices</span><input id="cbt-license-max-devices" type="number" min="1" max="10000" value="1"></label>
+                        </div>
                         <div class="cbt-code-display" id="cbt-license-code-display">Generating...</div>
                         <div class="cbt-actions-row">
                             <button type="button" class="btn-cbt-primary" id="btn-download-cbt-license">
-                                <i class="fas fa-download"></i> Download .rolllic License File
+                                <i class="fas fa-download"></i> Issue &amp; Download .rolllic
                             </button>
                             <button type="button" class="btn-cbt-secondary" id="btn-copy-cbt-license">
                                 <i class="fas fa-copy"></i> Copy Code

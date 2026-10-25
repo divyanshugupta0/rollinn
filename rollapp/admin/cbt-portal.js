@@ -87,7 +87,7 @@
     }
 
     // Generate Full Offline CBT License File (.rolllic)
-    async function generateCbtLicenseFile(schoolCode, institutionName = 'RollCall Institution', expiryDateMs = null) {
+    async function generateCbtLicenseFile(schoolCode, institutionName = 'RollCall Institution', expiryDateMs = null, options = {}) {
         const cleanCode = String(schoolCode || 'ROLL-SCH-01').trim().toUpperCase();
         const expiry = Number(expiryDateMs) || (Date.now() + 365 * 24 * 60 * 60 * 1000);
         const licenseKey = await generateCbtLicenseKey(cleanCode, expiry);
@@ -102,13 +102,19 @@
             issuedAt: new Date().toISOString(),
             expiresAt: expiry,
             expiryDate: new Date(expiry).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }),
+            activationStartDate: new Date(options.activationStartDate || new Date().toISOString()).toISOString(),
+            maxDevices: Math.max(1, Math.floor(Number(options.maxDevices) || 1)),
+            remainingDevices: Math.max(1, Math.floor(Number(options.maxDevices) || 1)),
+            activationCount: 0,
+            licenseId: options.licenseId || `RCCBT-LIC-${cleanCode}-${Date.now()}`,
             features: [
                 '100% Air-Gapped Offline Operation',
                 'Full Anti-Cheat Proctoring & Kiosk Lockdown',
                 'Full Offline Student Roster Verification',
                 'Encrypted .rollcbt Exam Package Ingestion',
                 'Digitally Signed .rollcbt-sub Submissions',
-                'Unlimited Offline Test Centers & Candidates'
+                'Unlimited Offline Test Centers & Candidates',
+                'External Storage Device Activation with Signed License Replacement'
             ]
         };
 
@@ -222,7 +228,8 @@
         }
         try {
             const snapshot = await window.firebase.database().ref(`schools/${schoolId}/cbtSubscription`).once('value');
-            const active = cbtSubscriptionIsActive(snapshot.val());
+            window.currentCbtPlanSubscription = snapshot.val() || null;
+            const active = cbtSubscriptionIsActive(window.currentCbtPlanSubscription);
             if (item) item.hidden = !active;
             if (!active && document.getElementById('cbt-portal-section-active')) {
                 document.querySelector('.sidebar-menu-item-modern[data-section="dashboard"]')?.click();
@@ -244,6 +251,7 @@
             section.innerHTML = '<div class="alert alert-warning m-3"><i class="fas fa-lock me-2"></i>RollCall CBT Hub requires an active CBT plan for this school.</div>';
             return;
         }
+        const cbtSubscription = window.currentCbtPlanSubscription || {};
 
         // Current School & Institution resolution
         const schoolCodeEl = section.querySelector('#cbt-school-code-display');
@@ -262,8 +270,17 @@
         if (instNameEl) instNameEl.textContent = currentInstName;
 
         // Pre-generate license key for display
-        const initialKey = await generateCbtLicenseKey(currentSchoolCode);
+        const planExpiry = Date.parse(cbtSubscription.endDate || '') || (Date.now() + 365 * 24 * 60 * 60 * 1000);
+        const planStart = cbtSubscription.startDate || new Date().toISOString();
+        const defaultMaxDevices = Math.max(1, Number(cbtSubscription.maxDevices || cbtSubscription.deviceLimit || 1));
+        const initialKey = await generateCbtLicenseKey(currentSchoolCode, planExpiry);
         if (licenseCodeDisplay) licenseCodeDisplay.textContent = initialKey;
+        const maxDevicesInput = section.querySelector('#cbt-license-max-devices');
+        const startDateDisplay = section.querySelector('#cbt-license-start-date');
+        const expiryDateDisplay = section.querySelector('#cbt-license-expiry-date');
+        if (maxDevicesInput) maxDevicesInput.value = String(defaultMaxDevices);
+        if (startDateDisplay) startDateDisplay.textContent = new Date(planStart).toLocaleString();
+        if (expiryDateDisplay) expiryDateDisplay.textContent = new Date(planExpiry).toLocaleString();
 
         // Tab Navigation inside CBT Hub
         const tabBtns = section.querySelectorAll('.cbt-tab-btn');
@@ -292,25 +309,29 @@
                 btnDownloadLicense.disabled = true;
                 btnDownloadLicense.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating File...';
                 try {
-                    const fileContent = await generateCbtLicenseFile(currentSchoolCode, currentInstName);
+                    const maxDevices = Math.max(1, Math.floor(Number(maxDevicesInput?.value || 0)));
+                    if (!Number.isInteger(maxDevices) || maxDevices < 1) throw new Error('Enter a valid maximum device count.');
+                    const fileContent = await generateCbtLicenseFile(currentSchoolCode, currentInstName, planExpiry, { maxDevices, activationStartDate: planStart });
                     const filename = `${currentSchoolCode}-cbt-license.rolllic`;
                     downloadBlob(filename, fileContent, 'application/json');
+                    const issuedAt = new Date().toISOString();
+                    await window.firebase.database().ref(`schools/${schoolId}/cbtLicense`).set({ maxDevices, activationStartDate: planStart, expiryDate: new Date(planExpiry).toISOString(), issuedAt, updatedAt: Date.now() });
                     if (licenseStatusMsg) {
-                        licenseStatusMsg.textContent = `✓ License file "${filename}" downloaded successfully. Transfer it to your exam computers!`;
+                        licenseStatusMsg.textContent = `✓ License file "${filename}" issued for ${maxDevices} device${maxDevices === 1 ? '' : 's'}. Copy it to removable storage before activation.`;
                         licenseStatusMsg.style.color = '#10b981';
                     }
                 } catch (e) {
                     alert('Error generating license file: ' + e.message);
                 } finally {
                     btnDownloadLicense.disabled = false;
-                    btnDownloadLicense.innerHTML = '<i class="fas fa-download"></i> Download .rolllic License File';
+                    btnDownloadLicense.innerHTML = '<i class="fas fa-download"></i> Issue & Download .rolllic';
                 }
             };
         }
 
         if (btnCopyLicense) {
             btnCopyLicense.onclick = async () => {
-                const key = licenseCodeDisplay ? licenseCodeDisplay.textContent : await generateCbtLicenseKey(currentSchoolCode);
+                const key = licenseCodeDisplay ? licenseCodeDisplay.textContent : await generateCbtLicenseKey(currentSchoolCode, planExpiry);
                 navigator.clipboard.writeText(key).then(() => {
                     if (licenseStatusMsg) {
                         licenseStatusMsg.textContent = '✓ CBT Access Code copied to clipboard!';
@@ -762,6 +783,11 @@
     // =========================================================================
     window.initManageAccountCbtLicense = async function (section) {
         if (!section) return;
+        const schoolId = window.currentAdminSchoolId;
+        if (typeof window.refreshCbtPlanAccess === 'function' && !await window.refreshCbtPlanAccess(schoolId)) {
+            section.querySelector('#account-cbt-license-card')?.remove();
+            return;
+        }
         let cbtCard = section.querySelector('#account-cbt-license-card');
         if (!cbtCard) {
             const subscriptionCard = section.querySelector('.account-subscription-card');
@@ -806,7 +832,10 @@
 
             if (btnDownload) {
                 btnDownload.onclick = async () => {
-                    const fileContent = await generateCbtLicenseFile(currentSchoolCode, currentInstName);
+                    const subscription = window.currentCbtPlanSubscription || {};
+                    const expiry = Date.parse(subscription.endDate || '') || (Date.now() + 365 * 24 * 60 * 60 * 1000);
+                    const maxDevices = Math.max(1, Math.floor(Number(subscription.maxDevices || subscription.deviceLimit || 1)));
+                    const fileContent = await generateCbtLicenseFile(currentSchoolCode, currentInstName, expiry, { maxDevices, activationStartDate: subscription.startDate || new Date().toISOString() });
                     const filename = `${currentSchoolCode}-cbt-license.rolllic`;
                     downloadBlob(filename, fileContent, 'application/json');
                     if (statusEl) {

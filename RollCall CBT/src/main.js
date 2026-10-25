@@ -1,10 +1,11 @@
 ﻿const { app, BrowserWindow, ipcMain, dialog, screen, globalShortcut, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { execFileSync } = require('child_process');
 const {
     getMachineFingerprint,
     verifyCbtLicenseKey,
-    verifyCbtLicenseFile,
+    consumeCbtLicenseFile,
     unpackRollCbt,
     packageExamToRollCbt,
     createSubmissionArchive
@@ -26,11 +27,15 @@ function readStoredLicense() {
         if (fs.existsSync(filePath)) {
             const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
             if (data && data.licenseKey && data.schoolCode) {
+                const currentDeviceId = getMachineFingerprint();
+                if (data.activatedDeviceId && data.activatedDeviceId !== currentDeviceId) {
+                    return { valid: false, expired: false, error: 'This CBT license is activated for a different device.', deviceId: currentDeviceId };
+                }
                 const verification = verifyCbtLicenseKey(data.licenseKey, data.schoolCode);
                 return {
                     ...data,
                     ...verification,
-                    deviceId: getMachineFingerprint()
+                    deviceId: currentDeviceId
                 };
             }
         }
@@ -43,6 +48,54 @@ function readStoredLicense() {
         licenseKey: null,
         deviceId: getMachineFingerprint()
     };
+}
+
+function isExternalStoragePath(filePath) {
+    const resolved = path.resolve(String(filePath || ''));
+    if (process.platform === 'win32') {
+        const root = path.parse(resolved).root;
+        const drive = root && /^[A-Z]:\\$/i.test(root) ? `${root[0].toUpperCase()}:` : '';
+        if (!drive) return false;
+        try {
+            const result = execFileSync('wmic', ['logicaldisk', 'where', `DeviceID='${drive}'`, 'get', 'DriveType', '/value'], { encoding: 'utf8', windowsHide: true });
+            return /DriveType=2/i.test(result);
+        } catch {
+            try {
+                const result = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `(Get-CimInstance Win32_LogicalDisk -Filter \"DeviceID='${drive}'\").DriveType`], { encoding: 'utf8', windowsHide: true });
+                return result.trim() === '2';
+            } catch {
+                return false;
+            }
+        }
+    }
+    return process.platform === 'darwin'
+        ? resolved.startsWith('/Volumes/')
+        : resolved.startsWith('/media/') || resolved.startsWith('/run/media/') || resolved.startsWith('/mnt/');
+}
+
+function activateLicenseFromExternalPath(filePath) {
+    if (!isExternalStoragePath(filePath)) return { success: false, error: 'For security, activate the license directly from a USB or other removable storage device.' };
+    const consumed = consumeCbtLicenseFile(fs.readFileSync(filePath, 'utf8'), getMachineFingerprint());
+    if (!consumed.valid) return { success: false, error: consumed.error || 'License activation failed.' };
+    const replacementPath = `${filePath}.replacement-${process.pid}-${Date.now()}`;
+    fs.writeFileSync(replacementPath, consumed.replacementRaw, 'utf8');
+    try {
+        fs.renameSync(replacementPath, filePath);
+    } catch {
+        fs.copyFileSync(replacementPath, filePath);
+        fs.unlinkSync(replacementPath);
+    }
+    const licenseRecord = {
+        schoolCode: consumed.schoolCode, institutionName: consumed.institutionName, licenseKey: consumed.licenseKey,
+        activatedAt: consumed.activatedAt, activatedDeviceId: consumed.activatedDeviceId,
+        expiryDate: consumed.expiryDate, expiryTimestamp: consumed.expiryTimestamp,
+        activationStartDate: consumed.activationStartDate, maxDevices: consumed.maxDevices,
+        remainingDevices: consumed.remainingDevices, activationCount: consumed.activationCount,
+        licenseId: consumed.licenseId, tier: consumed.tier, features: consumed.features,
+        deviceId: getMachineFingerprint()
+    };
+    saveStoredLicense(licenseRecord);
+    return { success: true, license: { ...licenseRecord, valid: true, expired: false } };
 }
 
 // Save license
@@ -133,14 +186,9 @@ function handleCommandLineFiles() {
             } else if (arg.endsWith('.rolllic') || arg.endsWith('.cbtlic')) {
                 setTimeout(() => {
                     try {
-                        const content = fs.readFileSync(arg, 'utf8');
-                        const verified = verifyCbtLicenseFile(content);
-                        if (verified.valid) {
-                            saveStoredLicense(verified);
-                            mainWindow.webContents.send('cbt:license-activated-from-cli', verified);
-                        } else {
-                            mainWindow.webContents.send('cbt:error-message', verified.error);
-                        }
+                        const result = activateLicenseFromExternalPath(arg);
+                        if (result.success) mainWindow.webContents.send('cbt:license-activated-from-cli', result.license);
+                        else mainWindow.webContents.send('cbt:error-message', result.error);
                     } catch (e) {
                         mainWindow.webContents.send('cbt:error-message', e.message);
                     }
@@ -175,82 +223,24 @@ function setupIpcHandlers() {
 
         const filePath = result.filePaths[0];
         try {
-            const rawContent = fs.readFileSync(filePath, 'utf8');
-            const verified = verifyCbtLicenseFile(rawContent);
-            if (!verified.valid) {
-                return { success: false, error: verified.error || 'Invalid license file.' };
-            }
-
-            const licenseRecord = {
-                schoolCode: verified.schoolCode,
-                institutionName: verified.institutionName,
-                licenseKey: verified.licenseKey,
-                activatedAt: new Date().toISOString(),
-                expiryDate: verified.expiryDate,
-                expiryTimestamp: verified.expiryTimestamp,
-                tier: verified.tier,
-                features: verified.features,
-                deviceId: getMachineFingerprint()
-            };
-
-            saveStoredLicense(licenseRecord);
-            return { success: true, license: licenseRecord, fileName: path.basename(filePath) };
+            const result = activateLicenseFromExternalPath(filePath);
+            return result.success ? { ...result, fileName: path.basename(filePath) } : result;
         } catch (error) {
             return { success: false, error: error.message || 'Failed to read license file.' };
         }
     });
 
     // Activate from raw license file content (e.g. drag & drop license file)
-    ipcMain.handle('cbt:activate-from-license-content', async (event, content) => {
-        try {
-            const verified = verifyCbtLicenseFile(content);
-            if (!verified.valid) {
-                return { success: false, error: verified.error || 'Invalid license file.' };
-            }
-
-            const licenseRecord = {
-                schoolCode: verified.schoolCode,
-                institutionName: verified.institutionName,
-                licenseKey: verified.licenseKey,
-                activatedAt: new Date().toISOString(),
-                expiryDate: verified.expiryDate,
-                expiryTimestamp: verified.expiryTimestamp,
-                tier: verified.tier,
-                features: verified.features,
-                deviceId: getMachineFingerprint()
-            };
-
-            saveStoredLicense(licenseRecord);
-            return { success: true, license: licenseRecord };
-        } catch (e) {
-            return { success: false, error: e.message || 'Error processing license.' };
-        }
-    });
+    ipcMain.handle('cbt:activate-from-license-content', async () => ({
+        success: false,
+        error: 'License activation is only allowed by selecting the file from removable external storage.'
+    }));
 
     // Manual string license key activation fallback
-    ipcMain.handle('cbt:activate-license-key', async (event, { schoolCode, licenseKey, institutionName }) => {
-        const cleanSchoolCode = String(schoolCode || '').trim().toUpperCase();
-        const cleanKey = String(licenseKey || '').trim();
-
-        const verification = verifyCbtLicenseKey(cleanKey, cleanSchoolCode);
-        if (!verification.valid) {
-            return { success: false, error: verification.error || 'License activation failed.' };
-        }
-
-        const licenseRecord = {
-            schoolCode: cleanSchoolCode,
-            institutionName: institutionName || 'RollCall Institution',
-            licenseKey: cleanKey,
-            activatedAt: new Date().toISOString(),
-            expiryDate: verification.expiryDate,
-            expiryTimestamp: verification.expiryTimestamp,
-            tier: verification.tier,
-            deviceId: getMachineFingerprint()
-        };
-
-        saveStoredLicense(licenseRecord);
-        return { success: true, license: licenseRecord };
-    });
+    ipcMain.handle('cbt:activate-license-key', async () => ({
+        success: false,
+        error: 'Manual license keys are disabled. Select the signed license file from removable external storage.'
+    }));
 
     ipcMain.handle('cbt:deactivate-license', async () => {
         clearStoredLicense();
@@ -387,14 +377,12 @@ if (!gotTheLock) {
             const filePath = commandLine.find(arg => arg.endsWith('.rollcbt') || arg.endsWith('.rolllic'));
             if (filePath && fs.existsSync(filePath)) {
                 try {
-                    const content = fs.readFileSync(filePath, 'utf8');
                     if (filePath.endsWith('.rolllic') || filePath.endsWith('.cbtlic')) {
-                        const verified = verifyCbtLicenseFile(content);
-                        if (verified.valid) {
-                            saveStoredLicense(verified);
-                            mainWindow.webContents.send('cbt:license-activated-from-cli', verified);
-                        }
+                        const result = activateLicenseFromExternalPath(filePath);
+                        if (result.success) mainWindow.webContents.send('cbt:license-activated-from-cli', result.license);
+                        else mainWindow.webContents.send('cbt:error-message', result.error);
                     } else {
+                        const content = fs.readFileSync(filePath, 'utf8');
                         const license = readStoredLicense();
                         if (!license.valid || license.expired) throw new Error("An active admin-issued CBT license is required to open this exam file.");
                         const exam = unpackRollCbt(content, license.schoolCode);

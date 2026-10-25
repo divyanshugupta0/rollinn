@@ -37,10 +37,12 @@ function generateCbtLicenseKey(schoolCode, expiryDateMs = null) {
 /**
  * Generate a complete offline CBT License File (.rolllic)
  */
-function generateCbtLicenseFile(schoolCode, institutionName = 'RollCall Institution', expiryDateMs = null) {
+function generateCbtLicenseFile(schoolCode, institutionName = 'RollCall Institution', expiryDateMs = null, options = {}) {
     const cleanCode = String(schoolCode || '').trim().toUpperCase();
     const expiry = Number(expiryDateMs) || (Date.now() + 365 * 24 * 60 * 60 * 1000);
     const licenseKey = generateCbtLicenseKey(cleanCode, expiry);
+    const maxDevices = Math.max(1, Math.floor(Number(options.maxDevices) || 1));
+    const activationStart = options.activationStartDate || new Date().toISOString();
 
     const payload = {
         magic: 'ROLLLIC_CBT',
@@ -52,13 +54,20 @@ function generateCbtLicenseFile(schoolCode, institutionName = 'RollCall Institut
         issuedAt: new Date().toISOString(),
         expiresAt: expiry,
         expiryDate: new Date(expiry).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }),
+        activationStartDate: new Date(activationStart).toISOString(),
+        maxDevices,
+        remainingDevices: maxDevices,
+        activationCount: 0,
+        activationDeviceIds: [],
+        licenseId: options.licenseId || `RCCBT-LIC-${cleanCode}-${Date.now()}`,
         features: [
             '100% Air-Gapped Offline Operation',
             'Full Anti-Cheat Proctoring & Kiosk Lockdown',
             'Full Offline Student Roster Verification',
             'Encrypted .rollcbt Exam Package Ingestion',
             'Digitally Signed .rollcbt-sub Submissions',
-            'Unlimited Offline Test Centers & Candidates'
+            'Unlimited Offline Test Centers & Candidates',
+            'External Storage Device Activation with Signed License Replacement'
         ]
     };
 
@@ -171,8 +180,61 @@ function verifyCbtLicenseFile(rawFileContent) {
         tier: parsed.license.tier || 'RollCall CBT Offline Enterprise Edition',
         expiryDate: parsed.license.expiryDate,
         expiryTimestamp: parsed.license.expiresAt,
+        activationStartDate: parsed.license.activationStartDate || parsed.license.issuedAt,
+        maxDevices: Math.max(1, Math.floor(Number(parsed.license.maxDevices) || 1)),
+        remainingDevices: Math.max(0, Math.floor(Number(parsed.license.remainingDevices ?? parsed.license.maxDevices ?? 1))),
+        activationCount: Math.max(0, Math.floor(Number(parsed.license.activationCount) || 0)),
+        licenseId: parsed.license.licenseId || '',
         daysRemaining: keyCheck.daysRemaining,
         features: parsed.license.features || []
+    };
+}
+
+/** Consume one device seat and return the signed replacement file payload. */
+function consumeCbtLicenseFile(rawFileContent, deviceId) {
+    let parsed;
+    try {
+        parsed = typeof rawFileContent === 'string' ? JSON.parse(rawFileContent) : rawFileContent;
+    } catch {
+        return { valid: false, error: 'The selected license file is not valid JSON.' };
+    }
+
+    const verified = verifyCbtLicenseFile(parsed);
+    if (!verified.valid) return verified;
+    const start = Date.parse(parsed.license.activationStartDate || parsed.license.issuedAt || '');
+    if (start && Date.now() < start) {
+        return { valid: false, error: `License activation starts on ${new Date(start).toLocaleString()}.` };
+    }
+
+    const remaining = Math.max(0, Math.floor(Number(parsed.license.remainingDevices ?? parsed.license.maxDevices ?? 1)));
+    const activatedDeviceIds = Array.isArray(parsed.license.activationDeviceIds) ? parsed.license.activationDeviceIds.map(String) : [];
+    if (deviceId && activatedDeviceIds.includes(String(deviceId))) {
+        return { valid: false, error: 'This IDE is already activated by this license.' };
+    }
+    if (remaining < 1) {
+        return { valid: false, error: 'This license has no remaining device activations.' };
+    }
+
+    const replacementLicense = {
+        ...parsed.license,
+        maxDevices: Math.max(1, Math.floor(Number(parsed.license.maxDevices) || 1)),
+        remainingDevices: remaining - 1,
+        activationCount: Math.max(0, Math.floor(Number(parsed.license.activationCount) || 0)) + 1,
+        activationDeviceIds: [...activatedDeviceIds, String(deviceId || '')].filter(Boolean),
+        lastActivatedAt: new Date().toISOString(),
+        lastActivatedDeviceId: String(deviceId || '')
+    };
+    const replacement = {
+        header: parsed.header,
+        signature: crypto.createHmac('sha256', CBT_SALT).update(JSON.stringify(replacementLicense)).digest('hex'),
+        license: replacementLicense
+    };
+    const replacementRaw = JSON.stringify(replacement, null, 2);
+    return {
+        ...verifyCbtLicenseFile(replacementRaw),
+        replacementRaw,
+        activatedDeviceId: String(deviceId || ''),
+        activatedAt: replacementLicense.lastActivatedAt
     };
 }
 
@@ -355,6 +417,7 @@ module.exports = {
     generateCbtLicenseFile,
     verifyCbtLicenseKey,
     verifyCbtLicenseFile,
+    consumeCbtLicenseFile,
     packageExamToRollCbt,
     unpackRollCbt,
     createSubmissionArchive,
