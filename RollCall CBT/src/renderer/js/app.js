@@ -1362,6 +1362,12 @@
     document.addEventListener('DOMContentLoaded', () => {
         initElements();
         setupEventListeners();
+        // Always start from a clean startup gate. Exam-only dialogs must never
+        // be visible when the desktop application is launched.
+        [el.modalCalc, el.modalScratch, el.modalAntiCheat, el.modalSubmitConfirm].forEach(modal => {
+            if (modal) modal.hidden = true;
+        });
+        switchView('license');
         checkLicenseStatus();
     });
 })();
