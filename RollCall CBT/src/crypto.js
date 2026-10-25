@@ -3,6 +3,41 @@ const os = require('os');
 
 const CBT_SALT = 'ROLLCALL_CBT_SECURE_AUTH_V1_SECRET_2026';
 const CBT_EXAM_SALT = 'ROLLCALL_EXAM_PACKAGE_INTEGRITY_SALT_2026';
+const CBT_LICENSE_GRACE_PERIOD_MS = 5 * 24 * 60 * 60 * 1000;
+
+function applyCbtLicenseGracePeriod(licenseInfo, now = Date.now()) {
+    const expiryTimestamp = Number(licenseInfo?.expiryTimestamp) || Date.parse(licenseInfo?.expiryDate || '');
+    if (!Number.isFinite(expiryTimestamp)) return licenseInfo;
+    const gracePeriodEndsAt = expiryTimestamp + CBT_LICENSE_GRACE_PERIOD_MS;
+    if (now <= expiryTimestamp) return { ...licenseInfo, inGracePeriod: false, renewalRequired: false };
+
+    const graceDaysRemaining = Math.max(0, Math.ceil((gracePeriodEndsAt - now) / (24 * 60 * 60 * 1000)));
+    if (now <= gracePeriodEndsAt) {
+        return {
+            ...licenseInfo,
+            valid: true,
+            expired: false,
+            licenseExpired: true,
+            inGracePeriod: true,
+            renewalRequired: true,
+            gracePeriodEndsAt,
+            graceDaysRemaining,
+            error: `License expired. Renewal required within ${graceDaysRemaining} day${graceDaysRemaining === 1 ? '' : 's'} or the IDE will lock.`
+        };
+    }
+    return {
+        ...licenseInfo,
+        valid: false,
+        expired: true,
+        licenseExpired: true,
+        inGracePeriod: false,
+        renewalRequired: true,
+        gracePeriodExpired: true,
+        gracePeriodEndsAt,
+        graceDaysRemaining: 0,
+        error: 'License grace period ended. Please renew from the RollCall Admin Panel.'
+    };
+}
 
 /**
  * Generate a unique hardware fingerprint for this machine
@@ -429,6 +464,8 @@ module.exports = {
     packageExamToRollCbt,
     unpackRollCbt,
     createSubmissionArchive,
+    applyCbtLicenseGracePeriod,
+    CBT_LICENSE_GRACE_PERIOD_MS,
     CBT_SALT,
     CBT_EXAM_SALT
 };

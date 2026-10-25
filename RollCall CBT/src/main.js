@@ -5,6 +5,7 @@ const { execFileSync } = require('child_process');
 const {
     getMachineFingerprint,
     verifyCbtLicenseKey,
+    applyCbtLicenseGracePeriod,
     consumeCbtLicenseFile,
     unpackRollCbt,
     packageExamToRollCbt,
@@ -32,11 +33,11 @@ function readStoredLicense() {
                     return { valid: false, expired: false, error: 'This CBT license is activated for a different device.', deviceId: currentDeviceId };
                 }
                 const verification = verifyCbtLicenseKey(data.licenseKey, data.schoolCode);
-                return {
+                return applyCbtLicenseGracePeriod({
                     ...data,
                     ...verification,
                     deviceId: currentDeviceId
-                };
+                });
             }
         }
     } catch (err) {

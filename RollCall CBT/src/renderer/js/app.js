@@ -211,6 +211,9 @@
                 state.license = licenseInfo;
                 applyActiveLicenseUI(licenseInfo);
                 switchView('setup');
+                if (licenseInfo.inGracePeriod) {
+                    showToast(`Renewal reminder: your license expired. ${licenseInfo.graceDaysRemaining} grace day${licenseInfo.graceDaysRemaining === 1 ? '' : 's'} remaining.`, 'error');
+                }
             } else {
                 state.license = null;
                 switchView('license');
@@ -231,6 +234,9 @@
         el.topbarSchoolCode.textContent = schoolCode;
         el.setupInstTitle.textContent = `${instName} (${schoolCode})`;
         el.setupLicenseExpiry.textContent = `Offline Enterprise License · Valid until ${license.expiryDate || 'N/A'}`;
+        if (license.inGracePeriod) {
+            el.setupLicenseExpiry.textContent = `Renewal required - grace period ends ${new Date(license.gracePeriodEndsAt).toLocaleDateString()}`;
+        }
         if (el.setupLicenseDevices) el.setupLicenseDevices.textContent = `Devices remaining: ${Number(license.remainingDevices ?? 0)} / ${Number(license.maxDevices || 1)}`;
     }
 

@@ -19,6 +19,7 @@ RollCall CBT is a standalone, 100% offline Electron application engineered for h
    - The IDE accepts the license only when selected directly from removable external storage.
    - Each activation consumes one device seat and writes a signed replacement license with the reduced count back to the same external device.
    - The final seat first replaces the file contents with a consumed marker containing no license details, then deletes the file; any recovered copy therefore fails license verification.
+   - After expiry, the IDE remains active for a five-day grace period with renewal reminders; it locks automatically when that grace period ends.
    - Manual license-key activation and raw in-app license content activation are disabled.
 
 4. **Kiosk Lockdown & Anti-Cheat Proctoring**:
