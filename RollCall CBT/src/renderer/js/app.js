@@ -1058,7 +1058,9 @@
             const res = await window.rollcallCBT.openLicenseFileDialog();
             if (res.canceled) return;
             if (res.success) {
-                showToast(`License activated for ${res.license.institutionName}!`, 'success');
+                showToast(res.licenseFileDeleted
+                    ? 'Final device activated. The consumed license was removed from removable storage.'
+                    : `License activated for ${res.license.institutionName}!`, 'success');
                 state.license = res.license;
                 applyActiveLicenseUI(res.license);
                 switchView('setup');
@@ -1107,7 +1109,9 @@
             });
 
             if (res.success) {
-                showToast(`License activated for ${res.license.schoolCode}!`, 'success');
+                showToast(res.licenseFileDeleted
+                    ? 'Final device activated. The consumed license was removed from removable storage.'
+                    : `License activated for ${res.license.schoolCode}!`, 'success');
                 state.license = res.license;
                 applyActiveLicenseUI(res.license);
                 switchView('setup');
@@ -1319,7 +1323,9 @@
                 state.license = license;
                 applyActiveLicenseUI(license);
                 switchView('setup');
-                showToast(`Activated license for ${license.institutionName}!`, 'success');
+                showToast(license.licenseFileDeleted
+                    ? 'Final device activated. The consumed license was removed from removable storage.'
+                    : `Activated license for ${license.institutionName}!`, 'success');
             });
         }
 

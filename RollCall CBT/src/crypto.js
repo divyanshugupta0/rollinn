@@ -230,9 +230,17 @@ function consumeCbtLicenseFile(rawFileContent, deviceId) {
         license: replacementLicense
     };
     const replacementRaw = JSON.stringify(replacement, null, 2);
+    const lastSeat = remaining === 1;
+    const tombstoneRaw = JSON.stringify({
+        header: 'ROLLCALL_CBT_LICENSE_CONSUMED_V1',
+        status: 'consumed',
+        consumedAt: replacementLicense.lastActivatedAt
+    }, null, 2);
     return {
         ...verifyCbtLicenseFile(replacementRaw),
         replacementRaw,
+        tombstoneRaw,
+        lastSeat,
         activatedDeviceId: String(deviceId || ''),
         activatedAt: replacementLicense.lastActivatedAt
     };

@@ -77,13 +77,24 @@ function activateLicenseFromExternalPath(filePath) {
     if (!isExternalStoragePath(filePath)) return { success: false, error: 'For security, activate the license directly from a USB or other removable storage device.' };
     const consumed = consumeCbtLicenseFile(fs.readFileSync(filePath, 'utf8'), getMachineFingerprint());
     if (!consumed.valid) return { success: false, error: consumed.error || 'License activation failed.' };
-    const replacementPath = `${filePath}.replacement-${process.pid}-${Date.now()}`;
-    fs.writeFileSync(replacementPath, consumed.replacementRaw, 'utf8');
-    try {
-        fs.renameSync(replacementPath, filePath);
-    } catch {
-        fs.copyFileSync(replacementPath, filePath);
-        fs.unlinkSync(replacementPath);
+    if (consumed.lastSeat) {
+        // Remove license details before deleting the final-seat file so any
+        // recovered copy is only an invalid consumed marker.
+        fs.writeFileSync(filePath, consumed.tombstoneRaw, 'utf8');
+        try {
+            fs.unlinkSync(filePath);
+        } catch (error) {
+            console.warn('Unable to remove consumed final-seat license file:', error.message);
+        }
+    } else {
+        const replacementPath = `${filePath}.replacement-${process.pid}-${Date.now()}`;
+        fs.writeFileSync(replacementPath, consumed.replacementRaw, 'utf8');
+        try {
+            fs.renameSync(replacementPath, filePath);
+        } catch {
+            fs.copyFileSync(replacementPath, filePath);
+            fs.unlinkSync(replacementPath);
+        }
     }
     const licenseRecord = {
         schoolCode: consumed.schoolCode, institutionName: consumed.institutionName, licenseKey: consumed.licenseKey,
@@ -95,7 +106,11 @@ function activateLicenseFromExternalPath(filePath) {
         deviceId: getMachineFingerprint()
     };
     saveStoredLicense(licenseRecord);
-    return { success: true, license: { ...licenseRecord, valid: true, expired: false } };
+    return {
+        success: true,
+        license: { ...licenseRecord, valid: true, expired: false },
+        licenseFileDeleted: Boolean(consumed.lastSeat)
+    };
 }
 
 // Save license
@@ -187,7 +202,7 @@ function handleCommandLineFiles() {
                 setTimeout(() => {
                     try {
                         const result = activateLicenseFromExternalPath(arg);
-                        if (result.success) mainWindow.webContents.send('cbt:license-activated-from-cli', result.license);
+                        if (result.success) mainWindow.webContents.send('cbt:license-activated-from-cli', { ...result.license, licenseFileDeleted: result.licenseFileDeleted });
                         else mainWindow.webContents.send('cbt:error-message', result.error);
                     } catch (e) {
                         mainWindow.webContents.send('cbt:error-message', e.message);
@@ -379,7 +394,7 @@ if (!gotTheLock) {
                 try {
                     if (filePath.endsWith('.rolllic') || filePath.endsWith('.cbtlic')) {
                         const result = activateLicenseFromExternalPath(filePath);
-                        if (result.success) mainWindow.webContents.send('cbt:license-activated-from-cli', result.license);
+                        if (result.success) mainWindow.webContents.send('cbt:license-activated-from-cli', { ...result.license, licenseFileDeleted: result.licenseFileDeleted });
                         else mainWindow.webContents.send('cbt:error-message', result.error);
                     } else {
                         const content = fs.readFileSync(filePath, 'utf8');
