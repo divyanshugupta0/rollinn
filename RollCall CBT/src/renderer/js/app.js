@@ -228,7 +228,7 @@
     }
 
     function applyActiveLicenseUI(license) {
-        const instName = license.institutionName || 'RollCall Institution';
+        const instName = license.schoolName || license.institutionName || 'RollCall Institution';
         const schoolCode = license.schoolCode || '----';
         el.topbarInstName.textContent = instName;
         el.topbarSchoolCode.textContent = schoolCode;
@@ -291,12 +291,18 @@
             <span class="rule-tag"><i class="fas fa-shield-alt"></i> Max Strikes: ${exam.rules?.maxBlurStrikes ?? 3}</span>
             <span class="rule-tag"><i class="fas fa-calculator"></i> Calculator: ${exam.rules?.calculatorAllowed || 'Basic'}</span>
             <span class="rule-tag"><i class="fas fa-edit"></i> Scratchpad: ${exam.rules?.scratchpadAllowed ? 'Enabled' : 'Disabled'}</span>
+            <span class="rule-tag"><i class="fas fa-school"></i> ${exam.schoolName || state.license?.schoolName || state.license?.institutionName || 'School'}</span>
+            ${exam.assignedSection ? `<span class="rule-tag"><i class="fas fa-users"></i> ${exam.assignedClassName || exam.grade || 'Class'} - Sec ${exam.assignedSection}</span>` : ''}
         `;
 
         el.inspectInstructions.textContent = exam.instructions || 'Read all questions carefully. Do not attempt to switch tabs or minimize the window during the test.';
 
-        // Render Candidates Roster from .rollcbt
-        renderCandidatesList(exam.candidates || []);
+        // Each activated IDE device sees only its assigned roster range.
+        const deviceIndex = Number(state.license?.activationCount || 0);
+        const candidates = Array.isArray(exam.candidates) && deviceIndex > 0
+            ? exam.candidates.filter(candidate => !candidate.deviceIndex || Number(candidate.deviceIndex) === deviceIndex)
+            : (exam.candidates || []);
+        renderCandidatesList(candidates);
 
         // Show container
         el.examInspectContainer.classList.remove('hidden');
@@ -337,6 +343,15 @@
                     <span>Roll: ${c.rollNo || 'N/A'} · ${c.batch || c.class || 'Student'}</span>
                 </div>
             `;
+            const photo = c.profilePic || c.profilePhoto || c.photoURL || c.photoUrl || c.profilePicture || c.imageUrl;
+            if (photo) {
+                const avatar = card.querySelector('.c-avatar');
+                avatar.textContent = '';
+                const image = document.createElement('img');
+                image.src = photo;
+                image.alt = '';
+                avatar.appendChild(image);
+            }
             card.addEventListener('click', () => {
                 document.querySelectorAll('.candidate-item-card').forEach(ci => ci.classList.remove('selected'));
                 card.classList.add('selected');
@@ -350,7 +365,7 @@
         state.selectedCandidate = candidate;
         el.confirmStudentName.textContent = candidate.name;
         el.confirmStudentRoll.textContent = candidate.rollNo;
-        el.confirmStudentClass.textContent = candidate.batch || candidate.class || 'Student';
+        el.confirmStudentClass.textContent = `${candidate.batch || candidate.class || 'Student'}${candidate.section ? ` - Sec ${candidate.section}` : ''}`;
 
         el.candidateConfirmBox.classList.remove('hidden');
 
@@ -420,7 +435,7 @@
         el.hallExamTitle.textContent = state.activeExam.title;
         el.hallExamSubject.textContent = (state.activeExam.subject || 'EXAM').toUpperCase();
         el.hallCandidateName.textContent = state.selectedCandidate.name;
-        el.hallCandidateRoll.textContent = `Roll No: ${state.selectedCandidate.rollNo}`;
+        el.hallCandidateRoll.textContent = `Roll No: ${state.selectedCandidate.rollNo} · ${state.selectedCandidate.class || state.selectedCandidate.batch || ''}${state.selectedCandidate.section ? ` - Sec ${state.selectedCandidate.section}` : ''}`;
 
         // Setup strikes
         state.antiCheatStrikes = 0;

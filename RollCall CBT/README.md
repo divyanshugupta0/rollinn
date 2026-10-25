@@ -17,6 +17,8 @@ RollCall CBT is a standalone, 100% offline Electron application engineered for h
    - Licenses are issued only to schools with an active standalone CBT plan from the RollCall Admin Panel.
    - Admin sets the activation start, expiry, and maximum device count.
    - The IDE accepts the license only when selected directly from removable external storage.
+   - Teacher Exam Studio creates one section-specific scheduled assignment and encrypted exam file per checked section, including school details and the section roster.
+   - Student rosters are sorted by class roll and split into equal contiguous device ranges from the active plan's maximum-device limit; each IDE only shows its assigned range.
    - Each activation consumes one device seat and writes a signed replacement license with the reduced count back to the same external device.
    - The final seat first replaces the file contents with a consumed marker containing no license details, then deletes the file; any recovered copy therefore fails license verification.
    - After expiry, the IDE remains active for a five-day grace period with renewal reminders; it locks automatically when that grace period ends.

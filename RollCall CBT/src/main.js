@@ -98,7 +98,8 @@ function activateLicenseFromExternalPath(filePath) {
         }
     }
     const licenseRecord = {
-        schoolCode: consumed.schoolCode, institutionName: consumed.institutionName, licenseKey: consumed.licenseKey,
+        schoolCode: consumed.schoolCode, institutionName: consumed.institutionName, schoolName: consumed.schoolName,
+        licenseKey: consumed.licenseKey,
         activatedAt: consumed.activatedAt, activatedDeviceId: consumed.activatedDeviceId,
         expiryDate: consumed.expiryDate, expiryTimestamp: consumed.expiryTimestamp,
         activationStartDate: consumed.activationStartDate, maxDevices: consumed.maxDevices,

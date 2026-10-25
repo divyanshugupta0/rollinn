@@ -84,6 +84,7 @@ function generateCbtLicenseFile(schoolCode, institutionName = 'RollCall Institut
         version: '1.0',
         schoolCode: cleanCode,
         institutionName: String(institutionName || 'RollCall Institution').trim(),
+        schoolName: String(options.schoolName || institutionName || 'RollCall Institution').trim(),
         licenseKey,
         tier: 'RollCall CBT Offline Enterprise Edition',
         issuedAt: new Date().toISOString(),
@@ -211,6 +212,7 @@ function verifyCbtLicenseFile(rawFileContent) {
         valid: true,
         schoolCode: parsed.license.schoolCode,
         institutionName: parsed.license.institutionName || 'RollCall Institution',
+        schoolName: parsed.license.schoolName || parsed.license.institutionName || 'RollCall Institution',
         licenseKey: parsed.license.licenseKey,
         tier: parsed.license.tier || 'RollCall CBT Offline Enterprise Edition',
         expiryDate: parsed.license.expiryDate,
@@ -310,6 +312,7 @@ function packageExamToRollCbt(examData, schoolCode) {
         magic: 'ROLLCBT',
         version: '1.0',
         schoolCode: cleanSchoolCode,
+        schoolName: String(examData.schoolName || examData.institutionName || '').trim(),
         examId: examData.examId || `EXAM-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
         title: examData.title || 'Untitled Examination',
         code: examData.code || 'CBT-101',
@@ -331,6 +334,14 @@ function packageExamToRollCbt(examData, schoolCode) {
             negativeMarkingPerQuestion: Number(examData.rules?.negativeMarkingPerQuestion || 0)
         },
         candidates: examData.candidates || [],
+        assignmentId: examData.assignmentId || '',
+        scheduleType: examData.scheduleType || 'CBT_SECTION',
+        scheduledType: examData.scheduledType || 'SECTION',
+        assignmentType: examData.assignmentType || 'SECTION',
+        assignedClassId: examData.assignedClassId || '',
+        assignedClassName: examData.assignedClassName || examData.grade || '',
+        assignedSection: examData.assignedSection || '',
+        deviceAllocation: examData.deviceAllocation || null,
         sections: sanitizedSections,
         createdAt: new Date().toISOString()
     };
