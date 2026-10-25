@@ -1612,6 +1612,7 @@ function initManageAccountSection() {
                     window.currentAdminSchoolCode = school.code;
                     window.currentAdminSchoolName = school.name;
                     window.currentAdminSchoolId = loadedSchoolId;
+                    if (typeof window.refreshCbtPlanAccess === 'function') window.refreshCbtPlanAccess(loadedSchoolId);
                     window.initManageAccountCbtLicense(section);
                 }
                 showStatus('success', 'Account and institution details are up to date.', 'fa-check-circle');

@@ -229,6 +229,7 @@
                             <option value="school">School</option>
                             <option value="college">College / University</option>
                             <option value="erp">RollCall ERP</option>
+                            <option value="cbt">RollCall CBT (Standalone)</option>
                           </select>
                         </div>
                         <div class="mb-3" id="ownerPlanTopupKindField" hidden>
@@ -373,6 +374,7 @@
                       <li class="nav-item"><a class="nav-link rounded-pill py-1 px-3" href="#" data-plan-filter="school">School (<span id="tabCountSchool">0</span>)</a></li>
                       <li class="nav-item"><a class="nav-link rounded-pill py-1 px-3" href="#" data-plan-filter="college">College (<span id="tabCountCollege">0</span>)</a></li>
                       <li class="nav-item"><a class="nav-link rounded-pill py-1 px-3" href="#" data-plan-filter="erp">ERP (<span id="tabCountErp">0</span>)</a></li>
+                      <li class="nav-item"><a class="nav-link rounded-pill py-1 px-3" href="#" data-plan-filter="cbt">CBT (<span id="tabCountCbt">0</span>)</a></li>
                       <li class="nav-item"><a class="nav-link rounded-pill py-1 px-3" href="#" data-plan-filter="topup">Top-ups (<span id="tabCountTopup">0</span>)</a></li>
                     </ul>
                     <input id="ownerPlanSearch" class="form-control form-control-sm rounded-pill" style="width: 180px;" placeholder="Search catalog...">
@@ -1180,6 +1182,7 @@
             : '';
 
         const filteredMainPlans = mainPlans.filter(plan => {
+            if ((plan.productType || (plan.erpPlan === true ? 'erp' : 'school')) === 'cbt') return false;
             if (!institutionCategory) return true;
             const planCat = (plan.productType || (plan.erpPlan === true ? 'erp' : 'school')).toLowerCase();
             return planCat === institutionCategory;
@@ -1611,6 +1614,7 @@
         const schoolCount = pricingPlans.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'school').length;
         const collegeCount = pricingPlans.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'college').length;
         const erpCount = pricingPlans.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'erp').length;
+        const cbtCount = pricingPlans.filter(p => p.type !== 'topup' && (p.productType || 'school') === 'cbt').length;
         const topupCount = pricingPlans.filter(p => p.type === 'topup').length;
 
         const setBadgeText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = String(text); };
@@ -1618,6 +1622,7 @@
         setBadgeText('tabCountSchool', schoolCount);
         setBadgeText('tabCountCollege', collegeCount);
         setBadgeText('tabCountErp', erpCount);
+        setBadgeText('tabCountCbt', cbtCount);
         setBadgeText('tabCountTopup', topupCount);
 
         // Filter by catalog tab
@@ -1628,6 +1633,8 @@
             filtered = filtered.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'college');
         } else if (currentPlanCatalogFilter === 'erp') {
             filtered = filtered.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'erp');
+        } else if (currentPlanCatalogFilter === 'cbt') {
+            filtered = filtered.filter(p => p.type !== 'topup' && (p.productType || 'school') === 'cbt');
         } else if (currentPlanCatalogFilter === 'topup') {
             filtered = filtered.filter(p => p.type === 'topup');
         }
@@ -1650,7 +1657,9 @@
                     : plan.topupKind === 'months'
                     ? '<span class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"><i class="fas fa-calendar-alt me-1"></i>Month Extender</span>'
                     : '<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2 py-1"><i class="fas fa-layer-group me-1"></i>Capacity Top-up</span>')
-                : (productType === 'college'
+                : (productType === 'cbt'
+                    ? '<span class="badge rounded-pill bg-dark text-white px-2 py-1"><i class="fas fa-laptop-code me-1"></i>RollCall CBT</span>'
+                    : productType === 'college'
                     ? '<span class="badge rounded-pill border px-2 py-1" style="background:#f3e8ff; color:#7e22ce; border-color:#d8b4fe !important;"><i class="fas fa-graduation-cap me-1"></i>College</span>'
                     : productType === 'erp'
                     ? '<span class="badge rounded-pill bg-primary text-white px-2 py-1"><i class="fas fa-cogs me-1"></i>RollCall ERP</span>'
@@ -1786,8 +1795,11 @@
 
         filtered.forEach(school => {
             const planId = school.subscription?.planId || school.subscription?.plan || '';
-            const plans = pricingPlans.filter(plan => plan.active !== false && plan.type !== 'topup').map(plan => `<option value="${escapeAttr(plan.id)}" ${plan.id === planId || plan.name === planId ? 'selected' : ''}>${escapeHtml(plan.name)}${(plan.productType || (plan.erpPlan === true ? 'erp' : 'school')) === 'erp' ? ' · ERP' : ''} · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}</option>`).join('');
+            const plans = pricingPlans.filter(plan => plan.active !== false && plan.type !== 'topup' && (plan.productType || (plan.erpPlan === true ? 'erp' : 'school')) !== 'cbt').map(plan => `<option value="${escapeAttr(plan.id)}" ${plan.id === planId || plan.name === planId ? 'selected' : ''}>${escapeHtml(plan.name)}${(plan.productType || (plan.erpPlan === true ? 'erp' : 'school')) === 'erp' ? ' · ERP' : ''} · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}</option>`).join('');
             const topups = pricingPlans.filter(plan => plan.active !== false && plan.type === 'topup').map(plan => `<option value="${escapeAttr(plan.id)}">${escapeHtml(plan.name)}${plan.topupKind === 'days' ? ` · +${Number(plan.durationDays || plan.daysAdded || 0)} days · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}` : plan.topupKind === 'months' ? ` · +${Number(plan.durationMonths || 0)} months · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}` : plan.bonus ? ' · Bonus' : ` · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}`}</option>`).join('');
+            const cbtSubscription = school.cbtSubscription || {};
+            const cbtPlanId = cbtSubscription.planId || cbtSubscription.plan || '';
+            const cbtPlans = pricingPlans.filter(plan => plan.active !== false && plan.type === 'plan' && plan.productType === 'cbt').map(plan => `<option value="${escapeAttr(plan.id)}" ${plan.id === cbtPlanId || plan.name === cbtPlanId ? 'selected' : ''}>${escapeHtml(plan.name)} · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}</option>`).join('');
 
             const row = document.createElement('tr');
             const usage = schoolUserUsage[school.id] || { students: 0, teachers: 0 };
@@ -1830,6 +1842,13 @@
                     <option value="">No plan assigned</option>
                     ${plans}
                   </select>
+                  <div class="mt-2 p-2 rounded border border-dark-subtle bg-dark-subtle bg-opacity-10">
+                    <div class="small fw-semibold text-dark mb-1"><i class="fas fa-laptop-code me-1"></i>CBT Plan</div>
+                    <select class="form-select form-select-sm school-cbt-plan" aria-label="CBT plan for ${escapeAttr(school.name || 'school')}">
+                      <option value="">No CBT plan</option>${cbtPlans}
+                    </select>
+                    <input class="form-control form-control-sm school-cbt-renewal mt-1" type="date" aria-label="CBT plan renewal date" value="${cbtSubscription.endDate ? new Date(cbtSubscription.endDate).toISOString().slice(0, 10) : ''}">
+                  </div>
                 </td>
                 <td>
                   <div class="p-2 rounded bg-light-subtle border">
@@ -2025,6 +2044,9 @@
         const active = row.querySelector('.school-status').value === 'Active';
         const dateInput = row.querySelector('.school-renewal').value;
         const current = school.subscription || {};
+        const cbtPlanId = row.querySelector('.school-cbt-plan')?.value || '';
+        const cbtPlan = pricingPlans.find(item => item.id === cbtPlanId && item.type === 'plan' && item.productType === 'cbt');
+        const cbtDateInput = row.querySelector('.school-cbt-renewal')?.value || '';
         if (plan?.type === 'topup') return notify('A top-up cannot replace the main plan. Add it using the Top-up control.', 'warning');
         const usage = schoolUserUsage[school.id] || { students: 0, teachers: 0 };
         const currentEnd = Date.parse(current.endDate || '');
@@ -2042,15 +2064,19 @@
             priceBreakdown[currency] = Number(priceBreakdown[currency] || 0) + Number(item.price || 0);
         });
         const subscription = { ...current, plan: plan?.name || '', planId: plan?.id || '', price: Object.keys(priceBreakdown).length === 1 ? Object.values(priceBreakdown)[0] : basePlanPrice, basePlanPrice, priceBreakdown, currency: plan?.currency || 'INR', durationMonths: plan?.durationMonths || 0, autoRenew: plan?.type === 'plan' && row.querySelector('.school-auto-renew').checked, studentCapacity: Number(plan?.studentCapacity || 0), teacherCapacity: Number(plan?.teacherCapacity || 0), topups, usage: { students: usage.students, teachers: usage.teachers, updatedAt: Date.now() }, startDate: startDate.toISOString(), endDate: endDate.toISOString(), status: active ? 'active' : 'inactive', updatedAt: Date.now() };
+        const cbtEndDate = cbtDateInput ? new Date(`${cbtDateInput}T23:59:59`) : (cbtPlan ? addCalendarMonths(new Date(), Number(cbtPlan.durationMonths || 1)) : null);
+        const cbtSubscription = cbtPlan ? { plan: cbtPlan.name, planId: cbtPlan.id, price: Number(cbtPlan.price || 0), currency: cbtPlan.currency || 'INR', startDate: (school.cbtSubscription?.startDate && Date.parse(school.cbtSubscription.startDate) >= Date.now() ? school.cbtSubscription.startDate : new Date().toISOString()), endDate: cbtEndDate.toISOString(), status: 'active', updatedAt: Date.now() } : null;
         try {
             const lastUpdated = new Date().toISOString();
             const timestamp = Date.now();
             await database.ref().update({
                 [`schools/${school.id}/status`]: active ? 'Active' : 'Inactive',
                 [`schools/${school.id}/subscription`]: subscription,
+                [`schools/${school.id}/cbtSubscription`]: cbtSubscription,
                 [`schools/${school.id}/lastUpdated`]: lastUpdated,
                 [`owners/${currentUser.uid}/schools/${school.id}/status`]: active ? 'Active' : 'Inactive',
                 [`owners/${currentUser.uid}/schools/${school.id}/subscription`]: subscription,
+                [`owners/${currentUser.uid}/schools/${school.id}/cbtSubscription`]: cbtSubscription,
                 [`owners/${currentUser.uid}/schools/${school.id}/lastUpdated`]: lastUpdated,
                 [`publicSchools/${school.id}/status`]: active ? 'Active' : 'Inactive',
                 [`publicSchools/${school.id}/subscriptionEndDate`]: subscription.endDate,

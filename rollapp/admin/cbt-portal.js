@@ -208,9 +208,42 @@
     // =========================================================================
     // CBT HUB SECTION INITIALIZATION
     // =========================================================================
+    function cbtSubscriptionIsActive(subscription) {
+        if (!subscription || String(subscription.status || 'active').toLowerCase() === 'inactive') return false;
+        const end = Date.parse(subscription.endDate || '');
+        return !end || end >= Date.now();
+    }
+
+    window.refreshCbtPlanAccess = async function (schoolId) {
+        const item = document.querySelector('.sidebar-menu-item-modern[data-section="cbt-portal"]');
+        if (!schoolId || !window.firebase?.database) {
+            if (item) item.hidden = true;
+            return false;
+        }
+        try {
+            const snapshot = await window.firebase.database().ref(`schools/${schoolId}/cbtSubscription`).once('value');
+            const active = cbtSubscriptionIsActive(snapshot.val());
+            if (item) item.hidden = !active;
+            if (!active && document.getElementById('cbt-portal-section-active')) {
+                document.querySelector('.sidebar-menu-item-modern[data-section="dashboard"]')?.click();
+            }
+            return active;
+        } catch (error) {
+            console.error('Unable to verify CBT plan access', error);
+            if (item) item.hidden = true;
+            return false;
+        }
+    };
+
     window.initCbtPortalSection = async function () {
         const section = document.getElementById('cbt-portal-section-active');
         if (!section) return;
+
+        const schoolId = window.currentAdminSchoolId;
+        if (!await window.refreshCbtPlanAccess(schoolId)) {
+            section.innerHTML = '<div class="alert alert-warning m-3"><i class="fas fa-lock me-2"></i>RollCall CBT Hub requires an active CBT plan for this school.</div>';
+            return;
+        }
 
         // Current School & Institution resolution
         const schoolCodeEl = section.querySelector('#cbt-school-code-display');

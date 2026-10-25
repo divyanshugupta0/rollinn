@@ -1,8 +1,8 @@
 {
   "rules": {
     "schools": {
-      ".read": "auth != null",
-      ".write": "auth != null",
+      ".read": "auth != null && (root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('schoolId').exists())",
+      ".write": "auth != null && (root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
       ".indexOn": [
         "code",
         "ownerId",
@@ -11,8 +11,13 @@
         "institutionType"
       ],
       "$schoolId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('users').child(auth.uid).child('schoolId').val() === $schoolId || root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
+        ".write": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || (root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && root.child('users').child(auth.uid).child('role').val() === 'admin') || root.child('owners').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'owner')",
+        "cbtSubscription": {
+          ".read": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('users').child(auth.uid).child('schoolId').val() === $schoolId)",
+          ".write": "auth != null && root.child('schools').child($schoolId).child('ownerId').val() === auth.uid",
+          ".validate": "newData.val() == null || (newData.hasChildren(['planId', 'status', 'startDate', 'endDate']) && newData.child('planId').isString() && newData.child('status').isString())"
+        }
       }
     },
     "publicSchools": {
@@ -275,6 +280,13 @@
       "$studentId": {
         ".read": "auth != null",
         ".write": "auth != null"
+      }
+    },
+    "cbtTeacherExams": {
+      "$schoolId": {
+        ".read": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || (root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'teacher')))",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && root.child('users').child(auth.uid).child('role').val() === 'teacher' && root.child('schools').child($schoolId).child('cbtSubscription').child('status').val() !== 'inactive' && (!root.child('schools').child($schoolId).child('cbtSubscription').child('endDate').exists() || root.child('schools').child($schoolId).child('cbtSubscription').child('endDate').val() >= now) && newData.child('createdBy').val() === auth.uid",
+        ".indexOn": ["createdBy", "classId", "section", "createdAt"]
       }
     },
     "schoolTests": {
