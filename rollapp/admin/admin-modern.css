@@ -360,6 +360,9 @@ body.sidebar-is-collapsed button.section-menu-btn {
     border-left: 3px solid #6366f1 !important;
     box-shadow: none !important;
 }
+.sidebar-menu-item-modern[hidden] {
+    display: none !important;
+}
 .menu-item-icon {
     display: flex !important;
     width: 18px !important;
