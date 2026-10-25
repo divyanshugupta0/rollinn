@@ -21,6 +21,8 @@
         maxStrikes: 3,
         antiCheatLog: [],
         webcamStream: null,
+        completedCandidates: new Set(),
+        visibleCandidates: [],
         scratchpadContent: '',
         fontSizeLevel: 1 // 0 = small, 1 = normal, 2 = large
     };
@@ -100,6 +102,7 @@
         el.hallExamSubject = document.getElementById('hall-exam-subject');
         el.hallCandidateName = document.getElementById('hall-candidate-name');
         el.hallCandidateRoll = document.getElementById('hall-candidate-roll');
+        el.hallCandidateImage = document.getElementById('hall-candidate-image');
         el.hallProctorVideo = document.getElementById('hall-proctor-video');
         el.hallStrikeCount = document.getElementById('hall-strike-count');
         el.hallStrikeMax = document.getElementById('hall-strike-max');
@@ -270,8 +273,11 @@
     function loadExamIntoSetup(exam) {
         state.activeExam = exam;
         state.selectedCandidate = null;
+        state.currentSectionIndex = 0;
+        state.currentQuestionIndex = 0;
         state.candidateResponses = {};
         state.questionStatus = {};
+        state.completedCandidates = loadCompletedCandidates();
 
         // Display exam details
         el.inspectSubject.textContent = (exam.subject || 'GENERAL').toUpperCase();
@@ -303,14 +309,41 @@
         const candidates = Array.isArray(exam.candidates) && deviceIndex > 0
             ? exam.candidates.filter(candidate => !candidate.deviceIndex || Number(candidate.deviceIndex) === deviceIndex)
             : (exam.candidates || []);
+        state.visibleCandidates = candidates;
         renderCandidatesList(candidates);
 
         // Show container
         el.examInspectContainer.classList.remove('hidden');
         el.examDropzone.classList.add('hidden');
 
-        // Start hardware check (Webcam)
-        initHardwareDiagnostics();
+        if (exam.rules?.webcamProctoringRequired === true) initHardwareDiagnostics();
+        else {
+            stopWebcamStream();
+            el.diagWebcamStatus.className = 'fas fa-ban diag-status pending';
+            el.diagWebcamText.textContent = 'Webcam is not required for this exam.';
+        }
+    }
+
+    function candidateCompletionKey(candidate) {
+        return String(candidate?.uid || candidate?.id || candidate?.rollNo || candidate?.rollNumber || candidate?.name || '').trim().toLowerCase();
+    }
+
+    function completedCandidatesStorageKey() {
+        return `rollcall-cbt-completed:${state.activeExam?.examId || state.activeExam?.code || 'exam'}`;
+    }
+
+    function loadCompletedCandidates() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(completedCandidatesStorageKey()) || '[]');
+            return new Set(Array.isArray(saved) ? saved : []);
+        } catch (_) { return new Set(); }
+    }
+
+    function markCandidateCompleted(candidate) {
+        const key = candidateCompletionKey(candidate);
+        if (!key) return;
+        state.completedCandidates.add(key);
+        try { localStorage.setItem(completedCandidatesStorageKey(), JSON.stringify([...state.completedCandidates])); } catch (_) { /* best effort */ }
     }
 
     function renderCandidatesList(candidates) {
@@ -336,7 +369,8 @@
 
         candidates.forEach(c => {
             const card = document.createElement('div');
-            card.className = 'candidate-item-card';
+            const completed = state.completedCandidates.has(candidateCompletionKey(c));
+            card.className = `candidate-item-card${completed ? ' completed' : ''}`;
             card.innerHTML = `
                 <div class="c-avatar">${(c.name || 'S').charAt(0).toUpperCase()}</div>
                 <div class="c-info">
@@ -353,11 +387,12 @@
                 image.alt = '';
                 avatar.appendChild(image);
             }
-            card.addEventListener('click', () => {
+            if (!completed) card.addEventListener('click', () => {
                 document.querySelectorAll('.candidate-item-card').forEach(ci => ci.classList.remove('selected'));
                 card.classList.add('selected');
                 selectCandidate(c);
             });
+            else card.setAttribute('aria-disabled', 'true');
             el.candidateListGrid.appendChild(card);
         });
     }
@@ -412,6 +447,13 @@
         }
     }
 
+    function stopWebcamStream() {
+        if (state.webcamStream) state.webcamStream.getTracks().forEach(track => track.stop());
+        state.webcamStream = null;
+        if (el.setupWebcamVideo) el.setupWebcamVideo.srcObject = null;
+        if (el.hallProctorVideo) el.hallProctorVideo.srcObject = null;
+    }
+
     // =========================================================================
     // EXAM HALL ENGINE
     // =========================================================================
@@ -426,11 +468,19 @@
 
         // Switch to Exam Hall
         switchView('hall');
+        document.body.classList.add('exam-active');
 
         // Proctoring video
-        if (state.webcamStream) {
+        const webcamActive = state.activeExam.rules?.webcamProctoringRequired === true && state.webcamStream;
+        if (webcamActive) {
             el.hallProctorVideo.srcObject = state.webcamStream;
         }
+        const candidatePhoto = state.selectedCandidate.profilePic || state.selectedCandidate.profilePhoto || state.selectedCandidate.photoURL || state.selectedCandidate.photoUrl || state.selectedCandidate.profilePicture || state.selectedCandidate.imageUrl;
+        if (el.hallCandidateImage) {
+            el.hallCandidateImage.src = candidatePhoto || '';
+            el.hallCandidateImage.classList.toggle('hidden', webcamActive || !candidatePhoto);
+        }
+        el.hallProctorVideo.classList.toggle('hidden', !webcamActive);
 
         // Setup candidate display
         el.hallExamTitle.textContent = state.activeExam.title;
@@ -518,6 +568,10 @@
         if (!currentSec || !currentSec.questions || !currentSec.questions[questionIdx]) return;
 
         const q = currentSec.questions[questionIdx];
+
+        document.querySelectorAll('.section-tab-btn').forEach((button, index) => {
+            button.classList.toggle('active', index === sectionIdx);
+        });
 
         // Mark as visited if not already answered or review
         if (!state.questionStatus[q.id]) {
@@ -628,18 +682,17 @@
         el.statCountUnanswered.textContent = unansweredCount;
         el.statCountReview.textContent = reviewCount;
 
-        // Render current section buttons
-        (currentSec.questions || []).forEach((q, qIdx) => {
+        // Render one continuous palette for every question in every section.
+        sections.forEach((section, sectionIdx) => (section.questions || []).forEach((q, qIdx) => {
             const btn = document.createElement('button');
             btn.type = 'button';
             const status = state.questionStatus[q.id] || 'not-visited';
-            btn.className = `btn-palette-q ${status} ${qIdx === state.currentQuestionIndex ? 'current' : ''}`;
-            btn.textContent = qIdx + 1;
-            btn.addEventListener('click', () => {
-                loadQuestion(state.currentSectionIndex, qIdx);
-            });
+            btn.className = `btn-palette-q ${status} ${sectionIdx === state.currentSectionIndex && qIdx === state.currentQuestionIndex ? 'current' : ''}`;
+            btn.textContent = String([...sections.slice(0, sectionIdx)].reduce((n, s) => n + (s.questions || []).length, 0) + qIdx + 1);
+            btn.title = section.title || `Section ${sectionIdx + 1}`;
+            btn.addEventListener('click', () => loadQuestion(sectionIdx, qIdx));
             el.paletteButtonsGrid.appendChild(btn);
-        });
+        }));
     }
 
     function saveAndAdvance(markReview = false) {
@@ -661,7 +714,6 @@
             loadQuestion(state.currentSectionIndex, state.currentQuestionIndex + 1);
         } else if (state.currentSectionIndex + 1 < sections.length) {
             // Next section
-            renderExamSections();
             loadQuestion(state.currentSectionIndex + 1, 0);
         } else {
             // At the end of the exam
@@ -752,6 +804,9 @@
     async function finalizeExamSubmission(isAutoSubmit = false) {
         el.modalSubmitConfirm.hidden = true;
         if (state.examTimerInterval) clearInterval(state.examTimerInterval);
+        document.body.classList.remove('exam-active');
+        markCandidateCompleted(state.selectedCandidate);
+        stopWebcamStream();
 
         // Exit Kiosk Mode
         await window.rollcallCBT.setKioskMode(false);
@@ -839,8 +894,9 @@
         // Render Question Reviews
         renderReviewList(reviewItems);
 
-        // Switch to Results View
-        switchView('results');
+        // Respect the exam-file result policy. Hidden results return to the roster.
+        const showImmediateResult = state.activeExam.rules?.showImmediateResult === true;
+        if (showImmediateResult) switchView('results');
 
         // Prepare submission object
         state.lastSubmissionPackage = {
@@ -864,7 +920,15 @@
             }
         };
 
-        showToast('Exam submitted successfully!', 'success');
+        if (showImmediateResult) showToast('Exam submitted successfully!', 'success');
+        else {
+            state.selectedCandidate = null;
+            state.candidateResponses = {};
+            state.questionStatus = {};
+            renderCandidatesList(state.visibleCandidates);
+            switchView('setup');
+            showToast('Exam submitted successfully. Results are hidden by exam settings.', 'success');
+        }
     }
 
     function renderReviewList(items) {
@@ -1327,10 +1391,14 @@
         });
 
         el.btnBackToHome.addEventListener('click', () => {
-            state.activeExam = null;
             state.selectedCandidate = null;
-            el.examInspectContainer.classList.add('hidden');
-            el.examDropzone.classList.remove('hidden');
+            document.body.classList.remove('exam-active');
+            if (state.activeExam) {
+                state.completedCandidates = loadCompletedCandidates();
+                renderCandidatesList(state.visibleCandidates);
+                el.examInspectContainer.classList.remove('hidden');
+                el.examDropzone.classList.add('hidden');
+            }
             switchView('setup');
         });
 
