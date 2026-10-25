@@ -238,6 +238,10 @@ document.addEventListener('DOMContentLoaded', () => {
         erpModeAuthUid = user?.uid || '';
         if (!user) {
             setErpPortalMode(false);
+            window.currentAdminSchoolId = '';
+            window.currentAdminSchoolCode = '';
+            window.currentAdminSchoolName = '';
+            window.refreshCbtPlanAccess?.('');
             return;
         }
         try {
@@ -247,8 +251,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const schoolId = String(profile.schoolId || '').trim();
             if (String(profile.role || '').toLowerCase() !== 'admin' || !schoolId) {
                 setErpPortalMode(false);
+                window.currentAdminSchoolId = '';
+                window.refreshCbtPlanAccess?.('');
                 return;
             }
+            window.currentAdminSchoolId = schoolId;
+            const schoolSnapshot = await firebase.database().ref(`schools/${schoolId}`).once('value');
+            const school = schoolSnapshot.val() || {};
+            window.currentAdminSchoolCode = school.code || profile.schoolCode || schoolId;
+            window.currentAdminSchoolName = school.name || profile.schoolName || 'RollCall Institution';
+            await window.refreshCbtPlanAccess?.(schoolId);
             erpModeInstitutionRef = firebase.database().ref(`schools/${schoolId}/type`);
             erpModeInstitutionRef.on('value', snapshot => {
                 if (firebase.auth().currentUser?.uid !== erpModeAuthUid) return;
@@ -5467,6 +5479,11 @@ document.addEventListener('DOMContentLoaded', function () {
     sidebarMenuItems.forEach(item => {
         item.addEventListener('click', function () {
             const section = this.getAttribute('data-section');
+
+            if (section === 'cbt-portal' && window.currentCbtPlanActive !== true) {
+                document.querySelector('[data-section="dashboard"]')?.click();
+                return;
+            }
 
             if (erpPortalModeActive && section !== 'manage-account' && section !== 'cbt-portal' && section !== 'logout') {
                 document.querySelector('[data-section="manage-account"]')?.click();

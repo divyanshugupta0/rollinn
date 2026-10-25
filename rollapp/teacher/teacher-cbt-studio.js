@@ -133,6 +133,7 @@
     const button = document.createElement('button');
     button.className = 'tts-btn-secondary';
     button.id = 'teacherCbtStudio';
+    button.hidden = true;
     button.innerHTML = '<i class="fas fa-shield-halved"></i> CBT Exam Studio';
     header.prepend(button);
 
@@ -228,7 +229,20 @@
     };
 
     getCbtAccess().then(access => {
-      if (!access.active) { button.disabled = true; button.title = 'An active CBT plan is required for this school.'; button.innerHTML = '<i class="fas fa-lock"></i> CBT Plan Required'; }
+      const updateVisibility = active => {
+        window.teacherCbtPlanActive = active;
+        button.hidden = !active;
+        if (!active) modal.hidden = true;
+      };
+      updateVisibility(access.active);
+      const db = window.firebase?.database?.();
+      if (db && access.schoolId) {
+        db.ref(`schools/${access.schoolId}/cbtSubscription`).on('value', snapshot => {
+          const subscription = snapshot.val() || {};
+          const end = Date.parse(subscription.endDate || '');
+          updateVisibility(String(subscription.status || 'active').toLowerCase() !== 'inactive' && (!end || end >= Date.now()));
+        });
+      }
     });
   }
 

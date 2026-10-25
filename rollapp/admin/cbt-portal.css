@@ -13,6 +13,56 @@
     overflow: hidden;
 }
 
+/* Keep CBT Hub visually consistent with the standard admin section panels. */
+#cbt-portal-section-active {
+    min-height: 100%;
+    background: #f8fafc;
+}
+
+#cbt-portal-section-active .cbt-hub-shell {
+    max-width: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
+#cbt-portal-section-active .cbt-header {
+    padding: 18px 36px;
+    background: #fff;
+    color: #17243a;
+    border-bottom: 1px solid #e5eaf1;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .03);
+}
+
+#cbt-portal-section-active .cbt-header-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: rgba(79, 70, 229, .09);
+    color: #4f46e5;
+    box-shadow: none;
+    font-size: 1.2rem;
+}
+
+#cbt-portal-section-active .cbt-header-text h2 {
+    color: #17243a;
+    font-size: 1.22rem;
+}
+
+#cbt-portal-section-active .cbt-header-text p { color: #718096; }
+#cbt-portal-section-active .cbt-tabs-nav { padding: 0 36px; background: #fff; }
+#cbt-portal-section-active .cbt-tab-pane { padding: 28px 36px 48px; }
+#cbt-portal-section-active .cbt-box,
+#cbt-portal-section-active .cbt-form-section { background: #fff; box-shadow: 0 2px 8px rgba(15, 23, 42, .035); }
+
+@media (max-width: 720px) {
+    #cbt-portal-section-active .cbt-header,
+    #cbt-portal-section-active .cbt-tabs-nav,
+    #cbt-portal-section-active .cbt-tab-pane { padding-left: 16px; padding-right: 16px; }
+}
+
 .cbt-header {
     background: linear-gradient(135deg, #0f172a, #1e293b);
     color: #fff;

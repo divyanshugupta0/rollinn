@@ -225,6 +225,7 @@
     window.refreshCbtPlanAccess = async function (schoolId) {
         const item = document.querySelector('.sidebar-menu-item-modern[data-section="cbt-portal"]');
         if (!schoolId || !window.firebase?.database) {
+            window.currentCbtPlanActive = false;
             if (item) item.hidden = true;
             return false;
         }
@@ -232,6 +233,7 @@
             const snapshot = await window.firebase.database().ref(`schools/${schoolId}/cbtSubscription`).once('value');
             window.currentCbtPlanSubscription = snapshot.val() || null;
             const active = cbtSubscriptionIsActive(window.currentCbtPlanSubscription);
+            window.currentCbtPlanActive = active;
             if (item) item.hidden = !active;
             if (!active && document.getElementById('cbt-portal-section-active')) {
                 document.querySelector('.sidebar-menu-item-modern[data-section="dashboard"]')?.click();
@@ -239,6 +241,8 @@
             return active;
         } catch (error) {
             console.error('Unable to verify CBT plan access', error);
+            window.currentCbtPlanActive = false;
+            window.currentCbtPlanSubscription = null;
             if (item) item.hidden = true;
             return false;
         }
@@ -250,7 +254,8 @@
 
         const schoolId = window.currentAdminSchoolId;
         if (!await window.refreshCbtPlanAccess(schoolId)) {
-            section.innerHTML = '<div class="alert alert-warning m-3"><i class="fas fa-lock me-2"></i>RollCall CBT Hub requires an active CBT plan for this school.</div>';
+            section.classList.add('hidden');
+            document.querySelector('.sidebar-menu-item-modern[data-section="dashboard"]')?.click();
             return;
         }
         const cbtSubscription = window.currentCbtPlanSubscription || {};
@@ -867,5 +872,9 @@
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         }[c]));
     }
+
+    window.addEventListener('load', () => {
+        if (window.currentAdminSchoolId) window.refreshCbtPlanAccess(window.currentAdminSchoolId);
+    }, { once: true });
 
 })(window, document);
