@@ -38,10 +38,11 @@
   const banner = document.createElement('div');
   banner.className = 'pwa-install-banner';
   banner.innerHTML = isIOS
-    ? `<div style="font-weight:600;font-size:16px;">Add RollCall to your Home Screen</div>
-      <span>In Safari, tap Share, then Add to Home Screen.</span>
+    ? `<div style="font-weight:600;font-size:16px;">Install RollCall on iPhone</div>
+      <span>Tap Safari's <strong>Share</strong> button, then choose <strong>Add to Home Screen</strong>.</span>
       <div style="display:flex;gap:10px;justify-content:center;width:100%;">
-        <button class="dismiss">Got it</button>
+        <button type="button" class="ios-install-help">Install steps</button>
+        <button type="button" class="dismiss">Okay</button>
       </div>`
     : `<div style="font-weight:600;font-size:16px;">Install App</div>
       <span>Install this app for quicker access</span>
@@ -66,7 +67,15 @@
     deferredPrompt = null;
     banner.classList.remove('show');
   });
-  banner.querySelector('.dismiss').addEventListener('click', () => banner.classList.remove('show'));
+  banner.querySelector('.dismiss')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    banner.classList.remove('show');
+    banner.setAttribute('aria-hidden', 'true');
+  });
+  banner.querySelector('.ios-install-help')?.addEventListener('click', () => {
+    window.alert('In Safari, tap Share, then select “Add to Home Screen”, and tap Add.');
+  });
 
   if ('serviceWorker' in navigator) {
     const isStudentPortal = /\/student(?:\/|$)/i.test(window.location.pathname);
