@@ -31,8 +31,11 @@
     const schoolId = String(profile.schoolId || window.currentUser?.schoolId || '');
     if (!db || !schoolId) return { active: false, schoolId, profile };
     const subscription = (await db.ref(`schools/${schoolId}/cbtSubscription`).once('value')).val() || {};
+    const baseSubscription = (await db.ref(`schools/${schoolId}/subscription`).once('value')).val() || {};
     const end = Date.parse(subscription.endDate || '');
-    const active = String(subscription.status || 'active').toLowerCase() !== 'inactive' && (!end || end >= Date.now());
+    const baseEnd = Date.parse(baseSubscription.endDate || '');
+    const baseActive = String(baseSubscription.status || 'active').toLowerCase() !== 'inactive' && (!baseEnd || baseEnd >= Date.now());
+    const active = baseActive && String(subscription.status || 'active').toLowerCase() !== 'inactive' && (!end || end >= Date.now());
     return {
       active,
       schoolId,
@@ -239,8 +242,13 @@
       if (db && access.schoolId) {
         db.ref(`schools/${access.schoolId}/cbtSubscription`).on('value', snapshot => {
           const subscription = snapshot.val() || {};
-          const end = Date.parse(subscription.endDate || '');
-          updateVisibility(String(subscription.status || 'active').toLowerCase() !== 'inactive' && (!end || end >= Date.now()));
+          db.ref(`schools/${access.schoolId}/subscription`).once('value').then(baseSnapshot => {
+            const baseSubscription = baseSnapshot.val() || {};
+            const baseEnd = Date.parse(baseSubscription.endDate || '');
+            const baseActive = String(baseSubscription.status || 'active').toLowerCase() !== 'inactive' && (!baseEnd || baseEnd >= Date.now());
+            const end = Date.parse(subscription.endDate || '');
+            updateVisibility(baseActive && String(subscription.status || 'active').toLowerCase() !== 'inactive' && (!end || end >= Date.now()));
+          });
         });
       }
     });

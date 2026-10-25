@@ -216,10 +216,12 @@
     // =========================================================================
     // CBT HUB SECTION INITIALIZATION
     // =========================================================================
-    function cbtSubscriptionIsActive(subscription) {
+    function cbtSubscriptionIsActive(subscription, baseSubscription) {
         if (!subscription || String(subscription.status || 'active').toLowerCase() === 'inactive') return false;
         const end = Date.parse(subscription.endDate || '');
-        return !end || end >= Date.now();
+        const baseEnd = Date.parse(baseSubscription?.endDate || '');
+        const baseActive = baseSubscription && String(baseSubscription.status || 'active').toLowerCase() !== 'inactive' && (!baseEnd || baseEnd >= Date.now());
+        return Boolean(baseActive && (!end || end >= Date.now()));
     }
 
     function getLicenseKeyExpiry(licenseKey) {
@@ -228,7 +230,7 @@
     }
 
     async function getOrCreateStoredCbtLicense(schoolId, schoolCode, schoolName, planExpiry, planStart, maxDevices) {
-        if (!cbtSubscriptionIsActive(window.currentCbtPlanSubscription)) {
+        if (!cbtSubscriptionIsActive(window.currentCbtPlanSubscription, window.currentCbtBaseSubscription)) {
             throw new Error('An active CBT plan is required before generating a license key.');
         }
         const ref = window.firebase.database().ref(`schools/${schoolId}/cbtLicense`);
@@ -266,8 +268,10 @@
         }
         try {
             const snapshot = await window.firebase.database().ref(`schools/${schoolId}/cbtSubscription`).once('value');
+            const baseSnapshot = await window.firebase.database().ref(`schools/${schoolId}/subscription`).once('value');
             window.currentCbtPlanSubscription = snapshot.val() || null;
-            const active = cbtSubscriptionIsActive(window.currentCbtPlanSubscription);
+            window.currentCbtBaseSubscription = baseSnapshot.val() || null;
+            const active = cbtSubscriptionIsActive(window.currentCbtPlanSubscription, window.currentCbtBaseSubscription);
             window.currentCbtPlanActive = active;
             if (item) item.hidden = !active;
             if (!active) document.getElementById('account-cbt-license-card')?.remove();

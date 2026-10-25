@@ -75,6 +75,10 @@
         else window.alert(message);
     }
 
+    function isCbtSubscriptionPlan(plan) {
+        return plan && (plan.subscriptionType === 'cbt' || plan.type === 'subscription' || plan.cbtAddon === true || plan.productType === 'cbt');
+    }
+
     function setConnection(message, kind = 'secondary') {
         const status = document.getElementById('firebaseStatus');
         if (status) status.innerHTML = `<span class="badge bg-${kind}">${message}</span>`;
@@ -220,6 +224,7 @@
                           <label class="form-label fw-semibold small" for="ownerPlanType">Subscription Type</label>
                           <select id="ownerPlanType" class="form-select">
                             <option value="plan">Main Plan (Base)</option>
+                            <option value="subscription">CBT Subscription</option>
                             <option value="topup">Top-up Add-on</option>
                           </select>
                         </div>
@@ -229,7 +234,6 @@
                             <option value="school">School</option>
                             <option value="college">College / University</option>
                             <option value="erp">RollCall ERP</option>
-                            <option value="cbt">RollCall CBT (Standalone)</option>
                           </select>
                         </div>
                         <div class="mb-3" id="ownerPlanTopupKindField" hidden>
@@ -320,6 +324,14 @@
                               <span class="input-group-text bg-white"><i class="fas fa-chalkboard-teacher text-muted"></i></span>
                               <input id="ownerPlanTeacherCapacity" type="number" class="form-control" min="0" step="1" value="0" required>
                             </div>
+                          </div>
+                          <div class="col-12" id="ownerPlanMaxDevicesField" hidden>
+                            <label class="form-label fw-semibold small" for="ownerPlanMaxDevices">Maximum CBT Devices</label>
+                            <div class="input-group">
+                              <span class="input-group-text bg-white"><i class="fas fa-laptop text-muted"></i></span>
+                              <input id="ownerPlanMaxDevices" type="number" class="form-control" min="1" step="1" value="1">
+                            </div>
+                            <div class="text-muted" style="font-size:11px;">Only this limit is required for a CBT subscription.</div>
                           </div>
                         </div>
 
@@ -509,7 +521,9 @@
         });
 
         const updateBonusControls = () => {
-            const isTopup = document.getElementById('ownerPlanType').value === 'topup';
+            const selectedType = document.getElementById('ownerPlanType').value;
+            const isTopup = selectedType === 'topup';
+            const isCbtSubscription = selectedType === 'subscription';
             const topupKindField = document.getElementById('ownerPlanTopupKindField');
             const topupKind = isTopup ? document.getElementById('ownerPlanTopupKind').value : '';
             const isMonthTopup = isTopup && topupKind === 'months';
@@ -533,10 +547,10 @@
             const categoryField = document.getElementById('ownerPlanCategory');
 
             if (topupKindField) topupKindField.hidden = !isTopup;
-            if (categoryContainer) categoryContainer.hidden = isTopup;
+            if (categoryContainer) categoryContainer.hidden = isTopup || isCbtSubscription;
             if (categoryField) {
-                categoryField.disabled = isTopup;
-                if (isTopup) categoryField.value = 'school';
+                categoryField.disabled = isTopup || isCbtSubscription;
+                if (isTopup || isCbtSubscription) categoryField.value = 'school';
             }
             if (monthsField) {
                 monthsField.hidden = isTopup && !isMonthTopup;
@@ -544,11 +558,13 @@
                 if (label) label.textContent = isMonthTopup ? 'Months to add (Extension)' : 'Term Duration (Months)';
             }
             if (daysField) daysField.hidden = !isDayTopup;
-            if (studentCapacityField) studentCapacityField.hidden = isTermTopup;
-            if (teacherCapacityField) teacherCapacityField.hidden = isTermTopup;
-            if (studentCapacity) studentCapacity.disabled = isTermTopup;
-            if (teacherCapacity) teacherCapacity.disabled = isTermTopup;
-            const showBonusControls = !isTopup;
+            if (studentCapacityField) studentCapacityField.hidden = isTermTopup || isCbtSubscription;
+            if (teacherCapacityField) teacherCapacityField.hidden = isTermTopup || isCbtSubscription;
+            if (studentCapacity) { studentCapacity.disabled = isTermTopup || isCbtSubscription; if (isCbtSubscription) studentCapacity.value = '0'; }
+            if (teacherCapacity) { teacherCapacity.disabled = isTermTopup || isCbtSubscription; if (isCbtSubscription) teacherCapacity.value = '0'; }
+            const maxDevicesField = document.getElementById('ownerPlanMaxDevicesField');
+            if (maxDevicesField) maxDevicesField.hidden = !isCbtSubscription;
+            const showBonusControls = !isTopup && !isCbtSubscription;
             if (bonusOfferField) bonusOfferField.hidden = !showBonusControls;
             if (bonusStudentField) bonusStudentField.hidden = !showBonusControls;
             if (bonusTeacherField) bonusTeacherField.hidden = !showBonusControls;
@@ -557,7 +573,7 @@
             if (autoRenewField) autoRenewField.hidden = isTopup;
             if (autoRenew) {
                 autoRenew.disabled = isTopup;
-                if (isTopup) autoRenew.checked = false;
+                if (isTopup || isCbtSubscription) autoRenew.checked = false;
             }
             const bonusEnabled = showBonusControls && bonus?.checked === true;
             if (bonusStudent) bonusStudent.disabled = !bonusEnabled;
@@ -673,7 +689,7 @@
                     list.innerHTML = '<div class="alert alert-light">No pending re-subscription requests.</div>';
                     return;
                 }
-                const mainPlans = pricingPlans.filter(plan => plan.active !== false && plan.type !== 'topup');
+                const mainPlans = pricingPlans.filter(plan => plan.active !== false && plan.type === 'plan');
                 const topupPlans = pricingPlans.filter(plan => plan.active !== false && plan.type === 'topup');
                 list.innerHTML = requests.map((request, index) => {
                     const plan = request.requestedPlan;
@@ -771,7 +787,7 @@
 
         async function fulfillSubscriptionRequest(request, planId, selectedTopups, ownerUid, customEndDate) {
             if (!request?.schoolId || !request?.requesterUid || !ownerUid) throw new Error('Request or owner session is missing. Refresh and try again.');
-            const selectedPlan = pricingPlans.find(item => item.id === planId && item.active !== false && item.type !== 'topup');
+            const selectedPlan = pricingPlans.find(item => item.id === planId && item.active !== false && item.type === 'plan');
             if (!selectedPlan) throw new Error('Select an active main plan.');
             const startDate = new Date();
             let endDate = customEndDate ? new Date(`${customEndDate}T23:59:59`) : new Date(startDate);
@@ -1164,7 +1180,7 @@
         const grid = document.getElementById('registrationMainPlanOptions');
         if (!grid) return;
         const available = pricingPlans.filter(plan => plan.active !== false);
-        const mainPlans = available.filter(plan => plan.type !== 'topup');
+        const mainPlans = available.filter(plan => plan.type === 'plan');
         const topupPlans = available.filter(plan => plan.type === 'topup');
 
         const rawType = String(document.getElementById('schoolType')?.value || '').trim().toLowerCase();
@@ -1182,7 +1198,7 @@
             : '';
 
         const filteredMainPlans = mainPlans.filter(plan => {
-            if ((plan.productType || (plan.erpPlan === true ? 'erp' : 'school')) === 'cbt') return false;
+            if (isCbtSubscriptionPlan(plan)) return false;
             if (!institutionCategory) return true;
             const planCat = (plan.productType || (plan.erpPlan === true ? 'erp' : 'school')).toLowerCase();
             return planCat === institutionCategory;
@@ -1274,7 +1290,7 @@
         if (!summary) return;
         const selected = document.querySelector('#schoolRegistrationForm [name=subscriptionPlan]:checked');
         const plan = pricingPlans.find(item => item.id === selected?.value || item.name === selected?.value);
-        const hasPlan = Boolean(plan && plan.type !== 'topup' && plan.active !== false);
+        const hasPlan = Boolean(plan && plan.type === 'plan' && plan.active !== false);
         document.querySelectorAll('#schoolRegistrationForm .topup-quantity').forEach(input => {
             input.disabled = !hasPlan;
             const controls = input.closest('.input-group');
@@ -1517,7 +1533,9 @@
         if (!currentUser) return notify('Sign in to save pricing plans.', 'danger');
         const id = document.getElementById('ownerPlanId').value || ownerPath('pricingPlans').push().key;
         const existing = pricingPlans.find(plan => plan.id === id);
-        const type = document.getElementById('ownerPlanType').value === 'topup' ? 'topup' : 'plan';
+        const selectedType = document.getElementById('ownerPlanType').value;
+        const type = selectedType === 'topup' ? 'topup' : selectedType === 'subscription' ? 'subscription' : 'plan';
+        const isCbtSubscription = type === 'subscription';
         const bonus = type === 'plan' && document.getElementById('ownerPlanBonus').checked;
         const bonusStudentInput = bonus ? document.getElementById('ownerPlanBonusStudentCapacity').value.trim() : '';
         const bonusTeacherInput = bonus ? document.getElementById('ownerPlanBonusTeacherCapacity').value.trim() : '';
@@ -1526,9 +1544,11 @@
         const durationMonths = type === 'topup' && topupKind !== 'months' ? 1 : Number(document.getElementById('ownerPlanMonths').value);
         const durationDays = type === 'topup' && topupKind === 'days' ? Number(document.getElementById('ownerPlanDays')?.value || 7) : 0;
         const productType = type === 'plan' ? document.getElementById('ownerPlanCategory').value : '';
+        const subscriptionType = isCbtSubscription ? 'cbt' : '';
+        const maxDevices = isCbtSubscription ? Number(document.getElementById('ownerPlanMaxDevices').value) : 0;
         const isTermTopup = topupKind === 'months' || topupKind === 'days';
-        const plan = { name: document.getElementById('ownerPlanName').value.trim(), type, productType, topupKind, price: Number(document.getElementById('ownerPlanPrice').value), currency: document.getElementById('ownerPlanCurrency').value, durationMonths, durationDays, autoRenew: type === 'plan' && document.getElementById('ownerPlanAutoRenew').checked, studentCapacity: isTermTopup ? 0 : Number(document.getElementById('ownerPlanStudentCapacity').value), teacherCapacity: isTermTopup ? 0 : Number(document.getElementById('ownerPlanTeacherCapacity').value), bonus, bonusStudentCapacity: bonusStudentInput === '' ? null : Number(bonusStudentInput), bonusTeacherCapacity: bonusTeacherInput === '' ? null : Number(bonusTeacherInput), features: document.getElementById('ownerPlanFeatures').value.split(',').map(value => value.trim()).filter(Boolean), active: existing ? existing.active !== false : true, updatedAt: Date.now(), createdAt: existing?.createdAt || Date.now() };
-        if (!plan.name || !Number.isFinite(plan.price) || plan.price < 0 || (!Number.isInteger(plan.durationMonths) || plan.durationMonths < 1) || (topupKind === 'days' && (!Number.isInteger(plan.durationDays) || plan.durationDays < 1)) || !Number.isInteger(plan.studentCapacity) || plan.studentCapacity < 0 || !Number.isInteger(plan.teacherCapacity) || plan.teacherCapacity < 0 || (plan.bonusStudentCapacity !== null && (!Number.isInteger(plan.bonusStudentCapacity) || plan.bonusStudentCapacity < 0)) || (plan.bonusTeacherCapacity !== null && (!Number.isInteger(plan.bonusTeacherCapacity) || plan.bonusTeacherCapacity < 0))) return notify('Enter a name, valid price, whole-number term/days, and non-negative whole-number capacities.', 'warning');
+        const plan = { name: document.getElementById('ownerPlanName').value.trim(), type, productType, subscriptionType, maxDevices, topupKind, price: Number(document.getElementById('ownerPlanPrice').value), currency: document.getElementById('ownerPlanCurrency').value, durationMonths, durationDays, autoRenew: type === 'plan' && document.getElementById('ownerPlanAutoRenew').checked, studentCapacity: isTermTopup || isCbtSubscription ? 0 : Number(document.getElementById('ownerPlanStudentCapacity').value), teacherCapacity: isTermTopup || isCbtSubscription ? 0 : Number(document.getElementById('ownerPlanTeacherCapacity').value), bonus, bonusStudentCapacity: bonusStudentInput === '' ? null : Number(bonusStudentInput), bonusTeacherCapacity: bonusTeacherInput === '' ? null : Number(bonusTeacherInput), features: document.getElementById('ownerPlanFeatures').value.split(',').map(value => value.trim()).filter(Boolean), active: existing ? existing.active !== false : true, updatedAt: Date.now(), createdAt: existing?.createdAt || Date.now() };
+        if (!plan.name || !Number.isFinite(plan.price) || plan.price < 0 || (!Number.isInteger(plan.durationMonths) || plan.durationMonths < 1) || (topupKind === 'days' && (!Number.isInteger(plan.durationDays) || plan.durationDays < 1)) || (isCbtSubscription && (!Number.isInteger(plan.maxDevices) || plan.maxDevices < 1)) || (!isCbtSubscription && !Number.isInteger(plan.studentCapacity)) || (!isCbtSubscription && plan.studentCapacity < 0) || (!isCbtSubscription && !Number.isInteger(plan.teacherCapacity)) || (!isCbtSubscription && plan.teacherCapacity < 0) || (plan.bonusStudentCapacity !== null && (!Number.isInteger(plan.bonusStudentCapacity) || plan.bonusStudentCapacity < 0)) || (plan.bonusTeacherCapacity !== null && (!Number.isInteger(plan.bonusTeacherCapacity) || plan.bonusTeacherCapacity < 0))) return notify(isCbtSubscription ? 'Enter a name, valid price, term, and maximum device count.' : 'Enter a name, valid price, whole-number term/days, and non-negative whole-number capacities.', 'warning');
         try { await ownerPath(`pricingPlans/${id}`).set(plan); resetPricingForm(); await loadPricingPlans(); notify('Pricing plan saved.', 'success'); }
         catch (error) { notify(`Could not save pricing plan: ${error.message}`, 'danger'); }
     }
@@ -1542,6 +1562,7 @@
         document.getElementById('ownerPlanTopupKind').value = 'capacity';
         document.getElementById('ownerPlanStudentCapacity').value = 0;
         document.getElementById('ownerPlanTeacherCapacity').value = 0;
+        document.getElementById('ownerPlanMaxDevices').value = 1;
         document.getElementById('ownerPlanBonusStudentCapacity').value = '';
         document.getElementById('ownerPlanBonusTeacherCapacity').value = '';
         document.getElementById('ownerPlanBonus').checked = false;
@@ -1562,7 +1583,7 @@
     }
 
     function updatePricingKpis() {
-        const activeMain = pricingPlans.filter(p => p.active !== false && p.type !== 'topup');
+        const activeMain = pricingPlans.filter(p => p.active !== false && p.type === 'plan');
         const activeTopups = pricingPlans.filter(p => p.active !== false && p.type === 'topup');
 
         const schoolMain = activeMain.filter(p => (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'school').length;
@@ -1611,10 +1632,10 @@
 
         // Update tab count badges
         const allCount = pricingPlans.length;
-        const schoolCount = pricingPlans.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'school').length;
-        const collegeCount = pricingPlans.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'college').length;
-        const erpCount = pricingPlans.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'erp').length;
-        const cbtCount = pricingPlans.filter(p => p.type !== 'topup' && (p.productType || 'school') === 'cbt').length;
+        const schoolCount = pricingPlans.filter(p => p.type === 'plan' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'school').length;
+        const collegeCount = pricingPlans.filter(p => p.type === 'plan' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'college').length;
+        const erpCount = pricingPlans.filter(p => p.type === 'plan' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'erp').length;
+        const cbtCount = pricingPlans.filter(p => isCbtSubscriptionPlan(p)).length;
         const topupCount = pricingPlans.filter(p => p.type === 'topup').length;
 
         const setBadgeText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = String(text); };
@@ -1628,13 +1649,13 @@
         // Filter by catalog tab
         let filtered = pricingPlans.slice();
         if (currentPlanCatalogFilter === 'school') {
-            filtered = filtered.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'school');
+            filtered = filtered.filter(p => p.type === 'plan' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'school');
         } else if (currentPlanCatalogFilter === 'college') {
-            filtered = filtered.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'college');
+            filtered = filtered.filter(p => p.type === 'plan' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'college');
         } else if (currentPlanCatalogFilter === 'erp') {
-            filtered = filtered.filter(p => p.type !== 'topup' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'erp');
+            filtered = filtered.filter(p => p.type === 'plan' && (p.productType || (p.erpPlan === true ? 'erp' : 'school')) === 'erp');
         } else if (currentPlanCatalogFilter === 'cbt') {
-            filtered = filtered.filter(p => p.type !== 'topup' && (p.productType || 'school') === 'cbt');
+            filtered = filtered.filter(p => isCbtSubscriptionPlan(p));
         } else if (currentPlanCatalogFilter === 'topup') {
             filtered = filtered.filter(p => p.type === 'topup');
         }
@@ -1651,13 +1672,14 @@
             const row = document.createElement('tr');
             const amount = `${plan.currency || 'INR'} ${Number(plan.price || 0).toLocaleString()}`;
             const productType = plan.productType || (plan.erpPlan === true ? 'erp' : 'school');
+            const isCbt = isCbtSubscriptionPlan(plan);
             const categoryBadge = plan.type === 'topup'
                 ? (plan.topupKind === 'days'
                     ? '<span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle px-2 py-1"><i class="fas fa-calendar-plus me-1"></i>Day Extender</span>'
                     : plan.topupKind === 'months'
                     ? '<span class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"><i class="fas fa-calendar-alt me-1"></i>Month Extender</span>'
                     : '<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2 py-1"><i class="fas fa-layer-group me-1"></i>Capacity Top-up</span>')
-                : (productType === 'cbt'
+                : (isCbt
                     ? '<span class="badge rounded-pill bg-dark text-white px-2 py-1"><i class="fas fa-laptop-code me-1"></i>RollCall CBT</span>'
                     : productType === 'college'
                     ? '<span class="badge rounded-pill border px-2 py-1" style="background:#f3e8ff; color:#7e22ce; border-color:#d8b4fe !important;"><i class="fas fa-graduation-cap me-1"></i>College</span>'
@@ -1667,6 +1689,8 @@
 
             const typePill = plan.type === 'topup'
                 ? '<span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">Top-up</span>'
+                : isCbt
+                ? '<span class="badge bg-dark-subtle text-dark border border-dark-subtle px-2 py-1">Subscription add-on</span>'
                 : '<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">Base Plan</span>';
 
             const termText = plan.type === 'topup'
@@ -1677,7 +1701,9 @@
                     : '<span class="text-muted small">Subscription term</span>')
                 : `<span class="fw-semibold">${plan.durationMonths || 1} months</span>${plan.autoRenew ? ' <small class="text-success"><i class="fas fa-sync-alt" title="Auto-renew enabled"></i></small>' : ''}`;
 
-            const capacityText = plan.type === 'topup' && (plan.topupKind === 'months' || plan.topupKind === 'days')
+            const capacityText = isCbt
+                ? `<span class="badge bg-dark-subtle text-dark border"><i class="fas fa-laptop me-1"></i>${Number(plan.maxDevices || 1).toLocaleString()} devices</span>`
+                : plan.type === 'topup' && (plan.topupKind === 'months' || plan.topupKind === 'days')
                 ? '<span class="badge bg-light text-secondary border"><i class="fas fa-clock me-1"></i>Term Extender</span>'
                 : `<div><span class="small fw-semibold text-dark"><i class="fas fa-user-graduate text-primary me-1"></i>${Number(plan.studentCapacity || 0).toLocaleString()}</span> <span class="text-muted small">students</span></div><div><span class="small fw-semibold text-dark"><i class="fas fa-chalkboard-teacher text-info me-1"></i>${Number(plan.teacherCapacity || 0).toLocaleString()}</span> <span class="text-muted small">teachers</span>${plan.bonus ? ' <span class="badge bg-success-subtle text-success ms-1 small" style="font-size:10px">Bonus</span>' : ''}</div>`;
 
@@ -1712,7 +1738,7 @@
             row.querySelector('.plan-edit-btn').addEventListener('click', () => {
                 document.getElementById('ownerPlanId').value = plan.id;
                 document.getElementById('ownerPlanName').value = plan.name;
-                document.getElementById('ownerPlanType').value = plan.type === 'topup' ? 'topup' : 'plan';
+                document.getElementById('ownerPlanType').value = isCbtSubscriptionPlan(plan) ? 'subscription' : plan.type === 'topup' ? 'topup' : 'plan';
                 document.getElementById('ownerPlanCategory').value = plan.productType || (plan.erpPlan === true ? 'erp' : 'school');
                 document.getElementById('ownerPlanTopupKind').value = plan.topupKind === 'days' ? 'days' : plan.topupKind === 'months' ? 'months' : 'capacity';
                 if (document.getElementById('ownerPlanDays')) document.getElementById('ownerPlanDays').value = plan.durationDays || plan.daysAdded || 7;
@@ -1722,6 +1748,7 @@
                 document.getElementById('ownerPlanAutoRenew').checked = plan.autoRenew === true;
                 document.getElementById('ownerPlanStudentCapacity').value = plan.studentCapacity || 0;
                 document.getElementById('ownerPlanTeacherCapacity').value = plan.teacherCapacity || 0;
+                document.getElementById('ownerPlanMaxDevices').value = plan.maxDevices || 1;
                 document.getElementById('ownerPlanBonusStudentCapacity').value = plan.bonusStudentCapacity ?? '';
                 document.getElementById('ownerPlanBonusTeacherCapacity').value = plan.bonusTeacherCapacity ?? '';
                 document.getElementById('ownerPlanBonus').checked = plan.bonus === true;
@@ -1795,11 +1822,11 @@
 
         filtered.forEach(school => {
             const planId = school.subscription?.planId || school.subscription?.plan || '';
-            const plans = pricingPlans.filter(plan => plan.active !== false && plan.type !== 'topup' && (plan.productType || (plan.erpPlan === true ? 'erp' : 'school')) !== 'cbt').map(plan => `<option value="${escapeAttr(plan.id)}" ${plan.id === planId || plan.name === planId ? 'selected' : ''}>${escapeHtml(plan.name)}${(plan.productType || (plan.erpPlan === true ? 'erp' : 'school')) === 'erp' ? ' · ERP' : ''} · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}</option>`).join('');
+            const plans = pricingPlans.filter(plan => plan.active !== false && plan.type === 'plan' && !isCbtSubscriptionPlan(plan)).map(plan => `<option value="${escapeAttr(plan.id)}" ${plan.id === planId || plan.name === planId ? 'selected' : ''}>${escapeHtml(plan.name)}${(plan.productType || (plan.erpPlan === true ? 'erp' : 'school')) === 'erp' ? ' · ERP' : ''} · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}</option>`).join('');
             const topups = pricingPlans.filter(plan => plan.active !== false && plan.type === 'topup').map(plan => `<option value="${escapeAttr(plan.id)}">${escapeHtml(plan.name)}${plan.topupKind === 'days' ? ` · +${Number(plan.durationDays || plan.daysAdded || 0)} days · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}` : plan.topupKind === 'months' ? ` · +${Number(plan.durationMonths || 0)} months · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}` : plan.bonus ? ' · Bonus' : ` · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}`}</option>`).join('');
             const cbtSubscription = school.cbtSubscription || {};
             const cbtPlanId = cbtSubscription.planId || cbtSubscription.plan || '';
-            const cbtPlans = pricingPlans.filter(plan => plan.active !== false && plan.type === 'plan' && plan.productType === 'cbt').map(plan => `<option value="${escapeAttr(plan.id)}" ${plan.id === cbtPlanId || plan.name === cbtPlanId ? 'selected' : ''}>${escapeHtml(plan.name)} · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}</option>`).join('');
+            const cbtPlans = pricingPlans.filter(plan => plan.active !== false && isCbtSubscriptionPlan(plan)).map(plan => `<option value="${escapeAttr(plan.id)}" ${plan.id === cbtPlanId || plan.name === cbtPlanId ? 'selected' : ''}>${escapeHtml(plan.name)} · ${escapeHtml(plan.currency || 'INR')} ${Number(plan.price || 0)}</option>`).join('');
 
             const row = document.createElement('tr');
             const usage = schoolUserUsage[school.id] || { students: 0, teachers: 0 };
@@ -1843,11 +1870,12 @@
                     ${plans}
                   </select>
                   <div class="mt-2 p-2 rounded border border-dark-subtle bg-dark-subtle bg-opacity-10">
-                    <div class="small fw-semibold text-dark mb-1"><i class="fas fa-laptop-code me-1"></i>CBT Plan</div>
+                    <div class="small fw-semibold text-dark mb-1"><i class="fas fa-laptop-code me-1"></i>CBT Subscription</div>
                     <select class="form-select form-select-sm school-cbt-plan" aria-label="CBT plan for ${escapeAttr(school.name || 'school')}">
                       <option value="">No CBT plan</option>${cbtPlans}
                     </select>
-                    <input class="form-control form-control-sm school-cbt-renewal mt-1" type="date" aria-label="CBT plan renewal date" value="${cbtSubscription.endDate ? new Date(cbtSubscription.endDate).toISOString().slice(0, 10) : ''}">
+                    <input class="form-control form-control-sm school-cbt-max-devices mt-1" type="number" min="1" step="1" aria-label="Maximum CBT devices" placeholder="Maximum devices" value="${Number(cbtSubscription.maxDevices || cbtSubscription.deviceLimit || 1)}">
+                    <div class="small text-muted mt-1">Requires an active base plan. Term follows the selected CBT subscription.</div>
                   </div>
                 </td>
                 <td>
@@ -2045,14 +2073,15 @@
         const dateInput = row.querySelector('.school-renewal').value;
         const current = school.subscription || {};
         const cbtPlanId = row.querySelector('.school-cbt-plan')?.value || '';
-        const cbtPlan = pricingPlans.find(item => item.id === cbtPlanId && item.type === 'plan' && item.productType === 'cbt');
-        const cbtDateInput = row.querySelector('.school-cbt-renewal')?.value || '';
+        const cbtPlan = pricingPlans.find(item => item.id === cbtPlanId && isCbtSubscriptionPlan(item));
+        const cbtMaxDevices = Math.max(1, Math.floor(Number(row.querySelector('.school-cbt-max-devices')?.value || cbtPlan?.maxDevices || 1)));
         if (plan?.type === 'topup') return notify('A top-up cannot replace the main plan. Add it using the Top-up control.', 'warning');
         const usage = schoolUserUsage[school.id] || { students: 0, teachers: 0 };
         const currentEnd = Date.parse(current.endDate || '');
         const startDate = current.startDate && currentEnd >= Date.now() ? new Date(current.startDate) : new Date();
         const endDate = dateInput ? new Date(`${dateInput}T23:59:59`) : new Date(startDate);
         if (!dateInput) endDate.setMonth(endDate.getMonth() + (Number(plan?.durationMonths) || 0));
+        if (cbtPlan && (!plan || !active || endDate.getTime() < Date.now())) return notify('An active base subscription is required before activating a CBT subscription.', 'warning');
         const topups = (Array.isArray(current.topups) ? current.topups : []).filter(item => !item.endDate || Date.parse(item.endDate) >= Date.now());
         if (plan?.bonus && !topups.some(item => item.includedWithPlan && item.planId === plan.id && Date.parse(item.endDate || '') > Date.now())) {
             topups.push(createBonusTopupEntry(plan, startDate, endDate));
@@ -2064,8 +2093,8 @@
             priceBreakdown[currency] = Number(priceBreakdown[currency] || 0) + Number(item.price || 0);
         });
         const subscription = { ...current, plan: plan?.name || '', planId: plan?.id || '', price: Object.keys(priceBreakdown).length === 1 ? Object.values(priceBreakdown)[0] : basePlanPrice, basePlanPrice, priceBreakdown, currency: plan?.currency || 'INR', durationMonths: plan?.durationMonths || 0, autoRenew: plan?.type === 'plan' && row.querySelector('.school-auto-renew').checked, studentCapacity: Number(plan?.studentCapacity || 0), teacherCapacity: Number(plan?.teacherCapacity || 0), topups, usage: { students: usage.students, teachers: usage.teachers, updatedAt: Date.now() }, startDate: startDate.toISOString(), endDate: endDate.toISOString(), status: active ? 'active' : 'inactive', updatedAt: Date.now() };
-        const cbtEndDate = cbtDateInput ? new Date(`${cbtDateInput}T23:59:59`) : (cbtPlan ? addCalendarMonths(new Date(), Number(cbtPlan.durationMonths || 1)) : null);
-        const cbtSubscription = cbtPlan ? { plan: cbtPlan.name, planId: cbtPlan.id, price: Number(cbtPlan.price || 0), currency: cbtPlan.currency || 'INR', startDate: (school.cbtSubscription?.startDate && Date.parse(school.cbtSubscription.startDate) >= Date.now() ? school.cbtSubscription.startDate : new Date().toISOString()), endDate: cbtEndDate.toISOString(), status: 'active', updatedAt: Date.now() } : null;
+        const cbtEndDate = cbtPlan ? addCalendarMonths(new Date(), Number(cbtPlan.durationMonths || 1)) : null;
+        const cbtSubscription = cbtPlan ? { plan: cbtPlan.name, planId: cbtPlan.id, subscriptionType: 'cbt', price: Number(cbtPlan.price || 0), currency: cbtPlan.currency || 'INR', maxDevices: cbtMaxDevices, startDate: (school.cbtSubscription?.startDate && Date.parse(school.cbtSubscription.startDate) >= Date.now() ? school.cbtSubscription.startDate : new Date().toISOString()), endDate: cbtEndDate.toISOString(), status: 'active', updatedAt: Date.now() } : null;
         try {
             const lastUpdated = new Date().toISOString();
             const timestamp = Date.now();
@@ -2240,7 +2269,7 @@
         const modalId = 'setSchoolPlanEndDateModal';
         document.getElementById(modalId)?.remove();
 
-        const activeMainPlans = pricingPlans.filter(p => p.active !== false && p.type !== 'topup');
+        const activeMainPlans = pricingPlans.filter(p => p.active !== false && p.type === 'plan');
         const currentPlanId = current.planId || current.plan || '';
         const selectedPlan = activeMainPlans.find(p => p.id === currentPlanId || p.name === currentPlanId) || activeMainPlans[0];
 
