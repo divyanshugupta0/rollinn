@@ -6312,6 +6312,19 @@
                 : { authEmail: value.toLowerCase(), loginIdentifier: value };
         }
 
+        async function findLegacyEmailForMobile(mobile) {
+            const normalizedMobile = String(mobile || '').replace(/\D/g, '');
+            if (!/^\d{10}$/.test(normalizedMobile)) return '';
+            const snapshot = await get(ref(database, 'users'));
+            const users = snapshot.val() || {};
+            const match = Object.values(users).find(user =>
+                String(user?.role || '').toLowerCase() === 'student' &&
+                String(user?.mobile || '').replace(/\D/g, '') === normalizedMobile &&
+                /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(user?.email || ''))
+            );
+            return String(match?.email || '').trim().toLowerCase();
+        }
+
         // Login functionality
         loginBtn.addEventListener('click', async () => {
             const identifier = emailInput.value;
@@ -6350,17 +6363,25 @@
                 return;
             }
 
-            signInWithEmailAndPassword(auth, loginTarget.authEmail, password)
-                .then((userCredential) => {
-                    // Check if this user is already logged in on another device
-                    checkDeviceLogin(userCredential.user);
-                })
-                .catch((error) => {
-                    showLoginStatus(`Login failed: ${error.message}`, 'error');
-                    // Reset button
-                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
-                    loginBtn.disabled = false;
-                });
+            try {
+                let userCredential;
+                try {
+                    userCredential = await signInWithEmailAndPassword(auth, loginTarget.authEmail, password);
+                } catch (error) {
+                    // Older student accounts were created with their real email. If the
+                    // student enters the mobile number, map it back to that legacy email.
+                    if (!/^\d{10}$/.test(String(identifier).trim())) throw error;
+                    const legacyEmail = await findLegacyEmailForMobile(identifier);
+                    if (!legacyEmail || legacyEmail === loginTarget.authEmail) throw error;
+                    if (!await ensureDeviceUnlockedForEmail(legacyEmail)) throw new Error('This device is locked to another student.');
+                    userCredential = await signInWithEmailAndPassword(auth, legacyEmail, password);
+                }
+                checkDeviceLogin(userCredential.user);
+            } catch (error) {
+                showLoginStatus(`Login failed: ${error.message}`, 'error');
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+                loginBtn.disabled = false;
+            }
         });
 
         // Register functionality
