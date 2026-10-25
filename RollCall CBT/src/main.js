@@ -145,7 +145,7 @@ function createWindow() {
         minHeight: 700,
         backgroundColor: '#0a0f1d',
         title: 'RollCall CBT - Offline Computer-Based Testing System',
-        icon: path.join(__dirname, '..', '..', 'RollCall ERP', 'desktop', 'build', 'icon.ico'),
+        icon: path.join(__dirname, '..', 'images', 'icon.ico'),
         show: false,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
