@@ -90,7 +90,7 @@
     async function generateCbtLicenseFile(schoolCode, institutionName = 'RollCall Institution', expiryDateMs = null, options = {}) {
         const cleanCode = String(schoolCode || 'ROLL-SCH-01').trim().toUpperCase();
         const expiry = Number(expiryDateMs) || (Date.now() + 365 * 24 * 60 * 60 * 1000);
-        const licenseKey = await generateCbtLicenseKey(cleanCode, expiry);
+        const licenseKey = options.licenseKey || await generateCbtLicenseKey(cleanCode, expiry);
 
         const payload = {
             magic: 'ROLLLIC_CBT',
@@ -222,6 +222,41 @@
         return !end || end >= Date.now();
     }
 
+    function getLicenseKeyExpiry(licenseKey) {
+        const match = String(licenseKey || '').match(/^RCCBT-V1-.+-(\d+)-[a-f0-9]{32,64}$/i);
+        return match ? Number(match[1]) : 0;
+    }
+
+    async function getOrCreateStoredCbtLicense(schoolId, schoolCode, schoolName, planExpiry, planStart, maxDevices) {
+        if (!cbtSubscriptionIsActive(window.currentCbtPlanSubscription)) {
+            throw new Error('An active CBT plan is required before generating a license key.');
+        }
+        const ref = window.firebase.database().ref(`schools/${schoolId}/cbtLicense`);
+        const snapshot = await ref.once('value');
+        const stored = snapshot.val() || {};
+        const storedExpiry = getLicenseKeyExpiry(stored.licenseKey);
+        if (stored.licenseKey && String(stored.schoolCode || '').toUpperCase() === String(schoolCode || '').toUpperCase() && storedExpiry === Number(planExpiry)) {
+            window.currentCbtLicenseRecord = { ...stored, licenseKey: stored.licenseKey };
+            return window.currentCbtLicenseRecord;
+        }
+
+        const licenseKey = await generateCbtLicenseKey(schoolCode, planExpiry);
+        const record = {
+            ...stored,
+            schoolCode,
+            schoolName,
+            licenseKey,
+            activationStartDate: planStart,
+            expiryDate: new Date(planExpiry).toISOString(),
+            maxDevices: Math.max(1, Math.floor(Number(maxDevices) || 1)),
+            issuedAt: stored.issuedAt || new Date().toISOString(),
+            updatedAt: Date.now()
+        };
+        await ref.set(record);
+        window.currentCbtLicenseRecord = record;
+        return record;
+    }
+
     window.refreshCbtPlanAccess = async function (schoolId) {
         const item = document.querySelector('.sidebar-menu-item-modern[data-section="cbt-portal"]');
         if (!schoolId || !window.firebase?.database) {
@@ -235,6 +270,7 @@
             const active = cbtSubscriptionIsActive(window.currentCbtPlanSubscription);
             window.currentCbtPlanActive = active;
             if (item) item.hidden = !active;
+            if (!active) document.getElementById('account-cbt-license-card')?.remove();
             if (!active && document.getElementById('cbt-portal-section-active')) {
                 document.querySelector('.sidebar-menu-item-modern[data-section="dashboard"]')?.click();
             }
@@ -280,14 +316,14 @@
         const planExpiry = Date.parse(cbtSubscription.endDate || '') || (Date.now() + 365 * 24 * 60 * 60 * 1000);
         const planStart = cbtSubscription.startDate || new Date().toISOString();
         const defaultMaxDevices = Math.max(1, Number(cbtSubscription.maxDevices || cbtSubscription.deviceLimit || 1));
-        const initialKey = await generateCbtLicenseKey(currentSchoolCode, planExpiry);
-        if (licenseCodeDisplay) licenseCodeDisplay.textContent = initialKey;
         const maxDevicesInput = section.querySelector('#cbt-license-max-devices');
         const startDateDisplay = section.querySelector('#cbt-license-start-date');
         const expiryDateDisplay = section.querySelector('#cbt-license-expiry-date');
         if (maxDevicesInput) maxDevicesInput.value = String(defaultMaxDevices);
         if (startDateDisplay) startDateDisplay.textContent = new Date(planStart).toLocaleString();
         if (expiryDateDisplay) expiryDateDisplay.textContent = new Date(planExpiry).toLocaleString();
+        const storedLicense = await getOrCreateStoredCbtLicense(schoolId, currentSchoolCode, currentInstName, planExpiry, planStart, defaultMaxDevices);
+        if (licenseCodeDisplay) licenseCodeDisplay.textContent = storedLicense.licenseKey;
 
         // Tab Navigation inside CBT Hub
         const tabBtns = section.querySelectorAll('.cbt-tab-btn');
@@ -316,13 +352,18 @@
                 btnDownloadLicense.disabled = true;
                 btnDownloadLicense.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating File...';
                 try {
+                    if (!await window.refreshCbtPlanAccess(schoolId)) throw new Error('The CBT plan is no longer active for this school.');
                     const maxDevices = Math.max(1, Math.floor(Number(maxDevicesInput?.value || 0)));
                     if (!Number.isInteger(maxDevices) || maxDevices < 1) throw new Error('Enter a valid maximum device count.');
-                    const fileContent = await generateCbtLicenseFile(currentSchoolCode, currentInstName, planExpiry, { maxDevices, activationStartDate: planStart });
+                    const activeSubscription = window.currentCbtPlanSubscription || {};
+                    const activePlanExpiry = Date.parse(activeSubscription.endDate || '') || (Date.now() + 365 * 24 * 60 * 60 * 1000);
+                    const activePlanStart = activeSubscription.startDate || new Date().toISOString();
+                    const licenseRecord = await getOrCreateStoredCbtLicense(schoolId, currentSchoolCode, currentInstName, activePlanExpiry, activePlanStart, maxDevices);
+                    const fileContent = await generateCbtLicenseFile(currentSchoolCode, currentInstName, activePlanExpiry, { maxDevices, activationStartDate: activePlanStart, licenseKey: licenseRecord.licenseKey });
                     const filename = `${currentSchoolCode}-cbt-license.rolllic`;
                     downloadBlob(filename, fileContent, 'application/json');
                     const issuedAt = new Date().toISOString();
-                    await window.firebase.database().ref(`schools/${schoolId}/cbtLicense`).set({ maxDevices, activationStartDate: planStart, expiryDate: new Date(planExpiry).toISOString(), issuedAt, updatedAt: Date.now() });
+                    await window.firebase.database().ref(`schools/${schoolId}/cbtLicense`).update({ ...licenseRecord, maxDevices, activationStartDate: activePlanStart, expiryDate: new Date(activePlanExpiry).toISOString(), issuedAt, updatedAt: Date.now() });
                     if (licenseStatusMsg) {
                         licenseStatusMsg.textContent = `✓ License file "${filename}" issued for ${maxDevices} device${maxDevices === 1 ? '' : 's'}. Copy it to removable storage before activation.`;
                         licenseStatusMsg.style.color = '#10b981';
@@ -338,7 +379,16 @@
 
         if (btnCopyLicense) {
             btnCopyLicense.onclick = async () => {
-                const key = licenseCodeDisplay ? licenseCodeDisplay.textContent : await generateCbtLicenseKey(currentSchoolCode, planExpiry);
+                if (!await window.refreshCbtPlanAccess(schoolId)) {
+                    alert('The CBT plan is not active for this school.');
+                    return;
+                }
+                const activeSubscription = window.currentCbtPlanSubscription || {};
+                const activePlanExpiry = Date.parse(activeSubscription.endDate || '') || (Date.now() + 365 * 24 * 60 * 60 * 1000);
+                const activePlanStart = activeSubscription.startDate || new Date().toISOString();
+                const licenseRecord = await getOrCreateStoredCbtLicense(schoolId, currentSchoolCode, currentInstName, activePlanExpiry, activePlanStart, Number(maxDevicesInput?.value || defaultMaxDevices));
+                const key = licenseRecord.licenseKey;
+                if (licenseCodeDisplay) licenseCodeDisplay.textContent = key;
                 navigator.clipboard.writeText(key).then(() => {
                     if (licenseStatusMsg) {
                         licenseStatusMsg.textContent = '✓ CBT Access Code copied to clipboard!';
@@ -840,10 +890,16 @@
 
             if (btnDownload) {
                 btnDownload.onclick = async () => {
+                    if (!await window.refreshCbtPlanAccess(schoolId)) {
+                        if (statusEl) statusEl.textContent = 'An active CBT plan is required for this school.';
+                        return;
+                    }
                     const subscription = window.currentCbtPlanSubscription || {};
                     const expiry = Date.parse(subscription.endDate || '') || (Date.now() + 365 * 24 * 60 * 60 * 1000);
+                    const planStart = subscription.startDate || new Date().toISOString();
                     const maxDevices = Math.max(1, Math.floor(Number(subscription.maxDevices || subscription.deviceLimit || 1)));
-                    const fileContent = await generateCbtLicenseFile(currentSchoolCode, currentInstName, expiry, { maxDevices, activationStartDate: subscription.startDate || new Date().toISOString() });
+                    const licenseRecord = await getOrCreateStoredCbtLicense(schoolId, currentSchoolCode, currentInstName, expiry, planStart, maxDevices);
+                    const fileContent = await generateCbtLicenseFile(currentSchoolCode, currentInstName, expiry, { maxDevices, activationStartDate: planStart, licenseKey: licenseRecord.licenseKey });
                     const filename = `${currentSchoolCode}-cbt-license.rolllic`;
                     downloadBlob(filename, fileContent, 'application/json');
                     if (statusEl) {
@@ -855,7 +911,16 @@
 
             if (btnCopy) {
                 btnCopy.onclick = async () => {
-                    const key = await generateCbtLicenseKey(currentSchoolCode);
+                    if (!await window.refreshCbtPlanAccess(schoolId)) {
+                        if (statusEl) statusEl.textContent = 'An active CBT plan is required for this school.';
+                        return;
+                    }
+                    const subscription = window.currentCbtPlanSubscription || {};
+                    const expiry = Date.parse(subscription.endDate || '') || (Date.now() + 365 * 24 * 60 * 60 * 1000);
+                    const planStart = subscription.startDate || new Date().toISOString();
+                    const maxDevices = Math.max(1, Math.floor(Number(subscription.maxDevices || subscription.deviceLimit || 1)));
+                    const licenseRecord = await getOrCreateStoredCbtLicense(schoolId, currentSchoolCode, currentInstName, expiry, planStart, maxDevices);
+                    const key = licenseRecord.licenseKey;
                     navigator.clipboard.writeText(key).then(() => {
                         if (statusEl) {
                             statusEl.textContent = '✓ CBT Access Key copied to clipboard!';

@@ -15,6 +15,7 @@ RollCall CBT is a standalone, 100% offline Electron application engineered for h
 
 3. **Offline License Activation (`.rolllic`)**:
    - Licenses are issued only to schools with an active standalone CBT plan from the RollCall Admin Panel.
+   - The school-scoped CBT license key is generated only for an active CBT plan, saved once, and reused until that plan expires.
    - Admin sets the activation start, expiry, and maximum device count.
    - The IDE accepts the license only when selected directly from removable external storage.
    - Teacher Exam Studio creates one section-specific scheduled assignment and encrypted exam file per checked section, including school details and the section roster.
