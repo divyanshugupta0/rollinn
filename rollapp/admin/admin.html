@@ -6316,7 +6316,7 @@
         <script type="module">
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, indexedDBLocalPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
         import { getDatabase, ref, set, get, child, remove, update, onValue, push, serverTimestamp, query, orderByChild, orderByKey, startAt, equalTo, limitToFirst, limitToLast, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
 
         // Firebase Configuration
@@ -6326,6 +6326,8 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const database = getDatabase(app);
+        const authPersistenceReady = setPersistence(auth, indexedDBLocalPersistence)
+            .catch(() => setPersistence(auth, browserLocalPersistence));
         window.__rollCallSchoolDatabase = {
             read: path => get(ref(database, path)),
             readRecent: path => get(query(ref(database, path), limitToLast(50))),
@@ -7418,7 +7420,7 @@
         initializeLoginUX();
 
         // Login functionality
-        function handleLogin() {
+        async function handleLogin() {
             const remainingLock = getLoginLockRemainingMs();
             if (remainingLock > 0) {
                 updateLoginLockUI();
@@ -7439,6 +7441,7 @@
             loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
             loginBtn.disabled = true;
 
+            await authPersistenceReady;
             signInWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
                     // Existing code for login success
@@ -16360,4 +16363,3 @@
 </body>
 
 </html>
-

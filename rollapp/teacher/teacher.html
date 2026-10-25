@@ -8283,8 +8283,9 @@
             firebase.auth().onAuthStateChanged(async user => {
                 if (!user) return;
                 try {
-                    const snapshot = await firebase.database().ref('users/' + user.uid).once('value');
-                    const profile = snapshot.val();
+                    const profile = window.waitForTeacherPortalProfile
+                        ? await window.waitForTeacherPortalProfile(user)
+                        : (await firebase.database().ref('users/' + user.uid).once('value')).val();
                     if (!profile || profile.role !== 'teacher') return;
                     const name = (profile.name || user.displayName || '').trim().split(/\s+/)[0];
                     const welcome = document.getElementById('teacherWelcome');
