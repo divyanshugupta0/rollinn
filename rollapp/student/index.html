@@ -3195,9 +3195,9 @@
                     </div>
 
                     <div class="login-field-wrap">
-                        <label class="login-field-label" for="email">Student Email Address</label>
+                        <label class="login-field-label" for="email">Student Email or Mobile Number</label>
                         <div class="login-input-container">
-                            <input type="email" id="email" class="login-styled-input" placeholder="e.g. rollno@college.edu" autocomplete="username" required>
+                            <input type="text" id="email" class="login-styled-input" placeholder="e.g. rollno@college.edu or 9876543210" autocomplete="username" inputmode="email" required>
                             <i class="fas fa-envelope login-input-icon"></i>
                         </div>
                     </div>
@@ -6305,17 +6305,24 @@
         // Log device ID for debugging
         console.log('Device ID initialized:', deviceId);
 
+        function resolveStudentLoginIdentifier(identifier) {
+            const value = String(identifier || '').trim();
+            return /^\d{10}$/.test(value)
+                ? { authEmail: `mobile.${value}@rollcall.local`, loginIdentifier: value }
+                : { authEmail: value.toLowerCase(), loginIdentifier: value };
+        }
+
         // Login functionality
         loginBtn.addEventListener('click', async () => {
-            const email = emailInput.value;
+            const identifier = emailInput.value;
             const password = passwordInput.value;
 
-            if (!email || !password) {
+            if (!identifier || !password) {
                 showLoginStatus('Please enter both email and password', 'error');
                 return;
             }
 
-            saveLoginEmail(email);
+            saveLoginEmail(identifier);
 
             if (isIOSDevice && !isIOSSafari) {
                 showLoginStatus('On iPhone, please use Safari to log in.', 'error');
@@ -6329,8 +6336,10 @@
             await configureAuthPersistence();
 
             let canLogin = false;
+            let loginTarget = null;
             try {
-                canLogin = await ensureDeviceUnlockedForEmail(email);
+                loginTarget = await resolveStudentLoginIdentifier(identifier);
+                canLogin = await ensureDeviceUnlockedForEmail(loginTarget.authEmail);
             } catch (error) {
                 showLoginStatus(`Login check failed: ${error.message}`, 'error');
             }
@@ -6341,7 +6350,7 @@
                 return;
             }
 
-            signInWithEmailAndPassword(auth, email, password)
+            signInWithEmailAndPassword(auth, loginTarget.authEmail, password)
                 .then((userCredential) => {
                     // Check if this user is already logged in on another device
                     checkDeviceLogin(userCredential.user);
@@ -7224,7 +7233,7 @@
                         applyAndroidDownloadCreditsFromUserData(userData);
 
                         // Persist email for faster login next time
-                        saveLoginEmail(currentUser.email || user.email || emailInput.value);
+                        saveLoginEmail(userData.authType === 'mobile' ? (userData.mobile || emailInput.value) : (currentUser.email || user.email || emailInput.value));
 
                         console.log("Processed currentUser object:", currentUser);
                         console.log("Class Roll in currentUser:", currentUser.classRoll);
@@ -12454,4 +12463,3 @@
 </body>
 
 </html>
-

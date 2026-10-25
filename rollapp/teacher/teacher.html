@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <script defer src="../shared/image-cache.js"></script>
@@ -374,7 +374,7 @@
             gap: 12px;
         }
         
-        /* Mobile sidebar toggle button â€“ hidden by default, shown only on mobile via media query */
+        /* Mobile sidebar toggle button Ã¢â‚¬â€œ hidden by default, shown only on mobile via media query */
         #mobileSidebarToggle { display: none; }
 
         .sidebar-user {
@@ -3672,7 +3672,7 @@
                 box-shadow: 0 0 10px rgba(199, 227, 107, 0.9) !important;
             }
 
-            /* Main content: always full-width on mobile â€” sidebar is a fixed overlay */
+            /* Main content: always full-width on mobile Ã¢â‚¬â€ sidebar is a fixed overlay */
             body.teacher-authenticated .main-content,
             body.teacher-authenticated .main-content-expanded,
             body.teacher-authenticated .main-content.main-content-expanded {
@@ -3985,7 +3985,7 @@
             body.teacher-authenticated #attendanceSection .locations-container { grid-template-columns:minmax(0,1fr) !important; }
             body.teacher-authenticated #attendanceSection .location-actions .action-btn { min-height:44px !important; font-size:9px !important; }
             body.teacher-authenticated #attendanceSection .class-selection-container { padding:14px !important; }
-            /* Modals â€“ slide up from bottom on small screens */
+            /* Modals Ã¢â‚¬â€œ slide up from bottom on small screens */
             .popup-overlay,.modal-overlay { align-items:flex-end; padding:8px; }
             #attendancePopup .popup-container { width:calc(100% - 16px) !important; height:min(94vh,900px) !important; max-height:94vh; border-radius:17px 17px 12px 12px; }
             #locationModal .modal-body { padding:15px !important; }
@@ -4609,11 +4609,11 @@
         </div>
     </div>
 
-    <!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-         Attendance Management Popup â€” Redesigned
-         â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+    <!-- Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+         Attendance Management Popup Ã¢â‚¬â€ Redesigned
+         Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â -->
     <style>
-    /* â”€â”€ Overlay â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Overlay Ã¢â€â‚¬Ã¢â€â‚¬ */
     #attendancePopup {
         position: fixed; inset: 0; z-index: 9999;
         display: flex; align-items: center; justify-content: center;
@@ -4622,7 +4622,7 @@
         -webkit-backdrop-filter: blur(10px);
         padding: 12px;
     }
-    /* â”€â”€ Modal shell â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Modal shell Ã¢â€â‚¬Ã¢â€â‚¬ */
     #attendancePopup .ap-shell {
         display: flex; flex-direction: column;
         width: min(1080px, 100%);
@@ -4633,7 +4633,7 @@
         box-shadow: 0 32px 80px rgba(5, 30, 18, 0.32), 0 2px 8px rgba(0,0,0,.12);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
-    /* â”€â”€ Header â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Header Ã¢â€â‚¬Ã¢â€â‚¬ */
     #attendancePopup .ap-header {
         flex: 0 0 auto; display: flex; align-items: center; gap: 14px;
         padding: 16px 20px;
@@ -4663,7 +4663,7 @@
         transition: background .18s;
     }
     #attendancePopup .ap-close:hover { background: rgba(255,255,255,.24); }
-    /* â”€â”€ Class meta pills â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Class meta pills Ã¢â€â‚¬Ã¢â€â‚¬ */
     #attendancePopup .ap-meta {
         flex: 0 0 auto; display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
         padding: 11px 20px; background: #f6faf7; border-bottom: 1px solid #e3ede6;
@@ -4675,7 +4675,7 @@
         font-size: 12px; font-weight: 500; color: #2d5a42;
     }
     #attendancePopup .ap-meta-pill i { font-size: 10px; color: #4e9a6e; }
-    /* â”€â”€ Controls Row & Date bar â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Controls Row & Date bar Ã¢â€â‚¬Ã¢â€â‚¬ */
     #attendancePopup .ap-controls-row {
         flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
         gap: 10px; padding: 6px 18px; border-bottom: 1.5px solid #edf1ef; background: #fff;
@@ -4722,7 +4722,7 @@
     #attendancePopup .ap-nav-btn:hover { background: #dcfce7 !important; border-color: #86efac !important; }
     #attendancePopup .ap-nav-btn.today-btn { background: #dcfce7 !important; border-color: #86efac !important; color: #15803d !important; font-weight: 700 !important; }
 
-    /* â”€â”€ Search â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Search Ã¢â€â‚¬Ã¢â€â‚¬ */
     #attendancePopup .ap-search-wrap {
         flex: 0 0 220px !important; width: 220px !important; position: relative !important;
         padding: 0 !important; border: none !important; background: transparent !important;
@@ -4746,7 +4746,7 @@
         color: #7a9a86 !important; pointer-events: none !important;
     }
 
-    /* â”€â”€ Stats strip â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Stats strip Ã¢â€â‚¬Ã¢â€â‚¬ */
     #attendancePopup .ap-stats-strip {
         flex: 0 0 auto; display: flex; gap: 0;
         border-bottom: 1px solid #e6eeea; background: #f9fdfb; overflow-x: auto;
@@ -4763,7 +4763,7 @@
     #attendancePopup .ap-stat.late strong    { color: #c97a10; }
     #attendancePopup .ap-stat.excused strong { color: #5b7fd4; }
     #attendancePopup .ap-stat.rate strong    { color: #126e48; }
-    /* â”€â”€ Workspace toolbar â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Workspace toolbar Ã¢â€â‚¬Ã¢â€â‚¬ */
     #attendancePopup .ap-workspace {
         flex: 0 0 auto; padding: 10px 20px;
         background: #fff; border-bottom: 1px solid #edf1ef;
@@ -4803,7 +4803,7 @@
     #attendancePopup .ap-bulk-btn[data-rc-status="excused"] { color: #2c4ea0; background: #eef2ff; border-color: #9eb0f0; }
     #attendancePopup .ap-mode-notice { margin-top: 7px; font-size: 11px; color: #6a8a78; min-height: 16px; }
 
-    /* â”€â”€ Body â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Body Ã¢â€â‚¬Ã¢â€â‚¬ */
     #attendancePopup .ap-body { flex: 1 1 auto; overflow-y: auto; min-height: 0; -webkit-overflow-scrolling: touch; }
 
     /* Loading Animation: HIDDEN BY DEFAULT, ONLY SHOWN WHEN ACTIVE */
@@ -4817,7 +4817,7 @@
     }
     #attendancePopup .ap-body .student-list { margin: 0; padding: 0; background: #fff; }
 
-    /* â”€â”€ Student List Table & Minimalist Rows â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Student List Table & Minimalist Rows Ã¢â€â‚¬Ã¢â€â‚¬ */
     #attendancePopup .attendance-table {
         width: 100%;
         border-collapse: separate;
@@ -4941,7 +4941,7 @@
         box-shadow: 0 2px 6px rgba(212, 59, 59, 0.3) !important;
     }
 
-    /* â”€â”€ Footer â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Footer Ã¢â€â‚¬Ã¢â€â‚¬ */
     #attendancePopup .ap-footer {
         flex: 0 0 auto; display: flex; align-items: center;
         justify-content: space-between; gap: 10px; flex-wrap: wrap;
@@ -4966,7 +4966,7 @@
     }
     #attendancePopup .ap-btn-submit:hover { background: linear-gradient(135deg, #0f5233, #14683f); }
 
-    /* â”€â”€ Mobile Responsive (Clean Minimal Portal for phones) â”€â”€ */
+    /* Ã¢â€â‚¬Ã¢â€â‚¬ Mobile Responsive (Clean Minimal Portal for phones) Ã¢â€â‚¬Ã¢â€â‚¬ */
     @media (max-width: 600px) {
         #attendancePopup { padding: 0; align-items: flex-end; }
         #attendancePopup .ap-shell { width: 100%; height: 96dvh; border-radius: 20px 20px 0 0; }
@@ -5036,10 +5036,10 @@
         }
     }
 
-    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
        SCHOOL MODE ONLY OVERRIDES (#attendancePopup.ap-school-mode, body.teacher-school-mode #attendancePopup)
        Maximizes visible area for the student roster & Present/Absent buttons
-       â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+       Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
     #attendancePopup.ap-school-mode .ap-shell,
     body.teacher-school-mode #attendancePopup .ap-shell {
         width: min(1140px, 98vw);
@@ -5653,7 +5653,7 @@
 
             <!-- Class meta pills -->
             <div class="ap-meta">
-                <span class="ap-meta-pill"><i class="fas fa-map-marker-alt"></i><span id="popupClassName">â€”</span></span>
+                <span class="ap-meta-pill"><i class="fas fa-map-marker-alt"></i><span id="popupClassName">Ã¢â‚¬â€</span></span>
                 <span class="ap-meta-pill"><i class="far fa-clock"></i><span id="popupClassTime">Time: N/A</span></span>
                 <span class="ap-meta-pill"><i class="fas fa-book-open"></i><span id="popupClassLocation">Class: N/A</span></span>
             </div>
@@ -5674,7 +5674,7 @@
                 <div class="ap-search-wrap">
                     <label class="sr-only" for="popupStudentFilter">Filter roster</label>
                     <i class="fas fa-search" aria-hidden="true"></i>
-                    <input id="popupStudentFilter" type="search" class="ap-search-input" placeholder="Search student name or rollâ€¦" autocomplete="off">
+                    <input id="popupStudentFilter" type="search" class="ap-search-input" placeholder="Search student name or rollÃ¢â‚¬Â¦" autocomplete="off">
                     <span id="popupFilterCount" class="ap-filter-count" aria-live="polite"></span>
                 </div>
             </div>
@@ -5741,12 +5741,12 @@
             <div class="ap-body">
                 <div id="attendancePopupLoadingAnimation" class="loading-animation">
                     <div class="dot-pulse"></div>
-                    <span class="loading-text">Loading attendance dataâ€¦</span>
+                    <span class="loading-text">Loading attendance dataÃ¢â‚¬Â¦</span>
                 </div>
                 <div class="student-list" id="popupStudentList" style="display:none;">
                     <div class="loader-container"><div class="loader"></div></div>
                 </div>
-                <!-- Legacy summary (hidden â€” stats strip above replaces visual) -->
+                <!-- Legacy summary (hidden Ã¢â‚¬â€ stats strip above replaces visual) -->
                 <div class="attendance-summary" id="attendanceSummary" style="display:none;">
                     <div class="summary-card present-card"><i class="fas fa-user-check"></i><div><h4>Present</h4><div id="popupPresentCount" class="count">0</div></div></div>
                     <div class="summary-card absent-card"><i class="fas fa-user-times"></i><div><h4>Absent</h4><div id="popupAbsentCount" class="count">0</div></div></div>
@@ -5797,6 +5797,7 @@
     <script src="teacher-leave-requests.js"></script>
     <script src="teacher-homework.js"></script>
     <script src="teacher-test-scores.js"></script>
+    <script src="teacher-cbt-studio.js"></script>
     <script src="date-based-classes.js"></script>
     <script src="attendance-fixes.js"></script>
     <script src="button-fix.js"></script>
@@ -8313,4 +8314,6 @@
     <script src="teacher-header.js"></script>
 </body>
 </html>
+
+
 

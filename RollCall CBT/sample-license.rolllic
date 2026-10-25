@@ -1,0 +1,23 @@
+{
+  "header": "ROLLCALL_CBT_OFFLINE_LICENSE_FILE_V1",
+  "signature": "91e9750e9d30c8094a52a5ef97f52a910272caf21e1584e1c06378a53bb74ae6",
+  "license": {
+    "magic": "ROLLLIC_CBT",
+    "version": "1.0",
+    "schoolCode": "ROLL-SCH-101",
+    "institutionName": "RollCall Central Academy",
+    "licenseKey": "RCCBT-V1-ROLL-SCH-101-1824458030578-a264b32b75c246ca6f021694360b112c",
+    "tier": "RollCall CBT Offline Enterprise Edition",
+    "issuedAt": "2026-10-25T09:53:50.579Z",
+    "expiresAt": 1824458030578,
+    "expiryDate": "25 Oct 2027",
+    "features": [
+      "100% Air-Gapped Offline Operation",
+      "Full Anti-Cheat Proctoring & Kiosk Lockdown",
+      "Full Offline Student Roster Verification",
+      "Encrypted .rollcbt Exam Package Ingestion",
+      "Digitally Signed .rollcbt-sub Submissions",
+      "Unlimited Offline Test Centers & Candidates"
+    ]
+  }
+}

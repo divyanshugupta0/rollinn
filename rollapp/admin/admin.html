@@ -167,6 +167,8 @@
     <script src="manage-batches.js"></script>
     <script src="../accessibility/accessibility-settings.js?v=natural-voice-20261022-v1"></script>
     <script src="live-attendees.js"></script>
+    <link rel="stylesheet" href="cbt-portal.css">
+    <script src="cbt-portal.js"></script>
     <script>
         function fetchMobileCoordinates() {
             firebase.database().ref('mobileCoordinates').once('value').then(s => {
@@ -4470,6 +4472,11 @@
                         <div class="menu-item-icon"><i class="fas fa-book-open"></i></div>
                         <span class="menu-item-text">Manage Subjects</span>
                     </div>
+                    <div class="sidebar-menu-item-modern" data-section="cbt-portal">
+                        <div class="menu-item-icon"><i class="fas fa-laptop-code"></i></div>
+                        <span class="menu-item-text">RollCall CBT Hub</span>
+                        <span class="menu-item-badge new" style="background:#10b981; color:#fff; font-size:0.65rem; padding:2px 6px; border-radius:4px;">CBT</span>
+                    </div>
                     <div class="sidebar-menu-item-modern" data-section="notifications">
                         <div class="menu-item-icon">
                             <i class="fas fa-bell"></i>
@@ -5666,6 +5673,281 @@
                 <p id="smStatus" class="sm-status" role="status" aria-live="polite"></p>
             </div>
         </section>
+    </div>
+
+    <!-- RollCall CBT Hub Section Template -->
+    <div id="cbt-portal-section" class="section-template hidden">
+        <div class="cbt-hub-shell">
+            <div class="cbt-header">
+                <div class="cbt-header-left">
+                    <div class="cbt-header-icon">
+                        <i class="fas fa-laptop-code"></i>
+                    </div>
+                    <div class="cbt-header-text">
+                        <h2>RollCall CBT Hub &amp; Exam Studio</h2>
+                        <p>Generate secure, tamper-proof offline <code>.rollcbt</code> exams and issue offline CBT activation licenses.</p>
+                    </div>
+                </div>
+                <div class="cbt-offline-badge">
+                    <i class="fas fa-shield-alt"></i> 100% Offline Testing Compatible
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="cbt-tabs-nav">
+                <button type="button" class="cbt-tab-btn active" data-tab="cbt-tab-license">
+                    <i class="fas fa-id-card"></i> CBT License Center
+                </button>
+                <button type="button" class="cbt-tab-btn" data-tab="cbt-tab-builder">
+                    <i class="fas fa-file-invoice"></i> Create &amp; Export .rollcbt Exam
+                </button>
+                <button type="button" class="cbt-tab-btn" data-tab="cbt-tab-evaluator">
+                    <i class="fas fa-chart-bar"></i> Evaluate Offline Submissions (.rollcbt-sub)
+                </button>
+            </div>
+
+            <!-- TAB 1: License Center -->
+            <div class="cbt-tab-pane active" id="cbt-tab-license">
+                <div class="cbt-license-card-grid">
+                    <div class="cbt-box">
+                        <h3><i class="fas fa-building"></i> Institution Details</h3>
+                        <p style="color:#64748b; font-size:0.9rem;">Your CBT licenses are cryptographically bound to this institution code.</p>
+                        <div style="margin-top:14px;">
+                            <div style="font-size:0.85rem; color:#64748b;">Institution Name:</div>
+                            <strong id="cbt-inst-name-display" style="font-size:1.1rem; color:#0f172a;">Loading...</strong>
+                        </div>
+                        <div style="margin-top:10px;">
+                            <div style="font-size:0.85rem; color:#64748b;">School Code:</div>
+                            <code id="cbt-school-code-display" style="font-size:1rem; font-weight:700; color:#2563eb;">Loading...</code>
+                        </div>
+                    </div>
+
+                    <div class="cbt-box">
+                        <h3><i class="fas fa-key"></i> Offline License Code</h3>
+                        <p style="color:#64748b; font-size:0.9rem;">Active offline enterprise license code for student computers.</p>
+                        <div class="cbt-code-display" id="cbt-license-code-display">Generating...</div>
+                        <div class="cbt-actions-row">
+                            <button type="button" class="btn-cbt-primary" id="btn-download-cbt-license">
+                                <i class="fas fa-download"></i> Download .rolllic License File
+                            </button>
+                            <button type="button" class="btn-cbt-secondary" id="btn-copy-cbt-license">
+                                <i class="fas fa-copy"></i> Copy Code
+                            </button>
+                        </div>
+                        <p id="cbt-license-status-msg" style="margin-top:10px; font-size:0.85rem; font-weight:600;"></p>
+                    </div>
+                </div>
+
+                <div class="cbt-box" style="border-left: 4px solid #10b981;">
+                    <h3><i class="fas fa-desktop"></i> RollCall CBT Desktop Application</h3>
+                    <p style="color:#64748b; font-size:0.9rem; margin-bottom:14px;">
+                        Install the RollCall CBT application on all exam lab computers. Once launched, simply upload the <code>.rolllic</code> file downloaded above to activate the machine offline without internet access.
+                    </p>
+                    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                        <span style="font-size:0.85rem; font-weight:700; color:#10b981;"><i class="fas fa-check-circle"></i> Works in all Admin Panel Modes (School, College, Coaching, ERP)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: Exam Builder -->
+            <div class="cbt-tab-pane" id="cbt-tab-builder">
+                <!-- Exam Metadata Form -->
+                <div class="cbt-form-section">
+                    <h4><i class="fas fa-info-circle"></i> Examination Specifications</h4>
+                    <div class="cbt-grid-3">
+                        <div class="cbt-field-group">
+                            <label>Exam Title</label>
+                            <input type="text" id="cbt-input-exam-title" value="Terminal Computer-Based Assessment">
+                        </div>
+                        <div class="cbt-field-group">
+                            <label>Exam Code</label>
+                            <input type="text" id="cbt-input-exam-code" value="CBT-2026-TERM1">
+                        </div>
+                        <div class="cbt-field-group">
+                            <label>Subject</label>
+                            <input type="text" id="cbt-input-exam-subject" value="General Studies">
+                        </div>
+                    </div>
+                    <div class="cbt-grid-3" style="margin-top:14px;">
+                        <div class="cbt-field-group">
+                            <label>Target Class / Batch</label>
+                            <input type="text" id="cbt-input-exam-grade" value="All Batches">
+                        </div>
+                        <div class="cbt-field-group">
+                            <label>Duration (Minutes)</label>
+                            <input type="number" id="cbt-input-exam-duration" value="60" min="5" max="360">
+                        </div>
+                        <div class="cbt-field-group">
+                            <label>Total Marks / Pass %</label>
+                            <div style="display:flex; gap:8px;">
+                                <input type="number" id="cbt-input-exam-marks" value="50" style="flex:1;">
+                                <input type="number" id="cbt-input-exam-pass" value="40" style="flex:1;" placeholder="Pass %">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cbt-field-group" style="margin-top:14px;">
+                        <label>Candidate Instructions</label>
+                        <textarea id="cbt-input-exam-instructions" rows="2">1. All questions are compulsory. 2. Leaving the exam window will incur security strikes. 3. Ensure your webcam is enabled.</textarea>
+                    </div>
+                </div>
+
+                <!-- Anti-Cheat Rules -->
+                <div class="cbt-form-section">
+                    <h4><i class="fas fa-shield-alt"></i> Security &amp; Anti-Cheat Policies</h4>
+                    <div class="cbt-checkbox-grid">
+                        <label class="cbt-checkbox-label">
+                            <input type="checkbox" id="cbt-rule-fullscreen" checked>
+                            <span>Fullscreen Kiosk Lockdown</span>
+                        </label>
+                        <label class="cbt-checkbox-label">
+                            <input type="checkbox" id="cbt-rule-webcam" checked>
+                            <span>Require Live Webcam Proctoring</span>
+                        </label>
+                        <label class="cbt-checkbox-label">
+                            <input type="checkbox" id="cbt-rule-shuffle-q" checked>
+                            <span>Randomize Question Sequence</span>
+                        </label>
+                        <label class="cbt-checkbox-label">
+                            <input type="checkbox" id="cbt-rule-shuffle-opt" checked>
+                            <span>Randomize Options Sequence</span>
+                        </label>
+                        <label class="cbt-checkbox-label">
+                            <input type="checkbox" id="cbt-rule-instant-result" checked>
+                            <span>Show Immediate Results to Candidate</span>
+                        </label>
+                    </div>
+                    <div class="cbt-grid-3" style="margin-top:16px;">
+                        <div class="cbt-field-group">
+                            <label>Max Focus Loss / Tab Blur Strikes</label>
+                            <input type="number" id="cbt-rule-strikes" value="3" min="1" max="10">
+                        </div>
+                        <div class="cbt-field-group">
+                            <label>Negative Marking per Incorrect Answer</label>
+                            <input type="number" id="cbt-rule-neg" value="0.25" step="0.25" min="0">
+                        </div>
+                        <div class="cbt-field-group">
+                            <label>Calculator Utility in Exam</label>
+                            <select id="cbt-rule-calc">
+                                <option value="scientific" selected>Scientific Calculator</option>
+                                <option value="basic">Basic Calculator Only</option>
+                                <option value="none">Disabled (No Calculator)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Student Roster Section -->
+                <div class="cbt-form-section">
+                    <div class="cbt-candidates-header">
+                        <div>
+                            <h4 style="margin:0;"><i class="fas fa-users"></i> Authorized Candidate Roster</h4>
+                            <span id="cbt-candidate-count-label" style="font-size:0.85rem; color:#64748b;">0 Students Added</span>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button type="button" class="btn-cbt-primary" id="btn-autoload-students">
+                                <i class="fas fa-sync-alt"></i> Auto-Load Students from Database
+                            </button>
+                            <button type="button" class="btn-cbt-secondary" id="btn-add-candidate-manual">
+                                <i class="fas fa-user-plus"></i> Add Student
+                            </button>
+                        </div>
+                    </div>
+                    <div class="cbt-table-wrapper">
+                        <table class="cbt-table">
+                            <thead>
+                                <tr>
+                                    <th>Roll No</th>
+                                    <th>Student Name</th>
+                                    <th>Class / Batch</th>
+                                    <th>Exam PIN</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cbt-candidates-tbody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Questions Builder Section -->
+                <div class="cbt-form-section">
+                    <div class="cbt-candidates-header">
+                        <div>
+                            <h4 style="margin:0;"><i class="fas fa-list-ol"></i> Examination Questions</h4>
+                            <span style="font-size:0.85rem; color:#64748b;">Create questions or load sample question set</span>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button type="button" class="btn-cbt-secondary" id="btn-preload-sample-exam">
+                                <i class="fas fa-magic"></i> Preload Sample Exam
+                            </button>
+                            <button type="button" class="btn-cbt-primary" id="btn-add-question">
+                                <i class="fas fa-plus"></i> Add Question
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="cbt-questions-container" id="cbt-questions-container">
+                        <!-- Questions list injected dynamically -->
+                    </div>
+                </div>
+
+                <!-- Export Bar -->
+                <div class="cbt-footer-actions">
+                    <div>
+                        <strong style="color:#0f172a; font-size:1.05rem;">Ready to export .rollcbt package?</strong>
+                        <p id="cbt-export-status-msg" style="margin:2px 0 0; font-size:0.85rem; color:#64748b;">All questions, correct keys, and student rosters will be signed and encrypted.</p>
+                    </div>
+                    <button type="button" class="btn-cbt-primary" id="btn-export-rollcbt" style="padding:14px 28px; font-size:1rem;">
+                        <i class="fas fa-file-export"></i> Generate &amp; Download .rollcbt Exam Package
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 3: Offline Submissions Evaluator -->
+            <div class="cbt-tab-pane" id="cbt-tab-evaluator">
+                <div class="cbt-box" style="margin-bottom:24px;">
+                    <h3><i class="fas fa-file-import"></i> Upload Offline Submission Files (.rollcbt-sub)</h3>
+                    <p style="color:#64748b; font-size:0.9rem; margin-bottom:16px;">
+                        Collect the <code>.rollcbt-sub</code> files from student laptops/pen drives after the exam and upload them here to verify signatures, inspect scores, check anti-cheat logs, and export reports.
+                    </p>
+                    <input type="file" id="cbt-input-sub-file" accept=".rollcbt-sub" multiple hidden>
+                    <div id="cbt-submissions-dropzone" style="border:2px dashed #cbd5e1; border-radius:10px; padding:32px; text-align:center; cursor:pointer; background:#fff;">
+                        <i class="fas fa-cloud-upload-alt" style="font-size:2.2rem; color:#2563eb; margin-bottom:8px;"></i>
+                        <h4 style="margin:0 0 4px; font-size:1.05rem;">Click to select or drop .rollcbt-sub files</h4>
+                        <span style="font-size:0.82rem; color:#64748b;">Supports selecting multiple submission files at once</span>
+                    </div>
+                </div>
+
+                <div class="cbt-form-section">
+                    <div class="cbt-candidates-header">
+                        <h4 style="margin:0;"><i class="fas fa-clipboard-check"></i> Candidate Results &amp; Anti-Cheat Audit</h4>
+                        <button type="button" class="btn-cbt-secondary" id="btn-export-sub-csv">
+                            <i class="fas fa-file-csv"></i> Export Results as CSV
+                        </button>
+                    </div>
+                    <div class="cbt-table-wrapper">
+                        <table class="cbt-table">
+                            <thead>
+                                <tr>
+                                    <th>Roll No</th>
+                                    <th>Candidate Name</th>
+                                    <th>Exam Code</th>
+                                    <th>Score</th>
+                                    <th>Result</th>
+                                    <th>Anti-Cheat Audit</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cbt-submissions-tbody">
+                                <tr><td colspan="6" style="text-align:center; color:#94a3b8; padding:20px;">
+                                    No candidate submission records loaded yet.
+                                </td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="manage-account-section" class="section-template hidden account-management-panel">

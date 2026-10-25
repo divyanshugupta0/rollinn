@@ -1608,6 +1608,12 @@ function initManageAccountSection() {
                     erpLicensePanel.hidden = true;
                     if (erpDownloadPanel) erpDownloadPanel.hidden = true;
                 }
+                if (typeof window.initManageAccountCbtLicense === 'function') {
+                    window.currentAdminSchoolCode = school.code;
+                    window.currentAdminSchoolName = school.name;
+                    window.currentAdminSchoolId = loadedSchoolId;
+                    window.initManageAccountCbtLicense(section);
+                }
                 showStatus('success', 'Account and institution details are up to date.', 'fa-check-circle');
             })
             .catch(error => {
@@ -5461,7 +5467,7 @@ document.addEventListener('DOMContentLoaded', function () {
         item.addEventListener('click', function () {
             const section = this.getAttribute('data-section');
 
-            if (erpPortalModeActive && section !== 'manage-account' && section !== 'logout') {
+            if (erpPortalModeActive && section !== 'manage-account' && section !== 'cbt-portal' && section !== 'logout') {
                 document.querySelector('[data-section="manage-account"]')?.click();
                 return;
             }
@@ -5569,6 +5575,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     } else if (section === 'manage-batches') {
                         if (typeof window.initManageBatchesSection === 'function') {
                             window.initManageBatchesSection(clonedTemplate);
+                        }
+                    } else if (section === 'cbt-portal') {
+                        if (typeof window.initCbtPortalSection === 'function') {
+                            window.initCbtPortalSection(clonedTemplate);
                         }
                     }
                 } catch (initErr) {

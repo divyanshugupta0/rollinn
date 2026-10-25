@@ -3163,6 +3163,7 @@
           <div class="alert alert-warning"><strong>CSV passwords are sensitive.</strong> Use a trusted device and remove the file after importing. Rows are processed individually; failures won’t undo successful accounts.</div>
           <div class="row g-3"><div class="col-md-6"><label class="form-label" for="ownerBulkSchool">School</label><select id="ownerBulkSchool" class="form-select"><option value="">Select school</option></select><div id="ownerBulkSchoolCode" class="form-text">School code: —</div></div>
           <div class="col-md-6"><label class="form-label" for="ownerBulkType">Account type</label><select id="ownerBulkType" class="form-select"><option value="student">Student</option><option value="teacher">Teacher</option></select></div>
+          <div class="col-md-6" id="ownerBulkAuthField"><label class="form-label" for="ownerBulkAuthType">Auth Type</label><select id="ownerBulkAuthType" class="form-select"><option value="email">Email</option><option value="mobile">Mobile number</option></select><div class="form-text">Mobile auth uses the student’s mobile number as both username and initial password.</div></div>
           <div class="col-md-6" id="ownerBulkClassField"><label class="form-label" for="ownerBulkClass">Student class</label><select id="ownerBulkClass" class="form-select" disabled><option value="">Select a school first</option></select></div>
           <div class="col-md-6" id="ownerBulkSectionField"><label class="form-label" for="ownerBulkSection">Student section</label><select id="ownerBulkSection" class="form-select" disabled><option value="">Select a class first</option></select></div>
           <div class="col-md-6 d-flex align-items-end"><button id="ownerBulkTemplate" type="button" class="btn btn-outline-primary"><i class="fas fa-download"></i> Download CSV template</button></div>
@@ -3171,7 +3172,7 @@
           <div class="col-12"><div id="ownerBulkProgressWrap" hidden><div class="d-flex justify-content-between small mb-1"><span id="ownerBulkProgressLabel">Registration progress</span><span id="ownerBulkProgressCount">0 / 0</span></div><div class="progress" role="progressbar" aria-label="Registration progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="ownerBulkProgressBar" class="progress-bar" style="width:0%"></div></div></div></div>
           <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2"><span id="ownerBulkStatus" class="small text-muted" role="status">No CSV loaded.</span><button id="ownerBulkImport" type="button" class="btn btn-primary" disabled><i class="fas fa-user-plus"></i> Create accounts one by one</button></div></div></div>`;
         main.appendChild(section);
-        const schoolSelect = section.querySelector('#ownerBulkSchool'); const typeSelect = section.querySelector('#ownerBulkType');
+        const schoolSelect = section.querySelector('#ownerBulkSchool'); const typeSelect = section.querySelector('#ownerBulkType'); const authTypeSelect = section.querySelector('#ownerBulkAuthType');
         const classSelect = section.querySelector('#ownerBulkClass'); const sectionSelect = section.querySelector('#ownerBulkSection'); const csvInput = section.querySelector('#ownerBulkCsv'); const importButton = section.querySelector('#ownerBulkImport');
         let rows = []; let classes = []; let rowsContext = ''; const mailRetryQueue = new Map();
         function restoreNumericLeadingZeros(value, width) {
@@ -3189,7 +3190,7 @@
             const schoolType = String(school?.type || school?.institutionType || '').trim().toLowerCase();
             return schoolType.includes('college') || schoolType.includes('university');
         }
-        function registrationContext() { return `${schoolSelect.value}|${typeSelect.value}|${classSelect.value}|${sectionSelect.value}|${isCollegeSchool() ? 'college' : 'school'}`; }
+        function registrationContext() { return `${schoolSelect.value}|${typeSelect.value}|${authTypeSelect.value}|${classSelect.value}|${sectionSelect.value}|${isCollegeSchool() ? 'college' : 'school'}`; }
         function clearRowsForContextChange() {
             if (!rows.length || rowsContext === registrationContext()) return;
             rows = []; rowsContext = ''; section.querySelector('#ownerBulkStatus').textContent = 'CSV table cleared because the school, account type, class, or section changed.'; previewRows();
@@ -3223,7 +3224,7 @@
             const columns = section.querySelector('#ownerBulkRequiredColumns');
             const teacherColumns = [
                 ['name', 'Required', 'Full name; max 120 characters.', 'Aarav Sharma'],
-                ['email', 'Required', 'Valid email address; must not already be registered.', 'aarav@example.com'],
+                ['email', authTypeSelect.value === 'email' ? 'Required' : 'Optional', 'Valid email address when email login is selected.', 'aarav@example.com'],
                 ['password', 'Required', 'At least 8 characters.', 'ChangeMe123!'],
                 ['dateOfBirth', 'Required', 'DD-MM-YYYY or YYYY-MM-DD; real date, not in the future.', '15-05-2000'],
                 ['phone', 'Required', '10 digits; Excel-stripped leading zeros are restored.', '0987654321'],
@@ -3251,7 +3252,7 @@
                 .join('\n');
             columns.innerHTML = `<strong>CSV columns and required formats</strong><div class="table-responsive mt-2"><table class="table table-sm table-bordered align-middle mb-2"><thead><tr><th>Column</th><th>Required</th><th>Format</th><th>Example</th></tr></thead><tbody>${fields.map(([name, required, format, example]) => `<tr><td><code>${escapeHtml(name)}</code></td><td>${required}</td><td>${escapeHtml(format)}</td><td>${escapeHtml(example)}</td></tr>`).join('')}</tbody></table></div><div class="small"><strong>Example CSV</strong><pre class="bg-white border rounded p-2 mt-1 mb-0" style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(exampleCsv)}</pre></div><div class="small text-muted mt-2">Use one account per row. Column names are case-insensitive. Quote any cell containing a comma. ${student ? `Student password is automatically set to the mobile number. ${college ? '' : schoolSelected ? '' : 'College or university students also need univRoll and academicYear.'} ${schoolSelected && classSelect.value && selectedSection ? 'Only rows matching the selected class and section are added. School class numbers are converted to Class N.' : 'Select a school, class, and section before uploading student rows.'} Each account is created separately and credentials are emailed.` : 'Each account is created separately and credentials are emailed.'}</div>`;
             section.querySelector('#ownerBulkCsvHelp').textContent = student
-                ? 'Include every required column shown below. Excel-stripped leading zeros are restored for fixed-width numeric fields; the padded mobile number becomes the student password.'
+                ? `${authTypeSelect.value === 'mobile' ? 'Mobile login is selected: email is optional and the student signs in with the 10-digit mobile number.' : 'Email login is selected: email is required.'} Excel-stripped leading zeros are restored for fixed-width numeric fields; the padded mobile number becomes the student password.`
                 : 'Include every required column shown below. Separate multiple subjects with |. Excel-stripped leading zeros are restored to the 10-digit phone number.';
         }
         async function sendRegistrationCredentialsEmail({ uid, name, email, password, profile, school, accountType }) {
@@ -3318,7 +3319,9 @@
         };
         schoolSelect.addEventListener('change', async () => { clearRowsForContextChange(); renderSchools(); updateCsvHelp(); try { await loadClasses(); loadClassSections(); } catch (error) { notify(`Could not load classes: ${error.message}`, 'danger'); } updateCsvHelp(); previewRows(); });
         classSelect.addEventListener('change', () => { clearRowsForContextChange(); loadClassSections(); updateCsvHelp(); previewRows(); });
-        typeSelect.addEventListener('change', () => { section.querySelector('#ownerBulkClassField').hidden = typeSelect.value !== 'student'; section.querySelector('#ownerBulkSectionField').hidden = typeSelect.value !== 'student'; clearRowsForContextChange(); updateCsvHelp(); previewRows(); });
+        typeSelect.addEventListener('change', () => { const isStudent = typeSelect.value === 'student'; section.querySelector('#ownerBulkClassField').hidden = !isStudent; section.querySelector('#ownerBulkSectionField').hidden = !isStudent; section.querySelector('#ownerBulkAuthField').hidden = !isStudent; clearRowsForContextChange(); updateCsvHelp(); previewRows(); });
+        authTypeSelect.addEventListener('change', () => { clearRowsForContextChange(); updateCsvHelp(); previewRows(); });
+        section.querySelector('#ownerBulkAuthField').hidden = typeSelect.value !== 'student';
         section.querySelector('#ownerBulkSectionField').hidden = typeSelect.value !== 'student';
         updateCsvHelp();
         section.querySelector('#ownerBulkTemplate').addEventListener('click', downloadTemplate);
@@ -3330,12 +3333,13 @@
                 const context = registrationContext();
                 if (typeSelect.value === 'student' && (!schoolSelect.value || !classSelect.value || !sectionSelect.value)) throw new Error('Select the school, class, and section before adding student CSV rows.');
                 if (rows.length && rowsContext !== context) { rows = []; rowsContext = ''; }
-                const parsed = parseOwnerCsv(await file.text()); const emailSet = new Set(rows.map(row => String(row.data.email || '').trim().toLowerCase()).filter(Boolean));
+                const parsed = parseOwnerCsv(await file.text()); const emailSet = new Set(rows.map(row => String(row.data.email || '').trim().toLowerCase()).filter(Boolean)); const mobileSet = new Set(rows.map(row => restoreNumericLeadingZeros(row.data.mobile, 10)).filter(Boolean));
                 let missingEmail = 0; let differentClass = 0; let differentSection = 0; let duplicateEmail = 0; let appended = 0;
                 const selectedClass = classes.find(record => record.id === classSelect.value);
                 for (const row of parsed) {
                     const email = String(row.data.email || '').trim().toLowerCase();
-                    if (!email) { missingEmail += 1; continue; }
+                    const mobile = restoreNumericLeadingZeros(row.data.mobile, 10);
+                    if ((authTypeSelect.value === 'email' && !email) || (typeSelect.value === 'student' && !mobile)) { missingEmail += 1; continue; }
                     if (typeSelect.value === 'student') {
                         const classValues = [row.data.class, row.data.classname, row.data.classid, row.data.course, row.data.coursename, row.data.courseid].map(value => String(value || '').trim()).filter(Boolean);
                         if (!selectedClass) { differentClass += 1; continue; }
@@ -3352,11 +3356,13 @@
                         if (!csvSection || csvSection.toLowerCase() !== sectionSelect.value.trim().toLowerCase()) { differentSection += 1; continue; }
                         row.data.section = sectionSelect.value;
                     }
-                    if (emailSet.has(email)) { duplicateEmail += 1; continue; }
-                    emailSet.add(email);
+                    if (email && emailSet.has(email)) { duplicateEmail += 1; continue; }
+                    if (typeSelect.value === 'student' && mobileSet.has(mobile)) { duplicateEmail += 1; continue; }
+                    if (email) emailSet.add(email);
+                    if (typeSelect.value === 'student') mobileSet.add(mobile);
                     row.data.email = email;
                     if (typeSelect.value === 'student') {
-                        row.data.mobile = restoreNumericLeadingZeros(row.data.mobile, 10);
+                        row.data.mobile = mobile;
                         row.data.classRoll = restoreNumericLeadingZeros(row.data.classRoll, 2);
                         if (isCollegeSchool()) row.data.univroll = restoreNumericLeadingZeros(row.data.univroll, 10);
                         row.data.password = row.data.mobile;
@@ -3381,6 +3387,7 @@
                 status.textContent = 'Checking existing accounts and roll numbers…';
                 const snapshot = await database.ref('users').once('value'); const existingUsers = snapshot.val() || {}; const existingUserList = Object.values(existingUsers).filter(user => user && typeof user === 'object');
                 const existingEmails = new Set(existingUserList.map(user => String(user.email || '').trim().toLowerCase()).filter(Boolean));
+                const existingMobiles = new Set(existingUserList.map(user => String(user.mobile || '').replace(/\D/g, '')).filter(Boolean));
                 const existingUnivRolls = new Set(existingUserList.map(user => String(user.univRoll || '').trim()).filter(Boolean));
                 const schoolType = String(school.type || school.institutionType || '').trim().toLowerCase(); const schoolRegistration = !schoolType.includes('college') && !schoolType.includes('university');
                 const rolls = new Set(existingUserList.filter(user => String(user.schoolId) === String(school.id) && user.classRoll).map(user => {
@@ -3399,11 +3406,11 @@
                             data.phone = restoreNumericLeadingZeros(data.phone || data.mobile, 10);
                         }
                         const name = String(data.name || '').trim(); const email = String(data.email || '').trim().toLowerCase(); const dob = normalizeOwnerDateOfBirth(data.dateofbirth || data.dob);
-                        const mobileValue = String(data.mobile || '').trim(); const password = accountType === 'student' ? mobileValue : String(data.password || '');
-                        if (!name || name.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || password.length < 8) throw new Error('Provide a name, valid email, and password of 8+ characters.');
+                        const mobileValue = String(data.mobile || '').trim(); const isMobileAuth = accountType === 'student' && authTypeSelect.value === 'mobile'; const authEmail = isMobileAuth ? `mobile.${mobileValue}@rollcall.local` : email; const password = accountType === 'student' ? mobileValue : String(data.password || '');
+                        if (!name || name.length > 120 || (!isMobileAuth && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) || authEmail.length > 254 || password.length < 8) throw new Error(isMobileAuth ? 'Provide a name and a valid 10-digit mobile number.' : 'Provide a name, valid email, and password of 8+ characters.');
                         if (!dob) throw new Error('dateOfBirth must be a real, non-future date in DD-MM-YYYY or YYYY-MM-DD format.');
-                        if (existingEmails.has(email) || emails.has(email)) throw new Error('This email is already registered or duplicated in the CSV.'); emails.add(email);
-                        const profile = { uid: '', email, name, role: accountType, dateOfBirth: dob, schoolId: school.id, schoolCode: school.code || '', schoolName: school.schoolName || school.name || '', createdAt: new Date().toISOString(), createdBy: currentUser.uid };
+                        if ((!isMobileAuth && (existingEmails.has(email) || emails.has(email))) || (isMobileAuth && existingMobiles.has(mobileValue))) throw new Error(isMobileAuth ? 'This mobile number is already registered.' : 'This email is already registered or duplicated in the CSV.'); emails.add(authEmail);
+                        const profile = { uid: '', email: email || '', authEmail, authType: isMobileAuth ? 'mobile' : 'email', name, role: accountType, dateOfBirth: dob, schoolId: school.id, schoolCode: school.code || '', schoolName: school.schoolName || school.name || '', createdAt: new Date().toISOString(), createdBy: currentUser.uid };
                         if (accountType === 'student') {
                             const mobile = mobileValue; const classRoll = String(data.classroll || '').trim(); const sectionName = String(data.section || '').trim();
                             if (!/^\d{10}$/.test(mobile) || !/^\d{2}$/.test(classRoll) || !sectionName) throw new Error('Student rows need a 10-digit mobile, 2-digit classRoll, and section.');
@@ -3425,16 +3432,18 @@
                             if (!/^\d{10}$/.test(phone) || !designation || !subjectsTaught.length) throw new Error('Teacher rows need a 10-digit phone, designation, and at least one subject (separate subjects with |).');
                             Object.assign(profile, { phone, designation, subjectsTaught, teacherType: 'teacher', classTeacherEnabled: false, roles: ['teacher'], assignedSections: [] });
                         }
-                        account = (await temporaryApp.auth().createUserWithEmailAndPassword(email, password)).user; profile.uid = account.uid; await account.updateProfile({ displayName: name });
+                        account = (await temporaryApp.auth().createUserWithEmailAndPassword(authEmail, password)).user; profile.uid = account.uid; await account.updateProfile({ displayName: name });
                         await database.ref().update({ [`users/${account.uid}`]: profile, [`schoolUsers/${school.id}/${account.uid}`]: profile });
                         profileSaved = true; accountCreated = true; created += 1;
                         progressLabel.textContent = `CSV row ${rowNumber}: sending credentials email`;
-                        try {
-                            await sendRegistrationCredentialsEmail({ uid: account.uid, name, email, password, profile, school, accountType });
-                            emailsSent += 1;
-                        } catch (mailError) {
-                            mailRetryQueue.set(account.uid, { uid: account.uid, rowNumber, name, email, password, profile, school, accountType });
-                            failures.push({ rowNumber, retryUid: account.uid, message: `Account created, but credentials email failed: ${mailError.message || 'delivery failed'}` });
+                        if (!isMobileAuth && email) {
+                            try {
+                                await sendRegistrationCredentialsEmail({ uid: account.uid, name, email, password, profile, school, accountType });
+                                emailsSent += 1;
+                            } catch (mailError) {
+                                mailRetryQueue.set(account.uid, { uid: account.uid, rowNumber, name, email, password, profile, school, accountType });
+                                failures.push({ rowNumber, retryUid: account.uid, message: `Account created, but credentials email failed: ${mailError.message || 'delivery failed'}` });
+                            }
                         }
                     } catch (error) {
                         if (account && !profileSaved) await account.delete().catch(cleanup => console.warn('Could not remove incomplete import account.', cleanup));

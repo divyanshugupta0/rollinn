@@ -1,0 +1,428 @@
+/* ==========================================================================
+   RollCall Admin - CBT Hub Stylesheet
+   ========================================================================== */
+
+.cbt-hub-shell {
+    width: 100%;
+    max-width: 1480px;
+    margin: 0 auto;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.cbt-header {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: #fff;
+    padding: 28px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.cbt-header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.cbt-header-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+}
+
+.cbt-header-text h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin: 0;
+    color: #fff;
+}
+
+.cbt-header-text p {
+    margin: 4px 0 0;
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+.cbt-offline-badge {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Tabs */
+.cbt-tabs-nav {
+    display: flex;
+    background: #f8fafc;
+    border-bottom: 1.5px solid #e2e8f0;
+    padding: 0 32px;
+    gap: 8px;
+}
+
+.cbt-tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 16px 20px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.cbt-tab-btn:hover {
+    color: #0f172a;
+}
+
+.cbt-tab-btn.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+    background: #fff;
+}
+
+/* Tab contents */
+.cbt-tab-pane {
+    display: none;
+    padding: 32px;
+}
+
+.cbt-tab-pane.active {
+    display: block;
+}
+
+/* License Tab */
+.cbt-license-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+    margin-bottom: 28px;
+}
+
+.cbt-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.cbt-box h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #1e293b;
+}
+
+.cbt-code-display {
+    background: #0f172a;
+    color: #38bdf8;
+    padding: 14px;
+    border-radius: 8px;
+    font-family: monospace;
+    font-size: 0.9rem;
+    word-break: break-all;
+    margin: 12px 0;
+}
+
+.cbt-actions-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+
+.btn-cbt-primary {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 20px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.btn-cbt-primary:hover {
+    background: #1d4ed8;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.btn-cbt-secondary {
+    background: #fff;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 11px 18px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.btn-cbt-secondary:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
+
+/* Exam Builder */
+.cbt-form-section {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.cbt-form-section h4 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cbt-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.cbt-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.cbt-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cbt-field-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.cbt-field-group input,
+.cbt-field-group select,
+.cbt-field-group textarea {
+    border: 1.5px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: #0f172a;
+    background: #fff;
+}
+
+.cbt-field-group input:focus,
+.cbt-field-group select:focus,
+.cbt-field-group textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.cbt-checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.cbt-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+    color: #334155;
+    cursor: pointer;
+}
+
+.cbt-checkbox-label input {
+    width: 17px;
+    height: 17px;
+    accent-color: #2563eb;
+}
+
+/* Candidates Table */
+.cbt-candidates-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.cbt-table-wrapper {
+    max-height: 320px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.cbt-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.cbt-table th,
+.cbt-table td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.cbt-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    position: sticky;
+    top: 0;
+}
+
+.cbt-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.btn-remove-row {
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+/* Questions list */
+.cbt-questions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.cbt-question-editor-card {
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 18px;
+}
+
+.cbt-q-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.cbt-q-header strong {
+    color: #2563eb;
+    font-size: 0.95rem;
+}
+
+.cbt-options-editor-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 12px 0;
+}
+
+.cbt-opt-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cbt-opt-input-row span {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #64748b;
+    width: 18px;
+}
+
+.cbt-opt-input-row input {
+    flex: 1;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 0.85rem;
+}
+
+.cbt-footer-actions {
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    padding: 20px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+/* Account CBT License Card in Manage Account */
+.account-cbt-license-card {
+    background: linear-gradient(135deg, #f0fdf4, #ffffff);
+    border: 1.5px solid #86efac;
+    border-radius: 14px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.account-cbt-license-card h4 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 8px;
+    color: #166534;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.account-cbt-license-card p {
+    margin: 0 0 14px;
+    color: #4b5563;
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.account-cbt-license-card .cbt-btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}

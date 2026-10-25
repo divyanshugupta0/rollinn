@@ -1,0 +1,150 @@
+{
+  "header": "ROLLCALL_CBT_SECURE_EXAM_PACKAGE_V1",
+  "checksum": "ad6357073db52bf18d76c9677b699427597d37b3a00df77a9632c1b55fe6bc68",
+  "payload": {
+    "magic": "ROLLCBT",
+    "version": "1.0",
+    "schoolCode": "ROLL-SCH-101",
+    "examId": "EXAM-2026-PHY-01",
+    "title": "Mid-Term Physics & Scientific Aptitude CBT",
+    "code": "PHY-TERM-1",
+    "subject": "Physics",
+    "grade": "Grade 10 - Batch A & B",
+    "durationMinutes": 45,
+    "totalMarks": 30,
+    "passMarks": 40,
+    "instructions": "1. All questions are mandatory.\n2. Do not leave the exam window. Three strikes will auto-submit your test.\n3. Keep your face centered in the camera frame.",
+    "rules": {
+      "fullScreenEnforced": true,
+      "maxBlurStrikes": 3,
+      "webcamProctoringRequired": true,
+      "randomizeQuestions": true,
+      "randomizeOptions": true,
+      "calculatorAllowed": "scientific",
+      "scratchpadAllowed": true,
+      "showImmediateResult": true,
+      "negativeMarkingPerQuestion": 0.25
+    },
+    "candidates": [
+      {
+        "rollNo": "101",
+        "name": "Aarav Sharma",
+        "batch": "Grade 10-A",
+        "pin": "1234"
+      },
+      {
+        "rollNo": "102",
+        "name": "Diya Patel",
+        "batch": "Grade 10-A",
+        "pin": "1234"
+      },
+      {
+        "rollNo": "103",
+        "name": "Rohan Verma",
+        "batch": "Grade 10-B",
+        "pin": "1234"
+      },
+      {
+        "rollNo": "104",
+        "name": "Ananya Iyer",
+        "batch": "Grade 10-B",
+        "pin": "1234"
+      },
+      {
+        "rollNo": "105",
+        "name": "Kabir Mehta",
+        "batch": "Grade 10-B",
+        "pin": "1234"
+      }
+    ],
+    "sections": [
+      {
+        "id": "sec-1",
+        "title": "Section A: Mechanics & Waves",
+        "questions": [
+          {
+            "id": "q1",
+            "text": "Which law of motion states that for every action, there is an equal and opposite reaction?",
+            "type": "multiple_choice",
+            "options": [
+              "Newton First Law",
+              "Newton Second Law",
+              "Newton Third Law",
+              "Law of Universal Gravitation"
+            ],
+            "marks": 2,
+            "negativeMarks": 0.5,
+            "explanation": "Newton Third Law states that all forces between two objects exist in equal magnitude and opposite directions."
+          },
+          {
+            "id": "q2",
+            "text": "What type of wave is a sound wave in air?",
+            "type": "multiple_choice",
+            "options": [
+              "Transverse Wave",
+              "Longitudinal Wave",
+              "Electromagnetic Wave",
+              "Standing Surface Wave"
+            ],
+            "marks": 2,
+            "negativeMarks": 0.5,
+            "explanation": "Sound waves in air are longitudinal waves consisting of compressions and rarefactions."
+          },
+          {
+            "id": "q3",
+            "text": "What is the speed of light in vacuum approximately?",
+            "type": "multiple_choice",
+            "options": [
+              "3 x 10^8 m/s",
+              "3 x 10^6 m/s",
+              "3 x 10^5 km/h",
+              "1.5 x 10^8 m/s"
+            ],
+            "marks": 2,
+            "negativeMarks": 0.5,
+            "explanation": "The speed of light in vacuum is approximately 299,792,458 m/s, or 3 x 10^8 m/s."
+          }
+        ]
+      },
+      {
+        "id": "sec-2",
+        "title": "Section B: Electricity & Magnetism",
+        "questions": [
+          {
+            "id": "q4",
+            "text": "What device converts mechanical energy into electrical energy using electromagnetic induction?",
+            "type": "multiple_choice",
+            "options": [
+              "Electric Motor",
+              "Electric Generator (Dynamo)",
+              "Transformer",
+              "Capacitor"
+            ],
+            "marks": 2,
+            "negativeMarks": 0.5,
+            "explanation": "An electric generator converts mechanical work into electric energy based on Faraday law of induction."
+          },
+          {
+            "id": "q5",
+            "text": "What happens to the total equivalent resistance when resistors are connected in parallel?",
+            "type": "multiple_choice",
+            "options": [
+              "Increases",
+              "Decreases",
+              "Remains unchanged",
+              "Becomes infinite"
+            ],
+            "marks": 2,
+            "negativeMarks": 0.5,
+            "explanation": "In parallel combination, total resistance 1/Req = 1/R1 + 1/R2, which is always less than the smallest individual resistor."
+          }
+        ]
+      }
+    ],
+    "createdAt": "2026-10-25T09:53:50.604Z",
+    "encryptedAnswers": {
+      "iv": "922d09b93b40c9babdca9a0878dc0e3c",
+      "data": "MFpKHn3kEngD65s1fTzjHBQzv3gs0gb4iNToEcE212QodR37MUNrqng9KMRDIaOB/pE9tMQZ4T6gqtespeI4PMQMn3832BXr8miQsyQTMyap1sWDbdligJrfS4enjKfCNNNqeISaZImVCcAxY7jO0pwSUOnOI3f6gHMABlIXYFgALAdFE+wJn5xs9WsgRKPqoXiWXq5xjuvf0g1ymXs/7sXIpiDbIvrAz0gLBuxs/QhHTDhrKGDh6GUeRF59GEEsY1ryDX2C8t/gLjPvwS8TYuSiF7YIfonqn/6Jyg1rQTrh34dUzDED1boqlfwm8bNeILm4NGH9b7q6OQXwxeodjMMEEhkiKQbH1z3iKxHSdm1iW9xjNsuaTiNPWa1WYmbEDd8wPL32qEhP/6ERJj9/Qw8Tg66BwgM8rMUdO3m0bmYuDmc+l0qkwjHiVGRx0O6vD7EyAV8OZ2f/P6XS2zO65u0XEEZDNouZlts3S8O+JW+DWo7Gbp7fA2vRqJyYVpLJZZtafIvc9oeEbsD9BNQqcjx1GaA6Udz5fMN0dYH3Ej9lizHP0HnmcuUzesct8g2B61NB0LXkkkr4WFTwManekr6EMVt37ADA5Or0QQh8vHygJMXfDEhz5dblp1IVMZiGV7+ZRquH7lTln1otwKfLK/Hn/TqdiAW191TN8R76G1maCktrXI732y34IodkChtVee4uL0f1m8LSMd9SWxJsNZp9mxr9mxEqCa0x2i3mhSa+jEnKh9QV0PTUJDGWLGZqL5kf1bm+8QjCZlm2yFFHmshNIqjJhTnIcr8dH7AnJ1ajtuVGhp4/fM5RTRH19tYSCSEZP0SMwM2zycV7Vn3PH6bCWRBJBZO0gGug0nNGe06Hb84av8uYJmqAvbufkFPV5ZrUk8DCubmjj6Na/bqu0Y6J9xWhUKiAmkLTVRIACO76MT+66PBGjq8LpMtIrUDX"
+    }
+  }
+}

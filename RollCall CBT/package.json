@@ -1,0 +1,47 @@
+{
+  "name": "rollcall-cbt",
+  "version": "1.0.0",
+  "description": "RollCall CBT - Secure Computer-Based Testing Desktop Application",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win nsis"
+  },
+  "keywords": [
+    "cbt",
+    "rollcall",
+    "examination",
+    "proctoring",
+    "kiosk"
+  ],
+  "author": "Divyanshu Gupta",
+  "license": "GPL-2.0",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "electron": "^41.10.7"
+  },
+  "build": {
+    "appId": "com.rollcall.cbt",
+    "productName": "RollCall CBT",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": ["nsis"],
+      "artifactName": "RollCall-CBT-${version}-setup.${ext}"
+    },
+    "fileAssociations": [
+      {
+        "ext": "rollcbt",
+        "name": "RollCall CBT Exam Package",
+        "description": "RollCall Computer-Based Test Package",
+        "role": "Viewer"
+      }
+    ]
+  }
+}

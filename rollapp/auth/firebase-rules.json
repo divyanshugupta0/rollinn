@@ -67,6 +67,9 @@
       ".write": "auth != null",
       ".indexOn": [
         "email",
+        "mobile",
+        "authType",
+        "authEmail",
         "classRoll",
         "univRoll",
         "section",
@@ -96,6 +99,9 @@
         ".write": "auth != null",
         ".indexOn": [
           "email",
+          "mobile",
+          "authType",
+          "authEmail",
           "role",
           "section",
           "classRoll",
@@ -652,4 +658,3 @@
     }
   }
 }
-
