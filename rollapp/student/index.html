@@ -5099,6 +5099,22 @@
             checkAccessibilitySettings();
         });
 
+        const authProfileFetches = new Map();
+        function getAuthProfileData(uid) {
+            if (!authProfileFetches.has(uid)) {
+                const request = Promise.all([
+                    get(ref(database, `users/${uid}`)),
+                    get(ref(database, `blockedUsers/${uid}`))
+                ]);
+                authProfileFetches.set(uid, request);
+                request.then(
+                    () => setTimeout(() => authProfileFetches.delete(uid), 5000),
+                    () => setTimeout(() => authProfileFetches.delete(uid), 5000)
+                );
+            }
+            return authProfileFetches.get(uid);
+        }
+
         // Auth State Observer for Missing Photo Check
         onAuthStateChanged(auth, (user) => {
             if (user && isRegistering) {
@@ -5121,10 +5137,7 @@
                 }
 
                 // Fetch user data to check for profile photo
-                Promise.all([
-                    get(ref(database, `users/${user.uid}`)),
-                    get(ref(database, `blockedUsers/${user.uid}`))
-                ]).then(async ([snapshot, blockedSnapshot]) => {
+                getAuthProfileData(user.uid).then(async ([snapshot, blockedSnapshot]) => {
                     if (snapshot.exists()) {
                         const userData = snapshot.val();
                         const accountRole = String(userData.role || '').trim().toLowerCase();
@@ -7152,10 +7165,7 @@
             subscriptionLockout?.classList.add('hidden');
             if (subscriptionLockout) subscriptionLockout.textContent = '';
 
-            Promise.all([
-                get(userRef),
-                get(ref(database, `blockedUsers/${user.uid}`))
-            ])
+            getAuthProfileData(user.uid)
                 .then(async ([snapshot, blockedSnapshot]) => {
                     console.log("User snapshot exists:", snapshot.exists());
                     if (snapshot.exists()) {
