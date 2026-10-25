@@ -46,6 +46,7 @@
         el.licenseDropzone = document.getElementById('license-file-dropzone');
         el.inputHiddenLicenseFile = document.getElementById('input-hidden-license-file');
         el.btnBrowseLicenseFile = document.getElementById('btn-browse-license-file');
+        el.btnTestLicenseFile = document.getElementById('btn-test-license-file');
         el.btnToggleManualLicense = document.getElementById('btn-toggle-manual-license');
         el.formManualLicense = document.getElementById('license-manual-form');
         el.inputManualSchoolCode = document.getElementById('input-license-school-code');
@@ -1095,6 +1096,18 @@
             el.licenseDropzone.click();
         });
 
+        el.btnTestLicenseFile?.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const res = await window.rollcallCBT.openTestLicenseDialog();
+            if (res.canceled) return;
+            if (res.success) {
+                state.license = res.license;
+                applyActiveLicenseUI(res.license);
+                showToast('Temporary test license activated on this device for 24 hours.', 'success');
+                switchView('setup');
+            } else showToast(res.error || 'Temporary test activation failed.', 'error');
+        });
+
         // License file drag & drop
         ['dragenter', 'dragover'].forEach(evt => {
             el.licenseDropzone.addEventListener(evt, (e) => {
@@ -1362,6 +1375,9 @@
     document.addEventListener('DOMContentLoaded', () => {
         initElements();
         setupEventListeners();
+        window.rollcallCBT.getTestMode?.().then(enabled => {
+            if (enabled && el.btnTestLicenseFile) el.btnTestLicenseFile.hidden = false;
+        }).catch(() => {});
         // Always start from a clean startup gate. Exam-only dialogs must never
         // be visible when the desktop application is launched.
         [el.modalCalc, el.modalScratch, el.modalAntiCheat, el.modalSubmitConfirm].forEach(modal => {

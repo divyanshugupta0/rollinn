@@ -3,7 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('rollcallCBT', {
     // Offline License Management
     getLicenseStatus: () => ipcRenderer.invoke('cbt:get-license-status'),
+    getTestMode: () => ipcRenderer.invoke('cbt:get-test-mode'),
     openLicenseFileDialog: () => ipcRenderer.invoke('cbt:open-license-file-dialog'),
+    openTestLicenseDialog: () => ipcRenderer.invoke('cbt:open-test-license-dialog'),
     activateFromLicenseContent: (content) => ipcRenderer.invoke('cbt:activate-from-license-content', content),
     activateLicenseKey: (payload) => ipcRenderer.invoke('cbt:activate-license-key', payload),
     deactivateLicense: () => ipcRenderer.invoke('cbt:deactivate-license'),

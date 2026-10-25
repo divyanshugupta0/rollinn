@@ -47,4 +47,9 @@ RollCall CBT is a standalone, 100% offline Electron application engineered for h
 npm start
 # or in development mode
 npm run dev
+
+# local-only testing license activation (does not consume USB seats)
+npm run test-mode
 ```
+
+In test mode, the activation screen shows **Temporary local test activation** and accepts a signed `.rolllic` file from the same computer. The temporary activation lasts 24 hours and is disabled in normal packaged production launches. To test the packaged executable, launch it with the `--test-license` argument.

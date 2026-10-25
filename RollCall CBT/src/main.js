@@ -5,6 +5,7 @@ const { execFileSync } = require('child_process');
 const {
     getMachineFingerprint,
     verifyCbtLicenseKey,
+    verifyCbtLicenseFile,
     applyCbtLicenseGracePeriod,
     consumeCbtLicenseFile,
     unpackRollCbt,
@@ -21,6 +22,10 @@ function getLicenseFilePath() {
     return path.join(app.getPath('userData'), 'rollcall-cbt-license.json');
 }
 
+function isCbtTestMode() {
+    return !app.isPackaged || process.argv.includes('--test-license') || process.env.ROLLCALL_CBT_TEST_MODE === '1';
+}
+
 // Read stored license
 function readStoredLicense() {
     try {
@@ -33,9 +38,13 @@ function readStoredLicense() {
                     return { valid: false, expired: false, error: 'This CBT license is activated for a different device.', deviceId: currentDeviceId };
                 }
                 const verification = verifyCbtLicenseKey(data.licenseKey, data.schoolCode);
+                const temporaryExpired = Boolean(data.temporaryTest && Number(data.testExpiresAt || 0) <= Date.now());
                 return applyCbtLicenseGracePeriod({
                     ...data,
                     ...verification,
+                    valid: verification.valid && !temporaryExpired,
+                    expired: verification.expired || temporaryExpired,
+                    error: temporaryExpired ? 'Temporary test license expired. Activate it again for testing.' : verification.error,
                     deviceId: currentDeviceId
                 });
             }
@@ -49,6 +58,25 @@ function readStoredLicense() {
         licenseKey: null,
         deviceId: getMachineFingerprint()
     };
+}
+
+function activateTemporaryTestLicense(rawContent) {
+    if (!isCbtTestMode()) return { success: false, error: 'Temporary local activation is disabled in the packaged production app.' };
+    const verified = verifyCbtLicenseFile(rawContent);
+    if (!verified.valid) return { success: false, error: verified.error || 'Test license verification failed.' };
+    const now = Date.now();
+    const record = {
+        ...verified,
+        temporaryTest: true,
+        testExpiresAt: now + (24 * 60 * 60 * 1000),
+        activatedAt: new Date(now).toISOString(),
+        activatedDeviceId: getMachineFingerprint(),
+        activationStartDate: verified.activationStartDate || new Date(now).toISOString(),
+        remainingDevices: verified.remainingDevices,
+        deviceId: getMachineFingerprint()
+    };
+    saveStoredLicense(record);
+    return { success: true, license: { ...record, valid: true, expired: false } };
 }
 
 function isExternalStoragePath(filePath) {
@@ -221,6 +249,24 @@ function setupIpcHandlers() {
     // License status
     ipcMain.handle('cbt:get-license-status', async () => {
         return readStoredLicense();
+    });
+
+    ipcMain.handle('cbt:get-test-mode', async () => isCbtTestMode());
+
+    ipcMain.handle('cbt:open-test-license-dialog', async () => {
+        if (!isCbtTestMode()) return { success: false, error: 'Temporary local activation is disabled in the packaged production app.' };
+        const result = await dialog.showOpenDialog(mainWindow, {
+            title: 'Select Local Test License File',
+            filters: [{ name: 'RollCall CBT License Files', extensions: ['rolllic', 'cbtlic', 'json'] }],
+            properties: ['openFile']
+        });
+        if (result.canceled || !result.filePaths.length) return { canceled: true };
+        try {
+            const raw = fs.readFileSync(result.filePaths[0], 'utf8');
+            return { ...activateTemporaryTestLicense(raw), fileName: path.basename(result.filePaths[0]) };
+        } catch (error) {
+            return { success: false, error: error.message || 'Failed to read test license file.' };
+        }
     });
 
     // Open License File Dialog (.rolllic / .cbtlic / .json)
