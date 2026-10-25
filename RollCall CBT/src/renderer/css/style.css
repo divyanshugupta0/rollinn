@@ -200,6 +200,12 @@ body {
     display: none !important;
 }
 
+/* The modal layout rules must not override the native hidden attribute. */
+.overlay-modal[hidden],
+.floating-modal[hidden] {
+    display: none !important;
+}
+
 /* ==========================================================================
    VIEW 1: License Activation Gate
    ========================================================================== */
