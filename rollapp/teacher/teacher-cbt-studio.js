@@ -91,8 +91,8 @@
     };
   }
 
-  function selectedSections(panel) {
-    return [...panel.querySelectorAll('input[name="cbt-sections"]:checked')].map(input => ({
+  function selectedSections(modal) {
+    return [...modal.querySelectorAll('input[name="cbt-sections"]:checked')].map(input => ({
       value: input.value,
       classId: input.dataset.classId || '',
       section: input.dataset.section || '',
@@ -100,15 +100,55 @@
     }));
   }
 
-  function renderSectionPicker(panel, select) {
-    const picker = panel.querySelector('#cbtSectionPicker');
-    if (!picker) return;
-    const options = [...select.options].filter(option => option.value);
-    picker.innerHTML = options.length ? options.map((option, index) => {
-      const [classId, section] = option.value.split(':::');
-      const label = option.textContent || `${classId} - Sec ${section}`;
-      return `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc"><input type="checkbox" name="cbt-sections" value="${esc(option.value)}" data-class-id="${esc(classId)}" data-section="${esc(section)}" data-class-name="${esc(label.replace(/\s+-\s+Sec\s+.*$/i, ''))}"><span>${esc(label)}</span></label>`;
-    }).join('') : '<span style="color:#64748b;font-size:.82rem">No assigned class sections are available.</span>';
+  async function loadAvailableClassSections(db, access, panel) {
+    const list = [];
+    const seen = new Set();
+    const addSection = (classId, className, section) => {
+      const secNorm = norm(section || 'A').toUpperCase();
+      const cId = String(classId || '').trim();
+      const cName = String(className || cId || 'Class').trim();
+      const val = `${cId}:::${secNorm}`;
+      if (!cId || seen.has(val)) return;
+      seen.add(val);
+      list.push({ classId: cId, className: cName, section: secNorm, value: val, label: `${cName} - Sec ${secNorm}` });
+    };
+
+    // 1. Read from outer panel dropdown if available
+    const select = panel?.querySelector('#ttsClassSelect');
+    if (select?.options?.length) {
+      [...select.options].forEach(opt => {
+        if (!opt.value || !opt.value.includes(':::')) return;
+        const [cId, sec] = opt.value.split(':::');
+        const cName = opt.textContent?.replace(/\s+-\s+Sec\s+.*$/i, '').trim() || cId;
+        addSection(cId, cName, sec);
+      });
+    }
+
+    // 2. Read from teacher profile assignedSections or classes if empty
+    if (!list.length && access?.profile) {
+      const p = access.profile;
+      const assigned = p.assignedSections || p.classTeacherSections || [];
+      const sections = Array.isArray(assigned) ? assigned : [assigned];
+      sections.filter(Boolean).forEach(sec => {
+        addSection(p.classId || 'class_1', p.className || 'Assigned Class', sec);
+      });
+    }
+
+    // 3. Fallback: query database courses
+    if (!list.length && db && access?.schoolId) {
+      try {
+        const snap = await db.ref(`schools/${access.schoolId}/courses`).once('value');
+        const courses = snap.val() || {};
+        Object.entries(courses).forEach(([cId, course]) => {
+          const secs = course.sections || course.assignedSections || ['A'];
+          (Array.isArray(secs) ? secs : Object.keys(secs)).forEach(sec => {
+            addSection(cId, course.courseName || course.name || 'Class', sec);
+          });
+        });
+      } catch (_) {}
+    }
+
+    return list.sort((a, b) => a.className.localeCompare(b.className) || a.section.localeCompare(b.section));
   }
 
   function studentBelongsToSection(student, assignment) {
@@ -190,8 +230,8 @@
 
     const modal = document.createElement('div');
     modal.id = 'teacherCbtStudioModal';
-    modal.hidden = true;
-    modal.style = 'position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.72);backdrop-filter:blur(6px);padding:20px;overflow-y:auto;display:flex;align-items:flex-start;justify-content:center;box-sizing:border-box;';
+    modal.setAttribute('hidden', '');
+    modal.style = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.75);backdrop-filter:blur(6px);padding:20px;overflow-y:auto;display:none;align-items:flex-start;justify-content:center;box-sizing:border-box;';
     modal.innerHTML = `
       <div style="width:100%;max-width:980px;margin:24px auto;background:#ffffff;border-radius:20px;padding:26px;box-shadow:0 25px 60px rgba(15,23,42,0.35);border:1px solid #e2e8f0;box-sizing:border-box;font-family:inherit;">
         <!-- Modal Header -->
@@ -201,7 +241,7 @@
               <i class="fas fa-shield-halved"></i> CBT Exam Authoring Studio
             </div>
             <h2 style="margin:0 0 4px 0;font-size:1.35rem;font-weight:800;color:#0f172a;">CBT Offline Exam Package Generator</h2>
-            <p style="margin:0;color:#64748b;font-size:0.84rem;line-height:1.45;">Select one or more assigned class sections to generate tamper-proof, encrypted <code>.rollcbt</code> offline packages with student photos and proctoring rules.</p>
+            <p style="margin:0;color:#64748b;font-size:0.84rem;line-height:1.45;">Select assigned classes and sections, organize questions into exam sections, and generate encrypted <code>.rollcbt</code> offline packages with candidate photos.</p>
           </div>
           <button id="teacherCbtClose" type="button" aria-label="Close" style="width:36px !important;height:36px !important;min-width:36px !important;min-height:36px !important;max-width:36px !important;max-height:36px !important;padding:0 !important;border-radius:50% !important;border:1.5px solid #cbd5e1;background:#f8fafc;color:#64748b;font-size:1.3rem;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 36px !important;box-shadow:none;line-height:1;">&times;</button>
         </div>
@@ -221,8 +261,8 @@
             <input id="cbtDuration" type="number" min="5" value="60" style="padding:10px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:0.88rem;background:#f8fafc;width:100%;box-sizing:border-box;">
           </div>
           <div class="tts-field-group">
-            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;"><i class="fas fa-award" style="color:#0284c7;"></i> Total Marks</label>
-            <input id="cbtMarks" type="number" min="1" value="20" style="padding:10px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:0.88rem;background:#f8fafc;width:100%;box-sizing:border-box;">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;"><i class="fas fa-award" style="color:#0284c7;"></i> Total Marks (Auto-Calculated)</label>
+            <input id="cbtMarks" type="number" min="1" value="0" readonly style="padding:10px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:0.88rem;background:#e2e8f0;color:#0f172a;font-weight:750;width:100%;box-sizing:border-box;">
           </div>
           <div class="tts-field-group">
             <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;"><i class="fas fa-calendar-day" style="color:#0284c7;"></i> Scheduled Start (Optional)</label>
@@ -287,30 +327,66 @@
           </div>
         </div>
 
-        <!-- Section Assignment Picker -->
-        <div style="margin:16px 0;padding:16px 18px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;">
-          <label style="display:block;font-weight:800;color:#1e293b;margin-bottom:6px;font-size:0.88rem;">
-            <i class="fas fa-chalkboard-user" style="color:#0284c7;margin-right:4px;"></i> Assign Target Class Sections
-          </label>
-          <small style="display:block;color:#64748b;margin-bottom:10px;font-size:0.80rem;">Select one or more sections. Each checked section receives its own schedule, roster, and encrypted <code>.rollcbt</code> file.</small>
-          <div id="cbtSectionPicker" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;"></div>
-        </div>
-
-        <!-- Questions List Header -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 10px;">
-          <div>
-            <h3 style="margin:0;font-size:1.05rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:6px;">
-              <i class="fas fa-list-check" style="color:#0284c7;"></i> Questions
-            </h3>
-            <span style="font-size:0.78rem;color:#64748b;">Add multiple-choice questions with answer keys</span>
+        <!-- Class & Section Selection Bar -->
+        <div class="cbt-class-selection-card" style="margin:16px 0;padding:16px 18px;border:1.5px solid #cbd5e1;border-radius:14px;background:#f8fafc;box-sizing:border-box;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+            <div>
+              <label style="display:flex;align-items:center;gap:6px;font-weight:800;color:#0f172a;font-size:0.92rem;margin:0;">
+                <i class="fas fa-chalkboard-user" style="color:#0284c7;"></i>
+                <span>Target Class &amp; Sections</span>
+              </label>
+              <small style="color:#64748b;font-size:0.80rem;">Choose the class and select sections that will take this exam.</small>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button id="cbtSelectAllSections" type="button" class="tts-btn-secondary" style="width:auto !important;padding:5px 12px;font-size:0.78rem;min-height:32px;">
+                <i class="fas fa-check-double"></i> Select All
+              </button>
+              <button id="cbtClearAllSections" type="button" class="tts-btn-secondary" style="width:auto !important;padding:5px 12px;font-size:0.78rem;min-height:32px;">
+                <i class="fas fa-times"></i> Clear All
+              </button>
+            </div>
           </div>
-          <button id="cbtAddQuestion" type="button" class="tts-btn-secondary" style="width:auto !important;padding:7px 14px;font-size:0.80rem;min-height:36px;">
-            <i class="fas fa-plus"></i> Add Question
-          </button>
+
+          <div style="display:grid;grid-template-columns:minmax(200px, 280px) 1fr;gap:14px;align-items:start;">
+            <div class="tts-field-group">
+              <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+                <i class="fas fa-layer-group" style="color:#0284c7;"></i> Class Filter
+              </label>
+              <select id="cbtClassSelector" style="padding:9px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.86rem;background:#ffffff;width:100%;box-sizing:border-box;">
+                <option value="ALL">All Assigned Classes</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:block;">
+                Assigned Sections (<span id="cbtSelectedCount" style="color:#0284c7;font-weight:800;">0</span> selected)
+              </label>
+              <div id="cbtSectionPicker" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Questions Dynamic List -->
-        <div id="cbtQuestionList"></div>
+        <!-- Exam Sections & Question Paper Manager -->
+        <div style="margin:22px 0 14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+            <div>
+              <h3 style="margin:0;font-size:1.1rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:7px;">
+                <i class="fas fa-layer-group" style="color:#0284c7;"></i> Exam Sections &amp; Questions
+              </h3>
+              <span style="font-size:0.78rem;color:#64748b;">Add multiple exam sections (e.g. Section A, Section B) with questions and answer keys.</span>
+            </div>
+            <button id="cbtAddSection" type="button" class="tts-btn-secondary" style="width:auto !important;padding:8px 16px;font-size:0.82rem;min-height:36px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd;font-weight:700;">
+              <i class="fas fa-folder-plus"></i> Add Exam Section
+            </button>
+          </div>
+
+          <!-- Dynamic Exam Sections Container -->
+          <div id="cbtSectionsContainer" style="display:flex;flex-direction:column;gap:18px;">
+            <!-- Sections populated by JS -->
+          </div>
+        </div>
 
         <p id="cbtStatus" style="color:#0369a1;font-size:0.85rem;font-weight:600;margin:12px 0;min-height:18px;"></p>
 
@@ -323,94 +399,316 @@
         </div>
       </div>
     `;
-    panel.appendChild(modal);
+    (document.body || panel).appendChild(modal);
 
-    const list = modal.querySelector('#cbtQuestionList');
-    let count = 0;
-    const addQuestion = () => {
-      count += 1;
-      const row = document.createElement('div');
-      row.style = 'border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px;background:#f8fafc;box-shadow:0 1px 3px rgba(0,0,0,0.03);';
-      row.innerHTML = `
+    // Modal show/hide handlers
+    const closeModal = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      modal.style.display = 'none';
+      modal.setAttribute('hidden', '');
+      document.body.style.overflow = '';
+    };
+
+    const openModal = () => {
+      modal.style.display = 'flex';
+      modal.removeAttribute('hidden');
+      document.body.style.overflow = 'hidden';
+    };
+
+    const closeBtn = modal.querySelector('#teacherCbtClose');
+    if (closeBtn) closeBtn.onclick = closeModal;
+    const cancelBtn = modal.querySelector('#cbtCancel');
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+    modal.onclick = (e) => { if (e.target === modal) closeModal(e); };
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.style.display === 'flex') closeModal(e);
+    });
+
+    // Sections & Questions Engine
+    const sectionsContainer = modal.querySelector('#cbtSectionsContainer');
+    let sectionCount = 0;
+
+    function recalculateTotalMarks() {
+      let grandTotalMarks = 0;
+      let totalQuestions = 0;
+      const sectionCards = [...sectionsContainer.querySelectorAll('.cbt-section-card')];
+
+      sectionCards.forEach((secCard, sIdx) => {
+        const badge = secCard.querySelector('.cbt-sec-badge');
+        if (badge) badge.textContent = `Section ${sIdx + 1}`;
+        const qCards = [...secCard.querySelectorAll('.cbt-question-card')];
+        let secMarks = 0;
+        qCards.forEach((qCard, qIdx) => {
+          const qBadge = qCard.querySelector('.cbt-q-badge');
+          if (qBadge) qBadge.textContent = `Q${qIdx + 1}`;
+          const marks = Number(qCard.querySelector('.cbt-qmarks')?.value) || 1;
+          secMarks += marks;
+        });
+        const summary = secCard.querySelector('.cbt-sec-summary');
+        if (summary) summary.textContent = `${qCards.length} Question${qCards.length === 1 ? '' : 's'} · ${secMarks} Mark${secMarks === 1 ? '' : 's'}`;
+        grandTotalMarks += secMarks;
+        totalQuestions += qCards.length;
+
+        // Show/hide remove section button if only 1 section exists
+        const removeSecBtn = secCard.querySelector('.cbt-remove-sec');
+        if (removeSecBtn) removeSecBtn.style.display = sectionCards.length > 1 ? 'inline-flex' : 'none';
+      });
+
+      const marksInput = modal.querySelector('#cbtMarks');
+      if (marksInput) marksInput.value = grandTotalMarks;
+    }
+
+    function addQuestionToSection(sectionCard) {
+      const qList = sectionCard.querySelector('.cbt-sec-questions');
+      const qIndex = qList.children.length + 1;
+      const qCard = document.createElement('div');
+      qCard.className = 'cbt-question-card';
+      qCard.style = 'border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px;background:#ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.02);box-sizing:border-box;';
+      qCard.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <strong style="color:#0f172a;font-size:0.90rem;">Question ${count}</strong>
-          <button type="button" class="tts-btn-secondary cbt-remove" style="width:auto !important;padding:4px 10px;color:#dc2626;border-color:#fecaca;background:#fff;font-size:0.75rem;min-height:30px;">
-            <i class="fas fa-trash"></i> Remove
+          <strong class="cbt-q-badge" style="color:#0f172a;font-size:0.86rem;background:#f1f5f9;padding:2px 8px;border-radius:5px;">Q${qIndex}</strong>
+          <button type="button" class="tts-btn-secondary cbt-remove-q" style="width:auto !important;padding:3px 8px;color:#dc2626;border-color:#fecaca;background:#fff;font-size:0.74rem;min-height:28px;">
+            <i class="fas fa-trash"></i>
           </button>
         </div>
-        <div class="tts-field-group" style="margin-bottom:10px;">
-          <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:block;">Question Text</label>
-          <input class="cbt-text" placeholder="Enter question statement..." style="padding:9px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.86rem;background:#fff;width:100%;box-sizing:border-box;">
+        <div class="tts-field-group" style="margin-bottom:8px;">
+          <input class="cbt-text" placeholder="Question statement..." style="padding:8px 11px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#f8fafc;width:100%;box-sizing:border-box;">
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:10px;">
-          <div class="tts-field-group">
-            <label style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px;display:block;">Option A</label>
-            <input class="cbt-opt" placeholder="Option A text" style="padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;">
-          </div>
-          <div class="tts-field-group">
-            <label style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px;display:block;">Option B</label>
-            <input class="cbt-opt" placeholder="Option B text" style="padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;">
-          </div>
-          <div class="tts-field-group">
-            <label style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px;display:block;">Option C</label>
-            <input class="cbt-opt" placeholder="Option C text" style="padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;">
-          </div>
-          <div class="tts-field-group">
-            <label style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px;display:block;">Option D</label>
-            <input class="cbt-opt" placeholder="Option D text" style="padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;">
-          </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px;margin-bottom:8px;">
+          <input class="cbt-opt" placeholder="Option A" style="padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
+          <input class="cbt-opt" placeholder="Option B" style="padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
+          <input class="cbt-opt" placeholder="Option C" style="padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
+          <input class="cbt-opt" placeholder="Option D" style="padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
         </div>
-        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-          <div class="tts-field-group" style="flex:1;min-width:140px;">
-            <label style="font-size:0.72rem;font-weight:700;color:#475569;margin-bottom:3px;display:block;">Correct Option</label>
-            <select class="cbt-answer" style="padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <div class="tts-field-group" style="flex:1;min-width:130px;">
+            <label style="font-size:0.70rem;font-weight:700;color:#64748b;margin-bottom:2px;display:block;">Correct Answer</label>
+            <select class="cbt-answer" style="padding:6px 9px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
               <option value="0">Option A</option>
               <option value="1">Option B</option>
               <option value="2">Option C</option>
               <option value="3">Option D</option>
             </select>
           </div>
-          <div class="tts-field-group" style="width:110px;">
-            <label style="font-size:0.72rem;font-weight:700;color:#475569;margin-bottom:3px;display:block;">Marks</label>
-            <input class="cbt-qmarks" type="number" min="1" value="1" style="padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;text-align:center;">
+          <div class="tts-field-group" style="width:90px;">
+            <label style="font-size:0.70rem;font-weight:700;color:#64748b;margin-bottom:2px;display:block;">Marks</label>
+            <input class="cbt-qmarks" type="number" min="1" value="1" style="padding:6px 8px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;text-align:center;">
           </div>
         </div>
       `;
-      row.querySelector('.cbt-remove').onclick = () => row.remove();
-      list.appendChild(row);
+      qCard.querySelector('.cbt-remove-q').onclick = () => {
+        qCard.remove();
+        recalculateTotalMarks();
+      };
+      qCard.querySelector('.cbt-qmarks').oninput = recalculateTotalMarks;
+      qList.appendChild(qCard);
+      recalculateTotalMarks();
+    }
+
+    function createExamSection(initialTitle = '') {
+      sectionCount += 1;
+      const sIndex = sectionsContainer.children.length + 1;
+      const title = initialTitle || (sIndex === 1 ? 'Section A - General' : `Section ${String.fromCharCode(64 + sIndex)} - Subjective`);
+      const secCard = document.createElement('div');
+      secCard.className = 'cbt-section-card';
+      secCard.style = 'border:1.5px solid #cbd5e1;border-radius:14px;padding:16px;background:#f8fafc;box-shadow:0 2px 6px rgba(0,0,0,0.03);box-sizing:border-box;';
+      secCard.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;border-bottom:1px solid #e2e8f0;padding-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:260px;">
+            <span class="cbt-sec-badge" style="background:#0284c7;color:#fff;font-size:0.75rem;font-weight:800;padding:3px 9px;border-radius:6px;letter-spacing:0.04em;">Section ${sIndex}</span>
+            <input class="cbt-sec-name" value="${esc(title)}" placeholder="Section Name (e.g. Section A: Objective)" style="padding:6px 12px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.86rem;font-weight:700;color:#0f172a;background:#fff;flex:1;min-width:180px;box-sizing:border-box;">
+            <span class="cbt-sec-stats cbt-sec-summary" style="font-size:0.78rem;color:#64748b;font-weight:700;white-space:nowrap;">0 Questions</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button type="button" class="tts-btn-secondary cbt-add-q-to-sec" style="width:auto !important;padding:5px 12px;font-size:0.78rem;min-height:32px;background:#fff;">
+              <i class="fas fa-plus"></i> Add Question
+            </button>
+            <button type="button" class="tts-btn-secondary cbt-remove-sec" style="width:auto !important;padding:5px 10px;font-size:0.78rem;min-height:32px;color:#dc2626;border-color:#fecaca;background:#fff;">
+              <i class="fas fa-trash"></i> Delete Section
+            </button>
+          </div>
+        </div>
+        <div class="cbt-sec-questions" style="display:flex;flex-direction:column;gap:4px;"></div>
+      `;
+
+      secCard.querySelector('.cbt-add-q-to-sec').onclick = () => addQuestionToSection(secCard);
+      secCard.querySelector('.cbt-remove-sec').onclick = () => {
+        secCard.remove();
+        recalculateTotalMarks();
+      };
+      sectionsContainer.appendChild(secCard);
+      addQuestionToSection(secCard);
+      recalculateTotalMarks();
+    }
+
+    modal.querySelector('#cbtAddSection').onclick = () => createExamSection();
+
+    // Class & Section Picker Logic
+    let allAvailableSections = [];
+    function updateSelectedSectionCount() {
+      const checked = modal.querySelectorAll('input[name="cbt-sections"]:checked').length;
+      const countEl = modal.querySelector('#cbtSelectedCount');
+      if (countEl) countEl.textContent = checked;
+    }
+
+    function renderSectionsGrid(filterClassId = 'ALL') {
+      const picker = modal.querySelector('#cbtSectionPicker');
+      if (!picker) return;
+      const filtered = filterClassId === 'ALL'
+        ? allAvailableSections
+        : allAvailableSections.filter(s => s.classId === filterClassId);
+
+      if (!filtered.length) {
+        picker.innerHTML = '<span style="color:#64748b;font-size:0.82rem;grid-column:1/-1;">No sections found for this class.</span>';
+        updateSelectedSectionCount();
+        return;
+      }
+
+      picker.innerHTML = filtered.map(item => `
+        <label class="cbt-section-item" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#ffffff;cursor:pointer;font-size:0.82rem;font-weight:600;color:#334155;user-select:none;transition:all 0.15s ease;">
+          <input type="checkbox" name="cbt-sections" value="${esc(item.value)}" data-class-id="${esc(item.classId)}" data-section="${esc(item.section)}" data-class-name="${esc(item.className)}" style="width:16px;height:16px;accent-color:#0284c7;cursor:pointer;">
+          <span style="flex:1;">${esc(item.label)}</span>
+        </label>
+      `).join('');
+
+      picker.querySelectorAll('input[name="cbt-sections"]').forEach(input => {
+        input.onchange = () => {
+          input.closest('label').style.background = input.checked ? '#f0f9ff' : '#ffffff';
+          input.closest('label').style.borderColor = input.checked ? '#0284c7' : '#cbd5e1';
+          updateSelectedSectionCount();
+        };
+      });
+      updateSelectedSectionCount();
+    }
+
+    modal.querySelector('#cbtSelectAllSections').onclick = () => {
+      modal.querySelectorAll('#cbtSectionPicker input[name="cbt-sections"]').forEach(input => {
+        input.checked = true;
+        input.closest('label').style.background = '#f0f9ff';
+        input.closest('label').style.borderColor = '#0284c7';
+      });
+      updateSelectedSectionCount();
     };
 
-    const close = () => { modal.hidden = true; };
+    modal.querySelector('#cbtClearAllSections').onclick = () => {
+      modal.querySelectorAll('#cbtSectionPicker input[name="cbt-sections"]').forEach(input => {
+        input.checked = false;
+        input.closest('label').style.background = '#ffffff';
+        input.closest('label').style.borderColor = '#cbd5e1';
+      });
+      updateSelectedSectionCount();
+    };
+
+    modal.querySelector('#cbtClassSelector').onchange = (e) => {
+      renderSectionsGrid(e.target.value);
+    };
+
     button.onclick = async () => {
       const access = await getCbtAccess();
       if (!access.active) { alert('An active CBT plan is required for this school.'); return; }
-      const select = panel.querySelector('#ttsClassSelect');
-      if (!select?.options?.length) { alert('Your assigned classes are still loading. Please try again.'); return; }
-      renderSectionPicker(panel, select);
-      const current = select.value;
-      modal.querySelectorAll('input[name="cbt-sections"]').forEach(input => { input.checked = input.value === current; });
-      modal.hidden = false;
-      if (!list.children.length) addQuestion();
-    };
-    modal.querySelector('#teacherCbtClose').onclick = close;
-    modal.querySelector('#cbtCancel').onclick = close;
-    modal.querySelector('#cbtAddQuestion').onclick = addQuestion;
+      const db = window.firebase?.database?.();
 
+      allAvailableSections = await loadAvailableClassSections(db, access, panel);
+      const classSelector = modal.querySelector('#cbtClassSelector');
+      const uniqueClasses = [];
+      const seenClasses = new Set();
+      allAvailableSections.forEach(s => {
+        if (!seenClasses.has(s.classId)) {
+          seenClasses.add(s.classId);
+          uniqueClasses.push({ classId: s.classId, className: s.className });
+        }
+      });
+
+      classSelector.innerHTML = '<option value="ALL">All Assigned Classes (' + uniqueClasses.length + ')</option>' +
+        uniqueClasses.map(c => `<option value="${esc(c.classId)}">${esc(c.className)}</option>`).join('');
+
+      const outerClassSelect = panel.querySelector('#ttsClassSelect');
+      const outerVal = outerClassSelect?.value || '';
+      renderSectionsGrid('ALL');
+
+      // Pre-select matching section or select all if only 1 section
+      const allCheckboxes = modal.querySelectorAll('input[name="cbt-sections"]');
+      if (allCheckboxes.length === 1 || outerVal) {
+        allCheckboxes.forEach(input => {
+          if (input.value === outerVal || allCheckboxes.length === 1) {
+            input.checked = true;
+            input.closest('label').style.background = '#f0f9ff';
+            input.closest('label').style.borderColor = '#0284c7';
+          }
+        });
+      } else {
+        // Select all by default so teacher doesn't have an empty roster
+        allCheckboxes.forEach(input => {
+          input.checked = true;
+          input.closest('label').style.background = '#f0f9ff';
+          input.closest('label').style.borderColor = '#0284c7';
+        });
+      }
+      updateSelectedSectionCount();
+
+      // Ensure at least 1 section exists
+      if (!sectionsContainer.children.length) {
+        createExamSection('Section A - General');
+      }
+
+      openModal();
+    };
+
+    // CBT Package Generation & Export
     modal.querySelector('#cbtGenerate').onclick = async () => {
       const status = modal.querySelector('#cbtStatus');
       try {
         const access = await getCbtAccess();
         if (!access.active) throw new Error('An active CBT plan is required for this school.');
-        const sections = selectedSections(panel);
+        const sections = selectedSections(modal);
         if (!sections.length) throw new Error('Select at least one class section.');
         const title = modal.querySelector('#cbtTitle').value.trim();
         const code = modal.querySelector('#cbtCode').value.trim().toUpperCase();
-        const rows = [...list.children];
-        if (!title || !code || !rows.length) throw new Error('Enter title, code, and at least one question.');
-        const questions = rows.map((row, index) => ({ id: `Q${index + 1}`, type: 'mcq', text: row.querySelector('.cbt-text').value.trim(), options: [...row.querySelectorAll('.cbt-opt')].map(input => input.value.trim()), marks: Number(row.querySelector('.cbt-qmarks').value) || 1 }));
-        if (questions.some(question => !question.text || question.options.some(option => !option))) throw new Error('Complete every question and all four options.');
+        if (!title || !code) throw new Error('Enter exam title and exam code.');
+
+        // Build exam sections and questions
+        const sectionCards = [...sectionsContainer.querySelectorAll('.cbt-section-card')];
+        if (!sectionCards.length) throw new Error('Add at least one exam section.');
+
         const answers = {};
-        rows.forEach((row, index) => { answers[`Q${index + 1}`] = { correctAnswer: Number(row.querySelector('.cbt-answer').value) || 0, explanation: '' }; });
+        const examSections = [];
+        let totalExamMarks = 0;
+
+        for (let sIdx = 0; sIdx < sectionCards.length; sIdx++) {
+          const secCard = sectionCards[sIdx];
+          const secName = secCard.querySelector('.cbt-sec-name')?.value.trim() || `Section ${sIdx + 1}`;
+          const qCards = [...secCard.querySelectorAll('.cbt-question-card')];
+          if (!qCards.length) throw new Error(`Add at least one question to ${secName}.`);
+
+          const questions = [];
+          for (let qIdx = 0; qIdx < qCards.length; qIdx++) {
+            const qCard = qCards[qIdx];
+            const qText = qCard.querySelector('.cbt-text')?.value.trim();
+            const opts = [...qCard.querySelectorAll('.cbt-opt')].map(i => i.value.trim());
+            const marks = Number(qCard.querySelector('.cbt-qmarks')?.value) || 1;
+            const ans = Number(qCard.querySelector('.cbt-answer')?.value) || 0;
+
+            if (!qText || opts.some(opt => !opt)) {
+              throw new Error(`Complete question text and all four options for Question ${qIdx + 1} in ${secName}.`);
+            }
+
+            const qId = `S${sIdx + 1}_Q${qIdx + 1}`;
+            answers[qId] = { correctAnswer: ans, explanation: '' };
+            questions.push({ id: qId, type: 'mcq', text: qText, options: opts, marks });
+            totalExamMarks += marks;
+          }
+
+          examSections.push({
+            id: `section-${sIdx + 1}`,
+            name: secName,
+            title: secName,
+            questions
+          });
+        }
+
         const subject = panel.querySelector('#ttsSubjectSelect')?.value || 'General';
         const scheduledAt = modal.querySelector('#cbtScheduledAt').value ? new Date(modal.querySelector('#cbtScheduledAt').value).toISOString() : null;
         const db = window.firebase?.database?.();
@@ -438,11 +736,21 @@
             subject, grade: assignment.className, assignedClassId: assignment.classId,
             assignedClassName: assignment.className, assignedSection: assignment.section,
             durationMinutes: Number(modal.querySelector('#cbtDuration').value) || 60,
-            totalMarks: Number(modal.querySelector('#cbtMarks').value) || questions.reduce((sum, question) => sum + question.marks, 0),
+            totalMarks: totalExamMarks,
             passMarks: 40, instructions: modal.querySelector('#cbtInstructions').value,
-            rules: { fullScreenEnforced: modal.querySelector('#cbtFullscreen')?.checked !== false, maxBlurStrikes: Number(modal.querySelector('#cbtStrikes')?.value || 3), webcamProctoringRequired: modal.querySelector('#cbtWebcam')?.checked === true, randomizeQuestions: modal.querySelector('#cbtShuffleQ')?.checked === true, randomizeOptions: modal.querySelector('#cbtShuffleOpt')?.checked === true, calculatorAllowed: modal.querySelector('#cbtCalculator')?.value || 'basic', scratchpadAllowed: modal.querySelector('#cbtScratchpad')?.checked !== false, showImmediateResult: modal.querySelector('#cbtShowResult')?.checked !== false, negativeMarkingPerQuestion: Number(modal.querySelector('#cbtNegative')?.value || 0) },
+            rules: {
+              fullScreenEnforced: modal.querySelector('#cbtFullscreen')?.checked !== false,
+              maxBlurStrikes: Number(modal.querySelector('#cbtStrikes')?.value || 3),
+              webcamProctoringRequired: modal.querySelector('#cbtWebcam')?.checked === true,
+              randomizeQuestions: modal.querySelector('#cbtShuffleQ')?.checked === true,
+              randomizeOptions: modal.querySelector('#cbtShuffleOpt')?.checked === true,
+              calculatorAllowed: modal.querySelector('#cbtCalculator')?.value || 'basic',
+              scratchpadAllowed: modal.querySelector('#cbtScratchpad')?.checked !== false,
+              showImmediateResult: modal.querySelector('#cbtShowResult')?.checked !== false,
+              negativeMarkingPerQuestion: Number(modal.querySelector('#cbtNegative')?.value || 0)
+            },
             candidates: assignedStudents,
-            sections: [{ id: 'section-1', name: 'General', questions }],
+            sections: examSections,
             deviceAllocation: { maxDevices: access.maxDevices, threshold: allocation.threshold, deviceCount: allocation.deviceCount, sequenceOrder: 'classRoll ascending' },
             sectionAssignment: { classId: assignment.classId, className: assignment.className, section: assignment.section, studentCount: assignedStudents.length },
             createdAt: new Date().toISOString(), createdBy: window.currentUser?.uid || ''
@@ -467,7 +775,7 @@
       const updateVisibility = active => {
         window.teacherCbtPlanActive = active;
         button.hidden = !active;
-        if (!active) modal.hidden = true;
+        if (!active) closeModal();
       };
       updateVisibility(access.active);
       const db = window.firebase?.database?.();
