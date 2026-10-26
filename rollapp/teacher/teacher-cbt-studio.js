@@ -713,13 +713,24 @@
         const scheduledAt = modal.querySelector('#cbtScheduledAt').value ? new Date(modal.querySelector('#cbtScheduledAt').value).toISOString() : null;
         const db = window.firebase?.database?.();
         const generatedFiles = [];
+        const multiSectionCandidates = [];
 
         for (const assignment of sections) {
           const rawStudents = await loadStudents(db, access, assignment);
+          // Sort strictly by class roll ascending within section
+          rawStudents.sort((a, b) => {
+            const ar = Number.parseInt(a.classRoll || a.univRoll || a.rollNo || a.rollNumber, 10);
+            const br = Number.parseInt(b.classRoll || b.univRoll || b.rollNo || b.rollNumber, 10);
+            if (Number.isFinite(ar) && Number.isFinite(br)) return ar - br;
+            return String(a.name || a.displayName || '').localeCompare(String(b.name || b.displayName || ''));
+          });
           const allocation = createDeviceAssignments(rawStudents, access.maxDevices);
           const assignedStudents = await Promise.all(allocation.students.map(async (student, index) => {
             const pic = await embedStudentPhoto(student);
             const rec = candidateRecord(student, assignment, index, student.deviceIndex);
+            rec.section = assignment.section;
+            rec.sectionSequence = index + 1; // 1-indexed sequence within this section
+            rec.sequence = index + 1;
             if (pic) {
               rec.profilePic = pic;
               rec.profilePhoto = pic;
@@ -728,6 +739,8 @@
             }
             return rec;
           }));
+          multiSectionCandidates.push(...assignedStudents);
+
           const examId = `EXAM-${Date.now()}-${norm(assignment.section).replace(/[^a-z0-9]+/g, '-').toUpperCase()}`;
           const payload = {
             version: '1.0', magic: 'ROLLCBT', schoolCode: access.schoolCode, schoolName: access.schoolName,
@@ -764,6 +777,48 @@
           anchor.download = `${code}_${norm(assignment.section).replace(/[^a-z0-9]+/g, '_')}_exam.rollcbt`;
           anchor.click();
           generatedFiles.push(`${assignment.className} Sec ${assignment.section}: ${assignedStudents.length} students, ${allocation.threshold} per device`);
+        }
+
+        // Generate unified Multi-Section Bundle if more than 1 section was chosen
+        if (sections.length > 1) {
+          const multiExamId = `EXAM-${Date.now()}-MULTI-SECTION`;
+          const multiSectionNames = sections.map(s => s.section).join(', ');
+          const multiPayload = {
+            version: '1.0', magic: 'ROLLCBT', schoolCode: access.schoolCode, schoolName: access.schoolName,
+            examId: multiExamId, assignmentId: multiExamId, scheduleType: 'CBT_MULTI_SECTION', scheduledType: 'MULTI_SECTION', assignmentType: 'MULTI_SECTION', scheduledAt,
+            title: `${title} (Sections: ${multiSectionNames})`,
+            code: `${code}-ALL-SECTIONS`,
+            subject, grade: sections[0].className, assignedClassId: sections[0].classId,
+            assignedClassName: sections[0].className, assignedSection: multiSectionNames,
+            durationMinutes: Number(modal.querySelector('#cbtDuration').value) || 60,
+            totalMarks: totalExamMarks,
+            passMarks: 40, instructions: modal.querySelector('#cbtInstructions').value,
+            rules: {
+              fullScreenEnforced: modal.querySelector('#cbtFullscreen')?.checked !== false,
+              maxBlurStrikes: Number(modal.querySelector('#cbtStrikes')?.value || 3),
+              webcamProctoringRequired: modal.querySelector('#cbtWebcam')?.checked === true,
+              randomizeQuestions: modal.querySelector('#cbtShuffleQ')?.checked === true,
+              randomizeOptions: modal.querySelector('#cbtShuffleOpt')?.checked === true,
+              calculatorAllowed: modal.querySelector('#cbtCalculator')?.value || 'basic',
+              scratchpadAllowed: modal.querySelector('#cbtScratchpad')?.checked !== false,
+              showImmediateResult: modal.querySelector('#cbtShowResult')?.checked !== false,
+              negativeMarkingPerQuestion: Number(modal.querySelector('#cbtNegative')?.value || 0)
+            },
+            candidates: multiSectionCandidates,
+            sections: examSections,
+            deviceAllocation: { maxDevices: access.maxDevices, threshold: Math.ceil(multiSectionCandidates.length / access.maxDevices), deviceCount: access.maxDevices, sequenceOrder: 'section ascending, classRoll ascending' },
+            sectionAssignment: { isMultiSection: true, sections: sections.map(s => ({ classId: s.classId, className: s.className, section: s.section, studentCount: multiSectionCandidates.filter(c => c.section === s.section).length })) },
+            createdAt: new Date().toISOString(), createdBy: window.currentUser?.uid || ''
+          };
+          multiPayload.encryptedAnswers = await encrypt(JSON.stringify(answers), multiExamId, access.schoolCode);
+          const multiEnvelope = { header: 'ROLLCALL_CBT_SECURE_EXAM_PACKAGE_V1', checksum: await sign(JSON.stringify(multiPayload)), payload: multiPayload };
+          const multiContent = JSON.stringify(multiEnvelope, null, 2);
+          await db.ref(`cbtTeacherExams/${access.schoolId}/${multiExamId}`).set({ ...multiPayload, encryptedAnswers: null, createdAtMs: Date.now() });
+          const multiAnchor = document.createElement('a');
+          multiAnchor.href = URL.createObjectURL(new Blob([multiContent], { type: 'application/json' }));
+          multiAnchor.download = `${code}_ALL_SECTIONS_exam.rollcbt`;
+          multiAnchor.click();
+          generatedFiles.push(`Master Multi-Section File: ${multiSectionCandidates.length} candidates sequenced section-wise`);
         }
         status.textContent = `Saved ${generatedFiles.length} section schedule${generatedFiles.length === 1 ? '' : 's'} and downloaded the exam file${generatedFiles.length === 1 ? '' : 's'}. ${generatedFiles.join(' | ')}`;
       } catch (error) {

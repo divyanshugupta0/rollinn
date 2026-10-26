@@ -96,6 +96,7 @@
         el.inspectInstructions = document.getElementById('inspect-exam-instructions');
         el.inspectCandidateCount = document.getElementById('inspect-candidate-count');
         el.inputCandidateSearch = document.getElementById('input-candidate-search');
+        el.candidateSectionTabs = document.getElementById('candidate-section-tabs');
         el.candidateListGrid = document.getElementById('candidate-list-grid');
 
         // Candidate Selection & PIN Confirm
@@ -400,13 +401,40 @@
 
         el.inspectInstructions.textContent = exam.instructions || 'Read all questions carefully. Do not attempt to switch tabs or minimize the window during the test.';
 
+        // Sort and sequence candidates section-wise
+        const rawCandidates = Array.isArray(exam.candidates) ? exam.candidates : [];
+        const sortedCandidates = [...rawCandidates].sort((a, b) => {
+            const secA = String(a.section || '').trim().toUpperCase();
+            const secB = String(b.section || '').trim().toUpperCase();
+            if (secA !== secB) return secA.localeCompare(secB);
+            const seqA = Number(a.sectionSequence || a.sequence || 0);
+            const seqB = Number(b.sectionSequence || b.sequence || 0);
+            if (seqA && seqB && seqA !== seqB) return seqA - seqB;
+            const rollA = Number(a.classRoll || a.rollNo || 0);
+            const rollB = Number(b.classRoll || b.rollNo || 0);
+            if (rollA && rollB && rollA !== rollB) return rollA - rollB;
+            return String(a.name || '').localeCompare(String(b.name || ''));
+        });
+
+        // Compute sectionSequence (1-indexed per section) if missing
+        const sectionCounters = {};
+        sortedCandidates.forEach((c, idx) => {
+            const sec = String(c.section || 'General').toUpperCase();
+            sectionCounters[sec] = (sectionCounters[sec] || 0) + 1;
+            if (!c.sectionSequence) c.sectionSequence = sectionCounters[sec];
+            if (!c.sequence) c.sequence = idx + 1;
+        });
+
         // Each activated IDE device sees only its assigned roster range.
         const deviceIndex = Number(state.license?.activationCount || 0);
-        const candidates = Array.isArray(exam.candidates) && deviceIndex > 0
-            ? exam.candidates.filter(candidate => !candidate.deviceIndex || Number(candidate.deviceIndex) === deviceIndex)
-            : (exam.candidates || []);
+        const candidates = deviceIndex > 0
+            ? sortedCandidates.filter(candidate => !candidate.deviceIndex || Number(candidate.deviceIndex) === deviceIndex)
+            : sortedCandidates;
         state.visibleCandidates = candidates;
-        renderCandidatesList(candidates);
+        state.selectedCandidateSection = 'ALL';
+
+        renderCandidateSectionTabs(candidates);
+        applyCandidateFilters();
 
         // Show container
         el.examInspectContainer.classList.remove('hidden');
@@ -420,6 +448,71 @@
             el.diagWebcamStatus.className = 'fas fa-ban diag-status pending';
             el.diagWebcamText.textContent = 'Webcam is not required for this exam.';
         }
+    }
+
+    function renderCandidateSectionTabs(candidates) {
+        if (!el.candidateSectionTabs) return;
+        const sections = {};
+        candidates.forEach(c => {
+            const sec = String(c.section || 'General').toUpperCase();
+            sections[sec] = (sections[sec] || 0) + 1;
+        });
+
+        const sectionKeys = Object.keys(sections).sort();
+        if (sectionKeys.length > 1) {
+            el.candidateSectionTabs.innerHTML = '';
+            el.candidateSectionTabs.style.display = 'flex';
+
+            const allBtn = document.createElement('button');
+            allBtn.type = 'button';
+            allBtn.className = `c-section-tab-btn ${state.selectedCandidateSection === 'ALL' ? 'active' : ''}`;
+            allBtn.innerHTML = `<i class="fas fa-layer-group"></i> All Sections <span class="c-section-tab-badge">${candidates.length}</span>`;
+            allBtn.onclick = () => {
+                state.selectedCandidateSection = 'ALL';
+                updateCandidateSectionTabsActive(allBtn);
+                applyCandidateFilters();
+            };
+            el.candidateSectionTabs.appendChild(allBtn);
+
+            sectionKeys.forEach(secKey => {
+                const secBtn = document.createElement('button');
+                secBtn.type = 'button';
+                secBtn.className = `c-section-tab-btn ${state.selectedCandidateSection === secKey ? 'active' : ''}`;
+                secBtn.innerHTML = `<i class="fas fa-users"></i> Sec ${secKey} <span class="c-section-tab-badge">${sections[secKey]}</span>`;
+                secBtn.onclick = () => {
+                    state.selectedCandidateSection = secKey;
+                    updateCandidateSectionTabsActive(secBtn);
+                    applyCandidateFilters();
+                };
+                el.candidateSectionTabs.appendChild(secBtn);
+            });
+        } else {
+            el.candidateSectionTabs.style.display = 'none';
+        }
+    }
+
+    function updateCandidateSectionTabsActive(activeBtn) {
+        if (!el.candidateSectionTabs) return;
+        el.candidateSectionTabs.querySelectorAll('.c-section-tab-btn').forEach(b => b.classList.remove('active'));
+        activeBtn.classList.add('active');
+    }
+
+    function applyCandidateFilters() {
+        const searchTerm = (el.inputCandidateSearch?.value || '').trim().toLowerCase();
+        let list = state.visibleCandidates || [];
+        if (state.selectedCandidateSection && state.selectedCandidateSection !== 'ALL') {
+            list = list.filter(c => String(c.section || 'General').toUpperCase() === state.selectedCandidateSection.toUpperCase());
+        }
+        if (searchTerm) {
+            list = list.filter(c => {
+                const name = (c.name || '').toLowerCase();
+                const roll = String(c.rollNo || c.classRoll || '').toLowerCase();
+                const sec = String(c.section || '').toLowerCase();
+                const seq = String(c.sectionSequence || c.sequence || '').toLowerCase();
+                return name.includes(searchTerm) || roll.includes(searchTerm) || sec.includes(searchTerm) || seq.includes(searchTerm);
+            });
+        }
+        renderCandidatesList(list);
     }
 
     function candidateCompletionKey(candidate) {
@@ -470,11 +563,20 @@
             const completed = state.completedCandidates.has(candidateCompletionKey(c));
             card.className = `candidate-item-card${completed ? ' completed' : ''}`;
             const initial = (c.name || 'S').charAt(0).toUpperCase();
+            const seqNumber = c.sectionSequence || c.sequence || '';
+            const sectionLabel = c.section ? `Sec ${c.section}` : '';
             card.innerHTML = `
                 <div class="c-avatar">${initial}</div>
                 <div class="c-info">
-                    <strong>${c.name}</strong>
-                    <span>Roll: ${c.rollNo || 'N/A'} · ${c.batch || c.class || 'Student'}</span>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;">
+                        <strong style="margin:0;">${c.name}</strong>
+                        ${seqNumber ? `<span class="c-seq-pill" title="Section Sequence #${seqNumber}">#${seqNumber}</span>` : ''}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:0.75rem;color:var(--rc-text-secondary);">
+                        <span>Roll: <strong>${c.rollNo || 'N/A'}</strong></span>
+                        ${sectionLabel ? `<span class="c-sec-tag"><i class="fas fa-users" style="font-size:0.65rem;"></i> ${sectionLabel}</span>` : ''}
+                        <span>· ${c.batch || c.class || 'Student'}</span>
+                    </div>
                 </div>
             `;
             const photo = c.profilePicData || c.profilePic || c.profilePhoto || c.photoURL || c.photoUrl || c.profilePicture || c.imageUrl;
@@ -506,7 +608,9 @@
         state.selectedCandidate = candidate;
         el.confirmStudentName.textContent = candidate.name;
         el.confirmStudentRoll.textContent = candidate.rollNo;
-        el.confirmStudentClass.textContent = `${candidate.batch || candidate.class || 'Student'}${candidate.section ? ` - Sec ${candidate.section}` : ''}`;
+        const secText = candidate.section ? ` · Sec ${candidate.section}` : '';
+        const seqText = (candidate.sectionSequence || candidate.sequence) ? ` · Seq #${candidate.sectionSequence || candidate.sequence}` : '';
+        el.confirmStudentClass.textContent = `${candidate.batch || candidate.class || 'Student'}${secText}${seqText}`;
 
         const photo = candidate.profilePicData || candidate.profilePic || candidate.profilePhoto || candidate.photoURL || candidate.photoUrl || candidate.profilePicture || candidate.imageUrl;
         const initial = (candidate.name || 'S').charAt(0).toUpperCase();
@@ -632,7 +736,9 @@
         el.hallExamTitle.textContent = state.activeExam.title;
         el.hallExamSubject.textContent = (state.activeExam.subject || 'EXAM').toUpperCase();
         el.hallCandidateName.textContent = state.selectedCandidate.name;
-        el.hallCandidateRoll.textContent = `Roll No: ${state.selectedCandidate.rollNo} · ${state.selectedCandidate.class || state.selectedCandidate.batch || ''}${state.selectedCandidate.section ? ` - Sec ${state.selectedCandidate.section}` : ''}`;
+        const secText = state.selectedCandidate.section ? ` · Sec ${state.selectedCandidate.section}` : '';
+        const seqText = (state.selectedCandidate.sectionSequence || state.selectedCandidate.sequence) ? ` (Seq #${state.selectedCandidate.sectionSequence || state.selectedCandidate.sequence})` : '';
+        el.hallCandidateRoll.textContent = `Roll No: ${state.selectedCandidate.rollNo}${secText}${seqText} · ${state.selectedCandidate.class || state.selectedCandidate.batch || ''}`;
 
         // Setup strikes
         state.antiCheatStrikes = 0;
@@ -1454,12 +1560,8 @@
         });
 
         // Candidate Search
-        el.inputCandidateSearch.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            document.querySelectorAll('.candidate-item-card').forEach(card => {
-                const text = card.textContent.toLowerCase();
-                card.style.display = text.includes(term) ? 'flex' : 'none';
-            });
+        el.inputCandidateSearch.addEventListener('input', () => {
+            applyCandidateFilters();
         });
 
         // Change Student

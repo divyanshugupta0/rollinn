@@ -952,6 +952,87 @@ button, input, select, textarea {
     color: #172044;
 }
 
+/* Candidate Section Filter Tabs for Multi-Section Exams */
+.candidate-section-tabs-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    background: #f1f5f9;
+    padding: 6px;
+    border-radius: 10px;
+    border: 1px solid var(--rc-border);
+}
+
+.c-section-tab-btn {
+    border: none;
+    background: transparent;
+    padding: 6px 14px;
+    border-radius: 7px;
+    font-size: 0.80rem;
+    font-weight: 700;
+    color: var(--rc-text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.c-section-tab-btn:hover {
+    background: rgba(2, 132, 199, 0.08);
+    color: var(--rc-interactive);
+}
+
+.c-section-tab-btn.active {
+    background: #ffffff;
+    color: var(--rc-interactive);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.c-section-tab-badge {
+    padding: 1px 6px;
+    background: #edf2f7;
+    border-radius: 10px;
+    font-size: 0.70rem;
+    font-family: var(--font-mono);
+}
+
+.c-section-tab-btn.active .c-section-tab-badge {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+
+/* Candidate Item Card Sequence & Section tags */
+.c-seq-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.70rem;
+    font-weight: 800;
+    background: #e0f2fe;
+    color: #0369a1;
+    line-height: 1.2;
+}
+
+.c-sec-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.70rem;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    line-height: 1.2;
+}
+
 .candidate-cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
