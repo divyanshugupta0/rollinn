@@ -852,7 +852,12 @@
         }
 
         updateNextCandidateSeqChip();
-        startDeskCountdown();
+        state.startCountdownSeconds = 0;
+        if (state.startCountdownInterval) {
+            clearInterval(state.startCountdownInterval);
+            state.startCountdownInterval = null;
+        }
+        updateStartButtonState();
     }
 
     function updateNextCandidateSeqChip() {
@@ -921,56 +926,16 @@
     }
 
     function startDeskCountdown() {
-        state.startCountdownSeconds = 60;
+        state.startCountdownSeconds = 0;
         if (state.startCountdownInterval) {
             clearInterval(state.startCountdownInterval);
             state.startCountdownInterval = null;
         }
-
-        function renderCountdown() {
-            const mins = Math.floor(state.startCountdownSeconds / 60);
-            const secs = state.startCountdownSeconds % 60;
-            const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-
-            if (el.deskCountdownTimer) el.deskCountdownTimer.textContent = formatted;
-
-            if (state.startCountdownSeconds > 0) {
-                if (el.btnEnterExamHall) {
-                    el.btnEnterExamHall.disabled = true;
-                    el.btnEnterExamHall.className = 'btn-desk-start';
-                    el.btnEnterExamHall.innerHTML = `<i class="fas fa-lock"></i> Start Examination (Unlocks in ${state.startCountdownSeconds}s)`;
-                }
-                if (el.deskCountdownBanner) {
-                    el.deskCountdownBanner.className = 'desk-countdown-banner';
-                    el.deskCountdownBanner.innerHTML = `<i class="fas fa-hourglass-half"></i> <span>Station Preparation Period: Unlocks in <strong id="desk-countdown-timer">${formatted}</strong></span>`;
-                }
-            } else {
-                clearInterval(state.startCountdownInterval);
-                state.startCountdownInterval = null;
-                if (el.deskCountdownBanner) {
-                    el.deskCountdownBanner.className = 'desk-countdown-banner unlocked';
-                    el.deskCountdownBanner.innerHTML = `<i class="fas fa-circle-check"></i> <span>Station Unlocked • Candidate Ready to Begin</span>`;
-                }
-                updateStartButtonState();
-            }
-        }
-
-        renderCountdown();
-        state.startCountdownInterval = setInterval(() => {
-            state.startCountdownSeconds--;
-            renderCountdown();
-        }, 1000);
+        updateStartButtonState();
     }
 
     function updateStartButtonState() {
         if (!el.btnEnterExamHall) return;
-
-        if (state.startCountdownSeconds > 0) {
-            el.btnEnterExamHall.disabled = true;
-            el.btnEnterExamHall.className = 'btn-desk-start';
-            el.btnEnterExamHall.innerHTML = `<i class="fas fa-lock"></i> Start Examination (Unlocks in ${state.startCountdownSeconds}s)`;
-            return;
-        }
 
         const pinRequired = state.selectedCandidate?.pin && String(state.selectedCandidate.pin).trim();
         const pinValid = !pinRequired || state.candidatePinVerified === true;
@@ -2565,7 +2530,7 @@
             }
             loadCandidateToDesk(state.selectedCandidate);
             if (el.modalAdminExamSetup) el.modalAdminExamSetup.style.display = 'none';
-            showToast(`Exam loaded for ${state.selectedCandidate.name}. 1-minute countdown started.`, 'success');
+            showToast(`Exam loaded for ${state.selectedCandidate.name}. Station ready to start.`, 'success');
         });
 
         // Auto-Load Next Candidate

@@ -378,9 +378,9 @@
 
                     <!-- Start Examination Action Bar (With 1-Minute Countdown) -->
                     <div class="desk-action-bar">
-                        <div class="desk-countdown-banner" id="desk-countdown-banner">
-                            <i class="fas fa-hourglass-half"></i>
-                            <span>Station Preparation Period: Unlocks in <strong id="desk-countdown-timer">01:00</strong></span>
+                        <div class="desk-status-notice" id="desk-status-notice" style="display: flex; align-items: center; gap: 8px; color: #15803d; font-weight: 600; font-size: 0.88rem; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 8px 16px; border-radius: 8px;">
+                            <i class="fas fa-circle-check"></i>
+                            <span>Station Ready · Candidate Verified</span>
                         </div>
 
                         <div class="desk-actions-group">
@@ -388,7 +388,7 @@
                                 <i class="fas fa-forward-step"></i> Next Candidate (<span id="auto-load-next-seq">Seq #--</span>)
                             </button>
                             <button type="button" class="btn-desk-start" id="btn-enter-exam-hall" disabled>
-                                <i class="fas fa-lock"></i> Start Examination (Unlocks in 60s)
+                                <i class="fas fa-play"></i> Start Examination
                             </button>
                         </div>
                     </div>
@@ -397,6 +397,9 @@
 
             <!-- Hidden compatibility hooks required by existing JS -->
             <div hidden>
+                <div class="desk-countdown-banner" id="desk-countdown-banner">
+                    <strong id="desk-countdown-timer">00:00</strong>
+                </div>
                 <div id="candidate-confirm-box"></div>
                 <button type="button" id="btn-change-student"></button>
                 <div id="station-device-banner">
