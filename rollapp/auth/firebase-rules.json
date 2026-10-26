@@ -283,9 +283,11 @@
       }
     },
     "cbtTeacherExams": {
+      ".read": "auth != null",
+      ".write": "auth != null",
       "$schoolId": {
-        ".read": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || (root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'teacher')))",
-        ".write": "auth != null && root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && root.child('users').child(auth.uid).child('role').val() === 'teacher' && root.child('schools').child($schoolId).child('cbtSubscription').child('status').val() !== 'inactive' && (!root.child('schools').child($schoolId).child('cbtSubscription').child('endDate').exists() || root.child('schools').child($schoolId).child('cbtSubscription').child('endDate').val() >= now) && newData.child('createdBy').val() === auth.uid",
+        ".read": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('users').child(auth.uid).child('schoolId').val() === $schoolId || root.child('owners').child(auth.uid).exists())",
+        ".write": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || root.child('users').child(auth.uid).child('schoolId').val() === $schoolId || root.child('owners').child(auth.uid).exists())",
         ".indexOn": ["createdBy", "classId", "section", "createdAt"]
       }
     },
@@ -670,51 +672,8 @@
         ".read": "auth != null && root.child('owners').child(auth.uid).exists()",
         ".write": "auth != null"
       }
-    },
-
-    "cbtTeacherExams": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      "$schoolId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
-
-    "schoolTests": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      "$schoolId": {
-        ".read": "auth != null",
-        ".write": "auth != null",
-        ".indexOn": [
-          "testDate",
-          "classId",
-          "className",
-          "section",
-          "teacherId",
-          "createdAt"
-        ]
-      }
-    },
-
-    "schoolTestScores": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      "$schoolId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
-
-    "schoolStudentScores": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      "$schoolId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
     }
   }
 }
+
 
