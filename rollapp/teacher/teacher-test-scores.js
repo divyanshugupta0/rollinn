@@ -1325,6 +1325,117 @@
                 0% { background: #dcfce7 !important; border-color: #22c55e !important; }
                 100% { background: transparent; }
             }
+
+            /* Test Workspace Banner inside Editor */
+            .tts-workspace-banner {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                border: 1.5px solid #cbd5e1;
+                border-radius: 14px;
+                padding: 12px 16px;
+                margin-bottom: 16px;
+                flex-wrap: wrap;
+            }
+            .tts-workspace-banner-left {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                flex-wrap: wrap;
+            }
+            .tts-btn-back {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                background: #ffffff;
+                border: 1.5px solid #cbd5e1;
+                color: #0369a1;
+                font-size: 0.80rem;
+                font-weight: 800;
+                padding: 7px 13px;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.15s ease;
+            }
+            .tts-btn-back:hover {
+                background: #e0f2fe;
+                border-color: #38bdf8;
+                color: #0284c7;
+                transform: translateX(-2px);
+            }
+            .tts-workspace-title-box {
+                display: flex;
+                flex-direction: column;
+            }
+            .tts-workspace-title {
+                font-size: 1.05rem;
+                font-weight: 800;
+                color: #0f172a;
+                display: flex;
+                align-items: center;
+                gap: 7px;
+            }
+            .tts-workspace-subtitle {
+                font-size: 0.76rem;
+                color: #64748b;
+                font-weight: 600;
+                margin-top: 2px;
+            }
+            .tts-workspace-banner-actions {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .tts-status-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                font-size: 0.74rem;
+                font-weight: 800;
+                padding: 4px 10px;
+                border-radius: 999px;
+                background: #e0f2fe;
+                color: #0369a1;
+                border: 1px solid #bae6fd;
+            }
+            .tts-status-pill.scheduled {
+                background: #f3e8ff;
+                color: #7e22ce;
+                border-color: #e9d5ff;
+            }
+            .tts-status-pill.completed {
+                background: #dcfce7;
+                color: #15803d;
+                border-color: #bbf7d0;
+            }
+            .tts-test-card {
+                cursor: pointer;
+                position: relative;
+                overflow: hidden;
+                border: 1.5px solid #e2e8f0;
+                transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+            }
+            .tts-test-card:hover {
+                transform: translateY(-3px);
+                border-color: #38bdf8;
+                box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+            }
+            .tts-test-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 3px;
+                background: linear-gradient(90deg, #0284c7, #38bdf8);
+                opacity: 0;
+                transition: opacity 0.2s ease;
+            }
+            .tts-test-card:hover::before {
+                opacity: 1;
+            }
         `;
         document.head.appendChild(style);
 
@@ -1340,12 +1451,12 @@
                 <div class="tts-header-card">
                     <div class="tts-header-left">
                         <div class="tts-header-kicker"><i class="fas fa-graduation-cap"></i> Academic Assessments &amp; Exam Studio</div>
-                        <h1 class="tts-header-title"><i class="fas fa-file-pen"></i> Test Scores &amp; Marks</h1>
-                        <p class="tts-header-subtitle">Assign tests for any date (past, today, future), configure exam cutoff rules, preview student photos, and sync directly with students.</p>
+                        <h1 class="tts-header-title"><i class="fas fa-file-pen"></i> Test Scores &amp; Exam Records</h1>
+                        <p class="tts-header-subtitle">Browse scheduled exam tiles, click any tile to view class roster &amp; enter marks, or continuously scan encrypted RollCall CBT barcodes.</p>
                     </div>
                     <div class="tts-header-actions">
                         <button type="button" class="tts-btn-secondary" id="ttsToggleHistoryBtn">
-                            <i class="fas fa-history"></i> Test Records
+                            <i class="fas fa-plus"></i> Schedule New Test
                         </button>
                         <button type="button" class="tts-btn-primary" id="ttsOpenQrScannerBtn" style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); border-color: #4338ca;" title="Continuous QR Scanner for CBT Student Scores">
                             <i class="fas fa-qrcode"></i> Scan CBT Scores
@@ -1358,16 +1469,16 @@
 
                 <!-- Top Segmented Navigation Tabs (Mobile & Desktop) -->
                 <div class="tts-nav-tabs" role="tablist" id="ttsNavTabs">
-                    <button type="button" class="tts-nav-tab active" id="ttsTabMarks" role="tab" aria-selected="true">
-                        <i class="fas fa-pen-to-square"></i> <span>Marks Entry</span>
+                    <button type="button" class="tts-nav-tab active" id="ttsTabHistory" role="tab" aria-selected="true">
+                        <i class="fas fa-layer-group"></i> <span>Scheduled Tests</span>
+                        <span class="tts-tab-pill count" id="ttsHistoryCountBadge">0</span>
+                    </button>
+                    <button type="button" class="tts-nav-tab" id="ttsTabMarks" role="tab" aria-selected="false">
+                        <i class="fas fa-pen-to-square"></i> <span id="ttsTabMarksLabel">Test Workspace &amp; Scores</span>
                     </button>
                     <button type="button" class="tts-nav-tab" id="ttsTabSettings" role="tab" aria-selected="false">
                         <i class="fas fa-sliders"></i> <span>Exam Settings</span>
                         <span class="tts-tab-pill" id="ttsSettingsTabBadge">Pass: 40%</span>
-                    </button>
-                    <button type="button" class="tts-nav-tab" id="ttsTabHistory" role="tab" aria-selected="false">
-                        <i class="fas fa-history"></i> <span>Test Records</span>
-                        <span class="tts-tab-pill count" id="ttsHistoryCountBadge">0</span>
                     </button>
                 </div>
 
@@ -1403,9 +1514,27 @@
                     </div>
                 </div>
 
-                <!-- View 1: Test Editor / Scorer Workspace -->
-                <div id="ttsEditorView">
+                <!-- View 1: Test Editor / Scorer Workspace (Hidden by default until an exam tile is opened or new test assigned) -->
+                <div id="ttsEditorView" style="display:none;">
                     <div class="tts-card">
+                        <!-- Active Exam Workspace Breadcrumb / Navigation Banner -->
+                        <div class="tts-workspace-banner" id="ttsWorkspaceBanner">
+                            <div class="tts-workspace-banner-left">
+                                <button type="button" class="tts-btn-back" id="ttsBackToTestsBtn" title="Return to Scheduled Tests Tiles">
+                                    <i class="fas fa-arrow-left"></i> <span>All Scheduled Tests</span>
+                                </button>
+                                <div class="tts-workspace-title-box">
+                                    <div class="tts-workspace-title" id="ttsWorkspaceTitle">
+                                        <i class="fas fa-file-pen" style="color:#0284c7;"></i> <span id="ttsWorkspaceTitleText">Create &amp; Schedule New Assessment</span>
+                                    </div>
+                                    <div class="tts-workspace-subtitle" id="ttsWorkspaceSubtitle">Select class, section, subject, test date, rules, and enter student marks</div>
+                                </div>
+                            </div>
+                            <div class="tts-workspace-banner-actions">
+                                <span class="tts-status-pill scheduled" id="ttsWorkspaceStatusPill"><i class="fas fa-sparkles"></i> New Assessment</span>
+                            </div>
+                        </div>
+
                         <!-- Draft notice banner (hidden by default) -->
                         <div id="ttsDraftBanner" class="tts-draft-banner" style="display:none;">
                             <span><i class="fas fa-floppy-disk"></i> Restored unsaved draft scores on this device.</span>
@@ -1603,24 +1732,32 @@
                     </div>
                 </div>
 
-                <!-- View 2: Test Records / History View (Hidden by default) -->
-                <div id="ttsHistoryView" style="display:none;">
+                <!-- View 2: Scheduled Tests & Assessments Tiles View (Primary Landing View) -->
+                <div id="ttsHistoryView" style="display:block;">
                     <div class="tts-card">
-                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:8px; flex-wrap:wrap;">
-                            <div style="font-size:0.98rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
-                                <i class="fas fa-layer-group" style="color:#0284c7;"></i> All Created Tests &amp; Assessments
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:12px; flex-wrap:wrap;">
+                            <div>
+                                <div style="font-size:1.05rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+                                    <i class="fas fa-calendar-check" style="color:#0284c7;"></i> Scheduled Tests &amp; Active Assessments
+                                </div>
+                                <p style="margin:2px 0 0; font-size:0.78rem; color:#64748b;">Click on any exam tile below to open class details, student roster, and enter marks.</p>
                             </div>
-                            <div style="display:flex; gap:6px;">
-                                <button type="button" class="tts-btn-secondary" id="ttsFilterAllTests" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">All</button>
-                                <button type="button" class="tts-btn-secondary" id="ttsFilterUpcomingTests">Upcoming</button>
-                                <button type="button" class="tts-btn-secondary" id="ttsFilterPastTests">Scored</button>
+                            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                <div class="tts-filter-pills" style="margin:0;">
+                                    <button type="button" class="tts-filter-pill active" id="ttsFilterAllTests"><i class="fas fa-border-all"></i> All Tests</button>
+                                    <button type="button" class="tts-filter-pill" id="ttsFilterUpcomingTests"><i class="fas fa-clock"></i> Scheduled</button>
+                                    <button type="button" class="tts-filter-pill" id="ttsFilterPastTests"><i class="fas fa-check-circle"></i> Completed</button>
+                                </div>
+                                <button type="button" class="tts-btn-primary" id="ttsCreateTestFromTilesBtn" style="font-size:0.80rem; padding:7px 14px;">
+                                    <i class="fas fa-plus"></i> Schedule New Test
+                                </button>
                             </div>
                         </div>
 
                         <div id="ttsHistoryGrid" class="tts-history-grid">
                             <div style="text-align:center; padding:36px; color:#64748b; grid-column:1/-1;">
                                 <i class="fas fa-spinner fa-spin" style="font-size:1.6rem; color:#0284c7;"></i>
-                                <p style="margin-top:10px; font-weight:600;">Loading tests history...</p>
+                                <p style="margin-top:10px; font-weight:600;">Loading scheduled tests...</p>
                             </div>
                         </div>
                     </div>
@@ -1839,8 +1976,14 @@
         const newTestBtn = panel.querySelector('#ttsNewTestBtn');
         const bottomBar = panel.querySelector('#ttsBottomBar');
         const tabMarks = panel.querySelector('#ttsTabMarks');
+        const tabMarksLabel = panel.querySelector('#ttsTabMarksLabel');
         const tabSettings = panel.querySelector('#ttsTabSettings');
         const tabHistory = panel.querySelector('#ttsTabHistory');
+        const backToTestsBtn = panel.querySelector('#ttsBackToTestsBtn');
+        const createTestFromTilesBtn = panel.querySelector('#ttsCreateTestFromTilesBtn');
+        const workspaceTitleText = panel.querySelector('#ttsWorkspaceTitleText');
+        const workspaceSubtitle = panel.querySelector('#ttsWorkspaceSubtitle');
+        const workspaceStatusPill = panel.querySelector('#ttsWorkspaceStatusPill');
         const examSettingsCard = panel.querySelector('#ttsExamSettingsCard');
         const quickToggleSettingsBtn = panel.querySelector('#ttsQuickToggleSettingsBtn');
         const quickToggleSettingsText = panel.querySelector('#ttsQuickToggleSettingsText');
@@ -1854,35 +1997,44 @@
                 }
             });
 
-            if (tab === 'marks') {
+            if (tab === 'history') {
+                tabHistory?.classList.add('active');
+                tabHistory?.setAttribute('aria-selected', 'true');
+                editorView.style.display = 'none';
+                historyView.style.display = 'block';
+                toggleHistoryBtn.innerHTML = '<i class="fas fa-plus"></i> Schedule New Test';
+                bottomBar.style.display = 'none';
+                renderHistoryView();
+            } else if (tab === 'marks') {
                 tabMarks?.classList.add('active');
                 tabMarks?.setAttribute('aria-selected', 'true');
                 editorView.style.display = 'block';
                 historyView.style.display = 'none';
-                toggleHistoryBtn.innerHTML = '<i class="fas fa-history"></i> Test Records';
+                toggleHistoryBtn.innerHTML = '<i class="fas fa-arrow-left"></i> Scheduled Tests';
                 updateBottomBarVisibility();
             } else if (tab === 'settings') {
                 tabSettings?.classList.add('active');
                 tabSettings?.setAttribute('aria-selected', 'true');
                 editorView.style.display = 'block';
                 historyView.style.display = 'none';
-                toggleHistoryBtn.innerHTML = '<i class="fas fa-history"></i> Test Records';
+                toggleHistoryBtn.innerHTML = '<i class="fas fa-arrow-left"></i> Scheduled Tests';
                 toggleExamSettings(true);
                 updateBottomBarVisibility();
-            } else if (tab === 'history') {
-                tabHistory?.classList.add('active');
-                tabHistory?.setAttribute('aria-selected', 'true');
-                editorView.style.display = 'none';
-                historyView.style.display = 'block';
-                toggleHistoryBtn.innerHTML = '<i class="fas fa-pen-to-square"></i> Back to Editor';
-                bottomBar.style.display = 'none';
-                renderHistoryView();
             }
         }
 
         tabMarks?.addEventListener('click', () => setActiveTab('marks'));
         tabSettings?.addEventListener('click', () => setActiveTab('settings'));
         tabHistory?.addEventListener('click', () => setActiveTab('history'));
+
+        backToTestsBtn?.addEventListener('click', () => {
+            showHistoryView();
+        });
+
+        createTestFromTilesBtn?.addEventListener('click', () => {
+            resetEditorForm();
+            showEditorView();
+        });
 
         function toggleExamSettings(forceOpen) {
             if (!examSettingsCard) return;
@@ -1908,10 +2060,16 @@
             setActiveTab('history');
         }
 
+        window.ttsStartNewTest = function() {
+            resetEditorForm();
+            showEditorView();
+        };
+
         toggleHistoryBtn.addEventListener('click', () => {
             if (historyView.style.display === 'none') {
                 showHistoryView();
             } else {
+                resetEditorForm();
                 showEditorView();
             }
         });
@@ -3202,43 +3360,55 @@
                 const component = test.assessmentComponent || 'Theory';
                 const duration = test.durationMinutes || 60;
                 const passingMarks = test.passingMarks !== undefined ? test.passingMarks : Math.round(test.maxMarks * 0.4);
+                const totalStudents = Number(test.studentCount || 0);
+                const scoredCount = Number(test.scoredCount || 0);
+                const progressPct = totalStudents > 0 ? Math.min(100, Math.round((scoredCount / totalStudents) * 100)) : 0;
 
                 html += `
-                    <div class="tts-test-card" id="ttsTestCard_${test.id}">
+                    <div class="tts-test-card" id="ttsTestCard_${test.id}" onclick="window.editTeacherTest('${test.id}')" title="Click to open exam details, student roster, and score entry">
                         <div>
                             <div class="tts-test-top">
-                                <div>
+                                <div style="flex:1; min-width:0; padding-right:8px;">
                                     <h3 class="tts-test-title">${escapeHtml(test.title)}</h3>
-                                    <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:3px;">
-                                        <span class="badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:0.68rem; padding:2px 6px; border-radius:4px; font-weight:700;">
+                                    <div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;">
+                                        <span class="badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:0.68rem; padding:2px 7px; border-radius:5px; font-weight:700;">
                                             <i class="fas fa-tag"></i> ${escapeHtml(examType)}
                                         </span>
-                                        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; font-size:0.68rem; padding:2px 6px; border-radius:4px; font-weight:600;">
+                                        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; font-size:0.68rem; padding:2px 7px; border-radius:5px; font-weight:600;">
                                             <i class="fas fa-layer-group"></i> ${escapeHtml(component)}
                                         </span>
-                                        <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-size:0.68rem; padding:2px 6px; border-radius:4px; font-weight:600;">
+                                        <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-size:0.68rem; padding:2px 7px; border-radius:5px; font-weight:600;">
                                             <i class="fas fa-stopwatch"></i> ${duration}m
                                         </span>
                                     </div>
                                 </div>
-                                ${statusBadge}
+                                <div>${statusBadge}</div>
                             </div>
-                            <div class="tts-test-meta" style="margin-top:10px;">
-                                <div><i class="fas fa-chalkboard" style="color:#0284c7; width:14px;"></i> <strong>${escapeHtml(test.className)} - Sec ${escapeHtml(test.section)}</strong></div>
-                                <div><i class="fas fa-book" style="color:#16a34a; width:14px;"></i> ${escapeHtml(test.subject)}</div>
-                                <div><i class="fas fa-calendar" style="color:#d97706; width:14px;"></i> Date: <strong>${escapeHtml(test.testDate)}</strong></div>
-                                <div><i class="fas fa-award" style="color:#9333ea; width:14px;"></i> Total: <strong>${test.maxMarks} Marks</strong> (Pass: ${passingMarks})</div>
+
+                            <div class="tts-test-meta" style="margin-top:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px;">
+                                <div style="font-weight:700; color:#0f172a;"><i class="fas fa-chalkboard" style="color:#0284c7; width:16px;"></i> <strong>${escapeHtml(test.className)} - Sec ${escapeHtml(test.section)}</strong></div>
+                                <div><i class="fas fa-book" style="color:#16a34a; width:16px;"></i> ${escapeHtml(test.subject)}</div>
+                                <div><i class="fas fa-calendar-day" style="color:#d97706; width:16px;"></i> Scheduled Date: <strong>${escapeHtml(test.testDate)}</strong></div>
+                                <div><i class="fas fa-award" style="color:#9333ea; width:16px;"></i> Total: <strong>${test.maxMarks} Marks</strong> <span style="color:#64748b;">(Pass: ${passingMarks})</span></div>
+                            </div>
+
+                            <div style="margin-top:10px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">
+                                    <span><i class="fas fa-chart-simple" style="color:#0284c7;"></i> Scoring Progress</span>
+                                    <span>${scoredCount} / ${totalStudents} (${progressPct}%)</span>
+                                </div>
+                                <div style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                                    <div style="height:100%; width:${progressPct}%; background:${progressPct === 100 ? '#22c55e' : 'linear-gradient(90deg, #0284c7, #38bdf8)'}; border-radius:999px; transition:width 0.3s;"></div>
+                                </div>
                             </div>
                         </div>
+
                         <div class="tts-test-footer">
-                            <span style="font-size:0.75rem; color:#64748b; font-weight:600;">
-                                ${test.scoredCount || 0} / ${test.studentCount || 0} Scored
+                            <span style="font-size:0.76rem; font-weight:800; color:#0284c7; display:flex; align-items:center; gap:6px;">
+                                <i class="fas fa-folder-open"></i> Open Details &amp; Scores &rarr;
                             </span>
-                            <div style="display:flex; gap:6px;">
-                                <button type="button" class="tts-btn-secondary" onclick="window.editTeacherTest('${test.id}')" style="padding:6px 10px; font-size:0.75rem; min-height:34px; touch-action:manipulation;">
-                                    <i class="fas fa-pen-to-square"></i> Edit
-                                </button>
-                                <button type="button" class="tts-btn-secondary" onclick="window.deleteTeacherTest('${test.id}')" style="padding:6px 10px; font-size:0.75rem; color:#dc2626; min-height:34px; touch-action:manipulation;">
+                            <div style="display:flex; gap:6px;" onclick="event.stopPropagation();">
+                                <button type="button" class="tts-btn-secondary" onclick="window.deleteTeacherTest('${test.id}')" style="padding:6px 10px; font-size:0.75rem; color:#dc2626; min-height:32px; touch-action:manipulation;" title="Delete this test">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -3272,7 +3442,7 @@
         fUpcoming.addEventListener('click', () => setHistoryFilter('upcoming', fUpcoming));
         fPast.addEventListener('click', () => setHistoryFilter('past', fPast));
 
-        // Edit Test Handler
+        // Edit / Drill Down into Test Workspace Handler
         window.editTeacherTest = async function(testId) {
             const test = testsList.find(t => t.id === testId);
             if (!test) return;
@@ -3282,6 +3452,20 @@
             dateInput.value = test.testDate || getTodayStr();
             updateDateNotice(dateInput.value);
             totalMarksInput.value = test.maxMarks || 50;
+
+            const isFuture = (test.testDate > getTodayStr()) || test.status === 'scheduled';
+            if (workspaceTitleText) workspaceTitleText.textContent = test.title || 'Scheduled Assessment';
+            if (workspaceSubtitle) workspaceSubtitle.textContent = `${test.className} - Sec ${test.section} · ${test.subject} · Date: ${test.testDate} · Total: ${test.maxMarks} Marks`;
+            if (workspaceStatusPill) {
+                workspaceStatusPill.className = `tts-status-pill ${isFuture ? 'scheduled' : 'completed'}`;
+                workspaceStatusPill.innerHTML = isFuture
+                    ? `<i class="fas fa-clock"></i> Scheduled (${test.testDate})`
+                    : `<i class="fas fa-check-circle"></i> Active / Completed`;
+            }
+            if (tabMarksLabel) {
+                const shortTitle = (test.title || 'Test').length > 18 ? (test.title || 'Test').substring(0, 16) + '...' : (test.title || 'Test');
+                tabMarksLabel.textContent = `Test: ${shortTitle}`;
+            }
 
             // Restore Exam Settings
             if (examTypeSelect) examTypeSelect.value = test.examType || 'Unit Test';
@@ -3298,7 +3482,7 @@
             if (examInstructionsInput) examInstructionsInput.value = test.instructions || '';
             updatePassingCutoffBadge();
 
-            // Select Class
+            // Select Class & Section
             const classVal = `${test.classId}:::${test.section}`;
             classSelect.value = classVal;
 
@@ -3339,6 +3523,7 @@
             }
 
             showEditorView();
+            editorView.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
 
         // Delete Test Handler
@@ -3374,6 +3559,14 @@
 
         function resetEditorForm() {
             activeEditingTestId = null;
+            if (workspaceTitleText) workspaceTitleText.textContent = 'Create & Schedule New Assessment';
+            if (workspaceSubtitle) workspaceSubtitle.textContent = 'Select class, section, subject, test date, rules, and enter student marks';
+            if (workspaceStatusPill) {
+                workspaceStatusPill.className = 'tts-status-pill';
+                workspaceStatusPill.innerHTML = '<i class="fas fa-sparkles"></i> New Assessment';
+            }
+            if (tabMarksLabel) tabMarksLabel.textContent = 'Marks Entry';
+
             testTitleInput.value = '';
             dateInput.value = getTodayStr();
             updateDateNotice(dateInput.value);
@@ -3612,6 +3805,41 @@
                 return;
             }
 
+            // 1. Strict School Code Verification
+            const activeSchoolCode = String(
+                currentTeacher?.schoolCode ||
+                currentTeacher?.institutionCode ||
+                window.currentSchoolCode ||
+                schoolId ||
+                ''
+            ).trim().toUpperCase();
+
+            const incomingSchoolCode = String(payload.schoolCode || '').trim().toUpperCase();
+
+            if (incomingSchoolCode && activeSchoolCode) {
+                const isMatch = (
+                    incomingSchoolCode === activeSchoolCode ||
+                    incomingSchoolCode === String(schoolId).trim().toUpperCase() ||
+                    (currentTeacher?.schoolCode && incomingSchoolCode === String(currentTeacher.schoolCode).trim().toUpperCase()) ||
+                    (currentTeacher?.institutionCode && incomingSchoolCode === String(currentTeacher.institutionCode).trim().toUpperCase())
+                );
+
+                if (!isMatch) {
+                    playScanBeep(false);
+                    if (scannerHint) {
+                        scannerHint.innerHTML = `<i class="fas fa-shield-xmark" style="color:#ef4444;"></i> <strong>Security Error:</strong> School code mismatch!`;
+                    }
+                    appendScannerLog(`
+                        <div style="color:#dc2626; font-weight:700;">
+                            <i class="fas fa-ban"></i> <strong>School Code Mismatch</strong>: Barcode issued for "${escapeHtml(incomingSchoolCode)}", but current school session is "${escapeHtml(activeSchoolCode || schoolId)}". Ingestion rejected.
+                        </div>
+                        <small style="color:#94a3b8;">${new Date().toLocaleTimeString()}</small>
+                    `);
+                    alert(`Security Verification Failed:\n\nThis QR barcode was generated for school code "${incomingSchoolCode}", but your active portal session belongs to "${activeSchoolCode || schoolId}".\n\nIngestion has been rejected.`);
+                    return;
+                }
+            }
+
             // Visual flash & sound chime
             viewfinderEl?.classList.add('flash-success');
             setTimeout(() => viewfinderEl?.classList.remove('flash-success'), 650);
@@ -3625,17 +3853,72 @@
                 const recName = String(rec.name || '').trim().toLowerCase();
 
                 let student = null;
+                let conflictReason = '';
+
+                // Strategy 1: Match by Roll Number first
                 if (recRoll) {
-                    student = currentStudents.find(s => {
+                    const rollMatches = currentStudents.filter(s => {
                         const sRoll = String(s.classRoll || s.univRoll || s.rollNo || '').trim().toLowerCase();
                         return sRoll && sRoll === recRoll;
                     });
+
+                    if (rollMatches.length === 1) {
+                        const cand = rollMatches[0];
+                        const candName = String(cand.name || cand.displayName || '').trim().toLowerCase();
+                        // Cross-verify with candidate name if provided in QR
+                        if (recName && candName) {
+                            const recTokens = recName.split(/\s+/).filter(t => t.length > 2);
+                            const candTokens = candName.split(/\s+/).filter(t => t.length > 2);
+                            const hasOverlap = recTokens.some(t => candTokens.includes(t)) || candName.includes(recName) || recName.includes(candName);
+                            if (!hasOverlap && recTokens.length > 0 && candTokens.length > 0) {
+                                conflictReason = `Roll #${rec.roll} is enrolled as "${cand.name || candName}", but QR barcode name is "${rec.name}".`;
+                            } else {
+                                student = cand;
+                            }
+                        } else {
+                            student = cand;
+                        }
+                    } else if (rollMatches.length > 1) {
+                        // Multiple students share same roll number - must match name to disambiguate!
+                        if (recName) {
+                            student = rollMatches.find(s => {
+                                const sName = String(s.name || s.displayName || '').trim().toLowerCase();
+                                return sName && (sName === recName || sName.includes(recName) || recName.includes(sName));
+                            });
+                        }
+                        if (!student) {
+                            conflictReason = `Multiple students found with Roll #${rec.roll}. Name verification could not disambiguate.`;
+                        }
+                    }
                 }
-                if (!student && recName) {
-                    student = currentStudents.find(s => {
+
+                // Strategy 2: If no roll matched or roll missing, attempt matching by Name
+                if (!student && !conflictReason && recName) {
+                    const nameMatches = currentStudents.filter(s => {
                         const sName = String(s.name || s.displayName || '').trim().toLowerCase();
                         return sName && (sName === recName || sName.includes(recName) || recName.includes(sName));
                     });
+
+                    if (nameMatches.length === 1) {
+                        student = nameMatches[0];
+                    } else if (nameMatches.length > 1) {
+                        // CRITICAL: Multiple students have identical/duplicate names in this class!
+                        // Do NOT guess! Block match to protect student grades!
+                        conflictReason = `Ambiguous Match: ${nameMatches.length} students named "${rec.name}" found in this class. Roll number is required to disambiguate.`;
+                    }
+                }
+
+                if (conflictReason) {
+                    unmatchedCount++;
+                    appendScannerLog(`
+                        <div>
+                            <span style="color:#dc2626; font-weight:700;"><i class="fas fa-triangle-exclamation"></i> Verification Conflict</span>
+                            <div style="font-size:0.74rem; color:#475569; margin-top:2px;">${escapeHtml(conflictReason)}</div>
+                            <span style="display:inline-block; margin-top:3px; background:#fee2e2; color:#b91c1c; font-size:0.70rem; padding:1px 6px; border-radius:4px; font-weight:600;">Score (${rec.score}) Skipped</span>
+                        </div>
+                        <small style="color:#ef4444;">Verification Failed</small>
+                    `);
+                    return;
                 }
 
                 if (student) {
@@ -3664,9 +3947,10 @@
                     sessionScannedCount++;
                     if (scanCountEl) scanCountEl.textContent = sessionScannedCount;
 
+                    const studentRoll = student.classRoll || student.univRoll || student.rollNo || rec.roll || 'N/A';
                     appendScannerLog(`
                         <div>
-                            <span style="color:#15803d; font-weight:700;"><i class="fas fa-circle-check"></i> Roll #${rec.roll || student.classRoll || student.rollNo}</span>
+                            <span style="color:#15803d; font-weight:700;"><i class="fas fa-circle-check"></i> Roll #${escapeHtml(studentRoll)}</span>
                             <span style="color:#0f172a; margin-left:6px; font-weight:600;">${escapeHtml(student.name || rec.name)}</span>
                             <span style="margin-left:6px; background:#dcfce7; color:#15803d; padding:1px 6px; border-radius:4px; font-weight:700;">${rec.score} Marks</span>
                         </div>
@@ -3676,7 +3960,7 @@
                     unmatchedCount++;
                     appendScannerLog(`
                         <div>
-                            <span style="color:#b45309; font-weight:700;"><i class="fas fa-triangle-exclamation"></i> Roll #${rec.roll || 'N/A'}</span>
+                            <span style="color:#b45309; font-weight:700;"><i class="fas fa-triangle-exclamation"></i> Roll #${escapeHtml(rec.roll || 'N/A')}</span>
                             <span style="color:#475569; margin-left:6px;">${escapeHtml(rec.name || 'Candidate')}</span>
                             <span style="margin-left:6px; background:#fef3c7; color:#b45309; padding:1px 6px; border-radius:4px; font-weight:600;">${rec.score} Marks (Unmatched)</span>
                         </div>
@@ -3686,13 +3970,33 @@
             });
 
             if (scannerHint) {
-                scannerHint.innerHTML = `<i class="fas fa-circle-check" style="color:#4ade80;"></i> Ingested <strong>${matchedCount}</strong> score${matchedCount === 1 ? '' : 's'}${unmatchedCount > 0 ? ` (${unmatchedCount} unmatched)` : ''}. Keep scanning...`;
+                scannerHint.innerHTML = `<i class="fas fa-circle-check" style="color:#4ade80;"></i> Ingested <strong>${matchedCount}</strong> score${matchedCount === 1 ? '' : 's'}${unmatchedCount > 0 ? ` (${unmatchedCount} unmatched/conflict)` : ''}. Keep scanning...`;
             }
 
             // Real-time roster calculation & draft update
             applyStudentFiltering();
             updateSummaryCounters();
             scheduleAutoDraftSave();
+
+            // Live sync to test tile / card
+            if (activeEditingTestId) {
+                const activeTest = testsList.find(t => t.id === activeEditingTestId);
+                if (activeTest) {
+                    let count = 0;
+                    currentStudents.forEach(st => {
+                        const inp = panel.querySelector(`#ttsScoreInp_${st.id}`);
+                        const abBtn = panel.querySelector(`#ttsAbBtn_${st.id}`);
+                        if (abBtn && abBtn.classList.contains('active')) count++;
+                        else if (inp && inp.value.trim() !== '' && !isNaN(parseFloat(inp.value))) count++;
+                    });
+                    activeTest.scoredCount = count;
+                    if (schoolId) {
+                        db.ref(`schoolTests/${schoolId}/${activeEditingTestId}/scoredCount`).set(count).catch(() => {});
+                    }
+                    renderHistoryView();
+                    updateTeacherStats();
+                }
+            }
         }
 
         async function handleScannedString(rawText) {

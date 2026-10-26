@@ -772,6 +772,33 @@
           const envelope = { header: 'ROLLCALL_CBT_SECURE_EXAM_PACKAGE_V1', checksum: await sign(JSON.stringify(payload)), payload };
           const content = JSON.stringify(envelope, null, 2);
           await db.ref(`cbtTeacherExams/${access.schoolId}/${examId}`).set({ ...payload, encryptedAnswers: null, createdAtMs: Date.now() });
+
+          // Register as a scheduled assessment tile in schoolTests
+          const scheduledDateStr = scheduledAt ? scheduledAt.substring(0, 10) : new Date().toISOString().substring(0, 10);
+          await db.ref(`schoolTests/${access.schoolId}/${examId}`).set({
+            id: examId,
+            title: title,
+            teacherId: window.currentUser?.uid || '',
+            teacherName: access.profile?.name || access.profile?.displayName || 'Teacher',
+            classId: assignment.classId,
+            className: assignment.className,
+            section: assignment.section,
+            subject: subject,
+            testDate: scheduledDateStr,
+            maxMarks: totalExamMarks,
+            passingMarks: Math.round(totalExamMarks * 0.4),
+            examType: 'Mock CBT Test',
+            durationMinutes: Number(modal.querySelector('#cbtDuration').value) || 60,
+            assessmentComponent: 'Theory',
+            instructions: modal.querySelector('#cbtInstructions').value || '',
+            studentCount: assignedStudents.length,
+            scoredCount: 0,
+            status: 'scheduled',
+            isCbtExam: true,
+            cbtCode: `${code}-${String(assignment.section).replace(/[^a-z0-9]/gi, '').toUpperCase()}`,
+            createdAt: Date.now()
+          }).catch(e => console.warn('Could not auto-register test tile:', e));
+
           const anchor = document.createElement('a');
           anchor.href = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
           anchor.download = `${code}_${norm(assignment.section).replace(/[^a-z0-9]+/g, '_')}_exam.rollcbt`;
@@ -814,6 +841,32 @@
           const multiEnvelope = { header: 'ROLLCALL_CBT_SECURE_EXAM_PACKAGE_V1', checksum: await sign(JSON.stringify(multiPayload)), payload: multiPayload };
           const multiContent = JSON.stringify(multiEnvelope, null, 2);
           await db.ref(`cbtTeacherExams/${access.schoolId}/${multiExamId}`).set({ ...multiPayload, encryptedAnswers: null, createdAtMs: Date.now() });
+
+          const multiDateStr = scheduledAt ? scheduledAt.substring(0, 10) : new Date().toISOString().substring(0, 10);
+          await db.ref(`schoolTests/${access.schoolId}/${multiExamId}`).set({
+            id: multiExamId,
+            title: `${title} (Sections: ${multiSectionNames})`,
+            teacherId: window.currentUser?.uid || '',
+            teacherName: access.profile?.name || access.profile?.displayName || 'Teacher',
+            classId: sections[0].classId,
+            className: sections[0].className,
+            section: multiSectionNames,
+            subject: subject,
+            testDate: multiDateStr,
+            maxMarks: totalExamMarks,
+            passingMarks: Math.round(totalExamMarks * 0.4),
+            examType: 'Mock CBT Test',
+            durationMinutes: Number(modal.querySelector('#cbtDuration').value) || 60,
+            assessmentComponent: 'Theory',
+            instructions: modal.querySelector('#cbtInstructions').value || '',
+            studentCount: multiSectionCandidates.length,
+            scoredCount: 0,
+            status: 'scheduled',
+            isCbtExam: true,
+            cbtCode: `${code}-ALL-SECTIONS`,
+            createdAt: Date.now()
+          }).catch(e => console.warn('Could not auto-register test tile:', e));
+
           const multiAnchor = document.createElement('a');
           multiAnchor.href = URL.createObjectURL(new Blob([multiContent], { type: 'application/json' }));
           multiAnchor.download = `${code}_ALL_SECTIONS_exam.rollcbt`;
