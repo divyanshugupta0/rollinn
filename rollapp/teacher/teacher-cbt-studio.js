@@ -80,13 +80,33 @@
     const baseEnd = Date.parse(baseSubscription.endDate || '');
     const baseActive = String(baseSubscription.status || 'active').toLowerCase() !== 'inactive' && (!baseEnd || baseEnd >= Date.now());
     const active = baseActive && String(subscription.status || 'active').toLowerCase() !== 'inactive' && (!end || end >= Date.now());
+    let schoolData = {};
+    try {
+      schoolData = (await db.ref(`schools/${schoolId}`).once('value')).val() || {};
+    } catch (_) {}
+    const schoolCode = String(
+      schoolData.code ||
+      schoolData.schoolCode ||
+      subscription.schoolCode ||
+      profile.schoolCode ||
+      profile.institutionCode ||
+      schoolId
+    ).toUpperCase();
+    const schoolName = String(
+      schoolData.name ||
+      schoolData.schoolName ||
+      profile.schoolName ||
+      profile.institutionName ||
+      profile.school ||
+      'RollCall Institution'
+    );
     return {
       active,
       schoolId,
       profile,
       subscription,
-      schoolCode: String(profile.schoolCode || profile.institutionCode || schoolId).toUpperCase(),
-      schoolName: String(profile.schoolName || profile.institutionName || profile.school || 'RollCall Institution'),
+      schoolCode,
+      schoolName,
       maxDevices: Math.max(1, Math.floor(Number(subscription.maxDevices || subscription.deviceLimit || 1)))
     };
   }

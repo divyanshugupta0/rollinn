@@ -469,8 +469,13 @@ function unpackRollCbt(rawContent, currentSchoolCode = null) {
 
     const payload = envelope.payload;
     const examSchool = String(payload.schoolCode || '').toUpperCase();
-    if (currentSchoolCode && examSchool !== 'ANY' && examSchool !== String(currentSchoolCode).toUpperCase()) {
-        throw new Error(`This exam package is locked to institution code "${examSchool}", but your application is activated for "${currentSchoolCode}".`);
+    if (currentSchoolCode && examSchool !== 'ANY') {
+        const allowed = (Array.isArray(currentSchoolCode) ? currentSchoolCode : [currentSchoolCode])
+            .map(c => String(c || '').trim().toUpperCase())
+            .filter(Boolean);
+        if (allowed.length > 0 && !allowed.includes(examSchool)) {
+            throw new Error(`This exam package is locked to institution code "${examSchool}", but your application is activated for "${allowed[0]}".`);
+        }
     }
 
     // Decrypt answer keys

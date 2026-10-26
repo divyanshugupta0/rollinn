@@ -54,6 +54,16 @@ function isCbtTestMode() {
     return !app.isPackaged || process.argv.includes('--test-license') || process.env.ROLLCALL_CBT_TEST_MODE === '1';
 }
 
+function getValidExamSchoolCodes(license) {
+    if (isCbtTestMode() || license?.temporaryTest) {
+        return null; // In test mode or temporary test license, allow inspecting and testing any valid .rollcbt package
+    }
+    const codes = [];
+    if (license?.schoolCode) codes.push(license.schoolCode);
+    if (license?.schoolId) codes.push(license.schoolId);
+    return codes.length ? codes : null;
+}
+
 // Read application-private .rollcbt vault
 function readStationVault() {
     const vaultPath = getStationVaultPath();
@@ -352,7 +362,7 @@ function handleCommandLineFiles() {
                         const content = fs.readFileSync(arg, 'utf8');
                         const license = readStoredLicense();
                         if (!license.valid || license.expired) throw new Error("An active admin-issued CBT license is required to open this exam file.");
-                        const exam = unpackRollCbt(content, license.schoolCode);
+                        const exam = unpackRollCbt(content, getValidExamSchoolCodes(license));
                         mainWindow.webContents.send('cbt:file-opened-from-cli', {
                             filePath: arg,
                             exam
@@ -519,7 +529,7 @@ function setupIpcHandlers() {
             const rawContent = fs.readFileSync(filePath, 'utf8');
             const license = readStoredLicense();
             if (!license.valid || license.expired) throw new Error("An active admin-issued CBT license is required to open this exam file.");
-            const exam = unpackRollCbt(rawContent, license.schoolCode);
+            const exam = unpackRollCbt(rawContent, getValidExamSchoolCodes(license));
             return {
                 canceled: false,
                 filePath,
@@ -539,7 +549,7 @@ function setupIpcHandlers() {
         try {
             const license = readStoredLicense();
             if (!license.valid || license.expired) throw new Error("An active admin-issued CBT license is required to open this exam file.");
-            const exam = unpackRollCbt(rawContent, license.schoolCode);
+            const exam = unpackRollCbt(rawContent, getValidExamSchoolCodes(license));
             return { success: true, exam };
         } catch (error) {
             return { success: false, error: error.message };
@@ -738,7 +748,7 @@ if (!gotTheLock) {
                         const content = fs.readFileSync(filePath, 'utf8');
                         const license = readStoredLicense();
                         if (!license.valid || license.expired) throw new Error("An active admin-issued CBT license is required to open this exam file.");
-                        const exam = unpackRollCbt(content, license.schoolCode);
+                        const exam = unpackRollCbt(content, getValidExamSchoolCodes(license));
                         mainWindow.webContents.send('cbt:file-opened-from-cli', { filePath, exam });
                     }
                 } catch (e) {
