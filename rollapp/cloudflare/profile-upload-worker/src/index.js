@@ -3186,6 +3186,127 @@ async function getProfilePhoto(origin, env, url) {
     return new Response(object.body, { headers });
 }
 
+const KILO_API_ENDPOINT = 'https://ai-gateway.kilo.ai/api/v1/chat/completions';
+const KILO_FREE_MODEL = 'kilo-auto/free';
+
+async function handleAiGenerateQuestions(request, env, allowedOrigin) {
+    let payload;
+    try {
+        payload = await request.json();
+    } catch (_) {
+        return response({ error: 'Invalid JSON request payload.' }, 400, allowedOrigin);
+    }
+
+    const topic = String(payload.topic || '').trim();
+    if (!topic) {
+        return response({ error: 'Topic is required for AI question generation.' }, 400, allowedOrigin);
+    }
+
+    const className = String(payload.className || 'General').trim();
+    const section = String(payload.section || '').trim();
+    const subject = String(payload.subject || 'General').trim();
+    const numQuestions = Math.min(30, Math.max(1, parseInt(payload.numQuestions, 10) || 5));
+    const difficulty = String(payload.difficulty || 'Mixed').trim();
+    const marksPerQ = Math.max(1, parseInt(payload.marksPerQ, 10) || 1);
+
+    const systemPrompt = 'You are an expert school assessment question author. You must generate multiple-choice questions (MCQ) for school examinations. Output ONLY a valid JSON array, with no Markdown ticks, prose, or conversation.';
+
+    const userPrompt = `Create exactly ${numQuestions} multiple choice questions (MCQ) for an examination.
+Class: ${className}
+Section: ${section}
+Subject: ${subject}
+Topic/Syllabus: ${topic}
+Difficulty: ${difficulty}
+Marks per question: ${marksPerQ}
+
+Requirements:
+1. Each question must have exactly 4 plausible options (Option A, Option B, Option C, Option D).
+2. Exactly one option is correct.
+3. correctIndex must be an integer from 0 to 3 (0 for Option A, 1 for Option B, 2 for Option C, 3 for Option D).
+4. Include a brief, clear explanation for why the answer is correct.
+
+Respond STRICTLY with a valid JSON array matching this exact schema:
+[
+  {
+    "text": "Question statement here...",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctIndex": 0,
+    "marks": ${marksPerQ},
+    "explanation": "Brief explanation..."
+  }
+]`;
+
+    try {
+        const kiloRes = await fetch(KILO_API_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: KILO_FREE_MODEL,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                temperature: 0.7
+            })
+        });
+
+        if (!kiloRes.ok) {
+            const errText = await kiloRes.text().catch(() => '');
+            return response({ error: `Kilo AI Gateway returned status ${kiloRes.status}: ${errText.substring(0, 200)}` }, 502, allowedOrigin);
+        }
+
+        const data = await kiloRes.json();
+        const rawContent = data?.choices?.[0]?.message?.content;
+        if (!rawContent) {
+            return response({ error: 'Empty response received from Kilo AI.' }, 502, allowedOrigin);
+        }
+
+        let parsed = null;
+        try {
+            parsed = JSON.parse(rawContent.trim());
+        } catch (_) {
+            const match = rawContent.match(/\[[\s\S]*\]/);
+            if (match) {
+                parsed = JSON.parse(match[0]);
+            }
+        }
+
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+            return response({ error: 'AI output could not be parsed as a question array.', raw: rawContent }, 502, allowedOrigin);
+        }
+
+        const questions = [];
+        parsed.forEach(q => {
+            if (!q || !q.text || !Array.isArray(q.options) || q.options.length < 2) return;
+            const opts = q.options.slice(0, 4).map(o => String(o || '').trim());
+            while (opts.length < 4) {
+                opts.push(`Option ${String.fromCharCode(65 + opts.length)}`);
+            }
+            let ansIdx = parseInt(q.correctIndex !== undefined ? q.correctIndex : q.answer, 10);
+            if (isNaN(ansIdx) || ansIdx < 0 || ansIdx > 3) ansIdx = 0;
+            const marks = Number(q.marks) || marksPerQ;
+
+            questions.push({
+                text: String(q.text).trim(),
+                options: opts,
+                correctIndex: ansIdx,
+                marks: marks,
+                explanation: String(q.explanation || '').trim()
+            });
+        });
+
+        if (questions.length === 0) {
+            return response({ error: 'No valid questions could be extracted from AI response.' }, 502, allowedOrigin);
+        }
+
+        return response({ success: true, count: questions.length, questions }, 200, allowedOrigin);
+    } catch (err) {
+        return response({ error: 'Kilo AI request error: ' + err.message }, 500, allowedOrigin);
+    }
+}
+
 export default {
     async fetch(request, env) {
         const origin = request.headers.get('Origin');
@@ -3267,6 +3388,11 @@ export default {
             if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);
             if (request.method !== 'POST') return response({ error: 'Method not allowed.' }, 405, allowedOrigin);
             return sendCustomMail(request, env, allowedOrigin);
+        }
+        if (routePath.endsWith('/ai-generate-questions')) {
+            if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);
+            if (request.method !== 'POST') return response({ error: 'Method not allowed.' }, 405, allowedOrigin);
+            return handleAiGenerateQuestions(request, env, allowedOrigin);
         }
         if (routePath.endsWith('/school-admin-credentials')) {
             if (!allowedOrigin) return response({ error: 'Origin is not allowed.' }, 403);

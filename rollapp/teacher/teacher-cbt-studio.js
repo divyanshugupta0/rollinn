@@ -377,9 +377,14 @@
               </h3>
               <span style="font-size:0.78rem;color:#64748b;">Add multiple exam sections (e.g. Section A, Section B) with questions and answer keys.</span>
             </div>
-            <button id="cbtAddSection" type="button" class="tts-btn-secondary" style="width:auto !important;padding:8px 16px;font-size:0.82rem;min-height:36px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd;font-weight:700;">
-              <i class="fas fa-folder-plus"></i> Add Exam Section
-            </button>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <button id="cbtOpenAiModalBtn" type="button" class="tts-btn-primary" style="width:auto !important;padding:8px 16px;font-size:0.82rem;min-height:36px;background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);border-color:#4f46e5;font-weight:800;box-shadow:0 3px 10px rgba(99,102,241,0.25);">
+                <i class="fas fa-wand-magic-sparkles"></i> AI Question Generator
+              </button>
+              <button id="cbtAddSection" type="button" class="tts-btn-secondary" style="width:auto !important;padding:8px 16px;font-size:0.82rem;min-height:36px;background:#e0f2fe;color:#0369a1;border-color:#bae6fd;font-weight:700;">
+                <i class="fas fa-folder-plus"></i> Add Exam Section
+              </button>
+            </div>
           </div>
 
           <!-- Dynamic Exam Sections Container -->
@@ -401,6 +406,135 @@
     `;
     (document.body || panel).appendChild(modal);
 
+    // AI Question Generator Modal (Powered by Kilo Code AI Gateway Free Endpoint)
+    const aiModal = document.createElement('div');
+    aiModal.id = 'cbtAiGenModal';
+    aiModal.style = 'position:fixed;inset:0;z-index:100005;background:rgba(15,23,42,0.8);backdrop-filter:blur(6px);padding:20px;overflow-y:auto;display:none;align-items:center;justify-content:center;box-sizing:border-box;';
+    aiModal.innerHTML = `
+      <div style="width:100%;max-width:620px;background:#ffffff;border-radius:18px;padding:24px;box-shadow:0 25px 60px rgba(0,0,0,0.35);border:1px solid #e2e8f0;box-sizing:border-box;font-family:inherit;">
+        <!-- Modal Header -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #e2e8f0;padding-bottom:14px;margin-bottom:16px;">
+          <div>
+            <div style="display:inline-flex;align-items:center;gap:6px;background:#eef2ff;color:#4f46e5;font-size:0.72rem;font-weight:800;padding:3px 8px;border-radius:6px;margin-bottom:5px;text-transform:uppercase;">
+              <i class="fas fa-wand-magic-sparkles"></i> Powered by Kilo Code AI Gateway (Free Tier)
+            </div>
+            <h3 style="margin:0;font-size:1.20rem;font-weight:800;color:#0f172a;">AI Question Generator</h3>
+            <p style="margin:2px 0 0;font-size:0.78rem;color:#64748b;">Specify topics and syllabus to generate curriculum-aligned questions automatically.</p>
+          </div>
+          <button id="cbtAiClose" type="button" aria-label="Close" style="width:32px;height:32px;border-radius:50%;border:1px solid #cbd5e1;background:#f8fafc;color:#64748b;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">&times;</button>
+        </div>
+
+        <!-- Details Form -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <!-- Target Class & Section -->
+          <div class="tts-field-group">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+              <i class="fas fa-chalkboard" style="color:#4f46e5;"></i> Class &amp; Section
+            </label>
+            <input id="cbtAiClassSec" style="padding:8px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.84rem;background:#f8fafc;width:100%;box-sizing:border-box;" placeholder="e.g. Class 10 - Sec A">
+          </div>
+
+          <!-- Subject -->
+          <div class="tts-field-group">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+              <i class="fas fa-book" style="color:#4f46e5;"></i> Subject
+            </label>
+            <input id="cbtAiSubject" style="padding:8px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.84rem;background:#f8fafc;width:100%;box-sizing:border-box;" placeholder="e.g. Science / Mathematics">
+          </div>
+
+          <!-- Topic / Chapters (Full width) -->
+          <div class="tts-field-group" style="grid-column:1/-1;">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+              <i class="fas fa-lightbulb" style="color:#4f46e5;"></i> Exam Topic / Chapter / Syllabus <span style="color:#ef4444;">*</span>
+            </label>
+            <textarea id="cbtAiTopic" rows="3" style="padding:9px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.85rem;background:#fff;width:100%;box-sizing:border-box;font-family:inherit;resize:vertical;" placeholder="e.g. Chemical Reactions &amp; Equations, Types of Reactions (Combination, Decomposition, Displacement, Redox), Balancing Chemical Equations"></textarea>
+          </div>
+
+          <!-- Number of Questions -->
+          <div class="tts-field-group">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+              <i class="fas fa-list-ol" style="color:#4f46e5;"></i> Number of Questions
+            </label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input id="cbtAiNumQuestions" type="number" min="1" max="30" value="5" style="width:70px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.86rem;text-align:center;background:#fff;">
+              <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                <button type="button" class="cbt-ai-count-chip" data-num="3" style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;font-size:0.72rem;font-weight:700;cursor:pointer;">3</button>
+                <button type="button" class="cbt-ai-count-chip active" data-num="5" style="padding:4px 8px;border:1px solid #4f46e5;border-radius:6px;background:#eef2ff;color:#4f46e5;font-size:0.72rem;font-weight:700;cursor:pointer;">5</button>
+                <button type="button" class="cbt-ai-count-chip" data-num="10" style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;font-size:0.72rem;font-weight:700;cursor:pointer;">10</button>
+                <button type="button" class="cbt-ai-count-chip" data-num="15" style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;font-size:0.72rem;font-weight:700;cursor:pointer;">15</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Difficulty -->
+          <div class="tts-field-group">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+              <i class="fas fa-chart-line" style="color:#4f46e5;"></i> Difficulty Level
+            </label>
+            <select id="cbtAiDifficulty" style="padding:8px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;">
+              <option value="Mixed" selected>Mixed (Balanced)</option>
+              <option value="Easy">Easy (Foundational)</option>
+              <option value="Medium">Medium (Standard)</option>
+              <option value="Hard">Hard (Advanced / HOTS)</option>
+            </select>
+          </div>
+
+          <!-- Marks per Question -->
+          <div class="tts-field-group">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+              <i class="fas fa-award" style="color:#4f46e5;"></i> Marks per Question
+            </label>
+            <input id="cbtAiMarksPerQ" type="number" min="1" max="100" value="1" style="padding:8px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;">
+          </div>
+
+          <!-- Target Section -->
+          <div class="tts-field-group">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+              <i class="fas fa-folder" style="color:#4f46e5;"></i> Target Exam Section
+            </label>
+            <select id="cbtAiTargetSection" style="padding:8px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;">
+            </select>
+          </div>
+        </div>
+
+        <!-- AI Generation Progress & Status Banner -->
+        <div id="cbtAiStatusBox" style="display:none;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:0.82rem;font-weight:600;"></div>
+
+        <!-- Actions -->
+        <div style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #e2e8f0;padding-top:14px;">
+          <button id="cbtAiCancelBtn" type="button" class="tts-btn-secondary" style="padding:8px 18px;min-height:38px;">Cancel</button>
+          <button id="cbtAiGenerateBtn" type="button" class="tts-btn-primary" style="background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);border-color:#4f46e5;font-weight:800;padding:8px 22px;min-height:38px;box-shadow:0 3px 10px rgba(99,102,241,0.3);">
+            <i class="fas fa-wand-magic-sparkles"></i> Generate Questions
+          </button>
+        </div>
+      </div>
+    `;
+    (document.body || panel).appendChild(aiModal);
+
+    const closeAiModal = () => {
+      aiModal.style.display = 'none';
+    };
+    aiModal.querySelector('#cbtAiClose').onclick = closeAiModal;
+    aiModal.querySelector('#cbtAiCancelBtn').onclick = closeAiModal;
+    aiModal.onclick = (e) => { if (e.target === aiModal) closeAiModal(); };
+
+    // Count preset chips
+    aiModal.querySelectorAll('.cbt-ai-count-chip').forEach(chip => {
+      chip.onclick = () => {
+        aiModal.querySelectorAll('.cbt-ai-count-chip').forEach(c => {
+          c.classList.remove('active');
+          c.style.background = '#f8fafc';
+          c.style.color = '#334155';
+          c.style.borderColor = '#cbd5e1';
+        });
+        chip.classList.add('active');
+        chip.style.background = '#eef2ff';
+        chip.style.color = '#4f46e5';
+        chip.style.borderColor = '#4f46e5';
+        aiModal.querySelector('#cbtAiNumQuestions').value = chip.dataset.num;
+      };
+    });
+
     // Modal show/hide handlers
     const closeModal = (e) => {
       if (e) {
@@ -409,6 +543,7 @@
       }
       modal.style.display = 'none';
       modal.setAttribute('hidden', '');
+      closeAiModal();
       document.body.style.overflow = '';
     };
 
@@ -424,7 +559,13 @@
     if (cancelBtn) cancelBtn.onclick = closeModal;
     modal.onclick = (e) => { if (e.target === modal) closeModal(e); };
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && modal.style.display === 'flex') closeModal(e);
+      if (e.key === 'Escape') {
+        if (aiModal.style.display === 'flex') {
+          closeAiModal();
+        } else if (modal.style.display === 'flex') {
+          closeModal(e);
+        }
+      }
     });
 
     // Sections & Questions Engine
@@ -461,41 +602,50 @@
       if (marksInput) marksInput.value = grandTotalMarks;
     }
 
-    function addQuestionToSection(sectionCard) {
+    function addQuestionToSection(sectionCard, initialData = null) {
       const qList = sectionCard.querySelector('.cbt-sec-questions');
       const qIndex = qList.children.length + 1;
       const qCard = document.createElement('div');
       qCard.className = 'cbt-question-card';
-      qCard.style = 'border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px;background:#ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.02);box-sizing:border-box;';
+      qCard.style = 'border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px;background:#ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.02);box-sizing:border-box;transition:all 0.3s ease;';
+
+      const textVal = initialData?.text || '';
+      const opts = initialData?.options || ['', '', '', ''];
+      const ansVal = initialData?.correctIndex !== undefined ? initialData.correctIndex : 0;
+      const marksVal = initialData?.marks !== undefined ? initialData.marks : 1;
+
       qCard.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <strong class="cbt-q-badge" style="color:#0f172a;font-size:0.86rem;background:#f1f5f9;padding:2px 8px;border-radius:5px;">Q${qIndex}</strong>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <strong class="cbt-q-badge" style="color:#0f172a;font-size:0.86rem;background:#f1f5f9;padding:2px 8px;border-radius:5px;">Q${qIndex}</strong>
+            ${initialData?.explanation ? `<span title="${esc(initialData.explanation)}" style="font-size:0.70rem;color:#4f46e5;background:#eef2ff;padding:2px 6px;border-radius:4px;cursor:help;"><i class="fas fa-info-circle"></i> AI Hint</span>` : ''}
+          </div>
           <button type="button" class="tts-btn-secondary cbt-remove-q" style="width:auto !important;padding:3px 8px;color:#dc2626;border-color:#fecaca;background:#fff;font-size:0.74rem;min-height:28px;">
             <i class="fas fa-trash"></i>
           </button>
         </div>
         <div class="tts-field-group" style="margin-bottom:8px;">
-          <input class="cbt-text" placeholder="Question statement..." style="padding:8px 11px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#f8fafc;width:100%;box-sizing:border-box;">
+          <input class="cbt-text" value="${esc(textVal)}" placeholder="Question statement..." style="padding:8px 11px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#f8fafc;width:100%;box-sizing:border-box;">
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px;margin-bottom:8px;">
-          <input class="cbt-opt" placeholder="Option A" style="padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
-          <input class="cbt-opt" placeholder="Option B" style="padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
-          <input class="cbt-opt" placeholder="Option C" style="padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
-          <input class="cbt-opt" placeholder="Option D" style="padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
+          <input class="cbt-opt" value="${esc(opts[0] || '')}" placeholder="Option A" style="padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
+          <input class="cbt-opt" value="${esc(opts[1] || '')}" placeholder="Option B" style="padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
+          <input class="cbt-opt" value="${esc(opts[2] || '')}" placeholder="Option C" style="padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
+          <input class="cbt-opt" value="${esc(opts[3] || '')}" placeholder="Option D" style="padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <div class="tts-field-group" style="flex:1;min-width:130px;">
             <label style="font-size:0.70rem;font-weight:700;color:#64748b;margin-bottom:2px;display:block;">Correct Answer</label>
             <select class="cbt-answer" style="padding:6px 9px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;">
-              <option value="0">Option A</option>
-              <option value="1">Option B</option>
-              <option value="2">Option C</option>
-              <option value="3">Option D</option>
+              <option value="0" ${ansVal === 0 ? 'selected' : ''}>Option A</option>
+              <option value="1" ${ansVal === 1 ? 'selected' : ''}>Option B</option>
+              <option value="2" ${ansVal === 2 ? 'selected' : ''}>Option C</option>
+              <option value="3" ${ansVal === 3 ? 'selected' : ''}>Option D</option>
             </select>
           </div>
           <div class="tts-field-group" style="width:90px;">
             <label style="font-size:0.70rem;font-weight:700;color:#64748b;margin-bottom:2px;display:block;">Marks</label>
-            <input class="cbt-qmarks" type="number" min="1" value="1" style="padding:6px 8px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;text-align:center;">
+            <input class="cbt-qmarks" type="number" min="1" value="${marksVal}" style="padding:6px 8px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;width:100%;box-sizing:border-box;text-align:center;">
           </div>
         </div>
       `;
@@ -506,9 +656,10 @@
       qCard.querySelector('.cbt-qmarks').oninput = recalculateTotalMarks;
       qList.appendChild(qCard);
       recalculateTotalMarks();
+      return qCard;
     }
 
-    function createExamSection(initialTitle = '') {
+    function createExamSection(initialTitle = '', addEmptyQuestion = true) {
       sectionCount += 1;
       const sIndex = sectionsContainer.children.length + 1;
       const title = initialTitle || (sIndex === 1 ? 'Section A - General' : `Section ${String.fromCharCode(64 + sIndex)} - Subjective`);
@@ -522,7 +673,10 @@
             <input class="cbt-sec-name" value="${esc(title)}" placeholder="Section Name (e.g. Section A: Objective)" style="padding:6px 12px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.86rem;font-weight:700;color:#0f172a;background:#fff;flex:1;min-width:180px;box-sizing:border-box;">
             <span class="cbt-sec-stats cbt-sec-summary" style="font-size:0.78rem;color:#64748b;font-weight:700;white-space:nowrap;">0 Questions</span>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="tts-btn-secondary cbt-ai-gen-btn" style="width:auto !important;padding:5px 12px;font-size:0.78rem;min-height:32px;background:#eef2ff;color:#4338ca;border-color:#c7d2fe;font-weight:700;">
+              <i class="fas fa-wand-magic-sparkles"></i> AI Generate
+            </button>
             <button type="button" class="tts-btn-secondary cbt-add-q-to-sec" style="width:auto !important;padding:5px 12px;font-size:0.78rem;min-height:32px;background:#fff;">
               <i class="fas fa-plus"></i> Add Question
             </button>
@@ -534,15 +688,290 @@
         <div class="cbt-sec-questions" style="display:flex;flex-direction:column;gap:4px;"></div>
       `;
 
+      secCard.querySelector('.cbt-ai-gen-btn').onclick = () => {
+        const idx = [...sectionsContainer.children].indexOf(secCard);
+        openAiGenModal(idx >= 0 ? idx : null);
+      };
       secCard.querySelector('.cbt-add-q-to-sec').onclick = () => addQuestionToSection(secCard);
       secCard.querySelector('.cbt-remove-sec').onclick = () => {
         secCard.remove();
         recalculateTotalMarks();
       };
       sectionsContainer.appendChild(secCard);
-      addQuestionToSection(secCard);
+      if (addEmptyQuestion) {
+        addQuestionToSection(secCard);
+      }
       recalculateTotalMarks();
+      return secCard;
     }
+
+    modal.querySelector('#cbtAddSection').onclick = () => createExamSection();
+
+    // =========================================================================
+    // Kilo Code AI Question Generation Engine (Free Open Endpoint)
+    // =========================================================================
+    const KILO_DIRECT_API = 'https://ai-gateway.kilo.ai/api/v1/chat/completions';
+    const KILO_FREE_MODEL = 'kilo-auto/free';
+
+    async function generateQuestionsWithKiloDirect(params) {
+      const { className, section, subject, topic, numQuestions, difficulty, marksPerQ } = params;
+      const systemPrompt = 'You are an expert school assessment question author. You must generate multiple-choice questions (MCQ) for school examinations. Output ONLY a valid JSON array, with no Markdown ticks, prose, or conversation.';
+      const userPrompt = `Create exactly ${numQuestions} multiple choice questions (MCQ) for school examination.
+Class: ${className || 'General'}
+Section: ${section || 'General'}
+Subject: ${subject || 'General'}
+Topic/Syllabus: ${topic}
+Difficulty: ${difficulty || 'Mixed'}
+Marks per question: ${marksPerQ || 1}
+
+Requirements:
+1. Each question must have exactly 4 plausible options (Option A, Option B, Option C, Option D).
+2. Exactly one option is correct.
+3. correctIndex must be an integer from 0 to 3 (0 for Option A, 1 for Option B, 2 for Option C, 3 for Option D).
+4. Include a brief, clear explanation for why the answer is correct.
+
+Respond STRICTLY with a valid JSON array matching this exact schema:
+[
+  {
+    "text": "Question statement here...",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctIndex": 0,
+    "marks": ${marksPerQ || 1},
+    "explanation": "Brief solution..."
+  }
+]`;
+
+      const kiloRes = await fetch(KILO_DIRECT_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: KILO_FREE_MODEL,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.7
+        })
+      });
+
+      if (!kiloRes.ok) {
+        const errText = await kiloRes.text().catch(() => '');
+        throw new Error(`Kilo AI Gateway returned status ${kiloRes.status}: ${errText.substring(0, 180)}`);
+      }
+
+      const data = await kiloRes.json();
+      const rawContent = data?.choices?.[0]?.message?.content;
+      if (!rawContent) throw new Error('Empty response received from Kilo AI.');
+
+      let parsed = null;
+      try {
+        parsed = JSON.parse(rawContent.trim());
+      } catch (_) {
+        const match = rawContent.match(/\[[\s\S]*\]/);
+        if (match) parsed = JSON.parse(match[0]);
+      }
+
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        throw new Error('AI output could not be parsed as a question array.');
+      }
+
+      const questions = [];
+      parsed.forEach(q => {
+        if (!q || !q.text || !Array.isArray(q.options) || q.options.length < 2) return;
+        const opts = q.options.slice(0, 4).map(o => String(o || '').trim());
+        while (opts.length < 4) opts.push(`Option ${String.fromCharCode(65 + opts.length)}`);
+        let ansIdx = parseInt(q.correctIndex !== undefined ? q.correctIndex : q.answer, 10);
+        if (isNaN(ansIdx) || ansIdx < 0 || ansIdx > 3) ansIdx = 0;
+        const marks = Number(q.marks) || marksPerQ || 1;
+        questions.push({
+          text: String(q.text).trim(),
+          options: opts,
+          correctIndex: ansIdx,
+          marks: marks,
+          explanation: String(q.explanation || '').trim()
+        });
+      });
+
+      if (questions.length === 0) throw new Error('No valid questions could be extracted from AI output.');
+      return questions;
+    }
+
+    async function generateQuestionsWithAi(params) {
+      // 1. Try backend Cloudflare Worker endpoint if available
+      const workerBase = window.ROLLCALL_FIREBASE_CONFIG?.profileUploadWorkerUrl || 'https://rollcall-worker.divyanshugupta415.workers.dev/';
+      const backendUrl = `${String(workerBase).replace(/\/+$/, '')}/ai-generate-questions`;
+
+      let lastError = null;
+      try {
+        const res = await fetch(backendUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(params)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.questions) && data.questions.length > 0) {
+            return data.questions;
+          }
+          if (data.error) throw new Error(data.error);
+        } else {
+          const errJson = await res.json().catch(() => ({}));
+          if (errJson.error) throw new Error(errJson.error);
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn('Backend AI route unavailable, trying direct Kilo endpoint fallback...', err);
+      }
+
+      // 2. Fallback: Direct Kilo AI Gateway call (works in Electron / non-CORS environments)
+      try {
+        const directQuestions = await generateQuestionsWithKiloDirect(params);
+        return directQuestions;
+      } catch (directErr) {
+        throw new Error(lastError ? `${lastError.message} (Fallback: ${directErr.message})` : directErr.message);
+      }
+    }
+
+    function openAiGenModal(targetSecIndex = null) {
+      // Refresh section target dropdown
+      const targetSecSelect = aiModal.querySelector('#cbtAiTargetSection');
+      targetSecSelect.innerHTML = '';
+      const sectionCards = [...sectionsContainer.querySelectorAll('.cbt-section-card')];
+      sectionCards.forEach((sec, idx) => {
+        const secName = sec.querySelector('.cbt-sec-name')?.value.trim() || `Section ${idx + 1}`;
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `${secName} (${sec.querySelectorAll('.cbt-question-card').length} Qs)`;
+        if (targetSecIndex !== null && idx === targetSecIndex) {
+          opt.selected = true;
+        }
+        targetSecSelect.appendChild(opt);
+      });
+      const newSecOpt = document.createElement('option');
+      newSecOpt.value = 'NEW';
+      newSecOpt.textContent = '+ Create New Exam Section';
+      targetSecSelect.appendChild(newSecOpt);
+
+      // Pre-fill Class & Section from selected sections in CBT Studio
+      const secs = selectedSections(modal);
+      const classSecInp = aiModal.querySelector('#cbtAiClassSec');
+      if (secs.length > 0) {
+        classSecInp.value = secs.map(s => `${s.className} (Sec ${s.section})`).join(', ');
+      } else {
+        const filterCls = modal.querySelector('#cbtClassSelector')?.selectedOptions[0]?.textContent || '';
+        classSecInp.value = filterCls.includes('All') ? (panel.querySelector('#ttsClassSelect')?.selectedOptions[0]?.textContent || '') : filterCls;
+      }
+
+      // Pre-fill Subject
+      const subjInp = aiModal.querySelector('#cbtAiSubject');
+      const subjVal = panel.querySelector('#ttsSubjectSelect')?.value || '';
+      subjInp.value = subjVal || 'General';
+
+      // Pre-fill Topic if exam title has something
+      const titleVal = modal.querySelector('#cbtTitle')?.value.trim() || '';
+      const topicInp = aiModal.querySelector('#cbtAiTopic');
+      if (titleVal && !topicInp.value) {
+        topicInp.value = titleVal;
+      }
+
+      // Reset status box
+      const statusBox = aiModal.querySelector('#cbtAiStatusBox');
+      statusBox.style.display = 'none';
+
+      aiModal.style.display = 'flex';
+      topicInp.focus();
+    }
+
+    modal.querySelector('#cbtOpenAiModalBtn').onclick = () => {
+      openAiGenModal(null);
+    };
+
+    aiModal.querySelector('#cbtAiGenerateBtn').onclick = async () => {
+      const topic = (aiModal.querySelector('#cbtAiTopic').value || '').trim();
+      if (!topic) {
+        alert('Please enter the Topic, Chapter, or Syllabus for the questions.');
+        aiModal.querySelector('#cbtAiTopic').focus();
+        return;
+      }
+
+      const className = (aiModal.querySelector('#cbtAiClassSec').value || '').trim();
+      const subject = (aiModal.querySelector('#cbtAiSubject').value || '').trim();
+      const numQuestions = Math.min(30, Math.max(1, parseInt(aiModal.querySelector('#cbtAiNumQuestions').value, 10) || 5));
+      const difficulty = aiModal.querySelector('#cbtAiDifficulty').value || 'Mixed';
+      const marksPerQ = Math.max(1, parseInt(aiModal.querySelector('#cbtAiMarksPerQ').value, 10) || 1);
+      const targetSecChoice = aiModal.querySelector('#cbtAiTargetSection').value;
+
+      const genBtn = aiModal.querySelector('#cbtAiGenerateBtn');
+      const cancelBtn = aiModal.querySelector('#cbtAiCancelBtn');
+      const statusBox = aiModal.querySelector('#cbtAiStatusBox');
+
+      genBtn.disabled = true;
+      cancelBtn.disabled = true;
+      genBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Generating ${numQuestions} Questions with Kilo AI...`;
+      statusBox.style.display = 'block';
+      statusBox.style.background = '#eef2ff';
+      statusBox.style.border = '1px solid #c7d2fe';
+      statusBox.style.color = '#4338ca';
+      statusBox.innerHTML = `<i class="fas fa-wand-magic-sparkles fa-spin"></i> Contacting Kilo Code AI Gateway... Generating ${numQuestions} curriculum-aligned questions on "${esc(topic)}"...`;
+
+      try {
+        const questions = await generateQuestionsWithAi({
+          className,
+          subject,
+          topic,
+          numQuestions,
+          difficulty,
+          marksPerQ
+        });
+
+        // Determine target section
+        let targetSecCard = null;
+        const sectionCards = [...sectionsContainer.querySelectorAll('.cbt-section-card')];
+        if (targetSecChoice === 'NEW' || !sectionCards.length) {
+          targetSecCard = createExamSection(`Section ${String.fromCharCode(65 + sectionCards.length)}: ${topic.substring(0, 24)}`, false);
+        } else {
+          const idx = parseInt(targetSecChoice, 10);
+          targetSecCard = sectionCards[idx] || sectionCards[0];
+        }
+
+        // Insert generated questions
+        questions.forEach(q => {
+          const card = addQuestionToSection(targetSecCard, q);
+          card.style.background = '#f0fdf4';
+          card.style.borderColor = '#86efac';
+          setTimeout(() => {
+            card.style.background = '#ffffff';
+            card.style.borderColor = '#e2e8f0';
+          }, 2000);
+        });
+
+        recalculateTotalMarks();
+
+        // Close AI modal
+        closeAiModal();
+
+        // Update CBT Studio status
+        const cbtStatus = modal.querySelector('#cbtStatus');
+        if (cbtStatus) {
+          cbtStatus.innerHTML = `<span style="color:#15803d; font-weight:700;"><i class="fas fa-check-circle"></i> Successfully generated and added ${questions.length} questions for "${esc(topic)}"!</span>`;
+          setTimeout(() => { if (cbtStatus.innerHTML.includes('Successfully')) cbtStatus.innerHTML = ''; }, 6000);
+        }
+
+        // Scroll target section into view
+        targetSecCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch (err) {
+        console.error('AI question generation error:', err);
+        statusBox.style.display = 'block';
+        statusBox.style.background = '#fef2f2';
+        statusBox.style.border = '1px solid #fecaca';
+        statusBox.style.color = '#b91c1c';
+        statusBox.innerHTML = `<i class="fas fa-triangle-exclamation"></i> AI Generation Failed: ${esc(err.message || 'Unknown error')}. Please check your connection or try again.`;
+      } finally {
+        genBtn.disabled = false;
+        cancelBtn.disabled = false;
+        genBtn.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Generate Questions`;
+      }
+    };
 
     modal.querySelector('#cbtAddSection').onclick = () => createExamSection();
 
