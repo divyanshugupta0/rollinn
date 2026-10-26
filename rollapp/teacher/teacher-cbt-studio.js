@@ -415,8 +415,8 @@
         <!-- Modal Header -->
         <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #e2e8f0;padding-bottom:14px;margin-bottom:16px;">
           <div>
-            <div style="display:inline-flex;align-items:center;gap:6px;background:#eef2ff;color:#4f46e5;font-size:0.72rem;font-weight:800;padding:3px 8px;border-radius:6px;margin-bottom:5px;text-transform:uppercase;">
-              <i class="fas fa-wand-magic-sparkles"></i> Powered by Kilo Code AI Gateway (Free Tier)
+            <div style="display:inline-flex;align-items:center;gap:6px;background:#eef2ff;color:#4f46e5;font-size:0.72rem;font-weight:800;padding:3px 8px;border-radius:6px;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.04em;">
+              <i class="fas fa-wand-magic-sparkles"></i> AI Assessment Studio
             </div>
             <h3 style="margin:0;font-size:1.20rem;font-weight:800;color:#0f172a;">AI Question Generator</h3>
             <p style="margin:2px 0 0;font-size:0.78rem;color:#64748b;">Specify topics and syllabus to generate curriculum-aligned questions automatically.</p>
@@ -708,12 +708,12 @@
     modal.querySelector('#cbtAddSection').onclick = () => createExamSection();
 
     // =========================================================================
-    // Kilo Code AI Question Generation Engine (Free Open Endpoint)
+    // AI Question Generation Engine
     // =========================================================================
-    const KILO_DIRECT_API = 'https://ai-gateway.kilo.ai/api/v1/chat/completions';
-    const KILO_FREE_MODEL = 'kilo-auto/free';
+    const DIRECT_AI_API = 'https://ai-gateway.kilo.ai/api/v1/chat/completions';
+    const DIRECT_AI_MODEL = 'kilo-auto/free';
 
-    async function generateQuestionsWithKiloDirect(params) {
+    async function generateQuestionsDirect(params) {
       const { className, section, subject, topic, numQuestions, difficulty, marksPerQ } = params;
       const systemPrompt = 'You are an expert school assessment question author. You must generate multiple-choice questions (MCQ) for school examinations. Output ONLY a valid JSON array, with no Markdown ticks, prose, or conversation.';
       const userPrompt = `Create exactly ${numQuestions} multiple choice questions (MCQ) for school examination.
@@ -741,11 +741,11 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
   }
 ]`;
 
-      const kiloRes = await fetch(KILO_DIRECT_API, {
+      const aiRes = await fetch(DIRECT_AI_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: KILO_FREE_MODEL,
+          model: DIRECT_AI_MODEL,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
@@ -754,14 +754,13 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
         })
       });
 
-      if (!kiloRes.ok) {
-        const errText = await kiloRes.text().catch(() => '');
-        throw new Error(`Kilo AI Gateway returned status ${kiloRes.status}: ${errText.substring(0, 180)}`);
+      if (!aiRes.ok) {
+        throw new Error(`AI generation service error (Status ${aiRes.status})`);
       }
 
-      const data = await kiloRes.json();
+      const data = await aiRes.json();
       const rawContent = data?.choices?.[0]?.message?.content;
-      if (!rawContent) throw new Error('Empty response received from Kilo AI.');
+      if (!rawContent) throw new Error('Empty response received from AI service.');
 
       let parsed = null;
       try {
@@ -820,12 +819,12 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
         }
       } catch (err) {
         lastError = err;
-        console.warn('Backend AI route unavailable, trying direct Kilo endpoint fallback...', err);
+        console.warn('Backend AI route unavailable, trying direct fallback...', err);
       }
 
-      // 2. Fallback: Direct Kilo AI Gateway call (works in Electron / non-CORS environments)
+      // 2. Fallback: Direct AI call (works in Electron / non-CORS environments)
       try {
-        const directQuestions = await generateQuestionsWithKiloDirect(params);
+        const directQuestions = await generateQuestionsDirect(params);
         return directQuestions;
       } catch (directErr) {
         throw new Error(lastError ? `${lastError.message} (Fallback: ${directErr.message})` : directErr.message);
@@ -907,12 +906,12 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
 
       genBtn.disabled = true;
       cancelBtn.disabled = true;
-      genBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Generating ${numQuestions} Questions with Kilo AI...`;
+      genBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Generating ${numQuestions} Questions...`;
       statusBox.style.display = 'block';
       statusBox.style.background = '#eef2ff';
       statusBox.style.border = '1px solid #c7d2fe';
       statusBox.style.color = '#4338ca';
-      statusBox.innerHTML = `<i class="fas fa-wand-magic-sparkles fa-spin"></i> Contacting Kilo Code AI Gateway... Generating ${numQuestions} curriculum-aligned questions on "${esc(topic)}"...`;
+      statusBox.innerHTML = `<i class="fas fa-wand-magic-sparkles fa-spin"></i> Generating ${numQuestions} curriculum-aligned questions on "${esc(topic)}"...`;
 
       try {
         const questions = await generateQuestionsWithAi({
@@ -1089,6 +1088,14 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
     // CBT Package Generation & Export
     modal.querySelector('#cbtGenerate').onclick = async () => {
       const status = modal.querySelector('#cbtStatus');
+      const genBtn = modal.querySelector('#cbtGenerate');
+      const origBtnHtml = genBtn.innerHTML;
+
+      genBtn.disabled = true;
+      genBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing &amp; Downloading...';
+      status.style.color = '#0369a1';
+      status.textContent = 'Generating secure exam packages...';
+
       try {
         const access = await getCbtAccess();
         if (!access.active) throw new Error('An active CBT plan is required for this school.');
@@ -1142,6 +1149,7 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
         const scheduledAt = modal.querySelector('#cbtScheduledAt').value ? new Date(modal.querySelector('#cbtScheduledAt').value).toISOString() : null;
         const db = window.firebase?.database?.();
         const generatedFiles = [];
+        const filesToDownload = [];
         const multiSectionCandidates = [];
 
         for (const assignment of sections) {
@@ -1200,39 +1208,41 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
           payload.encryptedAnswers = await encrypt(JSON.stringify(answers), examId, access.schoolCode);
           const envelope = { header: 'ROLLCALL_CBT_SECURE_EXAM_PACKAGE_V1', checksum: await sign(JSON.stringify(payload)), payload };
           const content = JSON.stringify(envelope, null, 2);
-          await db.ref(`cbtTeacherExams/${access.schoolId}/${examId}`).set({ ...payload, encryptedAnswers: null, createdAtMs: Date.now() });
 
-          // Register as a scheduled assessment tile in schoolTests
-          const scheduledDateStr = scheduledAt ? scheduledAt.substring(0, 10) : new Date().toISOString().substring(0, 10);
-          await db.ref(`schoolTests/${access.schoolId}/${examId}`).set({
-            id: examId,
-            title: title,
-            teacherId: window.currentUser?.uid || '',
-            teacherName: access.profile?.name || access.profile?.displayName || 'Teacher',
-            classId: assignment.classId,
-            className: assignment.className,
-            section: assignment.section,
-            subject: subject,
-            testDate: scheduledDateStr,
-            maxMarks: totalExamMarks,
-            passingMarks: Math.round(totalExamMarks * 0.4),
-            examType: 'Mock CBT Test',
-            durationMinutes: Number(modal.querySelector('#cbtDuration').value) || 60,
-            assessmentComponent: 'Theory',
-            instructions: modal.querySelector('#cbtInstructions').value || '',
-            studentCount: assignedStudents.length,
-            scoredCount: 0,
-            status: 'scheduled',
-            isCbtExam: true,
-            cbtCode: `${code}-${String(assignment.section).replace(/[^a-z0-9]/gi, '').toUpperCase()}`,
-            createdAt: Date.now()
-          }).catch(e => console.warn('Could not auto-register test tile:', e));
+          // Save to Firebase database safely (never block download if rules or network fail)
+          if (db && access.schoolId) {
+            await db.ref(`cbtTeacherExams/${access.schoolId}/${examId}`).set({ ...payload, encryptedAnswers: null, createdAtMs: Date.now() }).catch(e => console.warn('Could not cache cbtTeacherExams:', e));
 
-          const anchor = document.createElement('a');
-          anchor.href = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
-          anchor.download = `${code}_${norm(assignment.section).replace(/[^a-z0-9]+/g, '_')}_exam.rollcbt`;
-          anchor.click();
-          generatedFiles.push(`${assignment.className} Sec ${assignment.section}: ${assignedStudents.length} students, ${allocation.threshold} per device`);
+            // Register as a scheduled assessment tile in schoolTests
+            const scheduledDateStr = scheduledAt ? scheduledAt.substring(0, 10) : new Date().toISOString().substring(0, 10);
+            await db.ref(`schoolTests/${access.schoolId}/${examId}`).set({
+              id: examId,
+              title: title,
+              teacherId: window.currentUser?.uid || '',
+              teacherName: access.profile?.name || access.profile?.displayName || 'Teacher',
+              classId: assignment.classId,
+              className: assignment.className,
+              section: assignment.section,
+              subject: subject,
+              testDate: scheduledDateStr,
+              maxMarks: totalExamMarks,
+              passingMarks: Math.round(totalExamMarks * 0.4),
+              examType: 'Mock CBT Test',
+              durationMinutes: Number(modal.querySelector('#cbtDuration').value) || 60,
+              assessmentComponent: 'Theory',
+              instructions: modal.querySelector('#cbtInstructions').value || '',
+              studentCount: assignedStudents.length,
+              scoredCount: 0,
+              status: 'scheduled',
+              isCbtExam: true,
+              cbtCode: `${code}-${String(assignment.section).replace(/[^a-z0-9]/gi, '').toUpperCase()}`,
+              createdAt: Date.now()
+            }).catch(e => console.warn('Could not auto-register test tile:', e));
+          }
+
+          const filename = `${code}_${norm(assignment.section).replace(/[^a-z0-9]+/g, '_')}_exam.rollcbt`;
+          filesToDownload.push({ filename, content });
+          generatedFiles.push(`${assignment.className} Sec ${assignment.section}: ${assignedStudents.length} students`);
         }
 
         // Generate unified Multi-Section Bundle if more than 1 section was chosen
@@ -1269,42 +1279,73 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
           multiPayload.encryptedAnswers = await encrypt(JSON.stringify(answers), multiExamId, access.schoolCode);
           const multiEnvelope = { header: 'ROLLCALL_CBT_SECURE_EXAM_PACKAGE_V1', checksum: await sign(JSON.stringify(multiPayload)), payload: multiPayload };
           const multiContent = JSON.stringify(multiEnvelope, null, 2);
-          await db.ref(`cbtTeacherExams/${access.schoolId}/${multiExamId}`).set({ ...multiPayload, encryptedAnswers: null, createdAtMs: Date.now() });
 
-          const multiDateStr = scheduledAt ? scheduledAt.substring(0, 10) : new Date().toISOString().substring(0, 10);
-          await db.ref(`schoolTests/${access.schoolId}/${multiExamId}`).set({
-            id: multiExamId,
-            title: `${title} (Sections: ${multiSectionNames})`,
-            teacherId: window.currentUser?.uid || '',
-            teacherName: access.profile?.name || access.profile?.displayName || 'Teacher',
-            classId: sections[0].classId,
-            className: sections[0].className,
-            section: multiSectionNames,
-            subject: subject,
-            testDate: multiDateStr,
-            maxMarks: totalExamMarks,
-            passingMarks: Math.round(totalExamMarks * 0.4),
-            examType: 'Mock CBT Test',
-            durationMinutes: Number(modal.querySelector('#cbtDuration').value) || 60,
-            assessmentComponent: 'Theory',
-            instructions: modal.querySelector('#cbtInstructions').value || '',
-            studentCount: multiSectionCandidates.length,
-            scoredCount: 0,
-            status: 'scheduled',
-            isCbtExam: true,
-            cbtCode: `${code}-ALL-SECTIONS`,
-            createdAt: Date.now()
-          }).catch(e => console.warn('Could not auto-register test tile:', e));
+          if (db && access.schoolId) {
+            await db.ref(`cbtTeacherExams/${access.schoolId}/${multiExamId}`).set({ ...multiPayload, encryptedAnswers: null, createdAtMs: Date.now() }).catch(e => console.warn('Could not cache multi cbtTeacherExams:', e));
 
-          const multiAnchor = document.createElement('a');
-          multiAnchor.href = URL.createObjectURL(new Blob([multiContent], { type: 'application/json' }));
-          multiAnchor.download = `${code}_ALL_SECTIONS_exam.rollcbt`;
-          multiAnchor.click();
-          generatedFiles.push(`Master Multi-Section File: ${multiSectionCandidates.length} candidates sequenced section-wise`);
+            const multiDateStr = scheduledAt ? scheduledAt.substring(0, 10) : new Date().toISOString().substring(0, 10);
+            await db.ref(`schoolTests/${access.schoolId}/${multiExamId}`).set({
+              id: multiExamId,
+              title: `${title} (Sections: ${multiSectionNames})`,
+              teacherId: window.currentUser?.uid || '',
+              teacherName: access.profile?.name || access.profile?.displayName || 'Teacher',
+              classId: sections[0].classId,
+              className: sections[0].className,
+              section: multiSectionNames,
+              subject: subject,
+              testDate: multiDateStr,
+              maxMarks: totalExamMarks,
+              passingMarks: Math.round(totalExamMarks * 0.4),
+              examType: 'Mock CBT Test',
+              durationMinutes: Number(modal.querySelector('#cbtDuration').value) || 60,
+              assessmentComponent: 'Theory',
+              instructions: modal.querySelector('#cbtInstructions').value || '',
+              studentCount: multiSectionCandidates.length,
+              scoredCount: 0,
+              status: 'scheduled',
+              isCbtExam: true,
+              cbtCode: `${code}-ALL-SECTIONS`,
+              createdAt: Date.now()
+            }).catch(e => console.warn('Could not auto-register test tile:', e));
+          }
+
+          const multiFilename = `${code}_ALL_SECTIONS_exam.rollcbt`;
+          filesToDownload.push({ filename: multiFilename, content: multiContent });
+          generatedFiles.push(`Master Multi-Section File: ${multiSectionCandidates.length} candidates`);
         }
-        status.textContent = `Saved ${generatedFiles.length} section schedule${generatedFiles.length === 1 ? '' : 's'} and downloaded the exam file${generatedFiles.length === 1 ? '' : 's'}. ${generatedFiles.join(' | ')}`;
+
+        // Trigger downloads with slight delay between each to avoid browser popup/download blocking
+        filesToDownload.forEach((file, fIdx) => {
+          setTimeout(() => {
+            try {
+              const blob = new Blob([file.content], { type: 'application/octet-stream' });
+              const url = URL.createObjectURL(blob);
+              const anchor = document.createElement('a');
+              anchor.style.display = 'none';
+              anchor.href = url;
+              anchor.download = file.filename;
+              document.body.appendChild(anchor);
+              anchor.click();
+              setTimeout(() => {
+                anchor.remove();
+                URL.revokeObjectURL(url);
+              }, 4000);
+            } catch (dlErr) {
+              console.error('Download error:', dlErr);
+            }
+          }, fIdx * 250);
+        });
+
+        status.style.color = '#15803d';
+        status.innerHTML = `<i class="fas fa-check-circle"></i> Saved ${generatedFiles.length} section schedule${generatedFiles.length === 1 ? '' : 's'} and downloaded exam file${generatedFiles.length === 1 ? '' : 's'}! ${generatedFiles.join(' | ')}`;
       } catch (error) {
-        status.textContent = error.message || 'Could not generate exam files.';
+        console.error('CBT Export Error:', error);
+        status.style.color = '#b91c1c';
+        status.innerHTML = `<i class="fas fa-triangle-exclamation"></i> ${esc(error.message || 'Could not generate exam files.')}`;
+        status.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } finally {
+        genBtn.disabled = false;
+        genBtn.innerHTML = origBtnHtml;
       }
     };
 

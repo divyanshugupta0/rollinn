@@ -670,6 +670,51 @@
         ".read": "auth != null && root.child('owners').child(auth.uid).exists()",
         ".write": "auth != null"
       }
+    },
+
+    "cbtTeacherExams": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "schoolTests": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": [
+          "testDate",
+          "classId",
+          "className",
+          "section",
+          "teacherId",
+          "createdAt"
+        ]
+      }
+    },
+
+    "schoolTestScores": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "schoolStudentScores": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$schoolId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     }
   }
 }
+

@@ -3253,14 +3253,13 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
         });
 
         if (!kiloRes.ok) {
-            const errText = await kiloRes.text().catch(() => '');
-            return response({ error: `Kilo AI Gateway returned status ${kiloRes.status}: ${errText.substring(0, 200)}` }, 502, allowedOrigin);
+            return response({ error: `AI generation service unavailable (Status ${kiloRes.status})` }, 502, allowedOrigin);
         }
 
         const data = await kiloRes.json();
         const rawContent = data?.choices?.[0]?.message?.content;
         if (!rawContent) {
-            return response({ error: 'Empty response received from Kilo AI.' }, 502, allowedOrigin);
+            return response({ error: 'Empty response received from AI service.' }, 502, allowedOrigin);
         }
 
         let parsed = null;
@@ -3303,7 +3302,7 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
 
         return response({ success: true, count: questions.length, questions }, 200, allowedOrigin);
     } catch (err) {
-        return response({ error: 'Kilo AI request error: ' + err.message }, 500, allowedOrigin);
+        return response({ error: 'AI service request error: ' + err.message }, 500, allowedOrigin);
     }
 }
 
