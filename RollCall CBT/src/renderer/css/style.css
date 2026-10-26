@@ -1872,74 +1872,30 @@ body.exam-active .app-viewport {
    VIEW 4: Results & Official Scorecard
    ========================================================================== */
 .results-page-shell {
-    max-width: 940px;
-    margin: 28px auto 60px;
-    padding: 0 20px;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 24px 32px 60px;
+    box-sizing: border-box;
 }
 
 .official-scorecard {
+    width: 100%;
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: var(--radius-xl);
-    box-shadow: 0 20px 50px -15px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
     overflow: hidden;
-}
-
-/* Institutional Header Banner */
-.scorecard-header-bar {
-    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 55%, #1e293b 100%);
-    padding: 18px 28px;
-    color: #ffffff;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.08);
-}
-
-.scorecard-header-brand {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.scorecard-cert-title {
-    display: block;
-    font-size: 0.98rem;
-    font-weight: 750;
-    letter-spacing: -0.01em;
-    color: #ffffff;
-}
-
-.scorecard-cert-sub {
-    display: block;
-    font-size: 0.76rem;
-    color: #94a3b8;
-    margin-top: 1px;
-}
-
-.scorecard-security-stamp {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    background: rgba(34, 197, 94, 0.15);
-    border: 1px solid rgba(34, 197, 94, 0.4);
-    border-radius: 20px;
-    color: #4ade80;
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 750;
-    letter-spacing: 0.06em;
 }
 
 /* Candidate Identity & Status Banner */
 .scorecard-candidate-banner {
-    padding: 24px 28px;
+    padding: 28px 32px;
     border-bottom: 1px solid #f1f5f9;
     display: flex;
     align-items: center;
-    gap: 20px;
-    background: #fafbfc;
+    gap: 24px;
+    background: #ffffff;
 }
 
 .scorecard-avatar-box {
@@ -2465,12 +2421,6 @@ body.exam-active .app-viewport {
         box-shadow: none !important;
     }
 
-    .scorecard-header-bar {
-        background: #0f172a !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
     .review-item-card {
         break-inside: avoid;
     }
@@ -2569,5 +2519,29 @@ body.exam-active .app-viewport {
     }
     .hall-palette-pane {
         display: none;
+    }
+    .results-page-shell {
+        padding: 16px 16px 40px;
+    }
+    .scorecard-candidate-banner {
+        padding: 20px 18px;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .scorecard-metrics-grid,
+    .scorecard-breakdown-bar {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 16px 18px;
+    }
+    .scorecard-actions-bar,
+    .scorecard-review-section {
+        padding: 20px 18px;
+    }
+}
+
+@media (max-width: 580px) {
+    .scorecard-metrics-grid,
+    .scorecard-breakdown-bar {
+        grid-template-columns: 1fr;
     }
 }
