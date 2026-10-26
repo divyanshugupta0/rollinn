@@ -128,9 +128,12 @@
         el.confirmStudentFallback = document.getElementById('confirm-student-fallback');
         el.btnChangeStudent = document.getElementById('btn-change-student');
         el.pinVerifyRow = document.getElementById('pin-verify-row');
+        el.pinInputGroup = document.getElementById('pin-input-group');
+        el.labelCandidatePin = document.getElementById('label-candidate-pin');
         el.inputCandidatePin = document.getElementById('input-candidate-pin');
         el.btnVerifyPin = document.getElementById('btn-verify-pin');
         el.pinStatusMsg = document.getElementById('pin-status-msg');
+        el.pinVerifiedBadge = document.getElementById('pin-verified-badge');
 
         // Hardware Diagnostics
         el.diagWebcamStatus = document.getElementById('diag-webcam-status');
@@ -491,6 +494,13 @@
     }
 
     function loadExamIntoSetup(exam) {
+        if ((!exam.sections || exam.sections.length === 0) && Array.isArray(exam.questions) && exam.questions.length > 0) {
+            exam.sections = [{
+                id: 'sec-general',
+                title: 'General Section',
+                questions: exam.questions
+            }];
+        }
         state.activeExam = exam;
         state.selectedCandidate = null;
         state.currentSectionIndex = 0;
@@ -812,19 +822,23 @@
 
         // Student PIN Verification
         if (candidate.pin && String(candidate.pin).trim()) {
+            state.candidatePinVerified = false;
             if (el.pinVerifyRow) el.pinVerifyRow.style.display = 'block';
+            if (el.pinInputGroup) el.pinInputGroup.style.display = 'flex';
+            if (el.labelCandidatePin) el.labelCandidatePin.style.display = 'block';
             if (el.inputCandidatePin) el.inputCandidatePin.value = '';
             if (el.pinStatusMsg) {
+                el.pinStatusMsg.style.display = 'block';
                 el.pinStatusMsg.textContent = 'Enter student PIN to unlock session.';
                 el.pinStatusMsg.style.color = '#92400e';
             }
+            if (el.pinVerifiedBadge) el.pinVerifiedBadge.style.display = 'none';
         } else {
+            state.candidatePinVerified = true;
             if (el.pinVerifyRow) el.pinVerifyRow.style.display = 'none';
             if (el.pinStatusMsg) el.pinStatusMsg.textContent = '';
+            if (el.pinVerifiedBadge) el.pinVerifiedBadge.style.display = 'none';
         }
-
-        // Reset honor code
-        if (el.checkHonorCode) el.checkHonorCode.checked = false;
 
         updateNextCandidateSeqChip();
         startDeskCountdown();
@@ -948,17 +962,16 @@
         }
 
         const pinRequired = state.selectedCandidate?.pin && String(state.selectedCandidate.pin).trim();
-        const pinValid = !pinRequired || (el.pinStatusMsg && el.pinStatusMsg.textContent.includes('✓'));
-        const honorChecked = el.checkHonorCode ? el.checkHonorCode.checked : true;
+        const pinValid = !pinRequired || state.candidatePinVerified === true;
 
-        if (honorChecked && pinValid) {
+        if (pinValid) {
             el.btnEnterExamHall.disabled = false;
             el.btnEnterExamHall.className = 'btn-desk-start active';
             el.btnEnterExamHall.innerHTML = `<i class="fas fa-play"></i> Start Examination`;
         } else {
             el.btnEnterExamHall.disabled = true;
             el.btnEnterExamHall.className = 'btn-desk-start';
-            el.btnEnterExamHall.innerHTML = `<i class="fas fa-play"></i> Start Examination`;
+            el.btnEnterExamHall.innerHTML = `<i class="fas fa-play"></i> Start Examination (Verify PIN First)`;
         }
     }
 
@@ -1011,10 +1024,13 @@
 
         // Proctoring video
         const webcamActive = state.activeExam.rules?.webcamProctoringRequired === true && state.webcamStream;
-        if (webcamActive) {
+        if (webcamActive && el.hallProctorVideo) {
             el.hallProctorVideo.srcObject = state.webcamStream;
         }
-        el.hallProctorVideo.classList.toggle('hidden', !webcamActive);
+        if (el.hallProctorVideo) {
+            el.hallProctorVideo.classList.toggle('hidden', !webcamActive);
+            el.hallProctorVideo.hidden = !webcamActive;
+        }
 
         // Candidate Photo & Avatar on Right Bar & Topbar
         const candidatePhoto = state.selectedCandidate.profilePicData || state.selectedCandidate.profilePic || state.selectedCandidate.profilePhoto || state.selectedCandidate.photoURL || state.selectedCandidate.photoUrl || state.selectedCandidate.profilePicture || state.selectedCandidate.imageUrl;
@@ -1042,8 +1058,9 @@
         updateAvatar(el.hallCandidateImage, el.hallCandidateFallback);
 
         // Right Bar Candidate Details
+        const candidateRoll = state.selectedCandidate.rollNo || state.selectedCandidate.roll || state.selectedCandidate.classRoll || '--';
         if (el.paletteStudentName) el.paletteStudentName.textContent = state.selectedCandidate.name || 'Candidate';
-        if (el.paletteStudentRoll) el.paletteStudentRoll.textContent = `Roll No: ${state.selectedCandidate.rollNo || '--'}`;
+        if (el.paletteStudentRoll) el.paletteStudentRoll.textContent = `Roll: ${candidateRoll}`;
         if (el.paletteStudentClass) el.paletteStudentClass.textContent = state.selectedCandidate.class || state.selectedCandidate.batch || state.selectedCandidate.grade || 'Student';
         if (el.paletteStudentSec) el.paletteStudentSec.textContent = state.selectedCandidate.section ? `Sec ${state.selectedCandidate.section}` : 'Sec --';
         const seqVal = state.selectedCandidate.sectionSequence || state.selectedCandidate.sequence || 1;
@@ -1056,8 +1073,8 @@
         if (el.topbarExamSubject) el.topbarExamSubject.textContent = examSubject;
         if (el.hallExamTitle) el.hallExamTitle.textContent = examTitle;
         if (el.hallExamSubject) el.hallExamSubject.textContent = examSubject;
-        if (el.hallCandidateName) el.hallCandidateName.textContent = state.selectedCandidate.name;
-        if (el.hallCandidateRoll) el.hallCandidateRoll.textContent = `Roll No: ${state.selectedCandidate.rollNo || '--'}`;
+        if (el.hallCandidateName) el.hallCandidateName.textContent = state.selectedCandidate.name || 'Candidate';
+        if (el.hallCandidateRoll) el.hallCandidateRoll.textContent = `Roll: ${candidateRoll}`;
 
         // Setup strikes
         state.antiCheatStrikes = 0;
@@ -1074,6 +1091,13 @@
         startExamTimer();
 
         // Render sections and questions
+        if ((!state.activeExam.sections || state.activeExam.sections.length === 0) && Array.isArray(state.activeExam.questions) && state.activeExam.questions.length > 0) {
+            state.activeExam.sections = [{
+                id: 'sec-general',
+                title: 'General Section',
+                questions: state.activeExam.questions
+            }];
+        }
         renderExamSections();
         loadQuestion(0, 0);
 
@@ -1220,11 +1244,12 @@
                 ? Array.isArray(currentResp) && currentResp.includes(optLetter)
                 : currentResp === optLetter;
 
+            const optLabel = typeof optText === 'object' && optText !== null ? (optText.text || optText.label || optText.optionText || '') : optText;
             const optDiv = document.createElement('div');
             optDiv.className = `option-choice-item ${isSelected ? 'selected' : ''}`;
             optDiv.innerHTML = `
                 <div class="opt-prefix">${optLetter}</div>
-                <div class="opt-text">${optText}</div>
+                <div class="opt-text">${optLabel}</div>
             `;
 
             optDiv.addEventListener('click', () => {
@@ -2519,28 +2544,36 @@
         });
 
         // Verify PIN
-        el.btnVerifyPin.addEventListener('click', () => {
-            const pin = el.inputCandidatePin.value.trim();
+        el.btnVerifyPin?.addEventListener('click', () => {
+            const pin = el.inputCandidatePin?.value?.trim();
             if (state.selectedCandidate && state.selectedCandidate.pin) {
                 if (pin === String(state.selectedCandidate.pin).trim()) {
-                    el.pinStatusMsg.textContent = '✓ PIN verified successfully!';
-                    el.pinStatusMsg.style.color = 'var(--accent-emerald)';
-                    updateStartButtonState(el.checkHonorCode.checked);
+                    state.candidatePinVerified = true;
+                    if (el.pinInputGroup) el.pinInputGroup.style.display = 'none';
+                    if (el.labelCandidatePin) el.labelCandidatePin.style.display = 'none';
+                    if (el.pinStatusMsg) el.pinStatusMsg.style.display = 'none';
+                    if (el.pinVerifiedBadge) el.pinVerifiedBadge.style.display = 'inline-flex';
+                    showToast('PIN verified successfully!', 'success');
+                    updateStartButtonState();
                 } else {
-                    el.pinStatusMsg.textContent = '✗ Incorrect PIN. Check with your exam supervisor.';
-                    el.pinStatusMsg.style.color = 'var(--accent-coral)';
-                    updateStartButtonState(false);
+                    state.candidatePinVerified = false;
+                    if (el.pinStatusMsg) {
+                        el.pinStatusMsg.style.display = 'block';
+                        el.pinStatusMsg.textContent = '✗ Incorrect PIN. Check with your exam supervisor.';
+                        el.pinStatusMsg.style.color = '#dc2626';
+                    }
+                    updateStartButtonState();
                 }
             }
         });
 
-        // Honor code checkbox
-        el.checkHonorCode.addEventListener('change', () => {
-            if (state.selectedCandidate) {
-                const pinRequired = state.selectedCandidate.pin && String(state.selectedCandidate.pin).trim();
-                const pinValid = !pinRequired || el.pinStatusMsg.textContent.includes('✓');
-                updateStartButtonState(el.checkHonorCode.checked && pinValid);
-            }
+        el.inputCandidatePin?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') el.btnVerifyPin?.click();
+        });
+
+        // Honor code checkbox (optional fallback if present)
+        el.checkHonorCode?.addEventListener('change', () => {
+            updateStartButtonState();
         });
 
         // Enter Exam Hall Button

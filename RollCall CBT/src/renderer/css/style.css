@@ -1065,7 +1065,7 @@ button, input, select, textarea {
 
 .desk-body-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 24px;
     padding: 28px 32px;
     background: #fcfdfe;
@@ -1222,6 +1222,24 @@ button, input, select, textarea {
 .desk-pin-msg {
     font-size: 0.78rem;
     margin-top: 6px;
+}
+
+.desk-pin-verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #f0fdf4;
+    border: 1.5px solid #86efac;
+    border-radius: 8px;
+    color: #15803d;
+    font-size: 0.90rem;
+    font-weight: 700;
+}
+
+.desk-pin-verified-badge i {
+    font-size: 1.1rem;
+    color: #16a34a;
 }
 
 .desk-allocation-confirm-box {

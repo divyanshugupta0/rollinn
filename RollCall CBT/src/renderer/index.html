@@ -358,56 +358,20 @@
 
                             <!-- Candidate PIN Verification (if roster specifies student PIN) -->
                             <div class="desk-pin-verification" id="pin-verify-row" style="display: none;">
-                                <label for="input-candidate-pin">Enter Student Security PIN</label>
-                                <div class="desk-pin-input-group">
+                                <label for="input-candidate-pin" id="label-candidate-pin">Enter Student Security PIN</label>
+                                <div class="desk-pin-input-group" id="pin-input-group">
                                     <input type="password" id="input-candidate-pin" maxlength="6" placeholder="PIN" autocomplete="off">
                                     <button type="button" class="btn-erp-primary btn-sm" id="btn-verify-pin">Verify</button>
                                 </div>
                                 <div id="pin-status-msg" class="desk-pin-msg"></div>
+                                <div id="pin-verified-badge" class="desk-pin-verified-badge" style="display: none;">
+                                    <i class="fas fa-circle-check"></i> Security PIN Verified
+                                </div>
                             </div>
 
                             <div class="desk-allocation-confirm-box">
                                 <i class="fas fa-shield-halved"></i>
                                 <span>Terminal workstation verified for this student sequence.</span>
-                            </div>
-                        </div>
-
-                        <!-- Right: Examination Integrity & Regulations -->
-                        <div class="desk-rules-panel">
-                            <div class="desk-panel-heading">
-                                <i class="fas fa-file-shield"></i>
-                                <span>Official Regulations</span>
-                            </div>
-
-                            <div class="desk-rules-box">
-                                <div class="desk-rule-item">
-                                    <i class="fas fa-arrows-to-eye"></i>
-                                    <div>
-                                        <strong>Full Kiosk Environment</strong>
-                                        <p>Fullscreen is locked. Alt-Tab or minimizing will immediately generate a security strike.</p>
-                                    </div>
-                                </div>
-                                <div class="desk-rule-item">
-                                    <i class="fas fa-triangle-exclamation"></i>
-                                    <div>
-                                        <strong>3 Strikes Limit</strong>
-                                        <p>Reaching 3 strikes triggers automatic submission and invigilator disqualification review.</p>
-                                    </div>
-                                </div>
-                                <div class="desk-rule-item">
-                                    <i class="fas fa-lock"></i>
-                                    <div>
-                                        <strong>Local Encryption &amp; Auto-Submit</strong>
-                                        <p>Responses are saved locally and securely submitted at the exact conclusion of duration.</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="desk-honor-agreement">
-                                <input type="checkbox" id="check-honor-code">
-                                <label for="check-honor-code">
-                                    I confirm that the candidate identity shown above is mine and I agree to strictly adhere to all examination integrity regulations.
-                                </label>
                             </div>
                         </div>
                     </div>
@@ -446,7 +410,7 @@
                 <span id="diag-webcam-text"></span>
                 <video id="setup-webcam-video"></video>
             </div>
-        </section>ion>
+        </section>
 
         <!-- ======================================================== -->
         <!-- VIEW 3: STAGE 3 - FULLSCREEN EXAM HALL                   -->
