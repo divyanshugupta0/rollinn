@@ -44,8 +44,9 @@
                 max-width: 1200px;
                 margin: 0 auto;
                 color: #0f172a;
-                padding-bottom: 70px;
+                padding: 0 4px 85px;
                 width: 100%;
+                box-sizing: border-box;
                 font-family: inherit;
             }
 
@@ -53,15 +54,15 @@
             .tts-header-card {
                 background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
                 border: 1px solid #e2e8f0;
-                border-radius: 14px;
-                padding: 16px 20px;
+                border-radius: 16px;
+                padding: 18px 22px;
                 margin: 6px 0 16px;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+                box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
                 display: flex;
                 flex-wrap: wrap;
                 align-items: center;
                 justify-content: space-between;
-                gap: 12px;
+                gap: 14px;
                 position: relative;
                 overflow: hidden;
             }
@@ -70,30 +71,30 @@
                 position: absolute;
                 top: 0;
                 left: 0;
-                width: 4px;
+                width: 5px;
                 height: 100%;
-                background: #0284c7;
+                background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
             }
             .tts-header-left {
                 flex: 1;
-                min-width: 200px;
+                min-width: 220px;
             }
             .tts-header-kicker {
-                font-size: 0.70rem;
-                font-weight: 700;
+                font-size: 0.72rem;
+                font-weight: 800;
                 color: #0284c7;
                 text-transform: uppercase;
                 letter-spacing: 0.06em;
-                margin-bottom: 2px;
+                margin-bottom: 3px;
                 display: flex;
                 align-items: center;
-                gap: 5px;
+                gap: 6px;
             }
             .tts-header-title {
-                font-size: 1.25rem;
+                font-size: 1.35rem;
                 font-weight: 800;
                 color: #0f172a;
-                margin: 0 0 2px 0;
+                margin: 0 0 3px 0;
                 display: flex;
                 align-items: center;
                 gap: 8px;
@@ -101,12 +102,14 @@
             .tts-header-subtitle {
                 margin: 0;
                 color: #64748b;
-                font-size: 0.82rem;
+                font-size: 0.84rem;
+                line-height: 1.4;
             }
             .tts-header-actions {
                 display: flex;
                 gap: 8px;
                 flex-wrap: wrap;
+                align-items: center;
             }
 
             /* Buttons */
@@ -114,68 +117,131 @@
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                gap: 6px;
-                padding: 8px 16px;
+                gap: 7px;
+                padding: 9px 18px;
                 border: none;
-                border-radius: 8px;
-                background: #0284c7;
+                border-radius: 9px;
+                background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
                 color: #ffffff;
-                font-size: 0.82rem;
+                font-size: 0.84rem;
                 font-weight: 700;
                 cursor: pointer;
-                box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+                box-shadow: 0 2px 8px rgba(2, 132, 199, 0.28);
                 transition: all 0.15s ease;
                 white-space: nowrap;
+                min-height: 40px;
+                box-sizing: border-box;
             }
             .tts-btn-primary:hover {
-                background: #0369a1;
+                background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
                 transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
             }
             .tts-btn-secondary {
                 display: inline-flex;
                 align-items: center;
+                justify-content: center;
                 gap: 6px;
                 padding: 8px 14px;
-                border: 1px solid #cbd5e1;
+                border: 1.5px solid #cbd5e1;
                 background: #ffffff;
                 color: #334155;
-                border-radius: 8px;
+                border-radius: 9px;
                 font-size: 0.82rem;
                 font-weight: 600;
                 cursor: pointer;
                 transition: all 0.15s ease;
                 white-space: nowrap;
+                min-height: 40px;
+                box-sizing: border-box;
             }
             .tts-btn-secondary:hover {
                 background: #f1f5f9;
+                border-color: #94a3b8;
                 color: #0f172a;
+            }
+
+            /* Top Segmented Navigation Tabs */
+            .tts-nav-tabs {
+                display: flex;
+                gap: 6px;
+                padding: 5px;
+                background: #f1f5f9;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                margin-bottom: 16px;
+            }
+            .tts-nav-tab {
+                flex: 1;
+                min-height: 44px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                padding: 10px 14px;
+                border: none;
+                border-radius: 9px;
+                background: transparent;
+                color: #64748b;
+                font-size: 0.84rem;
+                font-weight: 700;
+                cursor: pointer;
+                transition: all 0.15s ease;
+                white-space: nowrap;
+            }
+            .tts-nav-tab:hover {
+                background: rgba(255, 255, 255, 0.6);
+                color: #0f172a;
+            }
+            .tts-nav-tab.active {
+                background: #ffffff;
+                color: #0284c7;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            }
+            .tts-tab-pill {
+                font-size: 0.68rem;
+                font-weight: 800;
+                padding: 2px 7px;
+                border-radius: 999px;
+                background: #e0f2fe;
+                color: #0369a1;
+                border: 1px solid #bae6fd;
+            }
+            .tts-tab-pill.count {
+                background: #f1f5f9;
+                color: #475569;
+                border-color: #cbd5e1;
             }
 
             /* Stats Bar */
             .tts-stats-row {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+                grid-template-columns: repeat(4, 1fr);
                 gap: 10px;
                 margin-bottom: 16px;
             }
             .tts-stat-chip {
                 background: #ffffff;
                 border: 1px solid #e2e8f0;
-                border-radius: 10px;
-                padding: 10px 14px;
+                border-radius: 12px;
+                padding: 12px 14px;
                 display: flex;
                 align-items: center;
-                gap: 10px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+                gap: 12px;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.02);
+                transition: transform 0.15s ease;
+            }
+            .tts-stat-chip:hover {
+                transform: translateY(-1px);
             }
             .tts-stat-icon {
-                width: 32px;
-                height: 32px;
-                border-radius: 8px;
+                width: 36px;
+                height: 36px;
+                border-radius: 10px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 0.9rem;
+                font-size: 0.95rem;
                 flex-shrink: 0;
             }
             .tts-stat-icon.blue { background: #e0f2fe; color: #0284c7; }
@@ -183,69 +249,183 @@
             .tts-stat-icon.amber { background: #fef3c7; color: #d97706; }
             .tts-stat-icon.purple { background: #f3e8ff; color: #9333ea; }
             .tts-stat-val {
-                font-size: 1.15rem;
+                font-size: 1.25rem;
                 font-weight: 800;
                 color: #0f172a;
                 line-height: 1.1;
             }
             .tts-stat-lbl {
                 font-size: 0.70rem;
-                font-weight: 600;
+                font-weight: 700;
                 color: #64748b;
                 text-transform: uppercase;
                 letter-spacing: 0.04em;
+                margin-top: 2px;
             }
+
+            /* Workspace Intro Cards */
+            .tts-workspace-intro {
+                display: grid;
+                grid-template-columns: 1.3fr 1fr;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+            .tts-intro-card {
+                border: 1px solid #dbeafe;
+                border-radius: 14px;
+                padding: 14px 16px;
+                background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .tts-intro-card.cbt {
+                border-color: #ddd6fe;
+                background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%);
+            }
+            .tts-intro-icon {
+                width: 40px;
+                height: 40px;
+                border-radius: 11px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #dbeafe;
+                color: #2563eb;
+                flex: 0 0 auto;
+                font-size: 1.05rem;
+            }
+            .tts-intro-card.cbt .tts-intro-icon { background: #ede9fe; color: #7c3aed; }
+            .tts-intro-card strong { display: block; color: #0f172a; font-size: 0.90rem; }
+            .tts-intro-card span { display: block; color: #64748b; font-size: 0.76rem; margin-top: 2px; line-height: 1.35; }
 
             /* Main Card Container */
             .tts-card {
                 background: #ffffff;
                 border: 1px solid #e2e8f0;
-                border-radius: 14px;
-                padding: 16px;
+                border-radius: 16px;
+                padding: 18px 20px;
                 margin-bottom: 16px;
                 box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
             }
 
-            /* Filter / Configuration Controls (Minimized Grid) */
+            /* Filter / Configuration Controls Grid */
             .tts-config-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-                gap: 10px;
-                margin-bottom: 12px;
+                grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+                gap: 12px;
+                margin-bottom: 14px;
             }
             .tts-field-group {
                 display: flex;
                 flex-direction: column;
-                gap: 4px;
+                gap: 5px;
             }
             .tts-field-group label {
-                font-size: 0.74rem;
+                font-size: 0.73rem;
                 font-weight: 700;
                 color: #475569;
                 text-transform: uppercase;
                 letter-spacing: 0.04em;
                 display: flex;
                 align-items: center;
-                gap: 4px;
+                gap: 5px;
             }
             .tts-field-group select,
-            .tts-field-group input {
-                padding: 8px 10px;
-                border: 1px solid #cbd5e1;
-                border-radius: 8px;
-                font-size: 0.84rem;
+            .tts-field-group input,
+            .tts-field-group textarea {
+                padding: 9px 12px;
+                border: 1.5px solid #cbd5e1;
+                border-radius: 9px;
+                font-size: 0.86rem;
                 color: #0f172a;
                 background: #f8fafc;
-                transition: border-color 0.15s, background-color 0.15s;
+                transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
                 width: 100%;
                 box-sizing: border-box;
+                font-family: inherit;
             }
             .tts-field-group select:focus,
-            .tts-field-group input:focus {
+            .tts-field-group input:focus,
+            .tts-field-group textarea:focus {
                 outline: none;
                 border-color: #0284c7;
                 background: #ffffff;
-                box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12);
+                box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+            }
+
+            /* Dedicated Exam Settings Card */
+            .tts-exam-settings-card {
+                background: #fcfdfe;
+                border: 1.5px solid #bfdbfe;
+                border-radius: 14px;
+                padding: 16px;
+                margin: 10px 0 16px;
+                box-shadow: 0 2px 8px rgba(2, 132, 199, 0.04);
+            }
+            .tts-settings-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding-bottom: 10px;
+                margin-bottom: 12px;
+                border-bottom: 1px solid #e0f2fe;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .tts-settings-title {
+                font-size: 0.90rem;
+                font-weight: 800;
+                color: #0369a1;
+                display: flex;
+                align-items: center;
+                gap: 7px;
+            }
+            .tts-settings-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+                gap: 11px;
+            }
+            .tts-cutoff-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                font-size: 0.72rem;
+                font-weight: 800;
+                padding: 3px 8px;
+                border-radius: 6px;
+                background: #dcfce7;
+                color: #15803d;
+                border: 1px solid #bbf7d0;
+                margin-top: 4px;
+                width: fit-content;
+            }
+            .tts-duration-chips {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px;
+                margin-top: 4px;
+            }
+            .tts-duration-chip {
+                padding: 3px 8px;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                background: #ffffff;
+                color: #475569;
+                font-size: 0.72rem;
+                font-weight: 700;
+                cursor: pointer;
+                transition: all 0.12s ease;
+            }
+            .tts-duration-chip:hover {
+                border-color: #0284c7;
+                color: #0284c7;
+                background: #f0f9ff;
+            }
+            .tts-duration-chip.active {
+                background: #0284c7;
+                border-color: #0284c7;
+                color: #ffffff;
             }
 
             /* Date notice badge */
@@ -280,120 +460,233 @@
             .tts-draft-banner {
                 background: #eff6ff;
                 border: 1px dashed #93c5fd;
-                border-radius: 8px;
-                padding: 8px 12px;
-                margin-bottom: 12px;
+                border-radius: 9px;
+                padding: 9px 14px;
+                margin-bottom: 14px;
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 gap: 8px;
-                font-size: 0.78rem;
+                font-size: 0.80rem;
                 color: #1e40af;
             }
             .tts-draft-btn-clear {
                 background: none;
                 border: none;
                 color: #dc2626;
-                font-size: 0.75rem;
+                font-size: 0.76rem;
                 font-weight: 700;
                 cursor: pointer;
                 text-decoration: underline;
                 padding: 0;
             }
 
-            /* Student Roster Grid (Mobile Minimized) */
+            /* Student Roster Header & Controls */
             .tts-roster-header {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                padding-bottom: 8px;
-                margin-bottom: 10px;
+                padding-bottom: 10px;
+                margin-bottom: 12px;
                 border-bottom: 1px solid #e2e8f0;
+                flex-wrap: wrap;
+                gap: 10px;
             }
             .tts-roster-title {
-                font-size: 0.88rem;
-                font-weight: 700;
+                font-size: 0.92rem;
+                font-weight: 800;
                 color: #1e293b;
                 display: flex;
                 align-items: center;
-                gap: 6px;
+                gap: 7px;
             }
             .tts-roster-count {
-                font-size: 0.75rem;
-                color: #64748b;
-                background: #f1f5f9;
-                padding: 2px 8px;
+                font-size: 0.76rem;
+                color: #0369a1;
+                background: #e0f2fe;
+                padding: 3px 10px;
                 border-radius: 999px;
-                font-weight: 600;
+                font-weight: 700;
+                border: 1px solid #bae6fd;
+            }
+
+            /* Roster Search & Filter Controls */
+            .tts-roster-controls {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                margin-bottom: 12px;
+                flex-wrap: wrap;
+            }
+            .tts-search-box {
+                position: relative;
+                flex: 1;
+                min-width: 200px;
+            }
+            .tts-search-box i {
+                position: absolute;
+                left: 11px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #94a3b8;
+                font-size: 0.85rem;
+                pointer-events: none;
+            }
+            .tts-search-input {
+                width: 100%;
+                padding: 8px 12px 8px 32px;
+                border: 1.5px solid #cbd5e1;
+                border-radius: 9px;
+                font-size: 0.84rem;
+                background: #ffffff;
+                color: #0f172a;
+                box-sizing: border-box;
+                transition: border-color 0.15s, box-shadow 0.15s;
+            }
+            .tts-search-input:focus {
+                outline: none;
+                border-color: #0284c7;
+                box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+            }
+            .tts-filter-pills {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            .tts-filter-pill {
+                padding: 6px 11px;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                background: #ffffff;
+                color: #475569;
+                font-size: 0.74rem;
+                font-weight: 700;
+                cursor: pointer;
+                transition: all 0.12s ease;
+                white-space: nowrap;
+            }
+            .tts-filter-pill:hover {
+                border-color: #0284c7;
+                color: #0284c7;
+            }
+            .tts-filter-pill.active {
+                background: #0284c7;
+                border-color: #0284c7;
+                color: #ffffff;
             }
 
             .tts-student-list {
                 display: flex;
                 flex-direction: column;
-                gap: 6px;
+                gap: 7px;
             }
 
-            /* Minimized Student Row for Mobile */
+            /* Responsive Student Row */
             .tts-student-row {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                gap: 8px;
-                background: #f8fafc;
+                gap: 10px;
+                background: #ffffff;
                 border: 1px solid #e2e8f0;
-                border-radius: 10px;
-                padding: 8px 12px;
+                border-radius: 12px;
+                padding: 9px 14px;
                 transition: all 0.15s ease;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.02);
             }
             .tts-student-row:hover {
-                background: #f1f5f9;
+                background: #f8fafc;
                 border-color: #cbd5e1;
             }
-            .tts-student-row.is-absent {
-                background: #fdf4ff;
-                border-color: #f0abfc;
-                opacity: 0.85;
-            }
             .tts-student-row.has-score {
-                background: #ffffff;
+                background: #f8fbff;
                 border-color: #93c5fd;
+            }
+            .tts-student-row.below-cutoff {
+                background: #fff5f5;
+                border-color: #fca5a5;
+            }
+            .tts-student-row.is-absent {
+                background: #faf5ff;
+                border-color: #d8b4fe;
+                opacity: 0.88;
             }
 
             .tts-student-meta {
                 display: flex;
                 align-items: center;
-                gap: 8px;
+                gap: 10px;
                 flex: 1;
                 min-width: 0;
             }
-            .tts-student-avatar, .tts-student-avatar-fallback {
-                width: 34px;
-                height: 34px;
+
+            /* Student Avatar with Photo Zoom */
+            .tts-avatar-wrap {
+                position: relative;
+                width: 42px;
+                height: 42px;
+                flex: 0 0 42px;
+                border-radius: 50%;
+                cursor: zoom-in;
+            }
+            .tts-student-avatar {
+                width: 100%;
+                height: 100%;
                 border-radius: 50%;
                 object-fit: cover;
-                flex: 0 0 34px;
+                border: 2px solid #e2e8f0;
+                background: #f1f5f9;
+                transition: transform 0.15s ease, border-color 0.15s ease;
+                display: block;
             }
-            .tts-student-avatar-fallback {
-                display: inline-flex;
+            .tts-avatar-wrap:hover .tts-student-avatar {
+                transform: scale(1.08);
+                border-color: #0284c7;
+            }
+            .tts-avatar-zoom-badge {
+                position: absolute;
+                bottom: -2px;
+                right: -2px;
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                background: #0284c7;
+                color: #ffffff;
+                display: flex;
                 align-items: center;
                 justify-content: center;
-                background: #dbeafe;
-                color: #1d4ed8;
-                font-weight: 800;
-                font-size: .82rem;
+                font-size: 8px;
+                border: 1.5px solid #ffffff;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
             }
+            .tts-student-avatar-fallback {
+                width: 100%;
+                height: 100%;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+                color: #0369a1;
+                font-weight: 800;
+                font-size: 0.90rem;
+                border: 2px solid #bae6fd;
+            }
+
             .tts-roll-badge {
                 font-size: 0.74rem;
                 font-weight: 800;
                 color: #0369a1;
                 background: #e0f2fe;
-                padding: 3px 7px;
+                padding: 3px 8px;
                 border-radius: 6px;
                 white-space: nowrap;
                 flex-shrink: 0;
             }
             .tts-student-name {
-                font-size: 0.84rem;
+                font-size: 0.86rem;
                 font-weight: 700;
                 color: #1e293b;
                 white-space: nowrap;
@@ -404,21 +697,23 @@
             .tts-score-inputs-wrap {
                 display: flex;
                 align-items: center;
-                gap: 6px;
+                gap: 7px;
                 flex-shrink: 0;
             }
             .tts-score-input-box {
                 width: 72px;
+                height: 42px;
                 padding: 6px 8px;
                 border: 1.5px solid #cbd5e1;
                 border-radius: 8px;
-                font-size: 0.90rem;
-                font-weight: 700;
+                font-size: 0.95rem;
+                font-weight: 800;
                 text-align: center;
                 background: #ffffff;
                 color: #0f172a;
                 transition: border-color 0.15s, box-shadow 0.15s;
                 -moz-appearance: textfield;
+                box-sizing: border-box;
             }
             .tts-score-input-box::-webkit-outer-spin-button,
             .tts-score-input-box::-webkit-inner-spin-button {
@@ -438,66 +733,78 @@
             }
 
             .tts-outof-lbl {
-                font-size: 0.75rem;
-                font-weight: 600;
+                font-size: 0.76rem;
+                font-weight: 700;
                 color: #64748b;
                 white-space: nowrap;
             }
 
             /* Absent Button */
             .tts-ab-btn {
-                padding: 5px 8px;
-                border: 1px solid #cbd5e1;
+                height: 42px;
+                min-width: 42px;
+                padding: 0 10px;
+                border: 1.5px solid #cbd5e1;
                 background: #ffffff;
                 color: #64748b;
-                border-radius: 6px;
-                font-size: 0.72rem;
+                border-radius: 8px;
+                font-size: 0.74rem;
                 font-weight: 800;
                 cursor: pointer;
                 transition: all 0.15s ease;
                 letter-spacing: 0.04em;
+                box-sizing: border-box;
             }
             .tts-ab-btn:hover {
                 border-color: #9333ea;
                 color: #9333ea;
+                background: #faf5ff;
             }
             .tts-ab-btn.active {
                 background: #9333ea;
                 color: #ffffff;
                 border-color: #7e22ce;
-                box-shadow: 0 1px 3px rgba(147, 51, 234, 0.3);
+                box-shadow: 0 2px 6px rgba(147, 51, 234, 0.3);
             }
 
-            /* Live score badge */
+            /* Live score / Grade badge */
             .tts-pct-badge {
-                font-size: 0.70rem;
-                font-weight: 700;
+                min-width: 44px;
+                height: 26px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 0.72rem;
+                font-weight: 800;
                 padding: 2px 6px;
-                border-radius: 4px;
+                border-radius: 6px;
                 white-space: nowrap;
-                min-width: 32px;
                 text-align: center;
+                box-sizing: border-box;
             }
-            .tts-pct-badge.excellent { background: #dcfce7; color: #15803d; }
-            .tts-pct-badge.average { background: #fef3c7; color: #b45309; }
-            .tts-pct-badge.low { background: #fee2e2; color: #b91c1c; }
-            .tts-pct-badge.absent { background: #f3e8ff; color: #7e22ce; }
+            .tts-pct-badge.excellent { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+            .tts-pct-badge.average { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+            .tts-pct-badge.low { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+            .tts-pct-badge.absent { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff; }
 
-            /* Sticky Bottom Action Bar for Mobile */
+            /* Sticky Bottom Action Bar with Mobile Safe-Area */
             .tts-bottom-bar {
                 position: fixed;
                 bottom: 0;
                 left: 0;
                 right: 0;
-                background: #ffffff;
-                border-top: 1px solid #e2e8f0;
-                padding: 10px 16px;
-                box-shadow: 0 -4px 14px rgba(0,0,0,0.06);
+                background: rgba(255, 255, 255, 0.98);
+                backdrop-filter: blur(10px);
+                border-top: 1px solid #cbd5e1;
+                padding: 12px 20px;
+                padding-bottom: max(14px, env(safe-area-inset-bottom, 14px));
+                box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.08);
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                gap: 12px;
+                gap: 14px;
                 z-index: 999;
+                box-sizing: border-box;
             }
             @media (min-width: 992px) {
                 .tts-bottom-bar {
@@ -505,15 +812,15 @@
                 }
             }
             .tts-bottom-summary {
-                font-size: 0.78rem;
-                font-weight: 700;
-                color: #334155;
+                font-size: 0.82rem;
+                font-weight: 800;
+                color: #1e293b;
                 display: flex;
                 flex-direction: column;
                 gap: 2px;
             }
             .tts-bottom-progress {
-                font-size: 0.70rem;
+                font-size: 0.72rem;
                 font-weight: 600;
                 color: #64748b;
             }
@@ -521,24 +828,24 @@
             /* Tests History List Grid */
             .tts-history-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-                gap: 12px;
+                grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+                gap: 14px;
             }
             .tts-test-card {
                 background: #ffffff;
                 border: 1px solid #e2e8f0;
-                border-radius: 12px;
-                padding: 14px;
+                border-radius: 14px;
+                padding: 16px;
                 box-shadow: 0 1px 4px rgba(0,0,0,0.03);
-                transition: transform 0.15s, box-shadow 0.15s;
+                transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
-                gap: 10px;
+                gap: 12px;
             }
             .tts-test-card:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+                transform: translateY(-2px);
+                box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
                 border-color: #cbd5e1;
             }
             .tts-test-top {
@@ -548,74 +855,211 @@
                 gap: 8px;
             }
             .tts-test-title {
-                font-size: 0.95rem;
+                font-size: 0.98rem;
                 font-weight: 800;
                 color: #0f172a;
-                margin: 0 0 3px 0;
+                margin: 0 0 4px 0;
             }
             .tts-test-meta {
-                font-size: 0.76rem;
+                font-size: 0.78rem;
                 color: #64748b;
                 display: flex;
                 flex-direction: column;
-                gap: 2px;
+                gap: 3px;
             }
             .tts-test-footer {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 border-top: 1px solid #f1f5f9;
-                padding-top: 8px;
+                padding-top: 10px;
                 margin-top: 4px;
             }
 
-            /* Responsive Tweaks */
-            @media (max-width: 600px) {
-                .tts-header-card { padding: 12px 14px; }
-                .tts-header-title { font-size: 1.1rem; }
-                .tts-score-input-box { width: 62px; font-size: 0.85rem; padding: 5px; }
-                .tts-student-row { padding: 7px 10px; }
-                .tts-roll-badge { font-size: 0.70rem; padding: 2px 5px; }
-                .tts-student-name { font-size: 0.80rem; }
-            }
-
-            .tts-workspace-intro {
-                display: grid;
-                grid-template-columns: 1.3fr 1fr;
-                gap: 12px;
-                margin-bottom: 16px;
-            }
-            .tts-intro-card {
-                border: 1px solid #dbeafe;
-                border-radius: 14px;
-                padding: 14px 16px;
-                background: linear-gradient(135deg, #eff6ff, #ffffff);
-                display: flex;
-                align-items: center;
-                gap: 12px;
-            }
-            .tts-intro-card.cbt {
-                border-color: #ddd6fe;
-                background: linear-gradient(135deg, #f5f3ff, #ffffff);
-            }
-            .tts-intro-icon { width: 38px; height: 38px; border-radius: 11px; display:flex; align-items:center; justify-content:center; background:#dbeafe; color:#2563eb; flex:0 0 auto; }
-            .tts-intro-card.cbt .tts-intro-icon { background:#ede9fe; color:#7c3aed; }
-            .tts-intro-card strong { display:block; color:#0f172a; font-size:.9rem; }
-            .tts-intro-card span { display:block; color:#64748b; font-size:.75rem; margin-top:2px; line-height:1.35; }
-
             .cbt-exam-settings { margin: 14px 0 4px; padding: 14px; border: 1px solid #dbeafe; border-radius: 12px; background: #f8fbff; }
-            .cbt-settings-heading { display:flex; align-items:center; gap:7px; color:#0f3b68; font-weight:800; font-size:.86rem; margin-bottom:10px; }
-            .cbt-settings-heading small { color:#64748b; font-weight:500; margin-left:4px; }
-            .cbt-settings-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
-            .cbt-settings-grid label { display:flex; align-items:center; gap:7px; min-height:34px; padding:7px 9px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; color:#334155; font-size:.78rem; }
-            .cbt-settings-grid label span { flex:1; }
-            .cbt-settings-grid input[type="number"], .cbt-settings-grid select { width:72px; margin-left:auto; padding:5px 6px; border:1px solid #cbd5e1; border-radius:6px; }
-            @media (max-width: 760px) {
-                .tts-workspace-intro, .cbt-settings-grid { grid-template-columns: 1fr; }
-                .tts-header-actions { width:100%; }
-                .tts-header-actions button { flex:1; }
-                .cbt-settings-heading { align-items:flex-start; flex-wrap:wrap; }
-                .cbt-settings-heading small { flex-basis:100%; margin-left:0; }
+            .cbt-settings-heading { display: flex; align-items: center; gap: 7px; color: #0f3b68; font-weight: 800; font-size: 0.86rem; margin-bottom: 10px; }
+            .cbt-settings-heading small { color: #64748b; font-weight: 500; margin-left: 4px; }
+            .cbt-settings-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+            .cbt-settings-grid label { display: flex; align-items: center; gap: 7px; min-height: 34px; padding: 7px 9px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: #334155; font-size: 0.78rem; }
+            .cbt-settings-grid label span { flex: 1; }
+            .cbt-settings-grid input[type="number"], .cbt-settings-grid select { width: 72px; margin-left: auto; padding: 5px 6px; border: 1px solid #cbd5e1; border-radius: 6px; }
+
+            /* ========================================================== */
+            /* Mobile UI First-Class Ergonomics & Layout Optimization    */
+            /* ========================================================== */
+            @media (max-width: 768px) {
+                .tts-shell {
+                    padding: 0 2px 105px;
+                }
+                .tts-header-card {
+                    padding: 14px 14px;
+                    border-radius: 12px;
+                }
+                .tts-header-title {
+                    font-size: 1.15rem;
+                }
+                .tts-header-actions {
+                    width: 100%;
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 8px;
+                }
+                .tts-header-actions button {
+                    width: 100%;
+                    font-size: 0.78rem;
+                    padding: 8px 10px;
+                    justify-content: center;
+                }
+                .tts-workspace-intro {
+                    grid-template-columns: 1fr;
+                    gap: 8px;
+                }
+                .tts-stats-row {
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 8px;
+                }
+                .tts-stat-chip {
+                    padding: 9px 11px;
+                    gap: 9px;
+                }
+                .tts-stat-icon {
+                    width: 32px;
+                    height: 32px;
+                    font-size: 0.85rem;
+                }
+                .tts-stat-val {
+                    font-size: 1.10rem;
+                }
+                .tts-nav-tabs {
+                    gap: 4px;
+                    padding: 4px;
+                    border-radius: 10px;
+                }
+                .tts-nav-tab {
+                    min-height: 40px;
+                    padding: 8px 6px;
+                    font-size: 0.78rem;
+                    gap: 4px;
+                }
+                .tts-config-grid {
+                    grid-template-columns: 1fr;
+                    gap: 10px;
+                }
+                .tts-settings-grid {
+                    grid-template-columns: 1fr;
+                    gap: 10px;
+                }
+                .cbt-settings-grid {
+                    grid-template-columns: 1fr;
+                }
+                .tts-roster-controls {
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 8px;
+                }
+                .tts-search-box {
+                    width: 100%;
+                }
+                .tts-filter-pills {
+                    width: 100%;
+                    overflow-x: auto;
+                    padding-bottom: 4px;
+                    -webkit-overflow-scrolling: touch;
+                }
+                .tts-filter-pill {
+                    white-space: nowrap;
+                    font-size: 0.72rem;
+                    padding: 6px 10px;
+                }
+                .tts-student-row {
+                    padding: 8px 10px;
+                    gap: 8px;
+                    border-radius: 10px;
+                }
+                .tts-student-meta {
+                    gap: 8px;
+                }
+                .tts-avatar-wrap {
+                    width: 38px;
+                    height: 38px;
+                    flex: 0 0 38px;
+                }
+                .tts-student-name {
+                    font-size: 0.82rem;
+                }
+                .tts-roll-badge {
+                    font-size: 0.70rem;
+                    padding: 2px 6px;
+                }
+                .tts-score-inputs-wrap {
+                    gap: 5px;
+                }
+                .tts-score-input-box {
+                    width: 62px;
+                    height: 40px;
+                    font-size: 16px; /* Prevents auto-zoom in mobile Safari / Chrome */
+                    padding: 4px;
+                }
+                .tts-ab-btn {
+                    height: 40px;
+                    min-width: 40px;
+                    padding: 0 6px;
+                    font-size: 0.72rem;
+                    touch-action: manipulation;
+                }
+                .tts-outof-lbl {
+                    font-size: 0.70rem;
+                }
+                .tts-pct-badge {
+                    min-width: 38px;
+                    font-size: 0.68rem;
+                    padding: 2px 4px;
+                }
+                .tts-bottom-bar {
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 8px;
+                    padding: 10px 14px;
+                    padding-bottom: max(14px, env(safe-area-inset-bottom, 14px));
+                }
+                .tts-bottom-bar .tts-btn-primary {
+                    width: 100%;
+                    justify-content: center;
+                    font-size: 0.92rem;
+                    padding: 12px;
+                    touch-action: manipulation;
+                }
+                .tts-bottom-summary {
+                    text-align: center;
+                }
+            }
+
+            @media (max-width: 480px) {
+                .tts-header-card {
+                    padding: 12px 12px;
+                }
+                .tts-header-title {
+                    font-size: 1.10rem;
+                }
+                .tts-header-subtitle {
+                    font-size: 0.75rem;
+                }
+                .tts-nav-tab span {
+                    font-size: 0.72rem;
+                }
+                .tts-tab-pill {
+                    display: none;
+                }
+                .tts-stat-chip {
+                    padding: 8px 10px;
+                    gap: 8px;
+                }
+                .tts-stat-val {
+                    font-size: 1.05rem;
+                }
+                .tts-stat-lbl {
+                    font-size: 0.66rem;
+                }
             }
         `;
         document.head.appendChild(style);
@@ -631,9 +1075,9 @@
                 <!-- Header -->
                 <div class="tts-header-card">
                     <div class="tts-header-left">
-                        <div class="tts-header-kicker"><i class="fas fa-graduation-cap"></i> Academic Assessments</div>
+                        <div class="tts-header-kicker"><i class="fas fa-graduation-cap"></i> Academic Assessments &amp; Exam Studio</div>
                         <h1 class="tts-header-title"><i class="fas fa-file-pen"></i> Test Scores &amp; Marks</h1>
-                        <p class="tts-header-subtitle">Assign tests for any date (past, today, future), record scores with quick enter auto-advance, and sync directly with students.</p>
+                        <p class="tts-header-subtitle">Assign tests for any date (past, today, future), configure exam cutoff rules, preview student photos, and sync directly with students.</p>
                     </div>
                     <div class="tts-header-actions">
                         <button type="button" class="tts-btn-secondary" id="ttsToggleHistoryBtn">
@@ -645,18 +1089,34 @@
                     </div>
                 </div>
 
+                <!-- Top Segmented Navigation Tabs (Mobile & Desktop) -->
+                <div class="tts-nav-tabs" role="tablist" id="ttsNavTabs">
+                    <button type="button" class="tts-nav-tab active" id="ttsTabMarks" role="tab" aria-selected="true">
+                        <i class="fas fa-pen-to-square"></i> <span>Marks Entry</span>
+                    </button>
+                    <button type="button" class="tts-nav-tab" id="ttsTabSettings" role="tab" aria-selected="false">
+                        <i class="fas fa-sliders"></i> <span>Exam Settings</span>
+                        <span class="tts-tab-pill" id="ttsSettingsTabBadge">Pass: 40%</span>
+                    </button>
+                    <button type="button" class="tts-nav-tab" id="ttsTabHistory" role="tab" aria-selected="false">
+                        <i class="fas fa-history"></i> <span>Test Records</span>
+                        <span class="tts-tab-pill count" id="ttsHistoryCountBadge">0</span>
+                    </button>
+                </div>
+
+                <!-- Workspace Quick Info Cards -->
                 <div class="tts-workspace-intro">
                     <div class="tts-intro-card">
                         <div class="tts-intro-icon"><i class="fas fa-pen-to-square"></i></div>
-                        <div><strong>Marks workspace</strong><span>Choose a class, enter scores quickly, and save student results in one school-scoped record.</span></div>
+                        <div><strong>Marks Workspace</strong><span>Choose a class, enter scores quickly, and save student results in one school-scoped record.</span></div>
                     </div>
                     <div class="tts-intro-card cbt">
                         <div class="tts-intro-icon"><i class="fas fa-display"></i></div>
-                        <div><strong>CBT exam delivery</strong><span>Build an offline exam package with roster photos and device-ready settings.</span></div>
+                        <div><strong>CBT Exam Delivery</strong><span>Build an offline exam package with roster photos and device-ready settings.</span></div>
                     </div>
                 </div>
 
-                <!-- Stats Bar -->
+                <!-- Stats Bar (2x2 on Mobile, 4-col on Desktop) -->
                 <div class="tts-stats-row">
                     <div class="tts-stat-chip">
                         <div class="tts-stat-icon blue"><i class="fas fa-clipboard-list"></i></div>
@@ -683,7 +1143,7 @@
                         <div class="tts-stat-icon amber"><i class="fas fa-users"></i></div>
                         <div>
                             <div class="tts-stat-val" id="ttsStatStudents">0</div>
-                            <div class="tts-stat-lbl">Students</div>
+                            <div class="tts-stat-lbl">Classes</div>
                         </div>
                     </div>
                 </div>
@@ -697,7 +1157,7 @@
                             <button type="button" class="tts-draft-btn-clear" id="ttsClearDraftBtn">Discard Draft</button>
                         </div>
 
-                        <!-- Test Configuration -->
+                        <!-- Test Basic Configuration -->
                         <div class="tts-config-grid">
                             <div class="tts-field-group">
                                 <label><i class="fas fa-chalkboard"></i> Class &amp; Section</label>
@@ -725,12 +1185,128 @@
                             </div>
 
                             <div class="tts-field-group" style="grid-column: 1 / -1;">
-                                <label><i class="fas fa-heading"></i> Test Title / Assessment Name</label>
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <label><i class="fas fa-heading"></i> Test Title / Assessment Name</label>
+                                    <button type="button" class="tts-btn-secondary" id="ttsQuickToggleSettingsBtn" style="padding:3px 8px; font-size:0.72rem; min-height:auto;">
+                                        <i class="fas fa-sliders"></i> <span id="ttsQuickToggleSettingsText">Show Exam Settings</span>
+                                    </button>
+                                </div>
                                 <input type="text" id="ttsTestTitleInput" placeholder="e.g. Unit Test 1 - Algebra & Equations">
                             </div>
                         </div>
 
-                        <!-- Student Roster for Entering Marks -->
+                        <!-- Dedicated Collapsible Exam Settings Section -->
+                        <div id="ttsExamSettingsCard" class="tts-exam-settings-card" style="display:none;">
+                            <div class="tts-settings-header">
+                                <div class="tts-settings-title">
+                                    <i class="fas fa-gear"></i> Exam Settings &amp; Assessment Rules
+                                </div>
+                                <div style="display:flex; gap:6px; align-items:center;">
+                                    <span class="tts-tab-pill" id="ttsExamRulesSummary">40% Pass Cutoff</span>
+                                    <button type="button" class="tts-btn-secondary" id="ttsCloseSettingsBtn" style="padding:4px 9px; font-size:0.74rem; min-height:auto;">
+                                        <i class="fas fa-xmark"></i> Close
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="tts-settings-grid">
+                                <!-- 1. Exam Category / Type -->
+                                <div class="tts-field-group">
+                                    <label><i class="fas fa-tags"></i> Exam Category / Type</label>
+                                    <select id="ttsExamType">
+                                        <option value="Unit Test" selected>Unit Test</option>
+                                        <option value="Periodic Assessment">Periodic Assessment</option>
+                                        <option value="Mid-Term Exam">Mid-Term Exam</option>
+                                        <option value="Final Term Exam">Final Term Exam</option>
+                                        <option value="Class Quiz">Class Quiz</option>
+                                        <option value="Mock CBT Test">Mock CBT Test</option>
+                                        <option value="Practical / Viva">Practical / Viva</option>
+                                    </select>
+                                </div>
+
+                                <!-- 2. Passing Marks / Cutoff -->
+                                <div class="tts-field-group">
+                                    <label><i class="fas fa-bullseye"></i> Passing Cutoff Marks</label>
+                                    <input type="number" id="ttsPassingMarks" min="0" max="1000" step="any" value="20" placeholder="e.g. 20">
+                                    <div class="tts-cutoff-pill" id="ttsPassingCutoffBadge">
+                                        <i class="fas fa-check-circle"></i> Pass Cutoff: 40% (20 / 50 Marks)
+                                    </div>
+                                </div>
+
+                                <!-- 3. Duration in Minutes & Preset Chips -->
+                                <div class="tts-field-group">
+                                    <label><i class="fas fa-stopwatch"></i> Exam Duration (Mins)</label>
+                                    <input type="number" id="ttsExamDuration" min="5" max="360" value="60" placeholder="e.g. 60">
+                                    <div class="tts-duration-chips" id="ttsDurationChips">
+                                        <button type="button" class="tts-duration-chip" data-mins="15">15m</button>
+                                        <button type="button" class="tts-duration-chip" data-mins="30">30m</button>
+                                        <button type="button" class="tts-duration-chip" data-mins="45">45m</button>
+                                        <button type="button" class="tts-duration-chip active" data-mins="60">60m</button>
+                                        <button type="button" class="tts-duration-chip" data-mins="90">90m</button>
+                                        <button type="button" class="tts-duration-chip" data-mins="120">120m</button>
+                                    </div>
+                                </div>
+
+                                <!-- 4. Grading Scale Mode -->
+                                <div class="tts-field-group">
+                                    <label><i class="fas fa-chart-line"></i> Grading Scale</label>
+                                    <select id="ttsGradingScale">
+                                        <option value="percentage" selected>Percentage (0 - 100%)</option>
+                                        <option value="letter">Letter Grades (A+, A, B, C, D, Fail)</option>
+                                        <option value="gpa">GPA Scale (10.0 Scale)</option>
+                                        <option value="pass_fail">Pass / Fail Only</option>
+                                    </select>
+                                </div>
+
+                                <!-- 5. Student Portal Visibility -->
+                                <div class="tts-field-group">
+                                    <label><i class="fas fa-eye"></i> Result Visibility to Students</label>
+                                    <select id="ttsPublishResults">
+                                        <option value="immediate" selected>Immediate (Publish on Save)</option>
+                                        <option value="hidden">Hidden / Draft (Teacher Review Only)</option>
+                                        <option value="scheduled">Scheduled (On Exam Date)</option>
+                                    </select>
+                                </div>
+
+                                <!-- 6. Negative Marking Penalty -->
+                                <div class="tts-field-group">
+                                    <label><i class="fas fa-minus-circle"></i> Negative Marking (per wrong answer)</label>
+                                    <select id="ttsNegativeMarking">
+                                        <option value="0" selected>None (0)</option>
+                                        <option value="0.25">-0.25 (1/4 mark)</option>
+                                        <option value="0.33">-0.33 (1/3 mark)</option>
+                                        <option value="0.50">-0.50 (1/2 mark)</option>
+                                        <option value="1.00">-1.00 (1 full mark)</option>
+                                    </select>
+                                </div>
+
+                                <!-- 7. Assessment Component -->
+                                <div class="tts-field-group">
+                                    <label><i class="fas fa-layer-group"></i> Assessment Component</label>
+                                    <select id="ttsAssessmentComponent">
+                                        <option value="Theory" selected>Theory Exam</option>
+                                        <option value="Practical">Practical / Laboratory</option>
+                                        <option value="Internal">Internal Assessment / Term Work</option>
+                                        <option value="Project">Project / Assignment</option>
+                                        <option value="Viva">Viva Voce / Oral Examination</option>
+                                    </select>
+                                </div>
+
+                                <!-- 8. Semester Weightage % -->
+                                <div class="tts-field-group">
+                                    <label><i class="fas fa-percent"></i> Semester Weightage %</label>
+                                    <input type="number" id="ttsWeightage" min="0" max="100" value="20" placeholder="e.g. 20">
+                                </div>
+
+                                <!-- 9. Exam Instructions -->
+                                <div class="tts-field-group" style="grid-column: 1 / -1;">
+                                    <label><i class="fas fa-file-lines"></i> Exam Instructions &amp; Guidelines (Shown to Students)</label>
+                                    <textarea id="ttsExamInstructions" rows="2" placeholder="e.g. Attempt all questions. Passing cutoff is 40%. Non-programmable scientific calculator permitted."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Student Roster Header -->
                         <div class="tts-roster-header">
                             <div class="tts-roster-title">
                                 <i class="fas fa-user-graduate"></i> Student Roster (Sorted by Roll Number)
@@ -738,17 +1314,32 @@
                             <div class="tts-roster-count" id="ttsRosterCount">0 Students</div>
                         </div>
 
+                        <!-- Real-time Student Search & Status Filter Controls -->
+                        <div class="tts-roster-controls">
+                            <div class="tts-search-box">
+                                <i class="fas fa-magnifying-glass"></i>
+                                <input type="text" id="ttsStudentSearchInput" class="tts-search-input" placeholder="Search student by name or roll number...">
+                            </div>
+                            <div class="tts-filter-pills" id="ttsFilterPills">
+                                <button type="button" class="tts-filter-pill active" data-filter="all">All (<span id="ttsFilterAllCount">0</span>)</button>
+                                <button type="button" class="tts-filter-pill" data-filter="scored">Scored (<span id="ttsFilterScoredCount">0</span>)</button>
+                                <button type="button" class="tts-filter-pill" data-filter="unscored">Unscored (<span id="ttsFilterUnscoredCount">0</span>)</button>
+                                <button type="button" class="tts-filter-pill" data-filter="absent">Absent (<span id="ttsFilterAbsentCount">0</span>)</button>
+                            </div>
+                        </div>
+
                         <!-- Tip banner for mobile keyboard -->
-                        <div id="ttsTipBanner" style="font-size:0.73rem; color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:6px 10px; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
-                            <i class="fas fa-keyboard" style="color:#0284c7;"></i>
-                            <span>Enter marks and tap <strong>Next</strong> on mobile keyboard (or press <strong>Enter</strong>) to auto-jump to next student.</span>
+                        <div id="ttsTipBanner" style="font-size:0.74rem; color:#64748b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:7px 12px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+                            <i class="fas fa-keyboard" style="color:#0284c7; font-size:0.92rem;"></i>
+                            <span>Enter marks and tap <strong>Next</strong> on mobile keyboard (or press <strong>Enter</strong>) to auto-jump to next student. Tap student photo to zoom.</span>
                         </div>
 
                         <!-- Students List Container -->
                         <div id="ttsStudentsList" class="tts-student-list">
-                            <div style="text-align:center; padding:32px 16px; color:#64748b;">
-                                <i class="fas fa-chalkboard-user" style="font-size:1.8rem; color:#cbd5e1; margin-bottom:8px; display:block;"></i>
-                                <p style="margin:0; font-weight:600;">Please select a class &amp; section above to load students.</p>
+                            <div style="text-align:center; padding:36px 16px; color:#64748b;">
+                                <i class="fas fa-chalkboard-user" style="font-size:2rem; color:#cbd5e1; margin-bottom:10px; display:block;"></i>
+                                <p style="margin:0; font-weight:700; color:#334155;">Please select a class &amp; section above to load students.</p>
+                                <p style="margin:4px 0 0; font-size:0.78rem;">Students will be listed with photos, roll numbers, and quick score inputs.</p>
                             </div>
                         </div>
                     </div>
@@ -758,8 +1349,8 @@
                 <div id="ttsHistoryView" style="display:none;">
                     <div class="tts-card">
                         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:8px; flex-wrap:wrap;">
-                            <div style="font-size:0.95rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:6px;">
-                                <i class="fas fa-layer-group"></i> All Created Tests &amp; Assessments
+                            <div style="font-size:0.98rem; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+                                <i class="fas fa-layer-group" style="color:#0284c7;"></i> All Created Tests &amp; Assessments
                             </div>
                             <div style="display:flex; gap:6px;">
                                 <button type="button" class="tts-btn-secondary" id="ttsFilterAllTests" style="background:#e0f2fe; color:#0369a1; border-color:#bae6fd;">All</button>
@@ -769,23 +1360,23 @@
                         </div>
 
                         <div id="ttsHistoryGrid" class="tts-history-grid">
-                            <div style="text-align:center; padding:32px; color:#64748b; grid-column:1/-1;">
-                                <i class="fas fa-spinner fa-spin" style="font-size:1.4rem; color:#0284c7;"></i>
-                                <p style="margin-top:8px;">Loading tests history...</p>
+                            <div style="text-align:center; padding:36px; color:#64748b; grid-column:1/-1;">
+                                <i class="fas fa-spinner fa-spin" style="font-size:1.6rem; color:#0284c7;"></i>
+                                <p style="margin-top:10px; font-weight:600;">Loading tests history...</p>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Sticky Bottom Action Bar for Mobile and Desktop -->
+            <!-- Sticky Bottom Action Bar with Mobile Safe-Area -->
             <div id="ttsBottomBar" class="tts-bottom-bar" style="display:none;">
                 <div class="tts-bottom-summary">
                     <span id="ttsBottomScoreSummary">0 / 0 Entered</span>
                     <span class="tts-bottom-progress" id="ttsBottomStatusText">Unsaved changes auto-saved to device</span>
                 </div>
                 <div style="display:flex; gap:8px;">
-                    <button type="button" class="tts-btn-primary" id="ttsSubmitBtn" style="padding:10px 20px;">
+                    <button type="button" class="tts-btn-primary" id="ttsSubmitBtn" style="padding:11px 22px;">
                         <i class="fas fa-cloud-arrow-up"></i> Submit &amp; Save Scores
                     </button>
                 </div>
@@ -915,26 +1506,80 @@
         dateInput.addEventListener('change', handleDateChange);
         dateInput.addEventListener('input', handleDateChange);
 
-        // Toggle Views: Editor vs History
+        // Toggle Views: Editor vs History & Segmented Tabs
         const editorView = panel.querySelector('#ttsEditorView');
         const historyView = panel.querySelector('#ttsHistoryView');
         const toggleHistoryBtn = panel.querySelector('#ttsToggleHistoryBtn');
         const newTestBtn = panel.querySelector('#ttsNewTestBtn');
         const bottomBar = panel.querySelector('#ttsBottomBar');
+        const tabMarks = panel.querySelector('#ttsTabMarks');
+        const tabSettings = panel.querySelector('#ttsTabSettings');
+        const tabHistory = panel.querySelector('#ttsTabHistory');
+        const examSettingsCard = panel.querySelector('#ttsExamSettingsCard');
+        const quickToggleSettingsBtn = panel.querySelector('#ttsQuickToggleSettingsBtn');
+        const quickToggleSettingsText = panel.querySelector('#ttsQuickToggleSettingsText');
+        const closeSettingsBtn = panel.querySelector('#ttsCloseSettingsBtn');
+
+        function setActiveTab(tab) {
+            [tabMarks, tabSettings, tabHistory].forEach(t => {
+                if (t) {
+                    t.classList.remove('active');
+                    t.setAttribute('aria-selected', 'false');
+                }
+            });
+
+            if (tab === 'marks') {
+                tabMarks?.classList.add('active');
+                tabMarks?.setAttribute('aria-selected', 'true');
+                editorView.style.display = 'block';
+                historyView.style.display = 'none';
+                toggleHistoryBtn.innerHTML = '<i class="fas fa-history"></i> Test Records';
+                updateBottomBarVisibility();
+            } else if (tab === 'settings') {
+                tabSettings?.classList.add('active');
+                tabSettings?.setAttribute('aria-selected', 'true');
+                editorView.style.display = 'block';
+                historyView.style.display = 'none';
+                toggleHistoryBtn.innerHTML = '<i class="fas fa-history"></i> Test Records';
+                toggleExamSettings(true);
+                updateBottomBarVisibility();
+            } else if (tab === 'history') {
+                tabHistory?.classList.add('active');
+                tabHistory?.setAttribute('aria-selected', 'true');
+                editorView.style.display = 'none';
+                historyView.style.display = 'block';
+                toggleHistoryBtn.innerHTML = '<i class="fas fa-pen-to-square"></i> Back to Editor';
+                bottomBar.style.display = 'none';
+                renderHistoryView();
+            }
+        }
+
+        tabMarks?.addEventListener('click', () => setActiveTab('marks'));
+        tabSettings?.addEventListener('click', () => setActiveTab('settings'));
+        tabHistory?.addEventListener('click', () => setActiveTab('history'));
+
+        function toggleExamSettings(forceOpen) {
+            if (!examSettingsCard) return;
+            const isCurrentlyOpen = examSettingsCard.style.display !== 'none';
+            const willOpen = forceOpen !== undefined ? forceOpen : !isCurrentlyOpen;
+            examSettingsCard.style.display = willOpen ? 'block' : 'none';
+            if (quickToggleSettingsText) {
+                quickToggleSettingsText.textContent = willOpen ? 'Hide Exam Settings' : 'Show Exam Settings';
+            }
+            if (willOpen) {
+                examSettingsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        quickToggleSettingsBtn?.addEventListener('click', () => toggleExamSettings());
+        closeSettingsBtn?.addEventListener('click', () => toggleExamSettings(false));
 
         function showEditorView() {
-            editorView.style.display = 'block';
-            historyView.style.display = 'none';
-            toggleHistoryBtn.innerHTML = '<i class="fas fa-history"></i> Test Records';
-            updateBottomBarVisibility();
+            setActiveTab('marks');
         }
 
         function showHistoryView() {
-            editorView.style.display = 'none';
-            historyView.style.display = 'block';
-            toggleHistoryBtn.innerHTML = '<i class="fas fa-pen-to-square"></i> Back to Editor';
-            bottomBar.style.display = 'none';
-            renderHistoryView();
+            setActiveTab('history');
         }
 
         toggleHistoryBtn.addEventListener('click', () => {
@@ -1122,6 +1767,154 @@
         const totalMarksInput = panel.querySelector('#ttsTotalMarksInput');
         const testTitleInput = panel.querySelector('#ttsTestTitleInput');
 
+        // Exam Settings Controls
+        const examTypeSelect = panel.querySelector('#ttsExamType');
+        const passingMarksInput = panel.querySelector('#ttsPassingMarks');
+        const passingCutoffBadge = panel.querySelector('#ttsPassingCutoffBadge');
+        const examDurationInput = panel.querySelector('#ttsExamDuration');
+        const durationChips = panel.querySelectorAll('.tts-duration-chip');
+        const gradingScaleSelect = panel.querySelector('#ttsGradingScale');
+        const publishResultsSelect = panel.querySelector('#ttsPublishResults');
+        const negativeMarkingSelect = panel.querySelector('#ttsNegativeMarking');
+        const assessmentComponentSelect = panel.querySelector('#ttsAssessmentComponent');
+        const weightageInput = panel.querySelector('#ttsWeightage');
+        const examInstructionsInput = panel.querySelector('#ttsExamInstructions');
+
+        // Student Search & Filter Controls
+        const searchInput = panel.querySelector('#ttsStudentSearchInput');
+        const filterPills = panel.querySelectorAll('.tts-filter-pill');
+        let studentSearchQuery = '';
+        let studentFilterStatus = 'all';
+
+        // Duration Presets
+        durationChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                durationChips.forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                if (examDurationInput) {
+                    examDurationInput.value = chip.dataset.mins;
+                }
+                scheduleAutoDraftSave();
+            });
+        });
+
+        examDurationInput?.addEventListener('input', () => {
+            const val = examDurationInput.value;
+            durationChips.forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.mins === val);
+            });
+            scheduleAutoDraftSave();
+        });
+
+        // Live Passing Cutoff Calculator
+        function updatePassingCutoffBadge() {
+            const max = parseFloat(totalMarksInput?.value) || 50;
+            let passing = parseFloat(passingMarksInput?.value);
+            if (isNaN(passing) || passing < 0) {
+                passing = Math.round(max * 0.4);
+                if (passingMarksInput) passingMarksInput.value = passing;
+            }
+            const pct = max > 0 ? Math.round((passing / max) * 100) : 40;
+            if (passingCutoffBadge) {
+                passingCutoffBadge.innerHTML = `<i class="fas fa-check-circle"></i> Pass Cutoff: ${pct}% (${passing} / ${max} Marks)`;
+            }
+            const tabBadge = panel.querySelector('#ttsSettingsTabBadge');
+            if (tabBadge) tabBadge.textContent = `Pass: ${pct}%`;
+            const summaryBadge = panel.querySelector('#ttsExamRulesSummary');
+            if (summaryBadge) summaryBadge.textContent = `${pct}% Pass Cutoff (${passing}/${max})`;
+
+            panel.querySelectorAll('.student-score-input').forEach(inp => {
+                updateStudentScoreBadge(inp);
+            });
+        }
+
+        passingMarksInput?.addEventListener('input', () => {
+            updatePassingCutoffBadge();
+            scheduleAutoDraftSave();
+        });
+
+        gradingScaleSelect?.addEventListener('change', () => {
+            panel.querySelectorAll('.student-score-input').forEach(inp => {
+                updateStudentScoreBadge(inp);
+            });
+            scheduleAutoDraftSave();
+        });
+
+        [examTypeSelect, publishResultsSelect, negativeMarkingSelect, assessmentComponentSelect, weightageInput, examInstructionsInput].forEach(el => {
+            el?.addEventListener('change', scheduleAutoDraftSave);
+            el?.addEventListener('input', scheduleAutoDraftSave);
+        });
+
+        // Search & Filter Events
+        searchInput?.addEventListener('input', () => {
+            studentSearchQuery = (searchInput.value || '').trim();
+            applyStudentFiltering();
+        });
+
+        filterPills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                filterPills.forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                studentFilterStatus = pill.dataset.filter || 'all';
+                applyStudentFiltering();
+            });
+        });
+
+        function applyStudentFiltering() {
+            const rows = panel.querySelectorAll('.tts-student-row');
+            let visibleCount = 0;
+            let scoredCount = 0;
+            let unscoredCount = 0;
+            let absentCount = 0;
+
+            rows.forEach(row => {
+                const uid = row.dataset.uid;
+                const st = currentStudents.find(s => s.id === uid);
+                const inp = row.querySelector('.student-score-input');
+                const abBtn = row.querySelector('.tts-ab-btn');
+                const isAbsent = abBtn?.classList.contains('active') || false;
+                const hasScore = inp && inp.value.trim() !== '' && !isNaN(parseFloat(inp.value));
+
+                if (isAbsent) absentCount++;
+                else if (hasScore) scoredCount++;
+                else unscoredCount++;
+
+                let matchesSearch = true;
+                if (studentSearchQuery && st) {
+                    const q = studentSearchQuery.toLowerCase();
+                    const name = String(st.name || st.displayName || '').toLowerCase();
+                    const roll = String(st.classRoll || st.univRoll || st.rollNo || '').toLowerCase();
+                    matchesSearch = name.includes(q) || roll.includes(q);
+                }
+
+                let matchesStatus = true;
+                if (studentFilterStatus === 'scored') matchesStatus = hasScore;
+                else if (studentFilterStatus === 'unscored') matchesStatus = !hasScore && !isAbsent;
+                else if (studentFilterStatus === 'absent') matchesStatus = isAbsent;
+
+                const show = matchesSearch && matchesStatus;
+                row.style.display = show ? 'flex' : 'none';
+                if (show) visibleCount++;
+            });
+
+            // Update pill counts
+            const allCountEl = panel.querySelector('#ttsFilterAllCount');
+            const scoredCountEl = panel.querySelector('#ttsFilterScoredCount');
+            const unscoredCountEl = panel.querySelector('#ttsFilterUnscoredCount');
+            const absentCountEl = panel.querySelector('#ttsFilterAbsentCount');
+            if (allCountEl) allCountEl.textContent = currentStudents.length;
+            if (scoredCountEl) scoredCountEl.textContent = scoredCount;
+            if (unscoredCountEl) unscoredCountEl.textContent = unscoredCount;
+            if (absentCountEl) absentCountEl.textContent = absentCount;
+
+            const rosterCountEl = panel.querySelector('#ttsRosterCount');
+            if (rosterCountEl) {
+                rosterCountEl.textContent = (visibleCount === currentStudents.length)
+                    ? `${currentStudents.length} Students`
+                    : `${visibleCount} of ${currentStudents.length} Students`;
+            }
+        }
+
         async function handleClassSelectionChange() {
             const val = classSelect.value;
             if (!val) {
@@ -1211,6 +2004,7 @@
                 inp.placeholder = `0-${max}`;
                 updateStudentScoreBadge(inp);
             });
+            updatePassingCutoffBadge();
             updateSummaryCounters();
         }
 
@@ -1320,7 +2114,7 @@
             return false;
         }
 
-        // Render Student Roster with Minimized UI & Enter-Key Auto-Advance
+        // Render Student Roster with Student Photos, Zoom Preview, and Mobile Keyboard Auto-Advance
         function renderStudentsRoster(students) {
             const listEl = panel.querySelector('#ttsStudentsList');
             const isFuture = (dateInput.value || '') > getTodayStr();
@@ -1328,10 +2122,10 @@
             if (students.length === 0) {
                 const hasClass = !!classSelect.value;
                 listEl.innerHTML = `
-                    <div style="text-align:center; padding:32px 16px; color:#64748b;">
-                        <i class="fas ${hasClass ? 'fa-user-slash' : 'fa-chalkboard-user'}" style="font-size:1.8rem; color:#cbd5e1; margin-bottom:8px; display:block;"></i>
-                        <p style="margin:0; font-weight:600;">${hasClass ? 'No students found enrolled in this class and section.' : 'Please select a class &amp; section above to load students.'}</p>
-                        ${hasClass ? '<button type="button" class="tts-btn-secondary" style="margin-top:10px; font-size:0.75rem;" id="ttsRetryLoadStudents"><i class="fas fa-rotate"></i> Reload Students</button>' : ''}
+                    <div style="text-align:center; padding:36px 16px; color:#64748b;">
+                        <i class="fas ${hasClass ? 'fa-user-slash' : 'fa-chalkboard-user'}" style="font-size:2rem; color:#cbd5e1; margin-bottom:10px; display:block;"></i>
+                        <p style="margin:0; font-weight:700; color:#334155;">${hasClass ? 'No students found enrolled in this class and section.' : 'Please select a class &amp; section above to load students.'}</p>
+                        ${hasClass ? '<button type="button" class="tts-btn-secondary" style="margin-top:12px; font-size:0.78rem;" id="ttsRetryLoadStudents"><i class="fas fa-rotate"></i> Reload Students</button>' : ''}
                     </div>
                 `;
                 if (hasClass) {
@@ -1339,6 +2133,7 @@
                         handleClassSelectionChange();
                     });
                 }
+                applyStudentFiltering();
                 updateSummaryCounters();
                 return;
             }
@@ -1360,22 +2155,34 @@
                     tipBanner.style.color = '#64748b';
                     tipBanner.innerHTML = `
                         <i class="fas fa-keyboard" style="color:#0284c7;"></i>
-                        <span>Enter marks and tap <strong>Next</strong> on mobile keyboard (or press <strong>Enter</strong>) to auto-jump to next student.</span>
+                        <span>Enter marks and tap <strong>Next</strong> on mobile keyboard (or press <strong>Enter</strong>) to auto-jump to next student. Tap student photo to zoom.</span>
                     `;
                 }
             }
+
+            const selectedClassLabel = classSelect.options[classSelect.selectedIndex]?.textContent || 'Class';
 
             let html = '';
             students.forEach((st, idx) => {
                 const roll = st.classRoll || st.univRoll || st.rollNo || (idx + 1);
                 const name = st.name || st.displayName || 'Student';
                 const photo = st.profilePhoto || st.profilePic || st.photoURL || st.photoUrl || st.profilePicture || st.imageUrl || '';
-                const avatar = photo ? `<img class="tts-student-avatar" src="${escapeHtml(photo)}" alt="" loading="lazy">` : `<span class="tts-student-avatar-fallback">${escapeHtml(name.charAt(0).toUpperCase())}</span>`;
+                const avatar = photo
+                    ? `<img class="tts-student-avatar" src="${escapeHtml(photo)}" alt="${escapeHtml(name)}" loading="lazy">`
+                    : `<span class="tts-student-avatar-fallback">${escapeHtml(name.charAt(0).toUpperCase())}</span>`;
+
+                const avatarWrap = `
+                    <div class="tts-avatar-wrap" data-uid="${st.id}" data-photo="${escapeHtml(photo)}" data-name="${escapeHtml(name)}" data-roll="${escapeHtml(roll)}" title="Click to preview student photo" tabindex="0" role="button" aria-label="Preview photo of ${escapeHtml(name)}">
+                        ${avatar}
+                        <span class="tts-avatar-zoom-badge"><i class="fas fa-magnifying-glass-plus"></i></span>
+                    </div>
+                `;
+
                 if (isFuture) {
                     html += `
                         <div class="tts-student-row" id="ttsRow_${st.id}" data-uid="${st.id}">
                             <div class="tts-student-meta">
-                                ${avatar}
+                                ${avatarWrap}
                                 <span class="tts-roll-badge">#${roll}</span>
                                 <span class="tts-student-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
                             </div>
@@ -1390,7 +2197,7 @@
                     html += `
                         <div class="tts-student-row" id="ttsRow_${st.id}" data-uid="${st.id}">
                             <div class="tts-student-meta">
-                                ${avatar}
+                                ${avatarWrap}
                                 <span class="tts-roll-badge">#${roll}</span>
                                 <span class="tts-student-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
                             </div>
@@ -1417,20 +2224,57 @@
 
             listEl.innerHTML = html;
 
+            // Wire up Student Photo Preview Click & Accessibility Events
+            listEl.querySelectorAll('.tts-avatar-wrap').forEach(wrap => {
+                const openPreview = () => {
+                    const photoSrc = wrap.dataset.photo;
+                    const stName = wrap.dataset.name || 'Student';
+                    const stRoll = wrap.dataset.roll || '';
+                    if (photoSrc && window.TeacherStudentPhotoPreview) {
+                        window.TeacherStudentPhotoPreview.open({
+                            src: photoSrc,
+                            name: stName,
+                            details: `${selectedClassLabel} · Roll #${stRoll}`
+                        });
+                    }
+                };
+
+                wrap.addEventListener('click', openPreview);
+                wrap.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openPreview();
+                    }
+                });
+
+                // Graceful fallback for broken image URLs
+                const img = wrap.querySelector('img');
+                if (img) {
+                    img.addEventListener('error', () => {
+                        const fallback = document.createElement('span');
+                        fallback.className = 'tts-student-avatar-fallback';
+                        fallback.textContent = (wrap.dataset.name || 'S').trim().charAt(0).toUpperCase();
+                        img.replaceWith(fallback);
+                    }, { once: true });
+                }
+            });
+
             if (!isFuture) {
                 // Attach Mobile Keyboard Enter / Next Auto-Advance Listeners
-                const inputs = listEl.querySelectorAll('.student-score-input');
+                const inputs = Array.from(listEl.querySelectorAll('.student-score-input'));
                 inputs.forEach((inp, idx) => {
                     // Keydown listener for Enter / Next key
                     inp.addEventListener('keydown', (e) => {
                         if (e.key === 'Enter') {
                             e.preventDefault();
-                            const nextInput = listEl.querySelector(`.student-score-input[data-index="${idx + 1}"]`);
+                            // Find next enabled input
+                            const nextInput = inputs.slice(idx + 1).find(i => !i.disabled);
                             if (nextInput) {
                                 nextInput.focus();
                                 nextInput.select();
+                                nextInput.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
                             } else {
-                                // Last student, blur to close keyboard or focus submit
+                                // Last student, dismiss keyboard and focus submit button
                                 inp.blur();
                                 panel.querySelector('#ttsSubmitBtn')?.focus();
                             }
@@ -1449,6 +2293,7 @@
                             inp.value = 0;
                         }
                         updateStudentScoreBadge(inp);
+                        applyStudentFiltering();
                         updateSummaryCounters();
                         scheduleAutoDraftSave();
                     });
@@ -1474,12 +2319,14 @@
                         }
 
                         updateStudentScoreBadge(inp);
+                        applyStudentFiltering();
                         updateSummaryCounters();
                         scheduleAutoDraftSave();
                     });
                 });
             }
 
+            applyStudentFiltering();
             updateSummaryCounters();
         }
 
@@ -1494,32 +2341,60 @@
                 badge.className = 'tts-pct-badge absent';
                 badge.textContent = 'AB';
                 row?.classList.remove('has-score');
+                row?.classList.remove('below-cutoff');
                 return;
             }
 
             const val = parseFloat(inp.value);
             const max = parseFloat(totalMarksInput.value) || 50;
+            const passing = parseFloat(panel.querySelector('#ttsPassingMarks')?.value) || Math.round(max * 0.4);
 
             if (isNaN(val) || inp.value.trim() === '') {
                 badge.className = 'tts-pct-badge';
                 badge.textContent = '--';
                 row?.classList.remove('has-score');
+                row?.classList.remove('below-cutoff');
                 return;
             }
 
             row?.classList.add('has-score');
             const pct = Math.round((val / max) * 100);
+            const isBelowCutoff = val < passing;
 
-            if (pct >= 75) {
+            if (isBelowCutoff) {
+                row?.classList.add('below-cutoff');
+            } else {
+                row?.classList.remove('below-cutoff');
+            }
+
+            const gradingScale = panel.querySelector('#ttsGradingScale')?.value || 'percentage';
+            let label = `${pct}%`;
+
+            if (gradingScale === 'letter') {
+                if (pct >= 90) label = 'A+';
+                else if (pct >= 80) label = 'A';
+                else if (pct >= 70) label = 'B+';
+                else if (pct >= 60) label = 'B';
+                else if (pct >= 50) label = 'C';
+                else if (pct >= 40) label = 'D';
+                else label = 'F';
+            } else if (gradingScale === 'gpa') {
+                label = (pct / 10).toFixed(1);
+            } else if (gradingScale === 'pass_fail') {
+                label = isBelowCutoff ? 'FAIL' : 'PASS';
+            }
+
+            if (isBelowCutoff) {
+                badge.className = 'tts-pct-badge low';
+            } else if (pct >= 75) {
                 badge.className = 'tts-pct-badge excellent';
-                badge.textContent = `${pct}%`;
-            } else if (pct >= 40) {
+            } else if (pct >= 50) {
                 badge.className = 'tts-pct-badge average';
-                badge.textContent = `${pct}%`;
             } else {
                 badge.className = 'tts-pct-badge low';
-                badge.textContent = `${pct}%`;
             }
+
+            badge.textContent = label;
         }
 
         function updateSummaryCounters() {
@@ -1598,6 +2473,15 @@
                 maxMarks: totalMarksInput.value,
                 classVal: classSelect.value,
                 subject: subjectSelect.value,
+                examType: examTypeSelect?.value || 'Unit Test',
+                passingMarks: passingMarksInput?.value || '',
+                duration: examDurationInput?.value || '60',
+                gradingScale: gradingScaleSelect?.value || 'percentage',
+                publishResults: publishResultsSelect?.value || 'immediate',
+                negativeMarking: negativeMarkingSelect?.value || '0',
+                assessmentComponent: assessmentComponentSelect?.value || 'Theory',
+                weightage: weightageInput?.value || '20',
+                instructions: examInstructionsInput?.value || '',
                 scores: scores,
                 updatedAt: Date.now()
             };
@@ -1634,6 +2518,21 @@
                         totalMarksInput.value = draft.maxMarks;
                         updateTotalMarksLabels();
                     }
+
+                    // Restore Exam Settings from Draft
+                    if (draft.examType && examTypeSelect) examTypeSelect.value = draft.examType;
+                    if (draft.passingMarks && passingMarksInput) passingMarksInput.value = draft.passingMarks;
+                    if (draft.duration && examDurationInput) {
+                        examDurationInput.value = draft.duration;
+                        durationChips.forEach(chip => chip.classList.toggle('active', chip.dataset.mins === draft.duration));
+                    }
+                    if (draft.gradingScale && gradingScaleSelect) gradingScaleSelect.value = draft.gradingScale;
+                    if (draft.publishResults && publishResultsSelect) publishResultsSelect.value = draft.publishResults;
+                    if (draft.negativeMarking && negativeMarkingSelect) negativeMarkingSelect.value = draft.negativeMarking;
+                    if (draft.assessmentComponent && assessmentComponentSelect) assessmentComponentSelect.value = draft.assessmentComponent;
+                    if (draft.weightage && weightageInput) weightageInput.value = draft.weightage;
+                    if (draft.instructions && examInstructionsInput) examInstructionsInput.value = draft.instructions;
+                    updatePassingCutoffBadge();
 
                     // Pre-fill student scores
                     Object.entries(draft.scores).forEach(([uid, data]) => {
@@ -1810,6 +2709,17 @@
             try {
                 const testId = activeEditingTestId || db.ref(`schoolTests/${schoolId}`).push().key;
 
+                const passingMarksVal = parseFloat(passingMarksInput?.value) || Math.round(maxMarks * 0.4);
+                const passingPct = maxMarks > 0 ? Math.round((passingMarksVal / maxMarks) * 100) : 40;
+                const examDurationVal = parseInt(examDurationInput?.value, 10) || 60;
+                const examTypeVal = examTypeSelect?.value || 'Unit Test';
+                const gradingScaleVal = gradingScaleSelect?.value || 'percentage';
+                const publishResultsVal = publishResultsSelect?.value || 'immediate';
+                const negativeMarkingVal = parseFloat(negativeMarkingSelect?.value) || 0;
+                const assessmentComponentVal = assessmentComponentSelect?.value || 'Theory';
+                const weightageVal = parseFloat(weightageInput?.value) || 20;
+                const examInstructionsVal = (examInstructionsInput?.value || '').trim();
+
                 const testPayload = {
                     id: testId,
                     title: title,
@@ -1826,7 +2736,17 @@
                     studentCount: currentStudents.length,
                     scoredCount: isFuture ? 0 : scoredCount,
                     status: isFuture ? 'scheduled' : 'completed',
-                    isFuture: isFuture
+                    isFuture: isFuture,
+                    examType: examTypeVal,
+                    passingMarks: passingMarksVal,
+                    passingPct: passingPct,
+                    durationMinutes: examDurationVal,
+                    gradingScale: gradingScaleVal,
+                    publishResults: publishResultsVal,
+                    negativeMarking: negativeMarkingVal,
+                    assessmentComponent: assessmentComponentVal,
+                    weightage: weightageVal,
+                    instructions: examInstructionsVal
                 };
 
                 // 1. Write Test Meta: schoolTests/${schoolId}/${testId}
@@ -1857,6 +2777,12 @@
                         testDate: testDate,
                         teacherName: testPayload.teacherName,
                         isFuture: isFuture,
+                        examType: examTypeVal,
+                        passingMarks: passingMarksVal,
+                        passingPct: passingPct,
+                        durationMinutes: examDurationVal,
+                        gradingScale: gradingScaleVal,
+                        assessmentComponent: assessmentComponentVal,
                         updatedAt: Date.now()
                     };
                 });
@@ -1946,18 +2872,36 @@
                     ? '<span class="tts-date-badge future"><i class="fas fa-clock"></i> Upcoming</span>'
                     : '<span class="tts-date-badge today"><i class="fas fa-check-circle"></i> Completed</span>';
 
+                const examType = test.examType || 'Assessment';
+                const component = test.assessmentComponent || 'Theory';
+                const duration = test.durationMinutes || 60;
+                const passingMarks = test.passingMarks !== undefined ? test.passingMarks : Math.round(test.maxMarks * 0.4);
+
                 html += `
                     <div class="tts-test-card" id="ttsTestCard_${test.id}">
                         <div>
                             <div class="tts-test-top">
-                                <h3 class="tts-test-title">${escapeHtml(test.title)}</h3>
+                                <div>
+                                    <h3 class="tts-test-title">${escapeHtml(test.title)}</h3>
+                                    <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:3px;">
+                                        <span class="badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:0.68rem; padding:2px 6px; border-radius:4px; font-weight:700;">
+                                            <i class="fas fa-tag"></i> ${escapeHtml(examType)}
+                                        </span>
+                                        <span class="badge" style="background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; font-size:0.68rem; padding:2px 6px; border-radius:4px; font-weight:600;">
+                                            <i class="fas fa-layer-group"></i> ${escapeHtml(component)}
+                                        </span>
+                                        <span class="badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-size:0.68rem; padding:2px 6px; border-radius:4px; font-weight:600;">
+                                            <i class="fas fa-stopwatch"></i> ${duration}m
+                                        </span>
+                                    </div>
+                                </div>
                                 ${statusBadge}
                             </div>
-                            <div class="tts-test-meta">
+                            <div class="tts-test-meta" style="margin-top:10px;">
                                 <div><i class="fas fa-chalkboard" style="color:#0284c7; width:14px;"></i> <strong>${escapeHtml(test.className)} - Sec ${escapeHtml(test.section)}</strong></div>
                                 <div><i class="fas fa-book" style="color:#16a34a; width:14px;"></i> ${escapeHtml(test.subject)}</div>
                                 <div><i class="fas fa-calendar" style="color:#d97706; width:14px;"></i> Date: <strong>${escapeHtml(test.testDate)}</strong></div>
-                                <div><i class="fas fa-award" style="color:#9333ea; width:14px;"></i> Total: <strong>${test.maxMarks} Marks</strong></div>
+                                <div><i class="fas fa-award" style="color:#9333ea; width:14px;"></i> Total: <strong>${test.maxMarks} Marks</strong> (Pass: ${passingMarks})</div>
                             </div>
                         </div>
                         <div class="tts-test-footer">
@@ -1965,10 +2909,10 @@
                                 ${test.scoredCount || 0} / ${test.studentCount || 0} Scored
                             </span>
                             <div style="display:flex; gap:6px;">
-                                <button type="button" class="tts-btn-secondary" onclick="window.editTeacherTest('${test.id}')" style="padding:4px 8px; font-size:0.75rem;">
+                                <button type="button" class="tts-btn-secondary" onclick="window.editTeacherTest('${test.id}')" style="padding:6px 10px; font-size:0.75rem; min-height:34px; touch-action:manipulation;">
                                     <i class="fas fa-pen-to-square"></i> Edit
                                 </button>
-                                <button type="button" class="tts-btn-secondary" onclick="window.deleteTeacherTest('${test.id}')" style="padding:4px 8px; font-size:0.75rem; color:#dc2626;">
+                                <button type="button" class="tts-btn-secondary" onclick="window.deleteTeacherTest('${test.id}')" style="padding:6px 10px; font-size:0.75rem; color:#dc2626; min-height:34px; touch-action:manipulation;">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -2012,6 +2956,21 @@
             dateInput.value = test.testDate || getTodayStr();
             updateDateNotice(dateInput.value);
             totalMarksInput.value = test.maxMarks || 50;
+
+            // Restore Exam Settings
+            if (examTypeSelect) examTypeSelect.value = test.examType || 'Unit Test';
+            if (passingMarksInput) passingMarksInput.value = test.passingMarks !== undefined ? test.passingMarks : Math.round((test.maxMarks || 50) * 0.4);
+            if (examDurationInput) {
+                examDurationInput.value = test.durationMinutes || '60';
+                durationChips.forEach(chip => chip.classList.toggle('active', chip.dataset.mins == (test.durationMinutes || '60')));
+            }
+            if (gradingScaleSelect) gradingScaleSelect.value = test.gradingScale || 'percentage';
+            if (publishResultsSelect) publishResultsSelect.value = test.publishResults || 'immediate';
+            if (negativeMarkingSelect) negativeMarkingSelect.value = test.negativeMarking !== undefined ? String(test.negativeMarking) : '0';
+            if (assessmentComponentSelect) assessmentComponentSelect.value = test.assessmentComponent || 'Theory';
+            if (weightageInput) weightageInput.value = test.weightage !== undefined ? test.weightage : '20';
+            if (examInstructionsInput) examInstructionsInput.value = test.instructions || '';
+            updatePassingCutoffBadge();
 
             // Select Class
             const classVal = `${test.classId}:::${test.section}`;
@@ -2093,6 +3052,26 @@
             dateInput.value = getTodayStr();
             updateDateNotice(dateInput.value);
             totalMarksInput.value = '50';
+
+            // Reset exam settings
+            if (examTypeSelect) examTypeSelect.value = 'Unit Test';
+            if (passingMarksInput) passingMarksInput.value = '20';
+            if (examDurationInput) {
+                examDurationInput.value = '60';
+                durationChips.forEach(chip => chip.classList.toggle('active', chip.dataset.mins === '60'));
+            }
+            if (gradingScaleSelect) gradingScaleSelect.value = 'percentage';
+            if (publishResultsSelect) publishResultsSelect.value = 'immediate';
+            if (negativeMarkingSelect) negativeMarkingSelect.value = '0';
+            if (assessmentComponentSelect) assessmentComponentSelect.value = 'Theory';
+            if (weightageInput) weightageInput.value = '20';
+            if (examInstructionsInput) examInstructionsInput.value = '';
+            if (searchInput) searchInput.value = '';
+            studentSearchQuery = '';
+            studentFilterStatus = 'all';
+            filterPills.forEach(p => p.classList.toggle('active', p.dataset.filter === 'all'));
+            updatePassingCutoffBadge();
+
             currentStudents = [];
             const sortedClasses = Array.from(myClassesMap.values());
             if (sortedClasses.length === 1) {
