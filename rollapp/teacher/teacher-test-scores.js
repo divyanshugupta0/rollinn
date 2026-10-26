@@ -40,12 +40,21 @@
         const style = document.createElement('style');
         style.id = 'teacher-test-scores-styles';
         style.textContent = `
-            .tts-shell {
-                max-width: 1200px;
-                margin: 0 auto;
-                color: #0f172a;
-                padding: 0 4px 85px;
+            #testScoresSection {
                 width: 100%;
+                box-sizing: border-box;
+            }
+            #testScoresSection button {
+                width: auto !important;
+                box-sizing: border-box;
+            }
+
+            .tts-shell {
+                max-width: 100%;
+                width: 100%;
+                margin: 0;
+                color: #0f172a;
+                padding: 0 0 95px;
                 box-sizing: border-box;
                 font-family: inherit;
             }
@@ -55,14 +64,14 @@
                 background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
                 border: 1px solid #e2e8f0;
                 border-radius: 16px;
-                padding: 18px 22px;
-                margin: 6px 0 16px;
+                padding: 20px 24px;
+                margin: 0 0 16px;
                 box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
                 display: flex;
                 flex-wrap: wrap;
                 align-items: center;
                 justify-content: space-between;
-                gap: 14px;
+                gap: 16px;
                 position: relative;
                 overflow: hidden;
             }
@@ -77,7 +86,7 @@
             }
             .tts-header-left {
                 flex: 1;
-                min-width: 220px;
+                min-width: 240px;
             }
             .tts-header-kicker {
                 font-size: 0.72rem;
@@ -85,16 +94,16 @@
                 color: #0284c7;
                 text-transform: uppercase;
                 letter-spacing: 0.06em;
-                margin-bottom: 3px;
+                margin-bottom: 4px;
                 display: flex;
                 align-items: center;
                 gap: 6px;
             }
             .tts-header-title {
-                font-size: 1.35rem;
+                font-size: 1.40rem;
                 font-weight: 800;
                 color: #0f172a;
-                margin: 0 0 3px 0;
+                margin: 0 0 4px 0;
                 display: flex;
                 align-items: center;
                 gap: 8px;
@@ -102,14 +111,19 @@
             .tts-header-subtitle {
                 margin: 0;
                 color: #64748b;
-                font-size: 0.84rem;
-                line-height: 1.4;
+                font-size: 0.85rem;
+                line-height: 1.45;
             }
             .tts-header-actions {
                 display: flex;
-                gap: 8px;
+                gap: 10px;
                 flex-wrap: wrap;
                 align-items: center;
+            }
+            .tts-header-actions button,
+            .tts-header-actions #teacherCbtStudio {
+                width: auto !important;
+                flex: 0 0 auto;
             }
 
             /* Buttons */
@@ -130,6 +144,7 @@
                 transition: all 0.15s ease;
                 white-space: nowrap;
                 min-height: 40px;
+                width: auto !important;
                 box-sizing: border-box;
             }
             .tts-btn-primary:hover {
@@ -153,6 +168,7 @@
                 transition: all 0.15s ease;
                 white-space: nowrap;
                 min-height: 40px;
+                width: auto !important;
                 box-sizing: border-box;
             }
             .tts-btn-secondary:hover {
@@ -312,9 +328,9 @@
             /* Filter / Configuration Controls Grid */
             .tts-config-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-                gap: 12px;
-                margin-bottom: 14px;
+                grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+                gap: 14px;
+                margin-bottom: 16px;
             }
             .tts-field-group {
                 display: flex;
@@ -876,13 +892,52 @@
                 margin-top: 4px;
             }
 
-            .cbt-exam-settings { margin: 14px 0 4px; padding: 14px; border: 1px solid #dbeafe; border-radius: 12px; background: #f8fbff; }
-            .cbt-settings-heading { display: flex; align-items: center; gap: 7px; color: #0f3b68; font-weight: 800; font-size: 0.86rem; margin-bottom: 10px; }
-            .cbt-settings-heading small { color: #64748b; font-weight: 500; margin-left: 4px; }
-            .cbt-settings-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-            .cbt-settings-grid label { display: flex; align-items: center; gap: 7px; min-height: 34px; padding: 7px 9px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: #334155; font-size: 0.78rem; }
-            .cbt-settings-grid label span { flex: 1; }
-            .cbt-settings-grid input[type="number"], .cbt-settings-grid select { width: 72px; margin-left: auto; padding: 5px 6px; border: 1px solid #cbd5e1; border-radius: 6px; }
+            .cbt-exam-settings {
+                margin: 16px 0;
+                padding: 16px 18px;
+                border: 1.5px solid #bae6fd;
+                border-radius: 14px;
+                background: #f0f9ff;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .cbt-settings-heading {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                color: #0369a1;
+                font-weight: 800;
+                font-size: 0.92rem;
+                margin-bottom: 12px;
+            }
+            .cbt-settings-heading small {
+                color: #64748b;
+                font-weight: 500;
+                margin-left: auto;
+                font-size: 0.78rem;
+            }
+            .cbt-settings-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+                gap: 10px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .cbt-settings-grid label {
+                display: flex;
+                align-items: center;
+                gap: 9px;
+                min-height: 42px;
+                padding: 9px 12px;
+                border: 1px solid #cbd5e1;
+                border-radius: 9px;
+                background: #ffffff;
+                color: #334155;
+                font-size: 0.82rem;
+                font-weight: 600;
+                box-sizing: border-box;
+                cursor: pointer;
+            }
 
             /* ========================================================== */
             /* Mobile UI First-Class Ergonomics & Layout Optimization    */
@@ -1102,18 +1157,6 @@
                         <i class="fas fa-history"></i> <span>Test Records</span>
                         <span class="tts-tab-pill count" id="ttsHistoryCountBadge">0</span>
                     </button>
-                </div>
-
-                <!-- Workspace Quick Info Cards -->
-                <div class="tts-workspace-intro">
-                    <div class="tts-intro-card">
-                        <div class="tts-intro-icon"><i class="fas fa-pen-to-square"></i></div>
-                        <div><strong>Marks Workspace</strong><span>Choose a class, enter scores quickly, and save student results in one school-scoped record.</span></div>
-                    </div>
-                    <div class="tts-intro-card cbt">
-                        <div class="tts-intro-icon"><i class="fas fa-display"></i></div>
-                        <div><strong>CBT Exam Delivery</strong><span>Build an offline exam package with roster photos and device-ready settings.</span></div>
-                    </div>
                 </div>
 
                 <!-- Stats Bar (2x2 on Mobile, 4-col on Desktop) -->

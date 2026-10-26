@@ -162,22 +162,191 @@
     const modal = document.createElement('div');
     modal.id = 'teacherCbtStudioModal';
     modal.hidden = true;
-    modal.style = 'position:fixed;inset:0;z-index:1500;background:rgba(15,23,42,.6);padding:20px;overflow:auto';
-    modal.innerHTML = `<div style="max-width:980px;margin:3vh auto;background:#fff;border-radius:16px;padding:20px"><div style="display:flex;justify-content:space-between;align-items:start;border-bottom:1px solid #e2e8f0;padding-bottom:12px"><div><small style="color:#0284c7;font-weight:800">TEACHER AUTHORING</small><h2 style="margin:4px 0">CBT Exam Studio</h2><p style="margin:0;color:#64748b;font-size:.85rem">Select one or more assigned sections. Saving creates a separate scheduled CBT assignment and exam file for each checked section.</p></div><button id="teacherCbtClose" class="tts-btn-secondary">&times;</button></div><div class="tts-config-grid" style="margin-top:14px"><div class="tts-field-group"><label>Exam title</label><input id="cbtTitle" placeholder="Unit test - Algebra"></div><div class="tts-field-group"><label>Exam code</label><input id="cbtCode" placeholder="MATH-CBT-01"></div><div class="tts-field-group"><label>Duration (minutes)</label><input id="cbtDuration" type="number" min="5" value="60"></div><div class="tts-field-group"><label>Total marks</label><input id="cbtMarks" type="number" min="1" value="20"></div><div class="tts-field-group"><label>Scheduled start (optional)</label><input id="cbtScheduledAt" type="datetime-local"></div><div class="tts-field-group"><label>Instructions</label><input id="cbtInstructions" value="Answer all questions. Do not leave the RollCall CBT application."></div></div><div style="margin:16px 0"><label style="display:block;font-weight:800;color:#334155;margin-bottom:8px">Assign sections</label><div id="cbtSectionPicker" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px"></div><small style="display:block;color:#64748b;margin-top:6px">Each selected section receives its own schedule, roster, threshold and .rollcbt file.</small></div><div style="display:flex;justify-content:space-between;align-items:center;margin:18px 0 8px"><h3 style="margin:0">Questions</h3><button id="cbtAddQuestion" class="tts-btn-secondary">+ Add question</button></div><div id="cbtQuestionList"></div><p id="cbtStatus" style="color:#475569;font-size:.85rem"></p><div style="display:flex;justify-content:flex-end;gap:8px"><button id="cbtCancel" class="tts-btn-secondary">Cancel</button><button id="cbtGenerate" class="tts-btn-primary"><i class="fas fa-file-export"></i> Save & Download Section Exams</button></div></div>`;
-    panel.appendChild(modal);
+    modal.style = 'position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.72);backdrop-filter:blur(6px);padding:20px;overflow-y:auto;display:flex;align-items:flex-start;justify-content:center;box-sizing:border-box;';
+    modal.innerHTML = `
+      <div style="width:100%;max-width:980px;margin:24px auto;background:#ffffff;border-radius:20px;padding:26px;box-shadow:0 25px 60px rgba(15,23,42,0.35);border:1px solid #e2e8f0;box-sizing:border-box;font-family:inherit;">
+        <!-- Modal Header -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #e2e8f0;padding-bottom:16px;margin-bottom:18px;">
+          <div>
+            <div style="display:inline-flex;align-items:center;gap:6px;background:#e0f2fe;color:#0369a1;font-size:0.72rem;font-weight:800;padding:3px 9px;border-radius:6px;margin-bottom:6px;letter-spacing:0.04em;text-transform:uppercase;">
+              <i class="fas fa-shield-halved"></i> CBT Exam Authoring Studio
+            </div>
+            <h2 style="margin:0 0 4px 0;font-size:1.35rem;font-weight:800;color:#0f172a;">CBT Offline Exam Package Generator</h2>
+            <p style="margin:0;color:#64748b;font-size:0.84rem;line-height:1.45;">Select one or more assigned class sections to generate tamper-proof, encrypted <code>.rollcbt</code> offline packages with student photos and proctoring rules.</p>
+          </div>
+          <button id="teacherCbtClose" type="button" aria-label="Close" style="width:36px !important;height:36px !important;min-width:36px !important;min-height:36px !important;max-width:36px !important;max-height:36px !important;padding:0 !important;border-radius:50% !important;border:1.5px solid #cbd5e1;background:#f8fafc;color:#64748b;font-size:1.3rem;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 36px !important;box-shadow:none;line-height:1;">&times;</button>
+        </div>
 
-    const cbtSettings = document.createElement('div');
-    cbtSettings.className = 'cbt-exam-settings';
-    cbtSettings.innerHTML = '<div class="cbt-settings-heading"><i class="fas fa-sliders"></i><span>Exam settings</span><small>These settings are saved into every generated .rollcbt file.</small></div><div class="cbt-settings-grid"><label><input id="cbtFullscreen" type="checkbox" checked> Fullscreen lockdown</label><label><input id="cbtWebcam" type="checkbox"> Require webcam proctoring</label><label><input id="cbtShuffleQ" type="checkbox"> Shuffle questions</label><label><input id="cbtShuffleOpt" type="checkbox"> Shuffle options</label><label><input id="cbtScratchpad" type="checkbox" checked> Allow scratchpad</label><label><input id="cbtShowResult" type="checkbox" checked> Show result after submission</label><label><span>Max focus-loss strikes</span><input id="cbtStrikes" type="number" min="1" max="10" value="3"></label><label><span>Calculator</span><select id="cbtCalculator"><option value="none">None</option><option value="basic" selected>Basic</option><option value="scientific">Scientific</option></select></label><label><span>Negative marks/question</span><input id="cbtNegative" type="number" min="0" step="0.25" value="0"></label></div>';
-    modal.querySelector('.tts-config-grid').appendChild(cbtSettings);
+        <!-- Basic Exam Info Grid -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px;margin-bottom:16px;">
+          <div class="tts-field-group" style="grid-column: span 2;">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;"><i class="fas fa-heading" style="color:#0284c7;"></i> Exam Title</label>
+            <input id="cbtTitle" placeholder="e.g. Unit Test - Algebra & Equations" style="padding:10px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:0.88rem;background:#f8fafc;width:100%;box-sizing:border-box;">
+          </div>
+          <div class="tts-field-group">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;"><i class="fas fa-hashtag" style="color:#0284c7;"></i> Exam Code</label>
+            <input id="cbtCode" placeholder="e.g. MATH-CBT-01" style="padding:10px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:0.88rem;background:#f8fafc;width:100%;box-sizing:border-box;text-transform:uppercase;">
+          </div>
+          <div class="tts-field-group">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;"><i class="fas fa-stopwatch" style="color:#0284c7;"></i> Duration (Minutes)</label>
+            <input id="cbtDuration" type="number" min="5" value="60" style="padding:10px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:0.88rem;background:#f8fafc;width:100%;box-sizing:border-box;">
+          </div>
+          <div class="tts-field-group">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;"><i class="fas fa-award" style="color:#0284c7;"></i> Total Marks</label>
+            <input id="cbtMarks" type="number" min="1" value="20" style="padding:10px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:0.88rem;background:#f8fafc;width:100%;box-sizing:border-box;">
+          </div>
+          <div class="tts-field-group">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;"><i class="fas fa-calendar-day" style="color:#0284c7;"></i> Scheduled Start (Optional)</label>
+            <input id="cbtScheduledAt" type="datetime-local" style="padding:10px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:0.88rem;background:#f8fafc;width:100%;box-sizing:border-box;">
+          </div>
+          <div class="tts-field-group" style="grid-column: 1 / -1;">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;"><i class="fas fa-align-left" style="color:#0284c7;"></i> Candidate Instructions</label>
+            <input id="cbtInstructions" value="Answer all questions. Do not leave the RollCall CBT application." style="padding:10px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:0.88rem;background:#f8fafc;width:100%;box-sizing:border-box;">
+          </div>
+        </div>
+
+        <!-- Standalone Full-Width Exam Settings Card -->
+        <div class="cbt-exam-settings" style="margin:16px 0;padding:16px 18px;border:1.5px solid #bae6fd;border-radius:14px;background:#f0f9ff;width:100%;box-sizing:border-box;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:8px;color:#0369a1;font-weight:800;font-size:0.92rem;">
+              <i class="fas fa-sliders" style="font-size:1rem;"></i>
+              <span>Exam Security &amp; Engine Rules</span>
+            </div>
+            <small style="color:#64748b;font-weight:600;">Saved into every generated .rollcbt file</small>
+          </div>
+          <div class="cbt-settings-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:10px;width:100%;box-sizing:border-box;">
+            <label style="display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#ffffff;color:#334155;font-size:0.82rem;font-weight:600;min-height:42px;box-sizing:border-box;cursor:pointer;">
+              <input id="cbtFullscreen" type="checkbox" checked style="width:17px;height:17px;accent-color:#0284c7;cursor:pointer;flex:0 0 17px;margin:0;">
+              <span><i class="fas fa-expand" style="color:#0284c7;width:14px;margin-right:4px;"></i> Fullscreen lockdown</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#ffffff;color:#334155;font-size:0.82rem;font-weight:600;min-height:42px;box-sizing:border-box;cursor:pointer;">
+              <input id="cbtWebcam" type="checkbox" style="width:17px;height:17px;accent-color:#0284c7;cursor:pointer;flex:0 0 17px;margin:0;">
+              <span><i class="fas fa-camera" style="color:#0284c7;width:14px;margin-right:4px;"></i> Require webcam proctoring</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#ffffff;color:#334155;font-size:0.82rem;font-weight:600;min-height:42px;box-sizing:border-box;cursor:pointer;">
+              <input id="cbtShuffleQ" type="checkbox" style="width:17px;height:17px;accent-color:#0284c7;cursor:pointer;flex:0 0 17px;margin:0;">
+              <span><i class="fas fa-shuffle" style="color:#0284c7;width:14px;margin-right:4px;"></i> Shuffle questions</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#ffffff;color:#334155;font-size:0.82rem;font-weight:600;min-height:42px;box-sizing:border-box;cursor:pointer;">
+              <input id="cbtShuffleOpt" type="checkbox" style="width:17px;height:17px;accent-color:#0284c7;cursor:pointer;flex:0 0 17px;margin:0;">
+              <span><i class="fas fa-random" style="color:#0284c7;width:14px;margin-right:4px;"></i> Shuffle options</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#ffffff;color:#334155;font-size:0.82rem;font-weight:600;min-height:42px;box-sizing:border-box;cursor:pointer;">
+              <input id="cbtScratchpad" type="checkbox" checked style="width:17px;height:17px;accent-color:#0284c7;cursor:pointer;flex:0 0 17px;margin:0;">
+              <span><i class="fas fa-pen" style="color:#0284c7;width:14px;margin-right:4px;"></i> Allow scratchpad</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#ffffff;color:#334155;font-size:0.82rem;font-weight:600;min-height:42px;box-sizing:border-box;cursor:pointer;">
+              <input id="cbtShowResult" type="checkbox" checked style="width:17px;height:17px;accent-color:#0284c7;cursor:pointer;flex:0 0 17px;margin:0;">
+              <span><i class="fas fa-chart-pie" style="color:#0284c7;width:14px;margin-right:4px;"></i> Show result after submit</span>
+            </label>
+            <label style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#ffffff;color:#334155;font-size:0.82rem;font-weight:600;min-height:42px;box-sizing:border-box;">
+              <span><i class="fas fa-triangle-exclamation" style="color:#d97706;width:14px;margin-right:4px;"></i> Max focus strikes</span>
+              <input id="cbtStrikes" type="number" min="1" max="10" value="3" style="width:65px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.84rem;text-align:center;">
+            </label>
+            <label style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#ffffff;color:#334155;font-size:0.82rem;font-weight:600;min-height:42px;box-sizing:border-box;">
+              <span><i class="fas fa-calculator" style="color:#0284c7;width:14px;margin-right:4px;"></i> Calculator</span>
+              <select id="cbtCalculator" style="width:105px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;background:#fff;">
+                <option value="none">None</option>
+                <option value="basic" selected>Basic</option>
+                <option value="scientific">Scientific</option>
+              </select>
+            </label>
+            <label style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#ffffff;color:#334155;font-size:0.82rem;font-weight:600;min-height:42px;box-sizing:border-box;">
+              <span><i class="fas fa-minus-circle" style="color:#dc2626;width:14px;margin-right:4px;"></i> Negative marks/Q</span>
+              <input id="cbtNegative" type="number" min="0" step="0.25" value="0" style="width:65px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.84rem;text-align:center;">
+            </label>
+          </div>
+        </div>
+
+        <!-- Section Assignment Picker -->
+        <div style="margin:16px 0;padding:16px 18px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;">
+          <label style="display:block;font-weight:800;color:#1e293b;margin-bottom:6px;font-size:0.88rem;">
+            <i class="fas fa-chalkboard-user" style="color:#0284c7;margin-right:4px;"></i> Assign Target Class Sections
+          </label>
+          <small style="display:block;color:#64748b;margin-bottom:10px;font-size:0.80rem;">Select one or more sections. Each checked section receives its own schedule, roster, and encrypted <code>.rollcbt</code> file.</small>
+          <div id="cbtSectionPicker" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;"></div>
+        </div>
+
+        <!-- Questions List Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 10px;">
+          <div>
+            <h3 style="margin:0;font-size:1.05rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:6px;">
+              <i class="fas fa-list-check" style="color:#0284c7;"></i> Questions
+            </h3>
+            <span style="font-size:0.78rem;color:#64748b;">Add multiple-choice questions with answer keys</span>
+          </div>
+          <button id="cbtAddQuestion" type="button" class="tts-btn-secondary" style="width:auto !important;padding:7px 14px;font-size:0.80rem;min-height:36px;">
+            <i class="fas fa-plus"></i> Add Question
+          </button>
+        </div>
+
+        <!-- Questions Dynamic List -->
+        <div id="cbtQuestionList"></div>
+
+        <p id="cbtStatus" style="color:#0369a1;font-size:0.85rem;font-weight:600;margin:12px 0;min-height:18px;"></p>
+
+        <!-- Footer Actions -->
+        <div style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #e2e8f0;padding-top:16px;margin-top:16px;">
+          <button id="cbtCancel" type="button" class="tts-btn-secondary" style="width:auto !important;padding:10px 20px;min-height:42px;">Cancel</button>
+          <button id="cbtGenerate" type="button" class="tts-btn-primary" style="width:auto !important;padding:10px 24px;min-height:42px;">
+            <i class="fas fa-file-export"></i> Save &amp; Download Section Exams
+          </button>
+        </div>
+      </div>
+    `;
+    panel.appendChild(modal);
 
     const list = modal.querySelector('#cbtQuestionList');
     let count = 0;
     const addQuestion = () => {
       count += 1;
       const row = document.createElement('div');
-      row.style = 'border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px;background:#f8fafc';
-      row.innerHTML = `<div style="display:flex;justify-content:space-between"><strong>Question ${count}</strong><button class="tts-btn-secondary cbt-remove" style="padding:3px 8px;color:#b91c1c">Remove</button></div><div class="tts-field-group"><label>Question text</label><input class="cbt-text" placeholder="Enter question"></div><div class="tts-config-grid" style="margin-top:8px;grid-template-columns:repeat(2,minmax(0,1fr))"><div class="tts-field-group"><label>Option A</label><input class="cbt-opt"></div><div class="tts-field-group"><label>Option B</label><input class="cbt-opt"></div><div class="tts-field-group"><label>Option C</label><input class="cbt-opt"></div><div class="tts-field-group"><label>Option D</label><input class="cbt-opt"></div><div class="tts-field-group"><label>Correct option</label><select class="cbt-answer"><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option></select></div><div class="tts-field-group"><label>Marks</label><input class="cbt-qmarks" type="number" min="1" value="1"></div></div>`;
+      row.style = 'border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px;background:#f8fafc;box-shadow:0 1px 3px rgba(0,0,0,0.03);';
+      row.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <strong style="color:#0f172a;font-size:0.90rem;">Question ${count}</strong>
+          <button type="button" class="tts-btn-secondary cbt-remove" style="width:auto !important;padding:4px 10px;color:#dc2626;border-color:#fecaca;background:#fff;font-size:0.75rem;min-height:30px;">
+            <i class="fas fa-trash"></i> Remove
+          </button>
+        </div>
+        <div class="tts-field-group" style="margin-bottom:10px;">
+          <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:block;">Question Text</label>
+          <input class="cbt-text" placeholder="Enter question statement..." style="padding:9px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.86rem;background:#fff;width:100%;box-sizing:border-box;">
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:10px;">
+          <div class="tts-field-group">
+            <label style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px;display:block;">Option A</label>
+            <input class="cbt-opt" placeholder="Option A text" style="padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;">
+          </div>
+          <div class="tts-field-group">
+            <label style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px;display:block;">Option B</label>
+            <input class="cbt-opt" placeholder="Option B text" style="padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;">
+          </div>
+          <div class="tts-field-group">
+            <label style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px;display:block;">Option C</label>
+            <input class="cbt-opt" placeholder="Option C text" style="padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;">
+          </div>
+          <div class="tts-field-group">
+            <label style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px;display:block;">Option D</label>
+            <input class="cbt-opt" placeholder="Option D text" style="padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;">
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <div class="tts-field-group" style="flex:1;min-width:140px;">
+            <label style="font-size:0.72rem;font-weight:700;color:#475569;margin-bottom:3px;display:block;">Correct Option</label>
+            <select class="cbt-answer" style="padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;">
+              <option value="0">Option A</option>
+              <option value="1">Option B</option>
+              <option value="2">Option C</option>
+              <option value="3">Option D</option>
+            </select>
+          </div>
+          <div class="tts-field-group" style="width:110px;">
+            <label style="font-size:0.72rem;font-weight:700;color:#475569;margin-bottom:3px;display:block;">Marks</label>
+            <input class="cbt-qmarks" type="number" min="1" value="1" style="padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.84rem;background:#fff;width:100%;box-sizing:border-box;text-align:center;">
+          </div>
+        </div>
+      `;
       row.querySelector('.cbt-remove').onclick = () => row.remove();
       list.appendChild(row);
     };
