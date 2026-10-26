@@ -395,20 +395,17 @@
 
     function applyActiveLicenseUI(license) {
         const instName = license.schoolName || license.institutionName || 'RollCall Institution';
-        const schoolCode = license.schoolCode || '----';
-        el.topbarInstName.textContent = instName;
-        el.topbarSchoolCode.textContent = schoolCode;
-        if (el.topbarStationId) el.topbarStationId.textContent = (license.deviceId || state.license?.deviceId || 'STATION').slice(0, 14);
-        el.setupInstTitle.textContent = `${instName} (${schoolCode})`;
-        el.setupLicenseExpiry.textContent = `Offline Enterprise License · Valid until ${license.expiryDate || 'N/A'}`;
-        if (license.inGracePeriod) {
+        if (el.topbarInstName) el.topbarInstName.textContent = instName;
+        if (el.setupInstTitle) el.setupInstTitle.textContent = instName;
+        if (el.setupLicenseExpiry) el.setupLicenseExpiry.textContent = `Offline Enterprise License · Valid until ${license.expiryDate || 'N/A'}`;
+        if (license.inGracePeriod && el.setupLicenseExpiry) {
             el.setupLicenseExpiry.textContent = `Renewal required - grace period ends ${new Date(license.gracePeriodEndsAt).toLocaleDateString()}`;
         }
         if (el.setupLicenseDevices) el.setupLicenseDevices.textContent = 'License Active';
 
         // Update the Activation View (StartupLayout card)
         if (el.licenseActiveIdentity) el.licenseActiveIdentity.style.display = 'flex';
-        if (el.activeSchoolName) el.activeSchoolName.textContent = `${instName} (${schoolCode})`;
+        if (el.activeSchoolName) el.activeSchoolName.textContent = instName;
         if (el.activeDeviceInfo) {
             el.activeDeviceInfo.textContent = `Station Activated · Valid until ${license.expiryDate || 'N/A'}`;
         }
@@ -423,8 +420,7 @@
     }
 
     function applyInactiveLicenseUI(license) {
-        el.topbarInstName.textContent = 'Station Not Activated';
-        el.topbarSchoolCode.textContent = '----';
+        if (el.topbarInstName) el.topbarInstName.textContent = 'Station Not Activated';
         if (el.licenseActiveIdentity) el.licenseActiveIdentity.style.display = 'none';
         if (el.activeLicenseActions) el.activeLicenseActions.style.display = 'none';
         if (el.gateMainTitle) el.gateMainTitle.textContent = 'Activate RollCall CBT';
@@ -2020,33 +2016,16 @@
             }
         });
 
-        // Manage License & Station Action Buttons
-        el.btnRelicense?.addEventListener('click', () => {
-            if (state.license) {
-                requireAdminPin(() => openLicenseDetailsModal(), 'Enter Admin PIN to view Station License Details.');
-            } else {
-                switchView('license');
-            }
-        });
-        el.btnSwitchLicenseView?.addEventListener('click', () => {
-            if (state.license) {
-                requireAdminPin(() => openLicenseDetailsModal(), 'Enter Admin PIN to view Station License Details.');
-            } else {
-                switchView('license');
-            }
-        });
         el.btnViewLicenseDetails?.addEventListener('click', () => {
             requireAdminPin(() => openLicenseDetailsModal(), 'Enter Admin PIN to view Station License Details.');
         });
-        // Supervisor Console Handlers
+        // Single Exam Setup Handler
         const triggerOpenExamSetup = () => {
-            requireAdminPin(() => openAdminExamSetupModal(), 'Enter Admin PIN to access Exam Supervisor Console.');
+            requireAdminPin(() => openAdminExamSetupModal(), 'Enter Admin PIN to access Exam Setup.');
         };
         el.btnAdminExamSetup?.addEventListener('click', triggerOpenExamSetup);
-        el.btnStandbyExamSetup?.addEventListener('click', triggerOpenExamSetup);
-        el.btnQuickAdminLogin?.addEventListener('click', triggerOpenExamSetup);
 
-        // Keyboard Shortcut Ctrl+Shift+S for Supervisor Console
+        // Keyboard Shortcut Ctrl+Shift+S for Exam Setup
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
                 e.preventDefault();

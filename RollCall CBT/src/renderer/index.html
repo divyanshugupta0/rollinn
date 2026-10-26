@@ -22,20 +22,12 @@
             <div class="institution-badge" id="topbar-institution-badge" title="Active Institution">
                 <i class="fas fa-building"></i>
                 <span id="topbar-institution-name">Station Not Activated</span>
-                <span class="code-pill" id="topbar-school-code">----</span>
-            </div>
-            <div class="station-pill" id="topbar-station-pill" title="Hardware Identifier">
-                <i class="fas fa-microchip"></i>
-                <span id="topbar-station-id">STATION-UNLINKED</span>
             </div>
         </div>
 
         <div class="topbar-actions" id="topbar-main-actions">
-            <button type="button" class="btn-topbar-action btn-light" id="btn-admin-exam-setup" title="Exam Supervisor Console (Admin PIN Required)">
+            <button type="button" class="btn-topbar-action btn-light" id="btn-admin-exam-setup" title="Exam Setup (Admin PIN Required)">
                 <i class="fas fa-user-gear"></i> <span>Exam Setup</span>
-            </button>
-            <button type="button" class="btn-topbar-action btn-light" id="btn-relicense" title="Station License Details (Admin PIN Required)">
-                <i class="fas fa-id-card"></i> <span>License</span>
             </button>
             <button type="button" class="btn-topbar-icon" id="btn-fullscreen-toggle" title="Toggle Fullscreen">
                 <i class="fas fa-expand"></i>
@@ -186,15 +178,6 @@
                                 </button>
                             </div>
 
-                            <!-- Station Machine Fingerprint Field -->
-                            <div class="fingerprint-field">
-                                <label for="display-machine-fingerprint">Station hardware identifier</label>
-                                <div class="fingerprint-input-wrap">
-                                    <i class="fas fa-microchip"></i>
-                                    <span id="display-machine-fingerprint">DETECTING...</span>
-                                </div>
-                            </div>
-
                             <!-- License Dropzone (Native external file selection) -->
                             <div class="erp-dropzone license-dropzone" id="license-file-dropzone" style="margin-bottom: 20px;">
                                 <input type="file" id="input-hidden-license-file" accept=".rolllic,.cbtlic,.json" hidden>
@@ -281,8 +264,8 @@
 
                         <div class="standby-spec-grid">
                             <div class="standby-spec-card">
-                                <small>Station Identifier</small>
-                                <strong id="standby-station-code">STATION-1</strong>
+                                <small>Station Status</small>
+                                <strong id="standby-station-code" style="color: var(--rc-success);"><i class="fas fa-circle-check"></i> Ready</strong>
                             </div>
                             <div class="standby-spec-card">
                                 <small>Examination Mode</small>
@@ -299,17 +282,6 @@
                         <div class="standby-invigilator-hint">
                             <i class="fas fa-user-shield"></i>
                             <span>Invigilator Controls: Click <strong>Exam Setup</strong> in top header or press <code>Ctrl+Shift+S</code></span>
-                        </div>
-                        <div style="display: flex; gap: 8px;">
-                            <button type="button" class="btn-erp-primary btn-sm" id="btn-standby-exam-setup">
-                                <i class="fas fa-user-gear"></i> Exam Setup
-                            </button>
-                            <button type="button" class="btn-erp-light btn-sm" id="btn-quick-admin-login">
-                                <i class="fas fa-lock"></i> Supervisor Login
-                            </button>
-                            <button type="button" class="btn-erp-subtle btn-sm" id="btn-switch-license-view">
-                                <i class="fas fa-id-card"></i> License
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -887,14 +859,6 @@
                         <div class="lic-table-row">
                             <span class="lic-table-label">Institution</span>
                             <strong class="lic-table-val" id="lic-detail-school-name">--</strong>
-                        </div>
-                        <div class="lic-table-row">
-                            <span class="lic-table-label">School Code</span>
-                            <span class="lic-table-val code-pill" id="lic-detail-school-code">----</span>
-                        </div>
-                        <div class="lic-table-row">
-                            <span class="lic-table-label">Hardware Machine ID</span>
-                            <span class="lic-table-val font-mono" id="lic-detail-device-id">--</span>
                         </div>
                         <div class="lic-table-row">
                             <span class="lic-table-label">License Status</span>
