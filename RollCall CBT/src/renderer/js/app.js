@@ -207,12 +207,20 @@
         el.btnCancelSubmit = document.getElementById('btn-cancel-submit');
         el.btnConfirmFinalSubmit = document.getElementById('btn-confirm-final-submit');
 
-        // Results
+        // Results (Official Scorecard)
+        el.resultSchoolName = document.getElementById('result-school-name');
         el.resultBadgeIcon = document.getElementById('result-badge-icon');
+        el.resultBadgePill = document.getElementById('result-badge-pill');
+        el.cardResultStatus = document.getElementById('card-result-status');
         el.resultStudentImage = document.getElementById('result-student-image');
         el.resultStudentFallback = document.getElementById('result-student-fallback');
         el.resultCandidateGreeting = document.getElementById('result-candidate-greeting');
         el.resultSubtitle = document.getElementById('result-subtitle');
+        el.resultMetaRoll = document.getElementById('result-meta-roll');
+        el.resultMetaClass = document.getElementById('result-meta-class');
+        el.resultMetaSec = document.getElementById('result-meta-sec');
+        el.resultMetaSeq = document.getElementById('result-meta-seq');
+        el.resultMetaDate = document.getElementById('result-meta-date');
         el.resultScoreVal = document.getElementById('result-score-val');
         el.resultTotalVal = document.getElementById('result-total-val');
         el.resultPercentagePill = document.getElementById('result-percentage-pill');
@@ -222,6 +230,10 @@
         el.resultAccuracyDetails = document.getElementById('result-accuracy-details');
         el.resultTimeTaken = document.getElementById('result-time-taken');
         el.resultAntiCheatStatus = document.getElementById('result-anti-cheat-status');
+        el.statCorrectCount = document.getElementById('stat-correct-count');
+        el.statIncorrectCount = document.getElementById('stat-incorrect-count');
+        el.statSkippedCount = document.getElementById('stat-skipped-count');
+        el.statTotalQuestions = document.getElementById('stat-total-questions');
         el.btnDownloadSubmission = document.getElementById('btn-download-submission');
         el.btnPrintResult = document.getElementById('btn-print-result');
         el.reviewQuestionsList = document.getElementById('review-questions-list');
@@ -1186,7 +1198,10 @@
                     correctAns: q.correctAnswer || 'Evaluated by Teacher',
                     explanation: q.explanation || '',
                     isCorrect: isCorrect,
-                    isUnattempted: candidateAns === undefined || candidateAns === ''
+                    isUnattempted: candidateAns === undefined || candidateAns === '',
+                    marks: qMarks,
+                    negMarks: qNeg,
+                    sectionTitle: sec.title || ''
                 });
             });
         });
@@ -1198,9 +1213,24 @@
         const passMarks = Number(state.activeExam.passMarks) || 40;
         const passed = percentage >= passMarks;
 
-        // Render Results UI
-        el.resultCandidateGreeting.textContent = `${state.selectedCandidate.name} - Exam Complete!`;
-        el.resultSubtitle.textContent = `Roll No: ${state.selectedCandidate.rollNo || '--'} · ${state.activeExam.title} (${state.activeExam.code || 'CBT'})`;
+        // Render Official Scorecard UI
+        if (el.resultSchoolName) {
+            el.resultSchoolName.textContent = state.license?.schoolName || state.activeExam.schoolName || 'RollCall Examination Centre';
+        }
+        if (el.resultCandidateGreeting) {
+            el.resultCandidateGreeting.textContent = state.selectedCandidate.name || 'Candidate';
+        }
+        if (el.resultSubtitle) {
+            el.resultSubtitle.textContent = `${state.activeExam.title} · Subject: ${(state.activeExam.subject || 'GENERAL').toUpperCase()} (Code: ${state.activeExam.code || 'CBT'})`;
+        }
+
+        // Candidate Identity Meta Chips
+        if (el.resultMetaRoll) el.resultMetaRoll.textContent = state.selectedCandidate.rollNo || '--';
+        if (el.resultMetaClass) el.resultMetaClass.textContent = state.selectedCandidate.class || state.selectedCandidate.batch || state.selectedCandidate.grade || 'Standard';
+        if (el.resultMetaSec) el.resultMetaSec.textContent = state.selectedCandidate.section ? state.selectedCandidate.section : '--';
+        const seqNum = state.selectedCandidate.sectionSequence || state.selectedCandidate.sequence || 1;
+        if (el.resultMetaSeq) el.resultMetaSeq.textContent = `#${seqNum}`;
+        if (el.resultMetaDate) el.resultMetaDate.textContent = new Date().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
         const resultPhoto = state.selectedCandidate.profilePicData || state.selectedCandidate.profilePic || state.selectedCandidate.profilePhoto || state.selectedCandidate.photoURL || state.selectedCandidate.photoUrl || state.selectedCandidate.profilePicture || state.selectedCandidate.imageUrl;
         const resultInitial = (state.selectedCandidate.name || 'S').charAt(0).toUpperCase();
@@ -1221,31 +1251,47 @@
             }
         }
 
-        el.resultScoreVal.textContent = totalScore.toFixed(1);
-        el.resultTotalVal.textContent = totalPossible.toFixed(1);
-        el.resultPercentagePill.textContent = `${percentage}%`;
+        if (el.resultScoreVal) el.resultScoreVal.textContent = totalScore.toFixed(1);
+        if (el.resultTotalVal) el.resultTotalVal.textContent = totalPossible.toFixed(1);
+        if (el.resultPercentagePill) el.resultPercentagePill.textContent = `${percentage}% Marks`;
+
+        // Breakdown stats strip
+        if (el.statCorrectCount) el.statCorrectCount.textContent = correctCount;
+        if (el.statIncorrectCount) el.statIncorrectCount.textContent = incorrectCount;
+        if (el.statSkippedCount) el.statSkippedCount.textContent = unattemptedCount;
+        if (el.statTotalQuestions) el.statTotalQuestions.textContent = reviewItems.length;
 
         if (passed) {
-            el.resultStatusText.textContent = 'PASSED';
-            el.resultStatusText.className = 'status-display';
-            el.resultBadgeIcon.className = 'result-badge-icon';
-            el.resultBadgeIcon.innerHTML = '<i class="fas fa-trophy"></i>';
+            if (el.resultStatusText) el.resultStatusText.textContent = 'PASSED';
+            if (el.resultStatusSub) el.resultStatusSub.textContent = 'Minimum Pass Criterion Met';
+            if (el.cardResultStatus) el.cardResultStatus.className = 'metric-card status-hero';
+            if (el.resultBadgeIcon) el.resultBadgeIcon.innerHTML = '<i class="fas fa-trophy"></i>';
+            if (el.resultBadgePill) {
+                el.resultBadgePill.textContent = percentage >= 75 ? 'DISTINCTION' : 'PASSED';
+                el.resultBadgePill.className = 'scorecard-perf-badge';
+            }
         } else {
-            el.resultStatusText.textContent = 'NEEDS IMPROVEMENT';
-            el.resultStatusText.className = 'status-display fail';
-            el.resultBadgeIcon.className = 'result-badge-icon fail';
-            el.resultBadgeIcon.innerHTML = '<i class="fas fa-times-circle"></i>';
+            if (el.resultStatusText) el.resultStatusText.textContent = 'NEEDS IMPROVEMENT';
+            if (el.resultStatusSub) el.resultStatusSub.textContent = 'Score Below Passing Threshold';
+            if (el.cardResultStatus) el.cardResultStatus.className = 'metric-card status-hero fail';
+            if (el.resultBadgeIcon) el.resultBadgeIcon.innerHTML = '<i class="fas fa-circle-xmark"></i>';
+            if (el.resultBadgePill) {
+                el.resultBadgePill.textContent = 'NEEDS IMPROVEMENT';
+                el.resultBadgePill.className = 'scorecard-perf-badge fail';
+            }
         }
 
         const accuracy = (correctCount + incorrectCount) > 0
             ? Math.round((correctCount / (correctCount + incorrectCount)) * 100)
             : 0;
-        el.resultAccuracyVal.textContent = `${accuracy}%`;
-        el.resultAccuracyDetails.textContent = `${correctCount} Correct · ${incorrectCount} Incorrect · ${unattemptedCount} Skipped`;
-        el.resultTimeTaken.textContent = `${minsTaken}m ${secsTaken}s`;
-        el.resultAntiCheatStatus.textContent = state.antiCheatStrikes > 0
-            ? `Security Strikes Logged: ${state.antiCheatStrikes}`
-            : 'Anti-Cheat: 100% Clean';
+        if (el.resultAccuracyVal) el.resultAccuracyVal.textContent = `${accuracy}%`;
+        if (el.resultAccuracyDetails) el.resultAccuracyDetails.textContent = `${correctCount} Correct · ${incorrectCount} Incorrect`;
+        if (el.resultTimeTaken) el.resultTimeTaken.textContent = `${minsTaken}m ${secsTaken}s`;
+        if (el.resultAntiCheatStatus) {
+            el.resultAntiCheatStatus.textContent = state.antiCheatStrikes > 0
+                ? `${state.antiCheatStrikes} Security Strike(s) Logged`
+                : 'Anti-Cheat: 100% Clean';
+        }
 
         // Render Question Reviews
         renderReviewList(reviewItems);
@@ -1276,7 +1322,7 @@
             }
         };
 
-        if (showImmediateResult) showToast('Exam submitted successfully!', 'success');
+        if (showImmediateResult) showToast('Exam submitted successfully! Official scorecard generated.', 'success');
         else {
             state.selectedCandidate = null;
             state.candidateResponses = {};
@@ -1288,24 +1334,66 @@
     }
 
     function renderReviewList(items) {
+        if (!el.reviewQuestionsList) return;
         el.reviewQuestionsList.innerHTML = '';
+
         items.forEach((item, idx) => {
             const card = document.createElement('div');
-            const stateClass = item.isUnattempted ? 'unanswered' : (item.isCorrect ? 'correct' : 'incorrect');
-            card.className = `review-item ${stateClass}`;
+            const stateClass = item.isUnattempted ? 'skipped' : (item.isCorrect ? 'correct' : 'incorrect');
+            card.className = `review-item-card ${stateClass}`;
+            card.dataset.status = stateClass;
+
+            const statusPill = item.isUnattempted
+                ? '<span class="review-status-pill skipped"><i class="fas fa-circle-minus"></i> Skipped</span>'
+                : (item.isCorrect
+                    ? `<span class="review-status-pill correct"><i class="fas fa-circle-check"></i> Correct (+${item.marks || 1})</span>`
+                    : `<span class="review-status-pill incorrect"><i class="fas fa-circle-xmark"></i> Incorrect (-${item.negMarks || 0})</span>`);
+
+            const candClass = item.isUnattempted ? 'skipped' : (item.isCorrect ? 'correct' : 'incorrect');
+            const candIcon = item.isUnattempted ? '<i class="fas fa-minus"></i>' : (item.isCorrect ? '<i class="fas fa-check"></i>' : '<i class="fas fa-xmark"></i>');
+
             card.innerHTML = `
                 <div class="review-item-header">
-                    <span>Question ${idx + 1}</span>
-                    <span>${item.isUnattempted ? 'Skipped' : (item.isCorrect ? 'Correct (+)' : 'Incorrect (-)')}</span>
+                    <div class="review-q-badge">
+                        <span>Question ${idx + 1}</span>
+                        ${item.sectionTitle ? `<span class="review-section-tag">${item.sectionTitle}</span>` : ''}
+                    </div>
+                    ${statusPill}
                 </div>
                 <div class="review-q-text">${item.text}</div>
                 <div class="review-answers-grid">
-                    <div class="review-candidate-ans">Your Answer: <strong>${item.candidateAns}</strong></div>
-                    <div class="review-correct-ans">Correct Key: <strong>${item.correctAns}</strong></div>
+                    <div class="review-ans-box candidate ${candClass}">
+                        <small>Candidate's Selected Response</small>
+                        <strong>${candIcon} ${item.candidateAns}</strong>
+                    </div>
+                    <div class="review-ans-box correct-key">
+                        <small>Official Verified Answer Key</small>
+                        <strong><i class="fas fa-check-double"></i> ${item.correctAns}</strong>
+                    </div>
                 </div>
-                ${item.explanation ? `<div class="review-explanation"><strong>Explanation:</strong> ${item.explanation}</div>` : ''}
+                ${item.explanation ? `
+                    <div class="review-explanation-box">
+                        <i class="fas fa-lightbulb"></i>
+                        <div><strong>Explanation:</strong> ${item.explanation}</div>
+                    </div>` : ''}
             `;
             el.reviewQuestionsList.appendChild(card);
+        });
+
+        // Wire up review filter tabs
+        document.querySelectorAll('.review-tab-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.review-tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const filter = btn.dataset.filter || 'all';
+                document.querySelectorAll('.review-item-card').forEach(c => {
+                    if (filter === 'all' || c.dataset.status === filter) {
+                        c.classList.remove('filtered-out');
+                    } else {
+                        c.classList.add('filtered-out');
+                    }
+                });
+            };
         });
     }
 
