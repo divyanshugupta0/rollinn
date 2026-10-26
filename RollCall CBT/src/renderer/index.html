@@ -30,7 +30,7 @@
             </div>
         </div>
 
-        <div class="topbar-actions">
+        <div class="topbar-actions" id="topbar-main-actions">
             <button type="button" class="btn-topbar-action btn-light" id="btn-relicense" title="Station License Details">
                 <i class="fas fa-id-card"></i> <span>License</span>
             </button>
@@ -42,6 +42,37 @@
             </button>
             <button type="button" class="btn-topbar-icon btn-danger-icon" id="btn-exit-app" title="Exit Application">
                 <i class="fas fa-power-off"></i>
+            </button>
+        </div>
+
+        <!-- Exam Session Header Tools (Shown exclusively during active exam) -->
+        <div class="topbar-exam-tools" id="topbar-exam-tools" style="display: none;">
+            <div class="exam-header-meta">
+                <span class="exam-header-title" id="topbar-exam-title">Examination</span>
+                <span class="exam-header-badge" id="topbar-exam-subject">General</span>
+            </div>
+
+            <div class="timer-chip" id="topbar-timer-chip">
+                <i class="fas fa-clock"></i>
+                <span id="topbar-timer-display">00:00:00</span>
+            </div>
+
+            <div class="strike-pill" id="topbar-strike-pill" title="Security Strike Counter">
+                <i class="fas fa-triangle-exclamation"></i>
+                <span id="topbar-strike-count">0</span> / <span id="topbar-strike-max">3</span>
+            </div>
+
+            <button type="button" class="btn-topbar-icon" id="btn-toggle-calculator" title="Open Scientific Calculator">
+                <i class="fas fa-calculator"></i>
+            </button>
+            <button type="button" class="btn-topbar-icon" id="btn-toggle-scratchpad" title="Open Scratchpad">
+                <i class="fas fa-pen-to-square"></i>
+            </button>
+            <button type="button" class="btn-topbar-icon" id="btn-font-smaller" title="Decrease Question Font">
+                <i class="fas fa-font"></i>-
+            </button>
+            <button type="button" class="btn-topbar-icon" id="btn-font-larger" title="Increase Question Font">
+                <i class="fas fa-font"></i>+
             </button>
         </div>
     </header>
@@ -381,50 +412,6 @@
         <!-- VIEW 3: STAGE 3 - FULLSCREEN EXAM HALL                   -->
         <!-- ======================================================== -->
         <section class="cbt-view" id="view-exam-hall">
-            <header class="hall-topbar">
-                <div class="hall-exam-info">
-                    <img src="assets/rollcall-icon.svg" width="28" height="28" alt="RollCall Logo">
-                    <h2 id="hall-exam-title">Examination Title</h2>
-                    <span class="subject-badge" id="hall-exam-subject">General</span>
-                </div>
-
-                <div class="hall-candidate-badge">
-                    <div class="hall-avatar-circle">
-                        <img src="" id="hall-candidate-image" alt="Candidate" style="display: none;">
-                        <span id="hall-candidate-fallback" class="hall-avatar-initial">S</span>
-                    </div>
-                    <div class="hall-candidate-meta">
-                        <strong id="hall-candidate-name">Candidate</strong>
-                        <span>Roll: <span id="hall-candidate-roll">--</span></span>
-                    </div>
-                </div>
-
-                <div class="hall-status-group">
-                    <div class="timer-chip" id="hall-timer-chip">
-                        <i class="fas fa-clock"></i>
-                        <span id="hall-timer-display">00:00:00</span>
-                    </div>
-
-                    <div class="strike-pill" title="Security Strike Counter">
-                        <i class="fas fa-triangle-exclamation"></i>
-                        <span id="hall-strike-count">0</span> / <span id="hall-strike-max">3</span>
-                    </div>
-
-                    <button type="button" class="btn-topbar-icon" id="btn-toggle-calculator" title="Open Calculator">
-                        <i class="fas fa-calculator"></i>
-                    </button>
-                    <button type="button" class="btn-topbar-icon" id="btn-toggle-scratchpad" title="Open Scratchpad">
-                        <i class="fas fa-pen-to-square"></i>
-                    </button>
-                    <button type="button" class="btn-topbar-icon" id="btn-font-smaller" title="Decrease Font">
-                        <i class="fas fa-font"></i>-
-                    </button>
-                    <button type="button" class="btn-topbar-icon" id="btn-font-larger" title="Increase Font">
-                        <i class="fas fa-font"></i>+
-                    </button>
-                </div>
-            </header>
-
             <div class="hall-workspace-grid">
                 <!-- Main Question Area -->
                 <div class="hall-question-pane">
@@ -434,7 +421,10 @@
 
                     <div class="question-card-shell">
                         <div class="question-meta-header">
-                            <h3>Question <span id="q-current-number">1</span> of <span id="q-total-number">--</span></h3>
+                            <div class="question-title-group">
+                                <h3>Question <span id="q-current-number">1</span> of <span id="q-total-number">--</span></h3>
+                                <span class="q-type-badge" id="q-type-badge">Single Choice</span>
+                            </div>
                             <div class="question-marks-pills">
                                 <span class="marks-pill-pos">+<span id="q-marks-positive">1</span> Marks</span>
                                 <span class="marks-pill-neg">-<span id="q-marks-negative">0</span> Neg</span>
@@ -455,7 +445,7 @@
                                     <i class="fas fa-arrow-left"></i> Previous
                                 </button>
                                 <button type="button" class="btn-erp-subtle" id="btn-q-clear">
-                                    Clear Response
+                                    <i class="fas fa-eraser"></i> Clear Response
                                 </button>
                                 <button type="button" class="btn-erp-light" id="btn-q-review" style="color: var(--rc-brand-purple); border-color: #d7ccff; background: #fbf9ff;">
                                     <i class="fas fa-bookmark"></i> Mark for Review
@@ -463,7 +453,7 @@
                             </div>
                             <div class="toolbar-right">
                                 <span id="autosave-timestamp" style="font-size: 0.72rem; color: var(--rc-text-dimmed); align-self: center;"></span>
-                                <button type="button" class="btn-erp-primary" id="btn-q-save-next" style="width: 140px;">
+                                <button type="button" class="btn-erp-primary" id="btn-q-save-next" style="min-width: 150px;">
                                     Save &amp; Next <i class="fas fa-arrow-right"></i>
                                 </button>
                             </div>
@@ -473,13 +463,43 @@
 
                 <!-- Right Question Palette Pane -->
                 <aside class="hall-palette-pane">
+                    <!-- Candidate Profile Card in Right Bar -->
+                    <div class="hall-candidate-card" id="hall-palette-candidate">
+                        <div class="palette-avatar-box">
+                            <img id="palette-student-image" src="" alt="Candidate" style="display: none;">
+                            <div id="palette-student-fallback" class="palette-avatar-fallback">S</div>
+                            <span class="palette-proctor-dot" title="Kiosk Lockdown Active"></span>
+                        </div>
+                        <div class="palette-student-details">
+                            <h4 class="palette-student-name" id="palette-student-name">Candidate Name</h4>
+                            <div class="palette-student-sub" id="palette-student-roll">Roll: --</div>
+                            <div class="palette-student-tags">
+                                <span class="c-tag-class" id="palette-student-class">Class --</span>
+                                <span class="c-tag-sec" id="palette-student-sec">Sec A</span>
+                                <span class="c-tag-seq" id="palette-student-seq">Seq #1</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="palette-legend">
                         <div class="legend-item"><span class="legend-dot answered"></span> Answered (<span id="stat-count-answered">0</span>)</div>
                         <div class="legend-item"><span class="legend-dot unanswered"></span> Unanswered (<span id="stat-count-unanswered">0</span>)</div>
                         <div class="legend-item"><span class="legend-dot review"></span> Marked Review (<span id="stat-count-review">0</span>)</div>
+                        <div class="legend-item"><span class="legend-dot review-answered"></span> Ans &amp; Review (<span id="stat-count-rev-ans">0</span>)</div>
                     </div>
 
-                    <h4 style="font-size: 0.85rem; font-weight: 750; color: #172044; margin-bottom: 12px;">Questions Palette</h4>
+                    <div class="palette-filter-bar">
+                        <button type="button" class="palette-filter-chip active" data-filter="all">All</button>
+                        <button type="button" class="palette-filter-chip" data-filter="unanswered">Unanswered</button>
+                        <button type="button" class="palette-filter-chip" data-filter="answered">Answered</button>
+                        <button type="button" class="palette-filter-chip" data-filter="review">Review</button>
+                    </div>
+
+                    <div class="palette-header-row">
+                        <h4 style="font-size: 0.85rem; font-weight: 750; color: #172044; margin: 0;">Questions Palette</h4>
+                        <span class="palette-section-indicator" id="palette-section-indicator">All Sections</span>
+                    </div>
+
                     <div class="palette-grid" id="palette-buttons-grid">
                         <!-- Number buttons 1 to N -->
                     </div>

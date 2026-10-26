@@ -24,7 +24,8 @@
         completedCandidates: new Set(),
         visibleCandidates: [],
         scratchpadContent: '',
-        fontSizeLevel: 1 // 0 = small, 1 = normal, 2 = large
+        fontSizeLevel: 1, // 0 = small, 1 = normal, 2 = large
+        paletteFilter: 'all' // 'all' | 'unanswered' | 'answered' | 'review'
     };
 
     // DOM Elements Cache
@@ -42,9 +43,19 @@
         el.topbarSchoolCode = document.getElementById('topbar-school-code');
         el.topbarStationId = document.getElementById('topbar-station-id');
         el.topbarStationPill = document.getElementById('topbar-station-pill');
+        el.topbarMainActions = document.getElementById('topbar-main-actions');
         el.btnThemeToggle = document.getElementById('btn-theme-toggle');
         el.btnFullscreenToggle = document.getElementById('btn-fullscreen-toggle');
         el.btnExitApp = document.getElementById('btn-exit-app');
+
+        // Topbar Exam Mode Tools
+        el.topbarExamTools = document.getElementById('topbar-exam-tools');
+        el.topbarExamTitle = document.getElementById('topbar-exam-title');
+        el.topbarExamSubject = document.getElementById('topbar-exam-subject');
+        el.topbarTimerDisplay = document.getElementById('topbar-timer-display');
+        el.topbarTimerChip = document.getElementById('topbar-timer-chip');
+        el.topbarStrikeCount = document.getElementById('topbar-strike-count');
+        el.topbarStrikeMax = document.getElementById('topbar-strike-max');
 
         // License Gate (RollCall ERP Startup Layout)
         el.licenseActiveIdentity = document.getElementById('license-active-identity');
@@ -119,18 +130,32 @@
         el.checkHonorCode = document.getElementById('check-honor-code');
         el.btnEnterExamHall = document.getElementById('btn-enter-exam-hall');
 
-        // Exam Hall
-        el.hallExamTitle = document.getElementById('hall-exam-title');
-        el.hallExamSubject = document.getElementById('hall-exam-subject');
-        el.hallCandidateName = document.getElementById('hall-candidate-name');
-        el.hallCandidateRoll = document.getElementById('hall-candidate-roll');
-        el.hallCandidateImage = document.getElementById('hall-candidate-image');
-        el.hallCandidateFallback = document.getElementById('hall-candidate-fallback');
+        // Exam Hall Controls & Meta
+        el.hallExamTitle = document.getElementById('hall-exam-title') || el.topbarExamTitle;
+        el.hallExamSubject = document.getElementById('hall-exam-subject') || el.topbarExamSubject;
         el.hallProctorVideo = document.getElementById('hall-proctor-video');
-        el.hallStrikeCount = document.getElementById('hall-strike-count');
-        el.hallStrikeMax = document.getElementById('hall-strike-max');
-        el.hallTimerDisplay = document.getElementById('hall-timer-display');
-        el.hallTimerChip = document.getElementById('hall-timer-chip');
+        el.hallStrikeCount = document.getElementById('hall-strike-count') || el.topbarStrikeCount;
+        el.hallStrikeMax = document.getElementById('hall-strike-max') || el.topbarStrikeMax;
+        el.hallTimerDisplay = document.getElementById('hall-timer-display') || el.topbarTimerDisplay;
+        el.hallTimerChip = document.getElementById('hall-timer-chip') || el.topbarTimerChip;
+
+        // Candidate Profile Card on Right Palette Bar
+        el.paletteStudentImage = document.getElementById('palette-student-image');
+        el.paletteStudentFallback = document.getElementById('palette-student-fallback');
+        el.paletteStudentName = document.getElementById('palette-student-name');
+        el.paletteStudentRoll = document.getElementById('palette-student-roll');
+        el.paletteStudentClass = document.getElementById('palette-student-class');
+        el.paletteStudentSec = document.getElementById('palette-student-sec');
+        el.paletteStudentSeq = document.getElementById('palette-student-seq');
+        el.paletteSectionIndicator = document.getElementById('palette-section-indicator');
+        el.statCountRevAns = document.getElementById('stat-count-rev-ans');
+        el.qTypeBadge = document.getElementById('q-type-badge');
+
+        // Fallbacks for compatibility
+        el.hallCandidateName = document.getElementById('hall-candidate-name') || el.paletteStudentName;
+        el.hallCandidateRoll = document.getElementById('hall-candidate-roll') || el.paletteStudentRoll;
+        el.hallCandidateImage = document.getElementById('hall-candidate-image') || el.paletteStudentImage;
+        el.hallCandidateFallback = document.getElementById('hall-candidate-fallback') || el.paletteStudentFallback;
 
         // Utilities
         el.btnFontSmaller = document.getElementById('btn-font-smaller');
@@ -207,6 +232,12 @@
     // Switch active view
     function switchView(viewName) {
         document.querySelectorAll('.cbt-view').forEach(v => v.classList.remove('active'));
+        const isExamHall = (viewName === 'hall');
+        document.body.classList.toggle('exam-active', isExamHall);
+
+        if (el.topbarExamTools) el.topbarExamTools.style.display = isExamHall ? 'flex' : 'none';
+        if (el.topbarMainActions) el.topbarMainActions.style.display = isExamHall ? 'none' : 'flex';
+
         if (viewName === 'license') el.viewLicenseGate.classList.add('active');
         else if (viewName === 'setup') el.viewSetupExam.classList.add('active');
         else if (viewName === 'hall') el.viewExamHall.classList.add('active');
@@ -708,43 +739,56 @@
         }
         el.hallProctorVideo.classList.toggle('hidden', !webcamActive);
 
-        // Candidate Photo / Avatar Badge (Always clearly visible in exam hall)
+        // Candidate Photo & Avatar on Right Bar & Topbar
         const candidatePhoto = state.selectedCandidate.profilePicData || state.selectedCandidate.profilePic || state.selectedCandidate.profilePhoto || state.selectedCandidate.photoURL || state.selectedCandidate.photoUrl || state.selectedCandidate.profilePicture || state.selectedCandidate.imageUrl;
         const initial = (state.selectedCandidate.name || 'S').charAt(0).toUpperCase();
 
-        if (el.hallCandidateImage && el.hallCandidateFallback) {
+        const updateAvatar = (imgEl, fallbackEl) => {
+            if (!imgEl || !fallbackEl) return;
             if (candidatePhoto) {
-                el.hallCandidateImage.src = candidatePhoto;
-                el.hallCandidateImage.style.display = 'block';
-                el.hallCandidateFallback.style.display = 'none';
-                el.hallCandidateImage.onerror = () => {
-                    el.hallCandidateImage.style.display = 'none';
-                    el.hallCandidateFallback.style.display = 'flex';
-                    el.hallCandidateFallback.textContent = initial;
+                imgEl.src = candidatePhoto;
+                imgEl.style.display = 'block';
+                fallbackEl.style.display = 'none';
+                imgEl.onerror = () => {
+                    imgEl.style.display = 'none';
+                    fallbackEl.style.display = 'flex';
+                    fallbackEl.textContent = initial;
                 };
             } else {
-                el.hallCandidateImage.style.display = 'none';
-                el.hallCandidateFallback.style.display = 'flex';
-                el.hallCandidateFallback.textContent = initial;
+                imgEl.style.display = 'none';
+                fallbackEl.style.display = 'flex';
+                fallbackEl.textContent = initial;
             }
-        } else if (el.hallCandidateImage) {
-            el.hallCandidateImage.src = candidatePhoto || '';
-            el.hallCandidateImage.classList.toggle('hidden', !candidatePhoto);
-        }
+        };
 
-        // Setup candidate display
-        el.hallExamTitle.textContent = state.activeExam.title;
-        el.hallExamSubject.textContent = (state.activeExam.subject || 'EXAM').toUpperCase();
-        el.hallCandidateName.textContent = state.selectedCandidate.name;
-        const secText = state.selectedCandidate.section ? ` · Sec ${state.selectedCandidate.section}` : '';
-        const seqText = (state.selectedCandidate.sectionSequence || state.selectedCandidate.sequence) ? ` (Seq #${state.selectedCandidate.sectionSequence || state.selectedCandidate.sequence})` : '';
-        el.hallCandidateRoll.textContent = `Roll No: ${state.selectedCandidate.rollNo}${secText}${seqText} · ${state.selectedCandidate.class || state.selectedCandidate.batch || ''}`;
+        updateAvatar(el.paletteStudentImage, el.paletteStudentFallback);
+        updateAvatar(el.hallCandidateImage, el.hallCandidateFallback);
+
+        // Right Bar Candidate Details
+        if (el.paletteStudentName) el.paletteStudentName.textContent = state.selectedCandidate.name || 'Candidate';
+        if (el.paletteStudentRoll) el.paletteStudentRoll.textContent = `Roll No: ${state.selectedCandidate.rollNo || '--'}`;
+        if (el.paletteStudentClass) el.paletteStudentClass.textContent = state.selectedCandidate.class || state.selectedCandidate.batch || state.selectedCandidate.grade || 'Student';
+        if (el.paletteStudentSec) el.paletteStudentSec.textContent = state.selectedCandidate.section ? `Sec ${state.selectedCandidate.section}` : 'Sec --';
+        const seqVal = state.selectedCandidate.sectionSequence || state.selectedCandidate.sequence || 1;
+        if (el.paletteStudentSeq) el.paletteStudentSeq.textContent = `Seq #${seqVal}`;
+
+        // Topbar & Exam Meta
+        const examTitle = state.activeExam.title || 'Examination';
+        const examSubject = (state.activeExam.subject || 'EXAM').toUpperCase();
+        if (el.topbarExamTitle) el.topbarExamTitle.textContent = examTitle;
+        if (el.topbarExamSubject) el.topbarExamSubject.textContent = examSubject;
+        if (el.hallExamTitle) el.hallExamTitle.textContent = examTitle;
+        if (el.hallExamSubject) el.hallExamSubject.textContent = examSubject;
+        if (el.hallCandidateName) el.hallCandidateName.textContent = state.selectedCandidate.name;
+        if (el.hallCandidateRoll) el.hallCandidateRoll.textContent = `Roll No: ${state.selectedCandidate.rollNo || '--'}`;
 
         // Setup strikes
         state.antiCheatStrikes = 0;
         state.maxStrikes = Number(state.activeExam.rules?.maxBlurStrikes ?? 3);
-        el.hallStrikeCount.textContent = '0';
-        el.hallStrikeMax.textContent = state.maxStrikes;
+        if (el.topbarStrikeCount) el.topbarStrikeCount.textContent = '0';
+        if (el.topbarStrikeMax) el.topbarStrikeMax.textContent = state.maxStrikes;
+        if (el.hallStrikeCount) el.hallStrikeCount.textContent = '0';
+        if (el.hallStrikeMax) el.hallStrikeMax.textContent = state.maxStrikes;
 
         // Timer
         const durationMins = Number(state.activeExam.durationMinutes) || 60;
@@ -781,15 +825,15 @@
         const secs = state.remainingSeconds % 60;
 
         const str = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-        el.hallTimerDisplay.textContent = str;
+        if (el.topbarTimerDisplay) el.topbarTimerDisplay.textContent = str;
+        if (el.hallTimerDisplay) el.hallTimerDisplay.textContent = str;
 
-        if (state.remainingSeconds < 300) {
-            el.hallTimerChip.className = 'hall-timer-chip critical';
-        } else if (state.remainingSeconds < 600) {
-            el.hallTimerChip.className = 'hall-timer-chip warning';
-        } else {
-            el.hallTimerChip.className = 'hall-timer-chip';
-        }
+        const chipClass = state.remainingSeconds < 300
+            ? 'timer-chip critical'
+            : (state.remainingSeconds < 600 ? 'timer-chip warning' : 'timer-chip');
+
+        if (el.topbarTimerChip) el.topbarTimerChip.className = chipClass;
+        if (el.hallTimerChip) el.hallTimerChip.className = chipClass;
     }
 
     function renderExamSections() {
@@ -844,6 +888,19 @@
         el.qTotalNumber.textContent = totalQuestions;
         el.qMarksPositive.textContent = `+${q.marks || 1.0}`;
         el.qMarksNegative.textContent = `-${q.negativeMarks || (state.activeExam.rules?.negativeMarkingPerQuestion || 0)}`;
+
+        // Question Type Badge
+        if (el.qTypeBadge) {
+            const typeLabels = {
+                'single_choice': 'Single Choice',
+                'multiple_select': 'Multi-Select',
+                'multiple_choice': 'Multiple Choice',
+                'numerical': 'Numerical',
+                'short_answer': 'Short Answer',
+                'true_false': 'True / False'
+            };
+            el.qTypeBadge.textContent = typeLabels[q.type] || 'Question';
+        }
 
         // Render question text
         el.qTextContent.innerHTML = q.text || 'Question text unavailable.';
@@ -919,12 +976,14 @@
         let answeredCount = 0;
         let unansweredCount = 0;
         let reviewCount = 0;
+        let revAnsCount = 0;
 
         // Count across all questions
         sections.forEach(s => {
             (s.questions || []).forEach(q => {
                 const status = state.questionStatus[q.id];
-                if (status === 'answered' || status === 'review-answered') answeredCount++;
+                if (status === 'answered') answeredCount++;
+                else if (status === 'review-answered') revAnsCount++;
                 else if (status === 'review') reviewCount++;
                 else unansweredCount++;
             });
@@ -933,15 +992,35 @@
         el.statCountAnswered.textContent = answeredCount;
         el.statCountUnanswered.textContent = unansweredCount;
         el.statCountReview.textContent = reviewCount;
+        if (el.statCountRevAns) el.statCountRevAns.textContent = revAnsCount;
+        if (el.paletteSectionIndicator) el.paletteSectionIndicator.textContent = currentSec.title || `Section ${state.currentSectionIndex + 1}`;
+
+        const filter = state.paletteFilter || 'all';
 
         // Render one continuous palette for every question in every section.
         sections.forEach((section, sectionIdx) => (section.questions || []).forEach((q, qIdx) => {
             const btn = document.createElement('button');
             btn.type = 'button';
             const status = state.questionStatus[q.id] || 'not-visited';
-            btn.className = `btn-palette-q ${status} ${sectionIdx === state.currentSectionIndex && qIdx === state.currentQuestionIndex ? 'current' : ''}`;
-            btn.textContent = String([...sections.slice(0, sectionIdx)].reduce((n, s) => n + (s.questions || []).length, 0) + qIdx + 1);
-            btn.title = section.title || `Section ${sectionIdx + 1}`;
+            const isCurrent = (sectionIdx === state.currentSectionIndex && qIdx === state.currentQuestionIndex);
+            btn.className = `btn-palette-q ${status} ${isCurrent ? 'current' : ''}`;
+
+            // Check if matches active palette filter
+            let matchesFilter = true;
+            if (filter === 'answered') {
+                matchesFilter = (status === 'answered' || status === 'review-answered');
+            } else if (filter === 'unanswered') {
+                matchesFilter = (status === 'not-answered' || status === 'not-visited' || !status);
+            } else if (filter === 'review') {
+                matchesFilter = (status === 'review' || status === 'review-answered');
+            }
+            if (!matchesFilter) {
+                btn.classList.add('filtered-out');
+            }
+
+            const overallNumber = [...sections.slice(0, sectionIdx)].reduce((n, s) => n + (s.questions || []).length, 0) + qIdx + 1;
+            btn.textContent = String(overallNumber);
+            btn.title = `${section.title || `Section ${sectionIdx + 1}`} - Q${overallNumber} (${status.replace('-', ' ')})`;
             btn.addEventListener('click', () => loadQuestion(sectionIdx, qIdx));
             el.paletteButtonsGrid.appendChild(btn);
         }));
@@ -1011,7 +1090,8 @@
         if (!state.activeExam) return;
 
         state.antiCheatStrikes++;
-        el.hallStrikeCount.textContent = state.antiCheatStrikes;
+        if (el.hallStrikeCount) el.hallStrikeCount.textContent = state.antiCheatStrikes;
+        if (el.topbarStrikeCount) el.topbarStrikeCount.textContent = state.antiCheatStrikes;
 
         state.antiCheatLog.push({
             incident: 'Focus Loss / Alt-Tab / Window Blur',
@@ -1685,6 +1765,58 @@
             el.modalSubmitConfirm.style.display = 'none';
             el.modalSubmitConfirm.hidden = true;
             finalizeExamSubmission(false);
+        });
+
+        // Palette filter chips (All, Unanswered, Answered, Review)
+        document.querySelectorAll('.palette-filter-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                document.querySelectorAll('.palette-filter-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                state.paletteFilter = chip.dataset.filter || 'all';
+                renderQuestionPalette();
+            });
+        });
+
+        // Exam Hall Keyboard Shortcuts (1-4 / A-D selects option, Enter / ArrowRight saves, ArrowLeft previous, M review)
+        window.addEventListener('keydown', (e) => {
+            if (!document.body.classList.contains('exam-active')) return;
+            if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+
+            const sections = state.activeExam?.sections || [];
+            const currentSec = sections[state.currentSectionIndex];
+            const q = currentSec?.questions?.[state.currentQuestionIndex];
+            if (!q) return;
+
+            const key = e.key.toUpperCase();
+            const optionLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
+            const numKeys = ['1', '2', '3', '4', '5', '6'];
+
+            let chosenIdx = -1;
+            if (optionLetters.includes(key)) chosenIdx = optionLetters.indexOf(key);
+            else if (numKeys.includes(e.key)) chosenIdx = numKeys.indexOf(e.key);
+
+            if (chosenIdx >= 0 && q.options && chosenIdx < q.options.length) {
+                const optLetter = String.fromCharCode(65 + chosenIdx);
+                const isMulti = q.type === 'multiple_select';
+                if (isMulti) {
+                    let arr = Array.isArray(state.candidateResponses[q.id]) ? [...state.candidateResponses[q.id]] : [];
+                    if (arr.includes(optLetter)) arr = arr.filter(x => x !== optLetter);
+                    else arr.push(optLetter);
+                    state.candidateResponses[q.id] = arr;
+                } else {
+                    state.candidateResponses[q.id] = optLetter;
+                }
+                renderQuestionOptions(q);
+                triggerAutoSave();
+            } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
+                saveAndAdvance(false);
+            } else if (e.key === 'ArrowLeft') {
+                if (el.btnQPrev && !el.btnQPrev.disabled) {
+                    el.btnQPrev.click();
+                }
+            } else if (key === 'M') {
+                saveAndAdvance(true);
+            }
         });
 
         // Results actions
