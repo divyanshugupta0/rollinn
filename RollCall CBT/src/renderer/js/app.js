@@ -2422,7 +2422,7 @@
     // =========================================================================
     function setupEventListeners() {
         // Theme toggle
-        el.btnThemeToggle.addEventListener('click', () => {
+        el.btnThemeToggle?.addEventListener('click', () => {
             document.body.classList.toggle('light-theme');
             document.body.classList.toggle('dark-theme');
             const isDark = document.body.classList.contains('dark-theme');
@@ -2435,7 +2435,7 @@
         });
 
         // Fullscreen toggle
-        el.btnFullscreenToggle.addEventListener('click', () => {
+        el.btnFullscreenToggle?.addEventListener('click', () => {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(() => {});
             } else {
