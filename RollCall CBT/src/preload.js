@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('rollcallCBT', {
     // Session caching & Submission
     cacheSessionProgress: (sessionData) => ipcRenderer.invoke('cbt:cache-session-progress', sessionData),
     saveSubmission: (submissionData) => ipcRenderer.invoke('cbt:save-submission', submissionData),
+    generateSyncQr: (payload) => ipcRenderer.invoke('cbt:generate-sync-qr', payload),
 
     // Exit & Window controls
     minimizeWindow: () => ipcRenderer.invoke('cbt:minimize-window'),

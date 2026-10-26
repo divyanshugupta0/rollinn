@@ -21,7 +21,8 @@
   "license": "GPL-2.0",
   "dependencies": {
     "bcryptjs": "^3.0.2",
-    "fflate": "^0.8.2"
+    "fflate": "^0.8.2",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "electron": "^41.10.7"
@@ -35,7 +36,9 @@
     "icon": "images/icon.ico",
     "win": {
       "icon": "images/icon.ico",
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "artifactName": "RollCall-CBT-${version}-setup.${ext}"
     },
     "fileAssociations": [

@@ -625,6 +625,9 @@
 
                     <!-- Action Buttons -->
                     <div class="scorecard-actions-bar">
+                        <button type="button" class="btn-erp-primary" id="btn-show-student-qr" style="background: #4f46e5; border-color: #4338ca;">
+                            <i class="fas fa-qrcode"></i> Show Teacher Portal QR
+                        </button>
                         <button type="button" class="btn-erp-primary" id="btn-download-submission">
                             <i class="fas fa-file-arrow-down"></i> Download Verification (.json)
                         </button>
@@ -1028,8 +1031,45 @@
                         </button>
                     </div>
                     <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn-erp-primary" id="btn-export-station-qr" style="background: #4f46e5; border-color: #4338ca;" title="Generate encrypted QR code of current batch records for Teacher Portal continuous scanner">
+                            <i class="fas fa-qrcode"></i> Export Batch QR Code
+                        </button>
                         <button type="button" class="btn-erp-light" id="btn-close-records-modal">Close</button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal 6: Encrypted CBT Sync QR Code Display -->
+        <div class="erp-modal-overlay" id="modal-cbt-qr-sync" style="display: none;">
+            <div class="erp-modal-card" style="width: min(520px, 92vw); text-align: center;">
+                <div class="erp-modal-header" style="justify-content: space-between; align-items: center; border-bottom: 1.5px solid #e2e8f0; padding: 16px 22px;">
+                    <div style="display: flex; align-items: center; gap: 10px; text-align: left;">
+                        <div style="width: 36px; height: 36px; border-radius: 8px; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+                            <i class="fas fa-qrcode"></i>
+                        </div>
+                        <div>
+                            <h3 id="cbt-qr-modal-title" style="margin: 0; font-size: 1.1rem; color: #1e293b;">Teacher Portal Sync QR</h3>
+                            <small id="cbt-qr-modal-subtitle" style="color: #64748b; font-size: 0.78rem;">Encrypted examination results barcode</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-topbar-icon" id="btn-close-cbt-qr-sync">&times;</button>
+                </div>
+                <div class="erp-modal-body" style="padding: 24px 20px; display: flex; flex-direction: column; align-items: center;">
+                    <div id="cbt-qr-card-container" style="background: #ffffff; padding: 16px; border-radius: 12px; border: 2px solid #e2e8f0; box-shadow: 0 4px 16px rgba(0,0,0,0.06); display: inline-block;">
+                        <img id="cbt-qr-img" src="" alt="Encrypted QR Code" style="width: 280px; height: 280px; display: block; image-rendering: pixelated; border-radius: 6px;">
+                    </div>
+                    <div style="margin-top: 14px; background: #f1f5f9; border-radius: 8px; padding: 10px 14px; max-width: 100%; text-align: left; font-size: 0.8rem; color: #475569; display: flex; align-items: flex-start; gap: 8px;">
+                        <i class="fas fa-shield-halved" style="color: #3b82f6; margin-top: 2px; font-size: 0.95rem;"></i>
+                        <div>
+                            <strong style="color: #1e293b; display: block; margin-bottom: 2px;">AES-256 Encrypted &amp; Privacy Protected</strong>
+                            <span>Scanning with a regular camera or normal QR scanner will NOT disclose student names or scores. It can only be read by the Test Score Scanner in the RollCall Teacher Portal.</span>
+                        </div>
+                    </div>
+                    <div id="cbt-qr-summary-stats" style="margin-top: 12px; font-size: 0.82rem; color: #334155; font-weight: 600;"></div>
+                </div>
+                <div class="erp-modal-footer" style="background: #f8fafc; border-top: 1.5px solid #e2e8f0; padding: 12px 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-erp-light" id="btn-dismiss-cbt-qr">Close</button>
                 </div>
             </div>
         </div>

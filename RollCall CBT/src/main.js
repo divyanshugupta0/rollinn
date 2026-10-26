@@ -1,7 +1,27 @@
 const { app, BrowserWindow, ipcMain, dialog, screen, globalShortcut, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { execFileSync } = require('child_process');
+const QRCode = require('qrcode');
+const fflate = require('fflate');
+
+const CBT_QR_SYNC_SALT = 'ROLLCALL_EXAM_PACKAGE_INTEGRITY_SALT_2026';
+
+function encryptAndFormatSyncPayload(objPayload) {
+    const rawString = JSON.stringify(objPayload);
+    const uncompressedBytes = Buffer.from(rawString, 'utf8');
+    const compressed = fflate.deflateSync(uncompressedBytes, { level: 9 });
+    
+    const key = crypto.createHash('sha256').update(CBT_QR_SYNC_SALT).digest();
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    const encrypted = Buffer.concat([cipher.update(Buffer.from(compressed)), cipher.final()]);
+    
+    const packed = Buffer.concat([iv, encrypted]);
+    return `ROLLCALL_SYNC_V1:${packed.toString('base64')}`;
+}
+
 const {
     getMachineFingerprint,
     verifyCbtLicenseKey,
@@ -478,6 +498,26 @@ function setupIpcHandlers() {
             return { success: true };
         } catch (e) {
             return { success: false, error: e.message };
+        }
+    });
+
+    // Generate encrypted sync QR code for continuous scanner ingestion
+    ipcMain.handle('cbt:generate-sync-qr', async (event, payload) => {
+        try {
+            const envelope = encryptAndFormatSyncPayload(payload);
+            const qrDataUrl = await QRCode.toDataURL(envelope, {
+                errorCorrectionLevel: 'M',
+                margin: 2,
+                width: 380,
+                color: {
+                    dark: '#0f172a',
+                    light: '#ffffff'
+                }
+            });
+            return { success: true, qrDataUrl, rawEnvelope: envelope };
+        } catch (err) {
+            console.error('Error generating sync QR:', err);
+            return { success: false, error: err.message };
         }
     });
 

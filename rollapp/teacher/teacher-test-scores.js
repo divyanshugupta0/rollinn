@@ -1116,6 +1116,215 @@
                     font-size: 0.66rem;
                 }
             }
+
+            /* Continuous CBT QR Scanner Overlay Styles */
+            .tts-scanner-modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(15, 23, 42, 0.88);
+                backdrop-filter: blur(8px);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 12px;
+                box-sizing: border-box;
+            }
+            .tts-scanner-dialog {
+                background: #ffffff;
+                width: min(560px, 98vw);
+                max-height: 94vh;
+                border-radius: 18px;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.35);
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            .tts-scanner-header {
+                background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                color: #ffffff;
+                padding: 14px 18px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+            }
+            .tts-scanner-title {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 0.98rem;
+                font-weight: 800;
+            }
+            .tts-scanner-live-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                font-size: 0.68rem;
+                font-weight: 800;
+                background: rgba(239, 68, 68, 0.2);
+                color: #fca5a5;
+                border: 1px solid rgba(239, 68, 68, 0.4);
+                padding: 2px 7px;
+                border-radius: 999px;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+            .tts-scanner-live-dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: #ef4444;
+                animation: ttsPulse 1.2s infinite ease-in-out;
+            }
+            @keyframes ttsPulse {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.4; transform: scale(0.7); }
+            }
+            .tts-scanner-viewport-wrap {
+                position: relative;
+                width: 100%;
+                height: 290px;
+                background: #000000;
+                overflow: hidden;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .tts-scanner-video {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            .tts-scanner-viewfinder {
+                position: absolute;
+                width: 200px;
+                height: 200px;
+                border: 2px solid rgba(255, 255, 255, 0.4);
+                border-radius: 16px;
+                box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.5);
+                pointer-events: none;
+                transition: border-color 0.2s, box-shadow 0.2s;
+            }
+            .tts-scanner-viewfinder.flash-success {
+                border-color: #22c55e !important;
+                box-shadow: 0 0 25px rgba(34, 197, 94, 0.8), 0 0 0 4000px rgba(0, 0, 0, 0.45) !important;
+            }
+            .tts-scanner-laser {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: linear-gradient(90deg, transparent, #38bdf8, #60a5fa, transparent);
+                box-shadow: 0 0 8px #38bdf8;
+                animation: ttsLaserScan 2s infinite ease-in-out;
+            }
+            @keyframes ttsLaserScan {
+                0% { top: 4px; }
+                50% { top: calc(100% - 6px); }
+                100% { top: 4px; }
+            }
+            .tts-scanner-hint-pill {
+                position: absolute;
+                bottom: 12px;
+                background: rgba(15, 23, 42, 0.85);
+                color: #ffffff;
+                font-size: 0.74rem;
+                padding: 5px 12px;
+                border-radius: 999px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                backdrop-filter: blur(4px);
+                pointer-events: none;
+                max-width: 90%;
+                text-align: center;
+            }
+            .tts-scanner-toolbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px 16px;
+                background: #f8fafc;
+                border-bottom: 1px solid #e2e8f0;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+            .tts-scanner-tool-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 7px 12px;
+                background: #ffffff;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                font-size: 0.78rem;
+                font-weight: 700;
+                color: #334155;
+                cursor: pointer;
+                transition: all 0.15s ease;
+            }
+            .tts-scanner-tool-btn:hover {
+                background: #f1f5f9;
+                border-color: #94a3b8;
+            }
+            .tts-scanner-tool-btn.active {
+                background: #e0f2fe;
+                color: #0369a1;
+                border-color: #38bdf8;
+            }
+            .tts-scanner-log-section {
+                flex: 1;
+                max-height: 180px;
+                overflow-y: auto;
+                padding: 10px 16px;
+                background: #ffffff;
+            }
+            .tts-scanner-log-title {
+                font-size: 0.74rem;
+                font-weight: 800;
+                color: #64748b;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin-bottom: 6px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .tts-scanner-log-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 6px 10px;
+                margin-bottom: 4px;
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                font-size: 0.78rem;
+                animation: ttsSlideIn 0.2s ease-out;
+            }
+            @keyframes ttsSlideIn {
+                from { opacity: 0; transform: translateY(-4px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .tts-scanner-footer {
+                padding: 12px 18px;
+                background: #f8fafc;
+                border-top: 1px solid #e2e8f0;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+            }
+            .tts-score-just-scanned {
+                animation: ttsHighlightRow 1.6s ease-out;
+            }
+            @keyframes ttsHighlightRow {
+                0% { background: #dcfce7 !important; border-color: #22c55e !important; }
+                100% { background: transparent; }
+            }
         `;
         document.head.appendChild(style);
 
@@ -1137,6 +1346,9 @@
                     <div class="tts-header-actions">
                         <button type="button" class="tts-btn-secondary" id="ttsToggleHistoryBtn">
                             <i class="fas fa-history"></i> Test Records
+                        </button>
+                        <button type="button" class="tts-btn-primary" id="ttsOpenQrScannerBtn" style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); border-color: #4338ca;" title="Continuous QR Scanner for CBT Student Scores">
+                            <i class="fas fa-qrcode"></i> Scan CBT Scores
                         </button>
                         <button type="button" class="tts-btn-primary" id="ttsNewTestBtn">
                             <i class="fas fa-plus"></i> Assign New Test
@@ -1368,6 +1580,9 @@
                                 <button type="button" class="tts-filter-pill" data-filter="scored">Scored (<span id="ttsFilterScoredCount">0</span>)</button>
                                 <button type="button" class="tts-filter-pill" data-filter="unscored">Unscored (<span id="ttsFilterUnscoredCount">0</span>)</button>
                                 <button type="button" class="tts-filter-pill" data-filter="absent">Absent (<span id="ttsFilterAbsentCount">0</span>)</button>
+                                <button type="button" class="tts-filter-pill" id="ttsRosterScanQrBtn" style="background:#eef2ff; color:#4338ca; border-color:#c7d2fe; display:inline-flex; align-items:center; gap:5px;" title="Scan CBT scores directly into this roster">
+                                    <i class="fas fa-qrcode"></i> Scan CBT QR
+                                </button>
                             </div>
                         </div>
 
@@ -1422,6 +1637,74 @@
                     <button type="button" class="tts-btn-primary" id="ttsSubmitBtn" style="padding:11px 22px;">
                         <i class="fas fa-cloud-arrow-up"></i> Submit &amp; Save Scores
                     </button>
+                </div>
+            </div>
+
+            <!-- Continuous CBT Score QR Scanner Overlay Modal -->
+            <div id="ttsScannerModal" class="tts-scanner-modal-overlay" style="display:none;">
+                <div class="tts-scanner-dialog">
+                    <div class="tts-scanner-header">
+                        <div class="tts-scanner-title">
+                            <i class="fas fa-qrcode" style="color:#60a5fa;"></i>
+                            <span>Continuous CBT Score Scanner</span>
+                            <span class="tts-scanner-live-badge"><span class="tts-scanner-live-dot"></span> LIVE</span>
+                        </div>
+                        <button type="button" id="ttsCloseQrScannerBtn" style="color:#ffffff; background:rgba(255,255,255,0.15); border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.82rem; font-weight:700;" title="Close Scanner">
+                            <i class="fas fa-xmark"></i> Close
+                        </button>
+                    </div>
+
+                    <div class="tts-scanner-viewport-wrap">
+                        <video id="ttsQrVideo" class="tts-scanner-video" playsinline muted autoplay></video>
+                        <div class="tts-scanner-viewfinder" id="ttsViewfinder">
+                            <div class="tts-scanner-laser"></div>
+                        </div>
+                        <div class="tts-scanner-hint-pill" id="ttsScannerHint">
+                            <i class="fas fa-camera"></i> Point camera at RollCall CBT student score QR
+                        </div>
+                    </div>
+
+                    <div class="tts-scanner-toolbar">
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <button type="button" class="tts-scanner-tool-btn" id="ttsFlipCameraBtn" title="Switch between front and back camera">
+                                <i class="fas fa-camera-rotate"></i> <span>Flip Camera</span>
+                            </button>
+                            <button type="button" class="tts-scanner-tool-btn" id="ttsTorchBtn" title="Toggle Flashlight / Torch">
+                                <i class="fas fa-bolt"></i> <span>Torch</span>
+                            </button>
+                            <button type="button" class="tts-scanner-tool-btn" id="ttsUploadQrBtn" title="Upload QR image file if camera is unavailable">
+                                <i class="fas fa-image"></i> <span>Upload Image</span>
+                            </button>
+                            <input type="file" id="ttsQrFileInput" accept="image/*" style="display:none;">
+                            <button type="button" class="tts-scanner-tool-btn" id="ttsMuteScanBtn" title="Toggle Scan Sound Chime">
+                                <i class="fas fa-volume-high"></i>
+                            </button>
+                        </div>
+                        <div style="font-size:0.78rem; font-weight:800; color:#0369a1; background:#e0f2fe; padding:4px 10px; border-radius:999px;">
+                            <i class="fas fa-check-double"></i> Ingested: <span id="ttsQrScanCount">0</span>
+                        </div>
+                    </div>
+
+                    <div class="tts-scanner-log-section">
+                        <div class="tts-scanner-log-title">
+                            <span><i class="fas fa-list-check"></i> Live Session Ingestion Feed</span>
+                            <span style="font-size:0.70rem; color:#94a3b8; font-weight:500;">Continuous scan active</span>
+                        </div>
+                        <div id="ttsScannerLogList">
+                            <div style="text-align:center; padding:16px; color:#94a3b8; font-size:0.78rem;" id="ttsScannerLogEmpty">
+                                Waiting for CBT exam barcodes... No scans yet this session.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tts-scanner-footer">
+                        <span style="font-size:0.75rem; color:#64748b;">
+                            <i class="fas fa-shield-halved" style="color:#0284c7;"></i> Encrypted AES-256 ingestion
+                        </span>
+                        <button type="button" class="tts-btn-primary" id="ttsFinishScanBtn" style="padding:8px 18px; font-size:0.84rem;">
+                            <i class="fas fa-check"></i> Done &amp; Return to Scores
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -3197,6 +3480,445 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;');
         }
+
+        // =========================================================================
+        // CONTINUOUS CBT EXAM RESULTS QR SCANNER (BACKGROUND INGESTION ENGINE)
+        // =========================================================================
+        const CBT_QR_SYNC_SALT = 'ROLLCALL_EXAM_PACKAGE_INTEGRITY_SALT_2026';
+
+        const scannerModal = panel.querySelector('#ttsScannerModal');
+        const openQrScannerBtn = panel.querySelector('#ttsOpenQrScannerBtn');
+        const rosterScanQrBtn = panel.querySelector('#ttsRosterScanQrBtn');
+        const closeQrScannerBtn = panel.querySelector('#ttsCloseQrScannerBtn');
+        const finishScanBtn = panel.querySelector('#ttsFinishScanBtn');
+        const videoEl = panel.querySelector('#ttsQrVideo');
+        const viewfinderEl = panel.querySelector('#ttsViewfinder');
+        const flipCameraBtn = panel.querySelector('#ttsFlipCameraBtn');
+        const torchBtn = panel.querySelector('#ttsTorchBtn');
+        const uploadQrBtn = panel.querySelector('#ttsUploadQrBtn');
+        const qrFileInput = panel.querySelector('#ttsQrFileInput');
+        const muteScanBtn = panel.querySelector('#ttsMuteScanBtn');
+        const scanCountEl = panel.querySelector('#ttsQrScanCount');
+        const scannerLogList = panel.querySelector('#ttsScannerLogList');
+        const scannerHint = panel.querySelector('#ttsScannerHint');
+
+        let scannerActive = false;
+        let cameraStream = null;
+        let currentFacingMode = 'environment';
+        let torchActive = false;
+        let scanSoundMuted = false;
+        let sessionScannedCount = 0;
+        let scanAnimFrameId = null;
+        let isProcessingFrame = false;
+        const scannedCooldowns = new Map();
+
+        const scanCanvas = document.createElement('canvas');
+        const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+        let barcodeDetector = null;
+        if ('BarcodeDetector' in window) {
+            try {
+                barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+            } catch (_) { barcodeDetector = null; }
+        }
+
+        let audioCtx = null;
+        function playScanBeep(success = true) {
+            if (scanSoundMuted) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                if (success) {
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1320, audioCtx.currentTime + 0.12);
+                    gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.12);
+                } else {
+                    osc.frequency.setValueAtTime(280, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.2);
+                }
+            } catch (_) {}
+        }
+
+        async function decryptSyncPayload(rawQrText) {
+            if (!rawQrText || !rawQrText.startsWith('ROLLCALL_SYNC_V1:')) {
+                throw new Error('QR code is not in RollCall CBT encrypted format.');
+            }
+            const b64 = rawQrText.substring('ROLLCALL_SYNC_V1:'.length).trim();
+            const binaryStr = atob(b64);
+            const bytes = new Uint8Array(binaryStr.length);
+            for (let i = 0; i < binaryStr.length; i++) {
+                bytes[i] = binaryStr.charCodeAt(i);
+            }
+            if (bytes.length < 17) {
+                throw new Error('Encrypted payload too short.');
+            }
+            const iv = bytes.slice(0, 16);
+            const ciphertext = bytes.slice(16);
+
+            const enc = new TextEncoder();
+            const saltBytes = enc.encode(CBT_QR_SYNC_SALT);
+            const keyHash = await crypto.subtle.digest('SHA-256', saltBytes);
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw',
+                keyHash,
+                { name: 'AES-CBC' },
+                false,
+                ['decrypt']
+            );
+
+            const decryptedBuf = await crypto.subtle.decrypt(
+                { name: 'AES-CBC', iv: iv },
+                cryptoKey,
+                ciphertext
+            );
+
+            if (typeof window.fflate === 'undefined' || typeof window.fflate.decompressSync !== 'function') {
+                throw new Error('fflate decompression library not loaded.');
+            }
+
+            const decompressed = window.fflate.decompressSync(new Uint8Array(decryptedBuf));
+            const jsonStr = new TextDecoder('utf-8').decode(decompressed);
+            return JSON.parse(jsonStr);
+        }
+
+        function appendScannerLog(itemHtml) {
+            const emptyNotice = scannerLogList.querySelector('#ttsScannerLogEmpty');
+            if (emptyNotice) emptyNotice.remove();
+            const el = document.createElement('div');
+            el.className = 'tts-scanner-log-item';
+            el.innerHTML = itemHtml;
+            scannerLogList.insertBefore(el, scannerLogList.firstChild);
+            while (scannerLogList.children.length > 50) {
+                scannerLogList.removeChild(scannerLogList.lastChild);
+            }
+        }
+
+        async function processDecryptedPayload(payload) {
+            const records = Array.isArray(payload.records) ? payload.records : [];
+            if (!records.length) {
+                appendScannerLog(`
+                    <div><i class="fas fa-triangle-exclamation" style="color:#eab308;"></i> <strong>Empty Package</strong>: No student test records found.</div>
+                    <small style="color:#94a3b8;">${new Date().toLocaleTimeString()}</small>
+                `);
+                return;
+            }
+
+            // Visual flash & sound chime
+            viewfinderEl?.classList.add('flash-success');
+            setTimeout(() => viewfinderEl?.classList.remove('flash-success'), 650);
+            playScanBeep(true);
+
+            let matchedCount = 0;
+            let unmatchedCount = 0;
+
+            records.forEach(rec => {
+                const recRoll = String(rec.roll || '').trim().toLowerCase();
+                const recName = String(rec.name || '').trim().toLowerCase();
+
+                let student = null;
+                if (recRoll) {
+                    student = currentStudents.find(s => {
+                        const sRoll = String(s.classRoll || s.univRoll || s.rollNo || '').trim().toLowerCase();
+                        return sRoll && sRoll === recRoll;
+                    });
+                }
+                if (!student && recName) {
+                    student = currentStudents.find(s => {
+                        const sName = String(s.name || s.displayName || '').trim().toLowerCase();
+                        return sName && (sName === recName || sName.includes(recName) || recName.includes(sName));
+                    });
+                }
+
+                if (student) {
+                    matchedCount++;
+                    const uid = student.id;
+                    const inp = panel.querySelector(`#ttsScoreInp_${uid}`);
+                    const row = panel.querySelector(`#ttsRow_${uid}`);
+                    const abBtn = panel.querySelector(`#ttsAbBtn_${uid}`);
+
+                    if (abBtn && abBtn.classList.contains('active')) {
+                        abBtn.classList.remove('active');
+                        row?.classList.remove('is-absent');
+                        if (inp) inp.disabled = false;
+                    }
+
+                    if (inp) {
+                        inp.value = rec.score;
+                        updateStudentScoreBadge(inp);
+                    }
+
+                    if (row) {
+                        row.classList.add('tts-score-just-scanned');
+                        setTimeout(() => row.classList.remove('tts-score-just-scanned'), 1600);
+                    }
+
+                    sessionScannedCount++;
+                    if (scanCountEl) scanCountEl.textContent = sessionScannedCount;
+
+                    appendScannerLog(`
+                        <div>
+                            <span style="color:#15803d; font-weight:700;"><i class="fas fa-circle-check"></i> Roll #${rec.roll || student.classRoll || student.rollNo}</span>
+                            <span style="color:#0f172a; margin-left:6px; font-weight:600;">${escapeHtml(student.name || rec.name)}</span>
+                            <span style="margin-left:6px; background:#dcfce7; color:#15803d; padding:1px 6px; border-radius:4px; font-weight:700;">${rec.score} Marks</span>
+                        </div>
+                        <small style="color:#64748b; font-family:monospace;">${new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' })}</small>
+                    `);
+                } else {
+                    unmatchedCount++;
+                    appendScannerLog(`
+                        <div>
+                            <span style="color:#b45309; font-weight:700;"><i class="fas fa-triangle-exclamation"></i> Roll #${rec.roll || 'N/A'}</span>
+                            <span style="color:#475569; margin-left:6px;">${escapeHtml(rec.name || 'Candidate')}</span>
+                            <span style="margin-left:6px; background:#fef3c7; color:#b45309; padding:1px 6px; border-radius:4px; font-weight:600;">${rec.score} Marks (Unmatched)</span>
+                        </div>
+                        <small style="color:#94a3b8;">Not in roster</small>
+                    `);
+                }
+            });
+
+            if (scannerHint) {
+                scannerHint.innerHTML = `<i class="fas fa-circle-check" style="color:#4ade80;"></i> Ingested <strong>${matchedCount}</strong> score${matchedCount === 1 ? '' : 's'}${unmatchedCount > 0 ? ` (${unmatchedCount} unmatched)` : ''}. Keep scanning...`;
+            }
+
+            // Real-time roster calculation & draft update
+            applyStudentFiltering();
+            updateSummaryCounters();
+            scheduleAutoDraftSave();
+        }
+
+        async function handleScannedString(rawText) {
+            if (!rawText) return;
+            const now = Date.now();
+            if (scannedCooldowns.has(rawText) && (now - scannedCooldowns.get(rawText) < 3200)) {
+                return;
+            }
+            scannedCooldowns.set(rawText, now);
+
+            if (!rawText.startsWith('ROLLCALL_SYNC_V1:')) {
+                if (scannerHint) {
+                    scannerHint.innerHTML = `<i class="fas fa-shield-xmark" style="color:#f87171;"></i> Scanned standard QR. Only RollCall CBT encrypted barcodes are accepted.`;
+                }
+                playScanBeep(false);
+                return;
+            }
+
+            try {
+                if (scannerHint) {
+                    scannerHint.innerHTML = `<i class="fas fa-spinner fa-spin" style="color:#60a5fa;"></i> Decrypting AES-256 payload...`;
+                }
+                const payload = await decryptSyncPayload(rawText);
+                await processDecryptedPayload(payload);
+            } catch (err) {
+                console.warn('Decryption error:', err);
+                if (scannerHint) {
+                    scannerHint.innerHTML = `<i class="fas fa-triangle-exclamation" style="color:#f87171;"></i> Failed to decrypt CBT QR: ${escapeHtml(err.message)}`;
+                }
+                playScanBeep(false);
+            }
+        }
+
+        function scanNextFrame() {
+            if (!scannerActive) return;
+
+            if (videoEl && videoEl.readyState === videoEl.HAVE_ENOUGH_DATA && !isProcessingFrame) {
+                scanCanvas.width = videoEl.videoWidth;
+                scanCanvas.height = videoEl.videoHeight;
+                scanCtx.drawImage(videoEl, 0, 0, scanCanvas.width, scanCanvas.height);
+
+                if (barcodeDetector) {
+                    isProcessingFrame = true;
+                    barcodeDetector.detect(scanCanvas).then(barcodes => {
+                        if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                            handleScannedString(barcodes[0].rawValue);
+                        }
+                    }).catch(() => {}).finally(() => {
+                        isProcessingFrame = false;
+                    });
+                } else if (typeof window.jsQR === 'function') {
+                    try {
+                        const imgData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+                        const code = window.jsQR(imgData.data, imgData.width, imgData.height, {
+                            inversionAttempts: 'dontInvert'
+                        });
+                        if (code && code.data) {
+                            handleScannedString(code.data);
+                        }
+                    } catch (_) {}
+                }
+            }
+
+            scanAnimFrameId = requestAnimationFrame(scanNextFrame);
+        }
+
+        async function startContinuousScanner() {
+            if (!classSelect.value) {
+                alert('Please select a Class & Section first so scanned scores can be matched to enrolled students.');
+                classSelect.focus();
+                return;
+            }
+
+            if (currentStudents.length === 0) {
+                await ensureStudentsLoaded();
+            }
+
+            scannerModal.style.display = 'flex';
+            if (scannerHint) {
+                scannerHint.innerHTML = `<i class="fas fa-camera"></i> Starting camera... Point at CBT result QR.`;
+            }
+
+            const constraints = {
+                video: {
+                    facingMode: currentFacingMode,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            };
+
+            try {
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(t => t.stop());
+                }
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoEl.srcObject = cameraStream;
+                await videoEl.play();
+                scannerActive = true;
+                if (scannerHint) {
+                    scannerHint.innerHTML = `<i class="fas fa-camera"></i> Camera active. Scanning continuously in background...`;
+                }
+                scanNextFrame();
+            } catch (err) {
+                console.error('Camera access error:', err);
+                scannerActive = false;
+                if (scannerHint) {
+                    scannerHint.innerHTML = `<i class="fas fa-triangle-exclamation" style="color:#ef4444;"></i> Camera unavailable (${escapeHtml(err.message)}). Use "Upload Image" below.`;
+                }
+            }
+        }
+
+        function stopContinuousScanner() {
+            scannerActive = false;
+            if (scanAnimFrameId) {
+                cancelAnimationFrame(scanAnimFrameId);
+                scanAnimFrameId = null;
+            }
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(t => t.stop());
+                cameraStream = null;
+            }
+            if (videoEl) {
+                videoEl.srcObject = null;
+            }
+            torchActive = false;
+            torchBtn?.classList.remove('active');
+            scannerModal.style.display = 'none';
+        }
+
+        // Scanner Event Listeners
+        openQrScannerBtn?.addEventListener('click', () => startContinuousScanner());
+        rosterScanQrBtn?.addEventListener('click', () => startContinuousScanner());
+        closeQrScannerBtn?.addEventListener('click', () => stopContinuousScanner());
+        finishScanBtn?.addEventListener('click', () => stopContinuousScanner());
+
+        // Close on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && scannerModal.style.display === 'flex') {
+                stopContinuousScanner();
+            }
+        });
+
+        // Flip Camera (Front / Back)
+        flipCameraBtn?.addEventListener('click', async () => {
+            currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+            if (scannerActive) {
+                await startContinuousScanner();
+            }
+        });
+
+        // Torch / Flashlight toggle
+        torchBtn?.addEventListener('click', async () => {
+            const track = cameraStream?.getVideoTracks()?.[0];
+            if (!track) return;
+            const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+            if (!capabilities.torch) {
+                alert('Flashlight / torch is not supported on this camera.');
+                return;
+            }
+            try {
+                torchActive = !torchActive;
+                await track.applyConstraints({
+                    advanced: [{ torch: torchActive }]
+                });
+                torchBtn.classList.toggle('active', torchActive);
+            } catch (err) {
+                console.warn('Torch toggle failed:', err);
+            }
+        });
+
+        // Sound Mute Toggle
+        muteScanBtn?.addEventListener('click', () => {
+            scanSoundMuted = !scanSoundMuted;
+            muteScanBtn.innerHTML = scanSoundMuted
+                ? '<i class="fas fa-volume-xmark" style="color:#ef4444;"></i>'
+                : '<i class="fas fa-volume-high"></i>';
+        });
+
+        // Upload Image Fallback
+        uploadQrBtn?.addEventListener('click', () => {
+            qrFileInput?.click();
+        });
+
+        qrFileInput?.addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            e.target.value = '';
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                const img = new Image();
+                img.onload = async () => {
+                    scanCanvas.width = img.naturalWidth || img.width;
+                    scanCanvas.height = img.naturalHeight || img.height;
+                    scanCtx.drawImage(img, 0, 0, scanCanvas.width, scanCanvas.height);
+
+                    let detectedText = null;
+                    if (barcodeDetector) {
+                        try {
+                            const codes = await barcodeDetector.detect(scanCanvas);
+                            if (codes && codes.length > 0) detectedText = codes[0].rawValue;
+                        } catch (_) {}
+                    }
+                    if (!detectedText && typeof window.jsQR === 'function') {
+                        try {
+                            const imgData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+                            const qr = window.jsQR(imgData.data, imgData.width, imgData.height);
+                            if (qr && qr.data) detectedText = qr.data;
+                        } catch (_) {}
+                    }
+
+                    if (detectedText) {
+                        scannedCooldowns.delete(detectedText);
+                        await handleScannedString(detectedText);
+                    } else {
+                        if (scannerHint) {
+                            scannerHint.innerHTML = `<i class="fas fa-triangle-exclamation" style="color:#ef4444;"></i> Could not find a clear QR barcode in the uploaded image.`;
+                        }
+                        playScanBeep(false);
+                    }
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        });
 
         // Listen for Auth changes
         firebase.auth().onAuthStateChanged(async (user) => {

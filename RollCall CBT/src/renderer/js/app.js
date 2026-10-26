@@ -326,6 +326,17 @@
         el.metricRecordsRate = document.getElementById('metric-records-rate');
         el.metricRecordsAvg = document.getElementById('metric-records-avg');
         el.recordsListContainer = document.getElementById('records-list-container');
+
+        // CBT Encrypted Sync QR Elements
+        el.btnShowStudentQr = document.getElementById('btn-show-student-qr');
+        el.btnExportStationQr = document.getElementById('btn-export-station-qr');
+        el.modalCbtQrSync = document.getElementById('modal-cbt-qr-sync');
+        el.cbtQrModalTitle = document.getElementById('cbt-qr-modal-title');
+        el.cbtQrModalSubtitle = document.getElementById('cbt-qr-modal-subtitle');
+        el.cbtQrImg = document.getElementById('cbt-qr-img');
+        el.cbtQrSummaryStats = document.getElementById('cbt-qr-summary-stats');
+        el.btnCloseCbtQrSync = document.getElementById('btn-close-cbt-qr-sync');
+        el.btnDismissCbtQr = document.getElementById('btn-dismiss-cbt-qr');
     }
 
     // Switch active view
@@ -2192,6 +2203,78 @@
 
         html += `</tbody></table>`;
         el.recordsListContainer.innerHTML = html;
+        state.currentFilteredRecords = filtered;
+    }
+
+    // =========================================================================
+    // ENCRYPTED CBT SYNC QR CODE GENERATOR & MODAL
+    // =========================================================================
+    async function displaySyncQrModal(payload, title, subtitle) {
+        if (!window.rollcallCBT || !window.rollcallCBT.generateSyncQr) {
+            showToast('QR generation not supported in this runtime environment.', 'error');
+            return;
+        }
+        showToast('Encrypting and generating QR code for Teacher Portal...', 'info');
+        try {
+            const res = await window.rollcallCBT.generateSyncQr(payload);
+            if (!res || !res.success) {
+                showToast(res?.error || 'Failed to generate QR code.', 'error');
+                return;
+            }
+            if (el.cbtQrModalTitle) el.cbtQrModalTitle.textContent = title || 'Teacher Portal Sync QR';
+            if (el.cbtQrModalSubtitle) el.cbtQrModalSubtitle.textContent = subtitle || 'Encrypted examination results barcode';
+            if (el.cbtQrImg) el.cbtQrImg.src = res.qrDataUrl;
+            if (el.cbtQrSummaryStats) {
+                const count = payload.records ? payload.records.length : 1;
+                el.cbtQrSummaryStats.innerHTML = `
+                    <span style="display: inline-flex; align-items: center; gap: 6px; background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; margin-right: 6px;">
+                        <i class="fas fa-users"></i> ${count} Student Score${count === 1 ? '' : 's'} Bundled
+                    </span>
+                    <span style="display: inline-flex; align-items: center; gap: 6px; background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 6px;">
+                        <i class="fas fa-lock"></i> AES-256 Encrypted
+                    </span>
+                `;
+            }
+            if (el.modalCbtQrSync) {
+                el.modalCbtQrSync.hidden = false;
+                el.modalCbtQrSync.style.display = 'grid';
+            }
+        } catch (err) {
+            console.error('Error in displaySyncQrModal:', err);
+            showToast('Error generating encrypted QR code.', 'error');
+        }
+    }
+
+    function exportStationBatchQr() {
+        const records = state.currentFilteredRecords || [];
+        if (!records.length) {
+            showToast('No student examination records match the current filter to export.', 'error');
+            return;
+        }
+        const batchPayload = {
+            v: 1,
+            type: 'BATCH_SCORES',
+            timestamp: Date.now(),
+            schoolCode: state.license?.schoolCode || '',
+            filterMode: state.recordsFilterMode || 'all',
+            records: records.map(r => ({
+                roll: String(r.candidate?.rollNo || r.candidate?.rollNumber || '').trim(),
+                name: r.candidate?.name || '',
+                class: r.candidate?.class || '',
+                sec: r.candidate?.section || '',
+                score: Number(r.scoreSummary?.totalScore ?? 0),
+                total: Number(r.scoreSummary?.totalPossible ?? 0),
+                pct: Number(r.scoreSummary?.percentage ?? 0),
+                passed: !!r.scoreSummary?.passed,
+                grade: r.scoreSummary?.grade || '',
+                time: r.timestamp || Date.now()
+            }))
+        };
+        displaySyncQrModal(
+            batchPayload,
+            'Batch Station Results QR',
+            `Encrypted payload containing ${records.length} candidate examination score${records.length === 1 ? '' : 's'}`
+        );
     }
 
     // =========================================================================
@@ -2355,6 +2438,9 @@
                 el.modalStationResults.hidden = true;
                 el.modalStationResults.style.display = 'none';
             }
+        });
+        el.btnExportStationQr?.addEventListener('click', () => {
+            exportStationBatchQr();
         });
         el.btnClearStationRecords?.addEventListener('click', () => {
             if (confirm('Are you sure you want to clear all examination records stored on this machine?')) {
@@ -2726,6 +2812,51 @@
             } else {
                 showToast(res.error || 'Failed to save submission file.', 'error');
             }
+        });
+
+        // Show Single Student Encrypted QR Code for Teacher Portal Ingestion
+        el.btnShowStudentQr?.addEventListener('click', () => {
+            if (!state.lastSubmissionPackage) {
+                showToast('No active submission available to export.', 'error');
+                return;
+            }
+            const sub = state.lastSubmissionPackage;
+            const cand = sub.candidate || {};
+            const res = sub.result || {};
+            const singlePayload = {
+                v: 1,
+                type: 'SINGLE_SCORE',
+                timestamp: sub.submittedAt || Date.now(),
+                schoolCode: state.license?.schoolCode || '',
+                examTitle: sub.examTitle || '',
+                records: [{
+                    roll: String(cand.rollNo || cand.rollNumber || '').trim(),
+                    name: cand.name || '',
+                    class: cand.class || '',
+                    sec: cand.section || '',
+                    score: Number(res.score ?? 0),
+                    total: Number(res.totalMarks ?? 0),
+                    pct: Number(res.percentage ?? 0),
+                    passed: !!res.passed,
+                    grade: res.grade || '',
+                    time: sub.submittedAt || Date.now()
+                }]
+            };
+            displaySyncQrModal(
+                singlePayload,
+                `Student Score QR: ${cand.name || 'Candidate'}`,
+                `Encrypted score barcode for Roll #${cand.rollNo || 'N/A'}`
+            );
+        });
+
+        // Close CBT QR Sync Modal
+        [el.btnCloseCbtQrSync, el.btnDismissCbtQr].forEach(btn => {
+            btn?.addEventListener('click', () => {
+                if (el.modalCbtQrSync) {
+                    el.modalCbtQrSync.hidden = true;
+                    el.modalCbtQrSync.style.display = 'none';
+                }
+            });
         });
 
         el.btnPrintResult.addEventListener('click', () => {
