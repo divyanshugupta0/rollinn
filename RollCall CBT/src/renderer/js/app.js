@@ -244,6 +244,7 @@
 
         // Supervisor, Station Standby, and Candidate Desk Elements
         el.btnAdminExamSetup = document.getElementById('btn-admin-exam-setup');
+        el.btnStandbyExamSetup = document.getElementById('btn-standby-exam-setup');
         el.btnViewLicenseDetails = document.getElementById('btn-view-license-details');
         el.btnQuickAdminLogin = document.getElementById('btn-quick-admin-login');
         el.stationStandbyView = document.getElementById('station-standby-view');
@@ -1798,7 +1799,10 @@
         if (el.adminPinPromptMsg) el.adminPinPromptMsg.textContent = promptMsg;
         if (el.inputAdminPin) el.inputAdminPin.value = '';
         if (el.adminPinError) el.adminPinError.textContent = '';
-        if (el.modalAdminPin) el.modalAdminPin.style.display = 'grid';
+        if (el.modalAdminPin) {
+            el.modalAdminPin.hidden = false;
+            el.modalAdminPin.style.display = 'grid';
+        }
         setTimeout(() => { if (el.inputAdminPin) el.inputAdminPin.focus(); }, 80);
     }
 
@@ -1810,7 +1814,10 @@
         }
         const correctPin = getAdminPin();
         if (entered === correctPin) {
-            if (el.modalAdminPin) el.modalAdminPin.style.display = 'none';
+            if (el.modalAdminPin) {
+                el.modalAdminPin.hidden = true;
+                el.modalAdminPin.style.display = 'none';
+            }
             if (typeof pendingAdminAction === 'function') {
                 const fn = pendingAdminAction;
                 pendingAdminAction = null;
@@ -1829,7 +1836,10 @@
         if (el.inputNewAdminPin) el.inputNewAdminPin.value = '';
         if (el.inputConfirmAdminPin) el.inputConfirmAdminPin.value = '';
         if (el.setPinError) el.setPinError.textContent = '';
-        if (el.modalSetAdminPin) el.modalSetAdminPin.style.display = 'grid';
+        if (el.modalSetAdminPin) {
+            el.modalSetAdminPin.hidden = false;
+            el.modalSetAdminPin.style.display = 'grid';
+        }
         setTimeout(() => { if (el.inputNewAdminPin) el.inputNewAdminPin.focus(); }, 80);
 
         if (el.btnSaveAdminPin) {
@@ -1845,7 +1855,10 @@
                     return;
                 }
                 setAdminPin(p1);
-                if (el.modalSetAdminPin) el.modalSetAdminPin.style.display = 'none';
+                if (el.modalSetAdminPin) {
+                    el.modalSetAdminPin.hidden = true;
+                    el.modalSetAdminPin.style.display = 'none';
+                }
                 showToast('Supervisor PIN saved successfully.', 'success');
                 if (typeof onSaved === 'function') onSaved();
             };
@@ -1863,11 +1876,20 @@
         if (el.licDetailDeviceId) el.licDetailDeviceId.textContent = lic.deviceId || state.license?.deviceId || 'STATION-HW';
         if (el.licDetailExpiry) el.licDetailExpiry.textContent = lic.expiryDate || 'Perpetual';
         if (el.licDetailDevices) el.licDetailDevices.textContent = `${Number(lic.remainingDevices ?? 0)} remaining / ${Number(lic.maxDevices || 1)} authorized`;
-        if (el.modalLicenseDetails) el.modalLicenseDetails.style.display = 'grid';
+        if (el.modalLicenseDetails) {
+            el.modalLicenseDetails.hidden = false;
+            el.modalLicenseDetails.style.display = 'grid';
+        }
     }
 
     function openAdminExamSetupModal() {
-        if (el.modalAdminExamSetup) el.modalAdminExamSetup.style.display = 'grid';
+        if (state.license && !el.viewSetupExam.classList.contains('active')) {
+            switchView('setup');
+        }
+        if (el.modalAdminExamSetup) {
+            el.modalAdminExamSetup.hidden = false;
+            el.modalAdminExamSetup.style.display = 'grid';
+        }
         if (state.activeExam) {
             if (el.examInspectContainer) el.examInspectContainer.style.display = 'block';
             if (el.inspectCandidateCount) el.inspectCandidateCount.textContent = (state.activeExam.candidates || []).length;
@@ -2017,18 +2039,19 @@
         el.btnViewLicenseDetails?.addEventListener('click', () => {
             requireAdminPin(() => openLicenseDetailsModal(), 'Enter Admin PIN to view Station License Details.');
         });
-        el.btnAdminExamSetup?.addEventListener('click', () => {
+        // Supervisor Console Handlers
+        const triggerOpenExamSetup = () => {
             requireAdminPin(() => openAdminExamSetupModal(), 'Enter Admin PIN to access Exam Supervisor Console.');
-        });
-        el.btnQuickAdminLogin?.addEventListener('click', () => {
-            requireAdminPin(() => openAdminExamSetupModal(), 'Enter Admin PIN to access Exam Supervisor Console.');
-        });
+        };
+        el.btnAdminExamSetup?.addEventListener('click', triggerOpenExamSetup);
+        el.btnStandbyExamSetup?.addEventListener('click', triggerOpenExamSetup);
+        el.btnQuickAdminLogin?.addEventListener('click', triggerOpenExamSetup);
 
         // Keyboard Shortcut Ctrl+Shift+S for Supervisor Console
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
                 e.preventDefault();
-                requireAdminPin(() => openAdminExamSetupModal(), 'Enter Admin PIN to access Exam Supervisor Console.');
+                triggerOpenExamSetup();
             }
         });
 
@@ -2041,7 +2064,10 @@
         });
         el.btnDeactivateStation?.addEventListener('click', async () => {
             if (confirm('Are you sure you want to deactivate this station? You will need an authorized USB license to reactivate it.')) {
-                if (el.modalLicenseDetails) el.modalLicenseDetails.style.display = 'none';
+                if (el.modalLicenseDetails) {
+                    el.modalLicenseDetails.hidden = true;
+                    el.modalLicenseDetails.style.display = 'none';
+                }
                 await window.rollcallCBT.deactivateLicense();
                 state.license = null;
                 showToast('Station deactivated successfully.', 'info');
@@ -2055,30 +2081,51 @@
             if (e.key === 'Enter') submitAdminPin();
         });
         el.btnCancelAdminPin?.addEventListener('click', () => {
-            if (el.modalAdminPin) el.modalAdminPin.style.display = 'none';
+            if (el.modalAdminPin) {
+                el.modalAdminPin.hidden = true;
+                el.modalAdminPin.style.display = 'none';
+            }
             pendingAdminAction = null;
         });
         el.btnCloseAdminPin?.addEventListener('click', () => {
-            if (el.modalAdminPin) el.modalAdminPin.style.display = 'none';
+            if (el.modalAdminPin) {
+                el.modalAdminPin.hidden = true;
+                el.modalAdminPin.style.display = 'none';
+            }
             pendingAdminAction = null;
         });
 
         el.btnCloseLicenseDetails?.addEventListener('click', () => {
-            if (el.modalLicenseDetails) el.modalLicenseDetails.style.display = 'none';
+            if (el.modalLicenseDetails) {
+                el.modalLicenseDetails.hidden = true;
+                el.modalLicenseDetails.style.display = 'none';
+            }
         });
         el.btnDoneLicenseDetails?.addEventListener('click', () => {
-            if (el.modalLicenseDetails) el.modalLicenseDetails.style.display = 'none';
+            if (el.modalLicenseDetails) {
+                el.modalLicenseDetails.hidden = true;
+                el.modalLicenseDetails.style.display = 'none';
+            }
         });
         el.btnModalChangePin?.addEventListener('click', () => {
-            if (el.modalLicenseDetails) el.modalLicenseDetails.style.display = 'none';
+            if (el.modalLicenseDetails) {
+                el.modalLicenseDetails.hidden = true;
+                el.modalLicenseDetails.style.display = 'none';
+            }
             promptSetAdminPin();
         });
 
         el.btnCloseAdminSetup?.addEventListener('click', () => {
-            if (el.modalAdminExamSetup) el.modalAdminExamSetup.style.display = 'none';
+            if (el.modalAdminExamSetup) {
+                el.modalAdminExamSetup.hidden = true;
+                el.modalAdminExamSetup.style.display = 'none';
+            }
         });
         el.btnCancelAdminSetup?.addEventListener('click', () => {
-            if (el.modalAdminExamSetup) el.modalAdminExamSetup.style.display = 'none';
+            if (el.modalAdminExamSetup) {
+                el.modalAdminExamSetup.hidden = true;
+                el.modalAdminExamSetup.style.display = 'none';
+            }
         });
         el.btnAdminConfirmLoadCandidate?.addEventListener('click', () => {
             if (!state.selectedCandidate) {
