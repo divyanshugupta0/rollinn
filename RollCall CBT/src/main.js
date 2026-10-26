@@ -1,4 +1,4 @@
-﻿const { app, BrowserWindow, ipcMain, dialog, screen, globalShortcut, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, screen, globalShortcut, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
@@ -244,6 +244,56 @@ function handleCommandLineFiles() {
     }
 }
 
+function getDetectedRemovableDrives() {
+    if (process.platform === 'win32') {
+        try {
+            const out = execFileSync('powershell.exe', [
+                '-NoProfile', '-NonInteractive', '-Command',
+                'Get-CimInstance Win32_LogicalDisk | Where-Object { $_.DriveType -eq 2 } | Select-Object -Property DeviceID, VolumeName | ConvertTo-Json -Compress'
+            ], { encoding: 'utf8', windowsHide: true }).trim();
+            if (!out) return [];
+            const parsed = JSON.parse(out);
+            const items = Array.isArray(parsed) ? parsed : [parsed];
+            return items.map(d => ({
+                path: `${d.DeviceID}\\`,
+                drive: d.DeviceID,
+                name: d.VolumeName || 'Removable Disk'
+            }));
+        } catch {
+            return [];
+        }
+    } else if (process.platform === 'darwin') {
+        try {
+            if (fs.existsSync('/Volumes')) {
+                return fs.readdirSync('/Volumes')
+                    .filter(v => v !== 'Macintosh HD')
+                    .map(v => ({ path: `/Volumes/${v}`, drive: v, name: v }));
+            }
+        } catch { return []; }
+    } else {
+        try {
+            const dirs = ['/media', '/run/media'];
+            const res = [];
+            for (const d of dirs) {
+                if (fs.existsSync(d)) {
+                    for (const user of fs.readdirSync(d)) {
+                        const userPath = path.join(d, user);
+                        try {
+                            if (fs.statSync(userPath).isDirectory()) {
+                                for (const mount of fs.readdirSync(userPath)) {
+                                    res.push({ path: path.join(userPath, mount), drive: mount, name: mount });
+                                }
+                            }
+                        } catch {}
+                    }
+                }
+            }
+            return res;
+        } catch { return []; }
+    }
+    return [];
+}
+
 // IPC Handlers
 function setupIpcHandlers() {
     // License status
@@ -252,6 +302,8 @@ function setupIpcHandlers() {
     });
 
     ipcMain.handle('cbt:get-test-mode', async () => isCbtTestMode());
+
+    ipcMain.handle('cbt:get-removable-drives', async () => getDetectedRemovableDrives());
 
     ipcMain.handle('cbt:open-test-license-dialog', async () => {
         if (!isCbtTestMode()) return { success: false, error: 'Temporary local activation is disabled in the packaged production app.' };
@@ -271,8 +323,11 @@ function setupIpcHandlers() {
 
     // Open License File Dialog (.rolllic / .cbtlic / .json)
     ipcMain.handle('cbt:open-license-file-dialog', async () => {
+        const drives = getDetectedRemovableDrives();
+        const defaultPath = drives.length ? drives[0].path : undefined;
         const result = await dialog.showOpenDialog(mainWindow, {
             title: 'Select Offline CBT License File (.rolllic)',
+            defaultPath,
             filters: [
                 { name: 'RollCall CBT License Files', extensions: ['rolllic', 'cbtlic', 'json'] },
                 { name: 'All Files', extensions: ['*'] }

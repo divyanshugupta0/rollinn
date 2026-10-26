@@ -3,37 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RollCall CBT - Offline Computer-Based Testing Environment</title>
+    <title>RollCall CBT - Offline Computer-Based Testing Station</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="light-theme">
-    <!-- Top Global App Bar -->
+<body>
+    <!-- Top Global App Bar (RollCall ERP Desktop AppShell style) -->
     <header class="app-topbar" id="app-topbar">
         <div class="topbar-brand">
-            <div class="brand-logo-icon">
-                <i class="fas fa-desktop"></i>
-            </div>
-            <div class="brand-title-wrap">
-                <span class="brand-name">RollCall <strong>CBT</strong></span>
-                <span class="brand-tagline"><i class="fas fa-wifi-slash"></i> 100% Offline Testing Environment</span>
+            <img src="assets/rollcall-icon.svg" alt="RollCall Logo">
+            <div class="topbar-brand-title">
+                <span class="brand-name">ROLLCALL <strong>CBT</strong></span>
+                <span class="brand-tagline">Station Workspace</span>
             </div>
         </div>
 
         <div class="topbar-center" id="topbar-center-info">
             <div class="institution-badge" id="topbar-institution-badge" title="Active Institution">
-                <i class="fas fa-school"></i>
-                <span id="topbar-institution-name">Institution Unlinked</span>
+                <i class="fas fa-building"></i>
+                <span id="topbar-institution-name">Station Not Activated</span>
                 <span class="code-pill" id="topbar-school-code">----</span>
+            </div>
+            <div class="station-pill" id="topbar-station-pill" title="Hardware Identifier">
+                <i class="fas fa-microchip"></i>
+                <span id="topbar-station-id">STATION-UNLINKED</span>
             </div>
         </div>
 
         <div class="topbar-actions">
-            <button type="button" class="btn-topbar-icon" id="btn-theme-toggle" title="Toggle Dark/Light Mode">
-                <i class="fas fa-moon"></i>
+            <button type="button" class="btn-topbar-action btn-light" id="btn-relicense" title="Station License Details">
+                <i class="fas fa-id-card"></i> <span>License</span>
             </button>
             <button type="button" class="btn-topbar-icon" id="btn-fullscreen-toggle" title="Toggle Fullscreen">
                 <i class="fas fa-expand"></i>
+            </button>
+            <button type="button" class="btn-topbar-icon" id="btn-theme-toggle" title="Theme Mode" hidden>
+                <i class="fas fa-moon"></i>
             </button>
             <button type="button" class="btn-topbar-icon btn-danger-icon" id="btn-exit-app" title="Exit Application">
                 <i class="fas fa-power-off"></i>
@@ -41,657 +46,599 @@
         </div>
     </header>
 
-    <!-- Main Container Shell -->
+    <!-- Main Viewport Shell -->
     <main class="app-viewport">
-        <!-- Notification / Toast Stack -->
+        <!-- Toast Notification Stack -->
         <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
-        <!-- ============================================== -->
-        <!-- VIEW 1: LICENSE ACTIVATION GATE (OFFLINE FILE) -->
-        <!-- ============================================== -->
+        <!-- ======================================================== -->
+        <!-- VIEW 1: FIRST STAGE - ACTIVATION GATE (RollCall ERP Split Frame) -->
+        <!-- ======================================================== -->
         <section class="cbt-view active" id="view-license-gate">
-            <div class="license-gate-container">
-                <div class="license-card">
-                    <aside class="activation-hero">
-                        <div class="activation-brand-mark"><i class="fas fa-graduation-cap"></i></div>
-                        <span class="activation-eyebrow">ROLLCALL CBT</span>
-                        <h1>Secure offline examinations.</h1>
-                        <p>Activate this exam workstation with the signed license issued by your school administrator.</p>
-                        <div class="activation-feature"><i class="fas fa-usb"></i><span>USB license activation</span></div>
-                        <div class="activation-feature"><i class="fas fa-shield-halved"></i><span>Protected exam workspace</span></div>
-                        <div class="activation-feature"><i class="fas fa-wifi-slash"></i><span>Works without internet</span></div>
-                        <small>A product of RollCall</small>
+            <div class="startup-page">
+                <div class="startup-frame">
+                    <!-- Left Hero Section (Exact RollCall ERP StartupLayout style) -->
+                    <aside class="startup-hero">
+                        <div class="startup-hero-glow"></div>
+                        <div class="hero-brand">
+                            <img src="assets/rollcall-icon.svg" alt="RollCall Logo">
+                            <div class="hero-brand-text">
+                                <h3>ROLLCALL CBT</h3>
+                                <p>Offline Examination System</p>
+                            </div>
+                        </div>
+
+                        <div class="hero-copy">
+                            <span class="hero-eyebrow">LEARNING ENVIRONMENT OS</span>
+                            <h1 class="hero-title">Secure, synchronized exam stations.</h1>
+                            <p class="hero-text">
+                                Offline exam delivery with cryptographic licensing, automated roster allocation, and kiosk security.
+                            </p>
+                        </div>
+
+                        <div class="hero-feature-list">
+                            <div class="hero-feature">
+                                <span><i class="fas fa-file-shield"></i></span>
+                                <div>
+                                    <strong>Tamper-proof .rollcbt file</strong>
+                                    <p>Offline exam packages signed with school-level encryption.</p>
+                                </div>
+                            </div>
+                            <div class="hero-feature">
+                                <span><i class="fas fa-usb"></i></span>
+                                <div>
+                                    <strong>Removable license token</strong>
+                                    <p>Seat-metered activation via authorized administrative USB.</p>
+                                </div>
+                            </div>
+                            <div class="hero-feature">
+                                <span><i class="fas fa-lock"></i></span>
+                                <div>
+                                    <strong>Air-gapped test hall</strong>
+                                    <p>Strict fullscreen lock, automated strike detection, and local report receipts.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <span class="hero-foot">A product of RollCall</span>
                     </aside>
-                    <div class="activation-content">
-                    <div class="license-shield-glow">
-                        <div class="shield-circle">
-                            <i class="fas fa-file-shield"></i>
-                        </div>
-                    </div>
 
-                    <div class="license-card-header">
-                        <h2>RollCall CBT License Activation</h2>
-                        <p>This application operates 100% offline. Upload the <code>.rolllic</code> license file downloaded from your RollCall Admin Panel.</p>
-                    </div>
-
-                    <!-- Offline License File Upload Dropzone -->
-                    <div class="upload-dropzone license-dropzone" id="license-file-dropzone">
-                        <input type="file" id="input-hidden-license-file" accept=".rolllic,.cbtlic,.json" hidden>
-                        <div class="dropzone-content">
-                            <div class="dropzone-icon-pulse small">
-                                <i class="fas fa-id-card"></i>
-                            </div>
-                            <h3>Upload CBT License File (.rolllic)</h3>
-                            <p>Connect the USB/removable storage device containing the official license, then select the file.</p>
-                            <button type="button" class="btn-primary-action" id="btn-browse-license-file">
-                                <i class="fas fa-folder-open"></i> Select .rolllic File
-                            </button>
-                            <button type="button" class="btn-subtle test-license-button" id="btn-test-license-file" hidden>
-                                <i class="fas fa-flask"></i> Temporary local test activation
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Alternate Manual Code Entry Toggle -->
-                    <div class="manual-code-toggle-wrap" hidden>
-                        <button type="button" class="btn-subtle" id="btn-toggle-manual-license">
-                            <i class="fas fa-keyboard"></i> Or enter license access code manually
-                        </button>
-                    </div>
-
-                    <form id="license-manual-form" class="license-form hidden">
-                        <div class="form-group">
-                            <label for="input-license-school-code">School / Institution Code</label>
-                            <div class="input-with-icon">
-                                <i class="fas fa-building"></i>
-                                <input type="text" id="input-license-school-code" placeholder="e.g. ROLL-SCH-101" autocomplete="off">
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="input-license-key">CBT License Key</label>
-                            <div class="input-with-icon">
-                                <i class="fas fa-key"></i>
-                                <textarea id="input-license-key" rows="2" placeholder="RCCBT-V1-..." spellcheck="false"></textarea>
-                            </div>
-                        </div>
-
-                        <div class="form-actions">
-                            <button type="submit" class="btn-primary-glow btn-block" id="btn-submit-manual-license">
-                                <i class="fas fa-check-circle"></i> Activate Offline with Code
-                            </button>
-                        </div>
-                    </form>
-
-                    <div class="device-fingerprint-box">
-                        <div class="fingerprint-label">
-                            <i class="fas fa-microchip"></i> Machine Fingerprint:
-                        </div>
-                        <code id="display-machine-fingerprint">DETECTING...</code>
-                    </div>
-
-                    <div class="license-footer-help">
-                        <i class="fas fa-info-circle"></i>
-                        <span>Where to download the license file? Open your <strong>RollCall Admin Panel</strong> (in any institution mode), go to <strong>RollCall CBT Hub</strong>, and click <em>Download .rolllic License File</em>.</span>
-                    </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ============================================== -->
-        <!-- VIEW 2: EXAM SETUP & STUDENT SELECTION         -->
-        <!-- ============================================== -->
-        <section class="cbt-view" id="view-setup-exam">
-            <div class="setup-container">
-                <!-- License Info Header Banner -->
-                <div class="active-license-banner">
-                    <div class="banner-left">
-                        <div class="status-indicator-dot online"></div>
-                        <div>
-                            <strong id="setup-inst-title">Licensed Institution</strong>
-                            <span id="setup-license-expiry" class="expiry-text">Valid until ...</span>
-                            <span id="setup-license-devices" class="expiry-text">Devices remaining ...</span>
-                        </div>
-                    </div>
-                    <div class="banner-right">
-                        <span class="offline-ready-pill"><i class="fas fa-check-circle"></i> Offline Ready</span>
-                        <button type="button" class="btn-subtle" id="btn-relicense">
-                            <i class="fas fa-id-badge"></i> License Info
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Dropzone / Upload Area -->
-                <div class="upload-dropzone" id="exam-file-dropzone">
-                    <input type="file" id="input-hidden-exam-file" accept=".rollcbt" hidden>
-                    <div class="dropzone-content">
-                        <div class="dropzone-icon-pulse">
-                            <i class="fas fa-file-code"></i>
-                        </div>
-                        <h3>Upload Offline RollCall Exam File</h3>
-                        <p>Select the <code>.rollcbt</code> encrypted package made by the portal containing all exam questions and student profiles.</p>
-                        <div class="dropzone-buttons">
-                            <button type="button" class="btn-primary-action" id="btn-browse-exam-file">
-                                <i class="fas fa-folder-open"></i> Browse .rollcbt File
-                            </button>
-                            <button type="button" class="btn-secondary-action" id="btn-load-sample-exam">
-                                <i class="fas fa-magic"></i> Load Built-in Demo Exam
-                            </button>
-                        </div>
-                        <span class="file-format-badge">
-                            <i class="fas fa-shield-alt"></i> Complete Offline Execution · SHA-256 Tamper Protection
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Loaded Exam Details Box (Hidden until file is loaded) -->
-                <div class="exam-inspect-container hidden" id="exam-inspect-container">
-                    <div class="exam-meta-card">
-                        <div class="meta-card-header">
-                            <div>
-                                <span class="badge-subject" id="inspect-exam-subject">SCIENCE</span>
-                                <h2 id="inspect-exam-title">Annual CBT Assessment 2026</h2>
-                                <span class="exam-code" id="inspect-exam-code">CODE: SCI-TERM2</span>
-                            </div>
-                            <div class="exam-time-mark-badges">
-                                <div class="badge-metric">
-                                    <i class="fas fa-clock"></i>
-                                    <div>
-                                        <span class="metric-val" id="inspect-exam-duration">60</span>
-                                        <span class="metric-lbl">Minutes</span>
-                                    </div>
+                    <!-- Right Activation Form Area (Exact RollCall ERP ErpLicenseGate style) -->
+                    <section class="startup-content">
+                        <div class="startup-form-area">
+                            <!-- If station is already licensed, show School Workspace Card -->
+                            <div class="school-identity-card" id="license-active-identity" style="display: none;">
+                                <div class="school-identity-icon">
+                                    <i class="fas fa-building"></i>
                                 </div>
-                                <div class="badge-metric">
-                                    <i class="fas fa-award"></i>
-                                    <div>
-                                        <span class="metric-val" id="inspect-exam-marks">100</span>
-                                        <span class="metric-lbl">Marks</span>
-                                    </div>
-                                </div>
-                                <div class="badge-metric">
-                                    <i class="fas fa-list-ol"></i>
-                                    <div>
-                                        <span class="metric-val" id="inspect-exam-questions">25</span>
-                                        <span class="metric-lbl">Questions</span>
+                                <div class="school-identity-text">
+                                    <div class="school-identity-label">SCHOOL WORKSPACE</div>
+                                    <h2 class="school-identity-name" id="active-school-name">RollCall Institution</h2>
+                                    <div class="school-identity-meta" id="active-device-info">
+                                        Station Activated · Valid until --
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Anti-cheat rules badges -->
-                        <div class="anti-cheat-tags" id="inspect-rules-tags">
-                            <span class="rule-tag"><i class="fas fa-expand-arrows-alt"></i> Kiosk Lockdown</span>
-                            <span class="rule-tag"><i class="fas fa-video"></i> Webcam Proctoring</span>
-                            <span class="rule-tag"><i class="fas fa-shield-alt"></i> Blur Detection (Max 3 Strikes)</span>
-                            <span class="rule-tag"><i class="fas fa-random"></i> Shuffled Questions</span>
-                        </div>
-
-                        <!-- Instructions -->
-                        <div class="instructions-accordion">
-                            <h4><i class="fas fa-book-reader"></i> Candidate Exam Instructions</h4>
-                            <p id="inspect-exam-instructions">Loading instructions...</p>
-                        </div>
-                    </div>
-
-                    <!-- Candidate Selection Section (Loaded from .rollcbt) -->
-                    <div class="candidate-verification-card">
-                        <div class="verification-header">
-                            <div>
-                                <h3><i class="fas fa-user-check"></i> Candidate Selection &amp; Verification</h3>
-                                <p>Select your candidate identity from the authorized student roster included in this exam file.</p>
+                            <div class="gate-header">
+                                <span class="gate-eyebrow">STATION LICENSING</span>
+                                <h2 class="gate-title" id="gate-main-title">Activate RollCall CBT</h2>
+                                <p class="gate-desc" id="gate-main-desc">
+                                    Insert the authorized USB drive containing the school <code>.rolllic</code> file to activate this station. Offline verification is required for activation.
+                                </p>
                             </div>
-                            <span class="candidate-count-badge" id="inspect-candidate-count">0 Candidates Loaded</span>
-                        </div>
 
-                        <div class="candidate-filter-row">
-                            <div class="input-with-icon search-box">
-                                <i class="fas fa-search"></i>
-                                <input type="text" id="input-candidate-search" placeholder="Search by Roll No or Student Name...">
+                            <!-- Alert Box -->
+                            <div class="erp-alert alert-info" id="license-gate-alert">
+                                <i class="fas fa-info-circle"></i>
+                                <span id="license-gate-alert-text">
+                                    Connect the administrative USB drive with the active CBT plan license issued from your school's RollCall Admin Panel.
+                                </span>
                             </div>
-                        </div>
 
-                        <!-- Candidate Roster List Grid -->
-                        <div class="candidate-list-grid" id="candidate-list-grid">
-                            <!-- Injected dynamically -->
-                        </div>
-
-                        <!-- Selected Candidate PIN Verification Modal / Box -->
-                        <div class="candidate-confirm-box hidden" id="candidate-confirm-box">
-                            <div class="selected-student-pill">
-                                <div class="student-avatar-icon">
-                                    <i class="fas fa-user-graduate"></i>
+                            <!-- Removable USB Storage Status Card -->
+                            <div class="usb-status-box" id="usb-storage-status">
+                                <div class="usb-status-left">
+                                    <div class="usb-status-icon">
+                                        <i class="fas fa-usb"></i>
+                                    </div>
+                                    <div class="usb-status-info">
+                                        <strong id="usb-drive-title">Checking USB Storage...</strong>
+                                        <span id="usb-drive-subtitle">Scanning for removable drives</span>
+                                    </div>
                                 </div>
-                                <div class="student-pill-details">
-                                    <h4 id="confirm-student-name">Student Name</h4>
-                                    <span>Roll No: <strong id="confirm-student-roll">101</strong> · Class: <span id="confirm-student-class">Class 10-A</span></span>
-                                </div>
-                                <button type="button" class="btn-change-student" id="btn-change-student">
-                                    <i class="fas fa-exchange-alt"></i> Change
+                                <button type="button" class="btn-usb-refresh" id="btn-refresh-usb" title="Scan USB ports again">
+                                    <i class="fas fa-rotate"></i> Scan USB
                                 </button>
                             </div>
 
-                            <div class="pin-verify-input-row" id="pin-verify-row">
-                                <label for="input-candidate-pin">Enter Candidate PIN / Access Passcode:</label>
-                                <div class="pin-row-group">
-                                    <input type="password" id="input-candidate-pin" placeholder="Enter PIN from Teacher / Admit Slip" maxlength="32">
-                                    <button type="button" class="btn-verify-pin" id="btn-verify-pin">
-                                        <i class="fas fa-check"></i> Confirm PIN
+                            <!-- Station Machine Fingerprint Field -->
+                            <div class="fingerprint-field">
+                                <label for="display-machine-fingerprint">Station hardware identifier</label>
+                                <div class="fingerprint-input-wrap">
+                                    <i class="fas fa-microchip"></i>
+                                    <span id="display-machine-fingerprint">DETECTING...</span>
+                                </div>
+                            </div>
+
+                            <!-- License Dropzone (Native external file selection) -->
+                            <div class="erp-dropzone license-dropzone" id="license-file-dropzone" style="margin-bottom: 20px;">
+                                <input type="file" id="input-hidden-license-file" accept=".rolllic,.cbtlic,.json" hidden>
+                                <div class="dropzone-icon-box">
+                                    <i class="fas fa-id-card"></i>
+                                </div>
+                                <h3>Select License File from USB</h3>
+                                <p>Choose the <code>.rolllic</code> file located directly on your connected removable storage drive.</p>
+                                <div class="dropzone-actions">
+                                    <button type="button" class="btn-erp-primary" id="btn-browse-license-file" style="max-width: 280px;">
+                                        <i class="fas fa-folder-open"></i> Select .rolllic File
                                     </button>
                                 </div>
-                                <span class="pin-status-msg" id="pin-status-msg"></span>
+                                <button type="button" class="btn-erp-subtle" id="btn-test-license-file" style="margin-top: 10px;" hidden>
+                                    <i class="fas fa-flask"></i> Local Test License
+                                </button>
+                            </div>
+
+                            <!-- Action button when already licensed -->
+                            <div id="active-license-actions" style="display: none; margin-bottom: 20px;">
+                                <button type="button" class="btn-erp-primary" id="btn-continue-to-setup" style="margin-bottom: 10px;">
+                                    <i class="fas fa-arrow-right"></i> Continue to Exam Station
+                                </button>
+                                <button type="button" class="btn-erp-danger" id="btn-deactivate-station" style="width: 100%;">
+                                    <i class="fas fa-trash-can"></i> Deactivate Station License
+                                </button>
+                            </div>
+
+                            <!-- Manual Key fallback (Hidden) -->
+                            <div class="manual-code-toggle-wrap" hidden>
+                                <button type="button" class="btn-erp-subtle" id="btn-toggle-manual-license">
+                                    Manual Code
+                                </button>
+                                <form id="license-manual-form" class="hidden">
+                                    <input type="text" id="input-license-school-code">
+                                    <textarea id="input-license-key"></textarea>
+                                </form>
                             </div>
                         </div>
 
-                        <!-- System Diagnostics & Readiness Checklist -->
-                        <div class="system-readiness-panel" id="system-readiness-panel">
-                            <h4><i class="fas fa-stethoscope"></i> Hardware &amp; Security Diagnostics</h4>
-                            <div class="diagnostics-grid">
-                                <div class="diagnostic-item" id="diag-fullscreen">
-                                    <i class="fas fa-expand-alt diag-icon"></i>
-                                    <div class="diag-text">
-                                        <strong>Fullscreen Kiosk</strong>
-                                        <span>Ready to enforce secure lockdown</span>
-                                    </div>
-                                    <i class="fas fa-check-circle diag-status pass"></i>
-                                </div>
+                        <div class="startup-content-foot">
+                            Where to get the license file? RollCall Admin Panel &gt; RollCall CBT Hub &gt; Download .rolllic
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </section>
 
-                                <div class="diagnostic-item" id="diag-webcam">
-                                    <i class="fas fa-video diag-icon"></i>
-                                    <div class="diag-text">
-                                        <strong>Webcam Feed</strong>
-                                        <span id="diag-webcam-text">Checking camera stream...</span>
-                                    </div>
-                                    <i class="fas fa-spinner fa-spin diag-status pending" id="diag-webcam-status"></i>
-                                </div>
-
-                                <div class="diagnostic-item" id="diag-storage">
-                                    <i class="fas fa-database diag-icon"></i>
-                                    <div class="diag-text">
-                                        <strong>Offline Cache</strong>
-                                        <span>Auto-save &amp; crash protection ready</span>
-                                    </div>
-                                    <i class="fas fa-check-circle diag-status pass"></i>
-                                </div>
+        <!-- ======================================================== -->
+        <!-- VIEW 2: STAGE 2 - EXAM STATION SETUP & ROSTER ALLOCATION -->
+        <!-- ======================================================== -->
+        <section class="cbt-view" id="view-setup-exam">
+            <div class="erp-container">
+                <!-- Station Status Card -->
+                <div class="erp-card" style="padding: 20px 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 14px;">
+                            <div class="school-identity-icon" style="width: 40px; height: 40px; flex: 0 0 40px; font-size: 1.1rem;">
+                                <i class="fas fa-school"></i>
                             </div>
-
-                            <!-- Live Camera Preview Box -->
-                            <div class="webcam-preview-box" id="webcam-preview-container">
-                                <video id="setup-webcam-video" autoplay playsinline muted></video>
-                                <div class="face-guide-overlay">
-                                    <div class="face-oval"></div>
-                                    <span>Center your face within frame</span>
+                            <div>
+                                <h3 style="font-size: 1.1rem; font-weight: 750; color: #172044; margin: 0;" id="setup-inst-title">
+                                    RollCall Institution
+                                </h3>
+                                <div style="display: flex; gap: 12px; margin-top: 3px; font-size: 0.8rem; color: var(--rc-text-secondary);">
+                                    <span id="setup-license-expiry">Valid until ...</span>
+                                    <span>·</span>
+                                    <span id="setup-license-devices">Devices remaining: ...</span>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Honor Code & Start Button -->
-                        <div class="exam-start-actions">
-                            <label class="honor-code-checkbox">
-                                <input type="checkbox" id="check-honor-code">
-                                <span>I affirm that I will uphold academic integrity, will not switch tabs or access unauthorized materials, and agree to the exam proctoring rules.</span>
-                            </label>
-
-                            <button type="button" class="btn-start-exam-hall" id="btn-enter-exam-hall" disabled>
-                                <i class="fas fa-lock"></i> Enter Secure Exam Hall &amp; Start Test
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" class="btn-erp-light" id="btn-switch-license-view">
+                                <i class="fas fa-id-card"></i> Manage License
                             </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 1: Upload Exam Package (.rollcbt) -->
+                <div class="erp-card">
+                    <div class="erp-card-header">
+                        <div class="erp-card-header-left">
+                            <small>STEP 1 · EXAM INITIALIZATION</small>
+                            <h2>Upload Offline Exam Package</h2>
+                            <p>Select the encrypted <code>.rollcbt</code> exam package exported from the Teacher or Admin Portal.</p>
+                        </div>
+                    </div>
+
+                    <div class="erp-dropzone" id="exam-file-dropzone">
+                        <input type="file" id="input-hidden-exam-file" accept=".rollcbt" hidden>
+                        <div class="dropzone-icon-box">
+                            <i class="fas fa-file-circle-check"></i>
+                        </div>
+                        <h3>Upload .rollcbt Exam Package</h3>
+                        <p>Drop the file here, or click Browse to select from USB or local drive.</p>
+                        <div class="dropzone-actions">
+                            <button type="button" class="btn-erp-primary" id="btn-browse-exam-file" style="max-width: 260px;">
+                                <i class="fas fa-folder-open"></i> Browse .rollcbt File
+                            </button>
+                            <button type="button" class="btn-erp-light" id="btn-load-sample-exam">
+                                <i class="fas fa-flask"></i> Load Demo Exam
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Inspected Exam Details (Revealed once file is loaded) -->
+                    <div id="exam-inspect-container" style="display: none; margin-top: 28px;">
+                        <!-- 4-Column Metrics Grid -->
+                        <div class="exam-meta-grid">
+                            <div class="meta-metric-card">
+                                <span>Subject</span>
+                                <strong id="inspect-exam-subject">General</strong>
+                            </div>
+                            <div class="meta-metric-card">
+                                <span>Exam Code</span>
+                                <strong id="inspect-exam-code">EXAM-01</strong>
+                            </div>
+                            <div class="meta-metric-card">
+                                <span>Duration</span>
+                                <strong id="inspect-exam-duration">60 Mins</strong>
+                            </div>
+                            <div class="meta-metric-card">
+                                <span>Total Marks</span>
+                                <strong id="inspect-exam-marks">100</strong>
+                            </div>
+                        </div>
+
+                        <!-- Device Roster Allocation Banner -->
+                        <div class="station-allocation-banner" id="station-device-banner">
+                            <i class="fas fa-network-wired"></i>
+                            <div>
+                                <strong id="inspect-exam-title">Exam Title</strong>
+                                <p id="inspect-device-allocation-text">
+                                    Station Roster Allocated: Candidates assigned for this device.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div style="font-size: 0.84rem; color: var(--rc-text-secondary); margin-bottom: 20px; padding: 12px 16px; background: #f8fafc; border-radius: var(--radius-sm); border: 1px solid var(--rc-border);" id="inspect-exam-instructions">
+                            Instructions: Answer all questions within the allocated duration.
+                        </div>
+
+                        <!-- Step 2: Candidate Verification & Selection -->
+                        <div class="candidate-selection-box">
+                            <div class="candidate-selection-header">
+                                <h4>Allocated Candidates (<span id="inspect-candidate-count">0</span>)</h4>
+                                <div style="max-width: 240px; width: 100%;">
+                                    <input type="text" id="input-candidate-search" placeholder="Search candidate..." style="width: 100%; padding: 6px 10px; border: 1px solid var(--rc-border); border-radius: 6px; font-size: 0.82rem;">
+                                </div>
+                            </div>
+
+                            <div class="candidate-cards-grid" id="candidate-list-grid">
+                                <!-- Populated dynamically by app.js -->
+                            </div>
+
+                            <!-- Selected Candidate Confirmation & PIN box -->
+                            <div class="pin-confirm-card" id="candidate-confirm-box" style="display: none;">
+                                <div>
+                                    <small style="color: var(--rc-text-dimmed); font-weight: 700; text-transform: uppercase; font-size: 0.72rem;">Selected Candidate</small>
+                                    <h3 style="font-size: 1.05rem; font-weight: 750; color: #172044; margin: 2px 0;" id="confirm-student-name">Candidate Name</h3>
+                                    <span style="font-size: 0.8rem; color: var(--rc-text-secondary);">
+                                        Roll #<span id="confirm-student-roll">1</span> · Class <span id="confirm-student-class">10</span>
+                                    </span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div class="pin-input-group" id="pin-verify-row" style="display: none;">
+                                        <input type="password" id="input-candidate-pin" maxlength="6" placeholder="PIN">
+                                        <button type="button" class="btn-erp-light" id="btn-verify-pin">Verify</button>
+                                        <span id="pin-status-msg" style="font-size: 0.78rem;"></span>
+                                    </div>
+                                    <button type="button" class="btn-erp-subtle" id="btn-change-student">
+                                        <i class="fas fa-user-pen"></i> Change
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Honor Code & Start Button -->
+                            <div class="honor-code-row">
+                                <input type="checkbox" id="check-honor-code">
+                                <label for="check-honor-code">
+                                    I confirm my candidate identity and agree to comply with examination regulations.
+                                </label>
+                            </div>
+
+                            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                                <button type="button" class="btn-erp-primary" id="btn-enter-exam-hall" style="max-width: 280px; height: 46px; font-size: 1rem;" disabled>
+                                    <i class="fas fa-play"></i> Start Examination
+                                </button>
+                            </div>
+
+                            <!-- Hidden diagnostics hooks for compatibility -->
+                            <div hidden>
+                                <span id="diag-webcam-status"></span>
+                                <span id="diag-webcam-text"></span>
+                                <video id="setup-webcam-video"></video>
+                                <span id="inspect-exam-questions"></span>
+                                <div id="inspect-rules-tags"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- ============================================== -->
-        <!-- VIEW 3: THE EXAM HALL (KIOSK SECURE TEST)      -->
-        <!-- ============================================== -->
+        <!-- ======================================================== -->
+        <!-- VIEW 3: STAGE 3 - FULLSCREEN EXAM HALL                   -->
+        <!-- ======================================================== -->
         <section class="cbt-view" id="view-exam-hall">
-            <div class="exam-hall-layout">
-                <!-- Exam Top Proctoring Navigation Bar -->
-                <div class="hall-topbar">
-                    <div class="hall-exam-info">
-                        <span class="hall-title" id="hall-exam-title">Exam Title</span>
-                        <span class="hall-subject-badge" id="hall-exam-subject">SUBJECT</span>
-                    </div>
+            <header class="hall-topbar">
+                <div class="hall-exam-info">
+                    <img src="assets/rollcall-icon.svg" width="28" height="28" alt="RollCall Logo">
+                    <h2 id="hall-exam-title">Examination Title</h2>
+                    <span class="subject-badge" id="hall-exam-subject">General</span>
+                </div>
 
-                    <!-- Live Proctoring Profile Card -->
-                    <div class="hall-candidate-chip">
-                        <div class="candidate-cam-thumb">
-                            <img id="hall-candidate-image" class="hall-candidate-image hidden" alt="Candidate profile photo">
-                            <video id="hall-proctor-video" autoplay playsinline muted></video>
-                            <span class="rec-pulse-dot" title="Proctoring Active"></span>
-                        </div>
-                        <div class="candidate-chip-text">
-                            <strong id="hall-candidate-name">Candidate Name</strong>
-                            <span id="hall-candidate-roll">Roll No: --</span>
-                        </div>
+                <div class="hall-candidate-badge">
+                    <img src="assets/rollcall-icon.svg" id="hall-candidate-image" alt="Candidate">
+                    <div class="hall-candidate-meta">
+                        <strong id="hall-candidate-name">Candidate</strong>
+                        <span>Roll: <span id="hall-candidate-roll">--</span></span>
                     </div>
+                </div>
 
-                    <!-- Anti-cheat strike counter -->
-                    <div class="hall-strikes-chip" id="hall-strikes-chip" title="Focus Loss Strikes">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span>Strikes: <strong id="hall-strike-count">0</strong>/<span id="hall-strike-max">3</span></span>
-                    </div>
-
-                    <!-- Countdown Timer -->
-                    <div class="hall-timer-chip" id="hall-timer-chip">
-                        <i class="fas fa-stopwatch"></i>
+                <div class="hall-status-group">
+                    <div class="timer-chip" id="hall-timer-chip">
+                        <i class="fas fa-clock"></i>
                         <span id="hall-timer-display">00:00:00</span>
                     </div>
 
-                    <!-- In-exam utilities buttons -->
-                    <div class="hall-utilities">
-                        <button type="button" class="util-btn" id="btn-font-smaller" title="Decrease Font">A-</button>
-                        <button type="button" class="util-btn" id="btn-font-larger" title="Increase Font">A+</button>
-                        <button type="button" class="util-btn" id="btn-toggle-calculator" title="Open Scientific Calculator">
-                            <i class="fas fa-calculator"></i>
+                    <div class="strike-pill" title="Security Strike Counter">
+                        <i class="fas fa-triangle-exclamation"></i>
+                        <span id="hall-strike-count">0</span> / <span id="hall-strike-max">3</span>
+                    </div>
+
+                    <button type="button" class="btn-topbar-icon" id="btn-toggle-calculator" title="Open Calculator">
+                        <i class="fas fa-calculator"></i>
+                    </button>
+                    <button type="button" class="btn-topbar-icon" id="btn-toggle-scratchpad" title="Open Scratchpad">
+                        <i class="fas fa-pen-to-square"></i>
+                    </button>
+                    <button type="button" class="btn-topbar-icon" id="btn-font-smaller" title="Decrease Font">
+                        <i class="fas fa-font"></i>-
+                    </button>
+                    <button type="button" class="btn-topbar-icon" id="btn-font-larger" title="Increase Font">
+                        <i class="fas fa-font"></i>+
+                    </button>
+                </div>
+            </header>
+
+            <div class="hall-workspace-grid">
+                <!-- Main Question Area -->
+                <div class="hall-question-pane">
+                    <div class="section-tabs-bar" id="hall-sections-bar">
+                        <!-- Sections dynamically injected -->
+                    </div>
+
+                    <div class="question-card-shell">
+                        <div class="question-meta-header">
+                            <h3>Question <span id="q-current-number">1</span> of <span id="q-total-number">--</span></h3>
+                            <div class="question-marks-pills">
+                                <span class="marks-pill-pos">+<span id="q-marks-positive">1</span> Marks</span>
+                                <span class="marks-pill-neg">-<span id="q-marks-negative">0</span> Neg</span>
+                            </div>
+                        </div>
+
+                        <div class="question-text-area" id="q-text-content">
+                            Loading question...
+                        </div>
+
+                        <div class="options-list-wrap" id="q-options-container">
+                            <!-- Options dynamically injected -->
+                        </div>
+
+                        <div class="question-toolbar">
+                            <div class="toolbar-left">
+                                <button type="button" class="btn-erp-light" id="btn-q-prev">
+                                    <i class="fas fa-arrow-left"></i> Previous
+                                </button>
+                                <button type="button" class="btn-erp-subtle" id="btn-q-clear">
+                                    Clear Response
+                                </button>
+                                <button type="button" class="btn-erp-light" id="btn-q-review" style="color: var(--rc-brand-purple); border-color: #d7ccff; background: #fbf9ff;">
+                                    <i class="fas fa-bookmark"></i> Mark for Review
+                                </button>
+                            </div>
+                            <div class="toolbar-right">
+                                <span id="autosave-timestamp" style="font-size: 0.72rem; color: var(--rc-text-dimmed); align-self: center;"></span>
+                                <button type="button" class="btn-erp-primary" id="btn-q-save-next" style="width: 140px;">
+                                    Save &amp; Next <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Question Palette Pane -->
+                <aside class="hall-palette-pane">
+                    <div class="palette-legend">
+                        <div class="legend-item"><span class="legend-dot answered"></span> Answered (<span id="stat-count-answered">0</span>)</div>
+                        <div class="legend-item"><span class="legend-dot unanswered"></span> Unanswered (<span id="stat-count-unanswered">0</span>)</div>
+                        <div class="legend-item"><span class="legend-dot review"></span> Marked Review (<span id="stat-count-review">0</span>)</div>
+                    </div>
+
+                    <h4 style="font-size: 0.85rem; font-weight: 750; color: #172044; margin-bottom: 12px;">Questions Palette</h4>
+                    <div class="palette-grid" id="palette-buttons-grid">
+                        <!-- Number buttons 1 to N -->
+                    </div>
+
+                    <div class="palette-footer">
+                        <button type="button" class="btn-erp-danger" id="btn-finish-test" style="width: 100%; height: 44px; font-size: 0.95rem;">
+                            <i class="fas fa-check-circle"></i> Finish &amp; Submit Exam
                         </button>
-                        <button type="button" class="util-btn" id="btn-toggle-scratchpad" title="Open Scratchpad">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Sections Tab Bar -->
-                <div class="hall-sections-bar" id="hall-sections-bar">
-                    <!-- Injected dynamically -->
-                </div>
-
-                <!-- Main Hall Work Area: Question on Left, Palette on Right -->
-                <div class="hall-main-workarea">
-                    <!-- Left: Question Panel -->
-                    <div class="hall-question-panel">
-                        <div class="question-header-row">
-                            <div class="q-number-pill">
-                                Question <span id="q-current-number">1</span> of <span id="q-total-number">25</span>
-                            </div>
-                            <div class="q-marks-pill">
-                                Marks: <strong id="q-marks-positive">+1.0</strong> | Neg: <strong id="q-marks-negative">0.0</strong>
-                            </div>
-                        </div>
-
-                        <!-- Question Text Container -->
-                        <div class="question-body" id="question-body-container">
-                            <div class="question-text" id="q-text-content">
-                                Loading question...
-                            </div>
-                        </div>
-
-                        <!-- Options / Answer Selection Area -->
-                        <div class="question-options" id="q-options-container">
-                            <!-- Dynamic radio, checkboxes, or text input -->
-                        </div>
-
-                        <!-- Question Action Bar -->
-                        <div class="question-actions-bar">
-                            <div class="actions-left">
-                                <button type="button" class="btn-q-action btn-q-clear" id="btn-q-clear">
-                                    <i class="fas fa-undo"></i> Clear Response
-                                </button>
-                                <button type="button" class="btn-q-action btn-q-review" id="btn-q-review">
-                                    <i class="fas fa-flag"></i> Mark for Review &amp; Next
-                                </button>
-                            </div>
-                            <div class="actions-right">
-                                <button type="button" class="btn-q-action btn-q-prev" id="btn-q-prev">
-                                    <i class="fas fa-chevron-left"></i> Previous
-                                </button>
-                                <button type="button" class="btn-q-action btn-q-save-next" id="btn-q-save-next">
-                                    Save &amp; Next <i class="fas fa-chevron-right"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Live auto-save footer indicator -->
-                        <div class="autosave-status-bar">
-                            <i class="fas fa-shield-alt"></i>
-                            <span id="autosave-timestamp">Responses auto-saved locally on device.</span>
-                        </div>
                     </div>
 
-                    <!-- Right: Question Palette / Navigator -->
-                    <div class="hall-palette-panel">
-                        <div class="palette-header">
-                            <h4><i class="fas fa-th"></i> Question Palette</h4>
-                            <div class="palette-legend">
-                                <div class="legend-item"><span class="legend-color answered"></span> Answered</div>
-                                <div class="legend-item"><span class="legend-color not-answered"></span> Not Answered</div>
-                                <div class="legend-item"><span class="legend-color review"></span> Marked for Review</div>
-                                <div class="legend-item"><span class="legend-color review-answered"></span> Answered &amp; Review</div>
-                                <div class="legend-item"><span class="legend-color not-visited"></span> Not Visited</div>
-                            </div>
-                        </div>
-
-                        <!-- Status Counts Grid -->
-                        <div class="palette-stats-row">
-                            <div class="stat-bubble answered">
-                                <strong id="stat-count-answered">0</strong>
-                                <span>Answered</span>
-                            </div>
-                            <div class="stat-bubble unanswered">
-                                <strong id="stat-count-unanswered">0</strong>
-                                <span>Unanswered</span>
-                            </div>
-                            <div class="stat-bubble review">
-                                <strong id="stat-count-review">0</strong>
-                                <span>Review</span>
-                            </div>
-                        </div>
-
-                        <!-- Palette Buttons Grid -->
-                        <div class="palette-grid" id="palette-buttons-grid">
-                            <!-- Dynamic question buttons -->
-                        </div>
-
-                        <!-- Finish Exam Button -->
-                        <div class="palette-footer">
-                            <button type="button" class="btn-finish-test" id="btn-finish-test">
-                                <i class="fas fa-check-double"></i> Submit &amp; Finish Exam
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                    <video id="hall-proctor-video" hidden></video>
+                </aside>
             </div>
         </section>
 
-        <!-- ============================================== -->
-        <!-- VIEW 4: RESULTS & OFFICIAL SUBMISSION RECORD   -->
-        <!-- ============================================== -->
+        <!-- ======================================================== -->
+        <!-- VIEW 4: STAGE 4 - EXAM RESULTS & SUBMISSION RECEIPT      -->
+        <!-- ======================================================== -->
         <section class="cbt-view" id="view-results">
-            <div class="results-container">
-                <div class="results-card">
-                    <div class="result-header">
-                        <div class="result-badge-icon" id="result-badge-icon">
-                            <i class="fas fa-trophy"></i>
-                        </div>
-                        <h2 id="result-candidate-greeting">Exam Completed!</h2>
-                        <p id="result-subtitle">Official candidate submission summary and performance record.</p>
+            <div class="results-page-shell">
+                <div class="receipt-card">
+                    <div class="receipt-badge-circle" id="result-badge-icon">
+                        <i class="fas fa-check"></i>
                     </div>
 
-                    <!-- Score Metrics Grid -->
-                    <div class="score-metrics-grid">
-                        <div class="metric-card card-score">
-                            <span class="metric-label">Total Score</span>
-                            <div class="score-display">
-                                <strong id="result-score-val">0</strong>
-                                <span>/ <span id="result-total-val">100</span></span>
-                            </div>
-                            <span class="percentage-pill" id="result-percentage-pill">0%</span>
-                        </div>
+                    <h2 id="result-candidate-greeting">Exam Submitted Successfully</h2>
+                    <p id="result-subtitle">Your responses have been securely packaged and verified.</p>
 
-                        <div class="metric-card card-status">
-                            <span class="metric-label">Evaluation Status</span>
-                            <div class="status-display" id="result-status-text">PASSED</div>
-                            <span class="status-subtext" id="result-status-sub">Minimum Pass: 40%</span>
+                    <div class="score-stats-grid">
+                        <div class="score-box">
+                            <small>Score</small>
+                            <strong><span id="result-score-val">0</span> / <span id="result-total-val">0</span></strong>
+                            <span id="result-percentage-pill" class="code-pill" style="margin-top: 4px; display: inline-block;">0%</span>
                         </div>
-
-                        <div class="metric-card card-accuracy">
-                            <span class="metric-label">Accuracy</span>
-                            <div class="score-display">
-                                <strong id="result-accuracy-val">0%</strong>
-                            </div>
-                            <span class="accuracy-subtext" id="result-accuracy-details">0 Correct · 0 Wrong</span>
+                        <div class="score-box">
+                            <small>Result Status</small>
+                            <strong id="result-status-text">Completed</strong>
+                            <span id="result-status-sub" style="font-size: 0.75rem; color: var(--rc-text-dimmed); display: block; margin-top: 4px;">Verified</span>
                         </div>
-
-                        <div class="metric-card card-time">
-                            <span class="metric-label">Time Taken</span>
-                            <div class="score-display">
-                                <strong id="result-time-taken">00m 00s</strong>
-                            </div>
-                            <span class="time-subtext" id="result-anti-cheat-status">Anti-Cheat: Clean</span>
+                        <div class="score-box">
+                            <small>Accuracy</small>
+                            <strong id="result-accuracy-val">0%</strong>
+                            <span id="result-accuracy-details" style="font-size: 0.75rem; color: var(--rc-text-dimmed); display: block; margin-top: 4px;">0 correct</span>
                         </div>
                     </div>
 
-                    <!-- Submission File Download & Verification Action -->
-                    <div class="submission-export-box">
-                        <div class="export-box-left">
-                            <i class="fas fa-file-shield"></i>
-                            <div>
-                                <h4>Official Submission Package (.rollcbt-sub)</h4>
-                                <p>Signed with SHA-256 HMAC digital seal. Save this file to submit to your teacher or administrator.</p>
-                            </div>
-                        </div>
-                        <div class="export-box-right">
-                            <button type="button" class="btn-primary-glow" id="btn-download-submission">
-                                <i class="fas fa-download"></i> Save .rollcbt-sub File
-                            </button>
-                            <button type="button" class="btn-secondary-action" id="btn-print-result">
-                                <i class="fas fa-print"></i> Print Scorecard
-                            </button>
-                        </div>
+                    <div style="font-size: 0.82rem; color: var(--rc-text-dimmed); display: flex; justify-content: center; gap: 20px; margin-bottom: 24px;">
+                        <span><i class="fas fa-clock"></i> Time taken: <strong id="result-time-taken">0 mins</strong></span>
+                        <span><i class="fas fa-shield"></i> Security log: <strong id="result-anti-cheat-status">0 strikes</strong></span>
                     </div>
 
-                    <!-- Detailed Question-by-Question Review (if enabled) -->
-                    <div class="review-accordion" id="results-review-accordion">
-                        <h3><i class="fas fa-clipboard-check"></i> Answer Review &amp; Explanations</h3>
-                        <div class="review-questions-list" id="review-questions-list">
-                            <!-- Injected dynamically -->
-                        </div>
-                    </div>
-
-                    <div class="result-actions-footer">
-                        <button type="button" class="btn-subtle" id="btn-back-to-home">
-                            <i class="fas fa-home"></i> Return to Setup Screen
+                    <div class="receipt-actions">
+                        <button type="button" class="btn-erp-primary" id="btn-download-submission">
+                            <i class="fas fa-download"></i> Download Submission (.json)
+                        </button>
+                        <button type="button" class="btn-erp-light" id="btn-print-result">
+                            <i class="fas fa-print"></i> Print Result Slip
+                        </button>
+                        <button type="button" class="btn-erp-subtle" id="btn-back-to-home">
+                            <i class="fas fa-arrow-left"></i> Station Home
                         </button>
                     </div>
+
+                    <div id="review-questions-list" style="margin-top: 30px; text-align: left;"></div>
                 </div>
             </div>
         </section>
+
+        <!-- Modals -->
+        <!-- Submit Confirmation Modal -->
+        <div class="erp-modal-overlay" id="modal-submit-confirm" style="display: none;">
+            <div class="erp-modal-card">
+                <div class="erp-modal-header">
+                    <h3>Confirm Final Submission</h3>
+                </div>
+                <div class="erp-modal-body">
+                    <p style="font-size: 0.9rem; color: var(--rc-text-secondary); margin-bottom: 16px;">
+                        Are you sure you want to finish and submit your examination? Once submitted, you cannot change your answers.
+                    </p>
+                    <div style="background: #f8fafc; border-radius: 8px; padding: 14px; border: 1px solid var(--rc-border); display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center;">
+                        <div>
+                            <span style="font-size: 0.72rem; color: var(--rc-text-dimmed); font-weight: 700; text-transform: uppercase;">Answered</span>
+                            <strong style="display: block; font-size: 1.2rem; color: var(--rc-success);" id="confirm-count-answered">0</strong>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.72rem; color: var(--rc-text-dimmed); font-weight: 700; text-transform: uppercase;">Unanswered</span>
+                            <strong style="display: block; font-size: 1.2rem; color: var(--rc-error);" id="confirm-count-unanswered">0</strong>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.72rem; color: var(--rc-text-dimmed); font-weight: 700; text-transform: uppercase;">Review</span>
+                            <strong style="display: block; font-size: 1.2rem; color: var(--rc-brand-purple);" id="confirm-count-review">0</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="erp-modal-footer">
+                    <button type="button" class="btn-erp-subtle" id="btn-cancel-submit">Continue Exam</button>
+                    <button type="button" class="btn-erp-danger" id="btn-confirm-final-submit">Yes, Submit Exam</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Strike Notification Modal -->
+        <div class="erp-modal-overlay" id="modal-anti-cheat" style="display: none;">
+            <div class="erp-modal-card">
+                <div class="erp-modal-header" style="background: #fff1f1;">
+                    <h3 style="color: var(--rc-error);"><i class="fas fa-triangle-exclamation"></i> Security Warning</h3>
+                </div>
+                <div class="erp-modal-body">
+                    <p style="font-size: 0.92rem; color: var(--rc-text-primary); margin-bottom: 12px;">
+                        Window focus change or application blur detected. This action has been logged by the proctoring monitor.
+                    </p>
+                    <div style="padding: 12px 16px; background: #fff1f1; border-radius: 6px; border: 1px solid var(--rc-error-border); color: var(--rc-error); font-weight: 600; font-size: 0.88rem;">
+                        Strike count: <span id="modal-strike-val">1</span> of 3 strikes. Reaching 3 strikes will automatically submit your exam.
+                    </div>
+                </div>
+                <div class="erp-modal-footer">
+                    <button type="button" class="btn-erp-primary" id="btn-acknowledge-strike">I Understand</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calculator Modal -->
+        <div class="erp-modal-overlay" id="modal-calculator" style="display: none;">
+            <div class="erp-modal-card" style="width: 320px;">
+                <div class="erp-modal-header">
+                    <h3>Calculator</h3>
+                    <button type="button" class="btn-topbar-icon" id="btn-close-calc">&times;</button>
+                </div>
+                <div class="erp-modal-body">
+                    <div id="calc-display" style="background: #f8fafc; border: 1px solid var(--rc-border); border-radius: 8px; padding: 12px; font-family: var(--font-mono); font-size: 1.4rem; text-align: right; min-height: 48px; margin-bottom: 12px;">0</div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;" id="calc-keypad">
+                        <button class="btn-erp-light" data-val="C">C</button>
+                        <button class="btn-erp-light" data-val="(">(</button>
+                        <button class="btn-erp-light" data-val=")">)</button>
+                        <button class="btn-erp-light" data-val="/">/</button>
+                        <button class="btn-erp-subtle" data-val="7">7</button>
+                        <button class="btn-erp-subtle" data-val="8">8</button>
+                        <button class="btn-erp-subtle" data-val="9">9</button>
+                        <button class="btn-erp-light" data-val="*">&times;</button>
+                        <button class="btn-erp-subtle" data-val="4">4</button>
+                        <button class="btn-erp-subtle" data-val="5">5</button>
+                        <button class="btn-erp-subtle" data-val="6">6</button>
+                        <button class="btn-erp-light" data-val="-">-</button>
+                        <button class="btn-erp-subtle" data-val="1">1</button>
+                        <button class="btn-erp-subtle" data-val="2">2</button>
+                        <button class="btn-erp-subtle" data-val="3">3</button>
+                        <button class="btn-erp-light" data-val="+">+</button>
+                        <button class="btn-erp-subtle" data-val="0">0</button>
+                        <button class="btn-erp-subtle" data-val=".">.</button>
+                        <button class="btn-erp-subtle" data-val="BACK"><i class="fas fa-delete-left"></i></button>
+                        <button class="btn-erp-primary" data-val="=">=</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scratchpad Modal -->
+        <div class="erp-modal-overlay" id="modal-scratchpad" style="display: none;">
+            <div class="erp-modal-card" style="width: 540px;">
+                <div class="erp-modal-header">
+                    <h3>Scratchpad (Rough Work)</h3>
+                    <button type="button" class="btn-topbar-icon" id="btn-close-scratchpad">&times;</button>
+                </div>
+                <div class="erp-modal-body">
+                    <textarea id="scratchpad-textarea" style="width: 100%; height: 260px; padding: 12px; border: 1px solid var(--rc-border); border-radius: 8px; font-family: var(--font-mono); font-size: 0.9rem; resize: none;" placeholder="Write rough notes and calculations here..."></textarea>
+                </div>
+                <div class="erp-modal-footer">
+                    <button type="button" class="btn-erp-subtle" id="btn-clear-scratchpad">Clear Notes</button>
+                    <button type="button" class="btn-erp-primary" id="btn-save-scratchpad" style="width: 100px;">Done</button>
+                </div>
+            </div>
+        </div>
     </main>
-
-    <!-- FLOATING MODAL: SCIENTIFIC CALCULATOR -->
-    <div class="floating-modal" id="modal-calculator" hidden>
-        <div class="modal-card calculator-card">
-            <div class="modal-header">
-                <h4><i class="fas fa-calculator"></i> Scientific Calculator</h4>
-                <button type="button" class="btn-close-modal" id="btn-close-calc">&times;</button>
-            </div>
-            <div class="calc-screen" id="calc-display">0</div>
-            <div class="calc-buttons-grid">
-                <button class="calc-btn btn-func" data-val="sin">sin</button>
-                <button class="calc-btn btn-func" data-val="cos">cos</button>
-                <button class="calc-btn btn-func" data-val="tan">tan</button>
-                <button class="calc-btn btn-func" data-val="sqrt">√</button>
-                <button class="calc-btn btn-func" data-val="pow">xʸ</button>
-
-                <button class="calc-btn btn-func" data-val="log">log</button>
-                <button class="calc-btn btn-func" data-val="ln">ln</button>
-                <button class="calc-btn btn-func" data-val="(">(</button>
-                <button class="calc-btn btn-func" data-val=")">)</button>
-                <button class="calc-btn btn-clear" data-val="C">C</button>
-
-                <button class="calc-btn" data-val="7">7</button>
-                <button class="calc-btn" data-val="8">8</button>
-                <button class="calc-btn" data-val="9">9</button>
-                <button class="calc-btn btn-op" data-val="/">÷</button>
-                <button class="calc-btn btn-op" data-val="*">×</button>
-
-                <button class="calc-btn" data-val="4">4</button>
-                <button class="calc-btn" data-val="5">5</button>
-                <button class="calc-btn" data-val="6">6</button>
-                <button class="calc-btn btn-op" data-val="-">−</button>
-                <button class="calc-btn btn-func" data-val="pi">π</button>
-
-                <button class="calc-btn" data-val="1">1</button>
-                <button class="calc-btn" data-val="2">2</button>
-                <button class="calc-btn" data-val="3">3</button>
-                <button class="calc-btn btn-op" data-val="+">+</button>
-                <button class="calc-btn btn-equals" data-val="=">=</button>
-
-                <button class="calc-btn span-2" data-val="0">0</button>
-                <button class="calc-btn" data-val=".">.</button>
-                <button class="calc-btn btn-func" data-val="DEL">⌫</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- FLOATING MODAL: SCRATCHPAD MEMO -->
-    <div class="floating-modal" id="modal-scratchpad" hidden>
-        <div class="modal-card scratchpad-card">
-            <div class="modal-header">
-                <h4><i class="fas fa-edit"></i> Rough Work Scratchpad</h4>
-                <button type="button" class="btn-close-modal" id="btn-close-scratchpad">&times;</button>
-            </div>
-            <textarea id="scratchpad-textarea" placeholder="Type or write rough notes, formula scratchings, and work steps here. Everything is stored locally during the session..."></textarea>
-            <div class="scratchpad-footer">
-                <button type="button" class="btn-subtle" id="btn-clear-scratchpad">Clear Notes</button>
-                <span>Saved continuously offline</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- FLOATING MODAL: ANTI-CHEAT STRIKE WARNING -->
-    <div class="overlay-modal" id="modal-anti-cheat" hidden>
-        <div class="anti-cheat-alert-card">
-            <div class="alert-icon-ring">
-                <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <h3>Security Violation Detected!</h3>
-            <p>You navigated away from the exam window or pressed an unauthorized shortcut. Focus loss has been recorded.</p>
-            <div class="strike-warning-banner">
-                <span>STRIKE RECORDED: </span>
-                <strong id="modal-strike-val">1 OF 3</strong>
-            </div>
-            <p class="strike-consequence">Exceeding the strike limit will immediately lock or auto-submit your examination session.</p>
-            <button type="button" class="btn-primary-action" id="btn-acknowledge-strike">
-                I Understand &amp; Return to Exam
-            </button>
-        </div>
-    </div>
-
-    <!-- FLOATING MODAL: SUBMIT CONFIRMATION -->
-    <div class="overlay-modal" id="modal-submit-confirm" hidden>
-        <div class="confirm-submit-card">
-            <div class="submit-card-icon">
-                <i class="fas fa-question-circle"></i>
-            </div>
-            <h3>Confirm Exam Submission</h3>
-            <p>Are you sure you want to finish and submit your exam? You cannot change your answers after submission.</p>
-
-            <div class="submission-summary-pills">
-                <div class="pill-summary answered">
-                    <strong id="confirm-count-answered">0</strong>
-                    <span>Answered</span>
-                </div>
-                <div class="pill-summary unanswered">
-                    <strong id="confirm-count-unanswered">0</strong>
-                    <span>Unanswered</span>
-                </div>
-                <div class="pill-summary review">
-                    <strong id="confirm-count-review">0</strong>
-                    <span>Marked for Review</span>
-                </div>
-            </div>
-
-            <div class="confirm-buttons-row">
-                <button type="button" class="btn-secondary-action" id="btn-cancel-submit">
-                    Continue Exam
-                </button>
-                <button type="button" class="btn-primary-glow" id="btn-confirm-final-submit">
-                    Yes, Submit My Exam
-                </button>
-            </div>
-        </div>
-    </div>
 
     <script src="js/app.js"></script>
 </body>

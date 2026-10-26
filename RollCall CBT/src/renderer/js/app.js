@@ -40,11 +40,28 @@
         // Topbar
         el.topbarInstName = document.getElementById('topbar-institution-name');
         el.topbarSchoolCode = document.getElementById('topbar-school-code');
+        el.topbarStationId = document.getElementById('topbar-station-id');
+        el.topbarStationPill = document.getElementById('topbar-station-pill');
         el.btnThemeToggle = document.getElementById('btn-theme-toggle');
         el.btnFullscreenToggle = document.getElementById('btn-fullscreen-toggle');
         el.btnExitApp = document.getElementById('btn-exit-app');
 
-        // License Gate
+        // License Gate (RollCall ERP Startup Layout)
+        el.licenseActiveIdentity = document.getElementById('license-active-identity');
+        el.activeSchoolName = document.getElementById('active-school-name');
+        el.activeDeviceInfo = document.getElementById('active-device-info');
+        el.activeLicenseActions = document.getElementById('active-license-actions');
+        el.btnContinueToSetup = document.getElementById('btn-continue-to-setup');
+        el.btnDeactivateStation = document.getElementById('btn-deactivate-station');
+        el.gateMainTitle = document.getElementById('gate-main-title');
+        el.gateMainDesc = document.getElementById('gate-main-desc');
+        el.licenseGateAlert = document.getElementById('license-gate-alert');
+        el.licenseGateAlertText = document.getElementById('license-gate-alert-text');
+        el.usbStorageStatus = document.getElementById('usb-storage-status');
+        el.usbDriveTitle = document.getElementById('usb-drive-title');
+        el.usbDriveSubtitle = document.getElementById('usb-drive-subtitle');
+        el.btnRefreshUsb = document.getElementById('btn-refresh-usb');
+
         el.licenseDropzone = document.getElementById('license-file-dropzone');
         el.inputHiddenLicenseFile = document.getElementById('input-hidden-license-file');
         el.btnBrowseLicenseFile = document.getElementById('btn-browse-license-file');
@@ -60,6 +77,8 @@
         el.setupLicenseExpiry = document.getElementById('setup-license-expiry');
         el.setupLicenseDevices = document.getElementById('setup-license-devices');
         el.btnRelicense = document.getElementById('btn-relicense');
+        el.btnSwitchLicenseView = document.getElementById('btn-switch-license-view');
+        el.inspectDeviceAllocationText = document.getElementById('inspect-device-allocation-text');
         el.examDropzone = document.getElementById('exam-file-dropzone');
         el.inputHiddenExamFile = document.getElementById('input-hidden-exam-file');
         el.btnBrowseExamFile = document.getElementById('btn-browse-exam-file');
@@ -204,22 +223,59 @@
     // =========================================================================
     // LICENSE MANAGEMENT
     // =========================================================================
-    async function checkLicenseStatus() {
+    async function updateUsbStatusUI() {
         try {
+            if (!window.rollcallCBT || !window.rollcallCBT.getRemovableDrives) return;
+            const drives = await window.rollcallCBT.getRemovableDrives();
+            if (el.usbDriveTitle && el.usbDriveSubtitle) {
+                if (drives && drives.length > 0) {
+                    const driveList = drives.map(d => `${d.drive} (${d.name})`).join(', ');
+                    el.usbDriveTitle.textContent = `Removable USB Detected (${drives.length})`;
+                    el.usbDriveSubtitle.textContent = `Ready for license verification: ${driveList}`;
+                    el.usbDriveTitle.style.color = 'var(--rc-success)';
+                    if (el.licenseGateAlert && el.licenseGateAlertText && !state.license) {
+                        el.licenseGateAlert.className = 'erp-alert alert-success';
+                        el.licenseGateAlertText.textContent = `USB storage connected (${driveList}). Click 'Select .rolllic File' to activate this station.`;
+                    }
+                } else {
+                    el.usbDriveTitle.textContent = 'No Removable Storage Detected';
+                    el.usbDriveSubtitle.textContent = 'Please insert the USB drive containing the .rolllic file';
+                    el.usbDriveTitle.style.color = 'var(--rc-text-primary)';
+                    if (el.licenseGateAlert && el.licenseGateAlertText && !state.license) {
+                        el.licenseGateAlert.className = 'erp-alert alert-info';
+                        el.licenseGateAlertText.textContent = 'Connect the administrative USB drive with the active CBT plan license issued from your school RollCall Admin Panel.';
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn('Failed to scan USB drives:', err);
+        }
+    }
+
+    async function checkLicenseStatus(initialLaunch = true) {
+        try {
+            await updateUsbStatusUI();
             const licenseInfo = await window.rollcallCBT.getLicenseStatus();
             if (licenseInfo && licenseInfo.deviceId) {
-                el.displayMachineFingerprint.textContent = licenseInfo.deviceId;
+                if (el.displayMachineFingerprint) el.displayMachineFingerprint.textContent = licenseInfo.deviceId;
+                if (el.topbarStationId) el.topbarStationId.textContent = licenseInfo.deviceId.slice(0, 14);
             }
 
             if (licenseInfo && licenseInfo.valid && !licenseInfo.expired) {
                 state.license = licenseInfo;
                 applyActiveLicenseUI(licenseInfo);
-                switchView('setup');
+                // First stage is activation screen (RollCall ERP Startup Layout)
+                if (initialLaunch) {
+                    switchView('license');
+                } else {
+                    switchView('setup');
+                }
                 if (licenseInfo.inGracePeriod) {
                     showToast(`Renewal reminder: your license expired. ${licenseInfo.graceDaysRemaining} grace day${licenseInfo.graceDaysRemaining === 1 ? '' : 's'} remaining.`, 'error');
                 }
             } else {
                 state.license = null;
+                applyInactiveLicenseUI(licenseInfo);
                 switchView('license');
                 if (licenseInfo && licenseInfo.expired) {
                     showToast(licenseInfo.error || 'Your CBT license has expired.', 'error');
@@ -236,12 +292,47 @@
         const schoolCode = license.schoolCode || '----';
         el.topbarInstName.textContent = instName;
         el.topbarSchoolCode.textContent = schoolCode;
+        if (el.topbarStationId) el.topbarStationId.textContent = (license.deviceId || state.license?.deviceId || 'STATION').slice(0, 14);
         el.setupInstTitle.textContent = `${instName} (${schoolCode})`;
         el.setupLicenseExpiry.textContent = `Offline Enterprise License · Valid until ${license.expiryDate || 'N/A'}`;
         if (license.inGracePeriod) {
             el.setupLicenseExpiry.textContent = `Renewal required - grace period ends ${new Date(license.gracePeriodEndsAt).toLocaleDateString()}`;
         }
         if (el.setupLicenseDevices) el.setupLicenseDevices.textContent = `Devices remaining: ${Number(license.remainingDevices ?? 0)} / ${Number(license.maxDevices || 1)}`;
+
+        // Update the Activation View (StartupLayout card)
+        if (el.licenseActiveIdentity) el.licenseActiveIdentity.style.display = 'flex';
+        if (el.activeSchoolName) el.activeSchoolName.textContent = `${instName} (${schoolCode})`;
+        if (el.activeDeviceInfo) {
+            el.activeDeviceInfo.textContent = `Station Activated · Valid until ${license.expiryDate || 'N/A'} · Remaining seats: ${Number(license.remainingDevices ?? 0)} / ${Number(license.maxDevices || 1)}`;
+        }
+        if (el.activeLicenseActions) el.activeLicenseActions.style.display = 'block';
+        if (el.gateMainTitle) el.gateMainTitle.textContent = 'RollCall CBT Station Workspace';
+        if (el.gateMainDesc) el.gateMainDesc.textContent = 'This exam station is securely licensed for offline examinations. Continue to the exam dashboard or re-link with a different license.';
+        if (el.licenseDropzone) el.licenseDropzone.style.display = 'none';
+        if (el.licenseGateAlert) {
+            el.licenseGateAlert.className = 'erp-alert alert-success';
+            if (el.licenseGateAlertText) el.licenseGateAlertText.textContent = `Station active and authorized for ${instName}. Offline testing ready.`;
+        }
+    }
+
+    function applyInactiveLicenseUI(license) {
+        el.topbarInstName.textContent = 'Station Not Activated';
+        el.topbarSchoolCode.textContent = '----';
+        if (el.licenseActiveIdentity) el.licenseActiveIdentity.style.display = 'none';
+        if (el.activeLicenseActions) el.activeLicenseActions.style.display = 'none';
+        if (el.gateMainTitle) el.gateMainTitle.textContent = 'Activate RollCall CBT';
+        if (el.gateMainDesc) el.gateMainDesc.textContent = 'Insert the authorized USB drive containing the school .rolllic file to activate this station. Offline verification is required for activation.';
+        if (el.licenseDropzone) el.licenseDropzone.style.display = 'block';
+        if (el.licenseGateAlert) {
+            if (license && license.expired) {
+                el.licenseGateAlert.className = 'erp-alert alert-error';
+                if (el.licenseGateAlertText) el.licenseGateAlertText.textContent = license.error || 'The installed license for this station has expired. Insert an updated USB license token.';
+            } else {
+                el.licenseGateAlert.className = 'erp-alert alert-info';
+                if (el.licenseGateAlertText) el.licenseGateAlertText.textContent = 'Connect the administrative USB drive with the active CBT plan license issued from your school RollCall Admin Panel.';
+            }
+        }
     }
 
     async function handleLicenseFileUpload() {
@@ -314,7 +405,9 @@
 
         // Show container
         el.examInspectContainer.classList.remove('hidden');
+        el.examInspectContainer.style.display = 'block';
         el.examDropzone.classList.add('hidden');
+        el.examDropzone.style.display = 'none';
 
         if (exam.rules?.webcamProctoringRequired === true) initHardwareDiagnostics();
         else {
@@ -404,16 +497,19 @@
         el.confirmStudentClass.textContent = `${candidate.batch || candidate.class || 'Student'}${candidate.section ? ` - Sec ${candidate.section}` : ''}`;
 
         el.candidateConfirmBox.classList.remove('hidden');
+        el.candidateConfirmBox.style.display = 'flex';
 
         // Check if PIN is required
         if (candidate.pin && String(candidate.pin).trim()) {
             el.pinVerifyRow.classList.remove('hidden');
+            el.pinVerifyRow.style.display = 'flex';
             el.inputCandidatePin.value = '';
             el.pinStatusMsg.textContent = 'Enter student PIN to unlock exam session.';
-            el.pinStatusMsg.style.color = 'var(--text-muted)';
+            el.pinStatusMsg.style.color = 'var(--rc-text-dimmed)';
             updateStartButtonState(false);
         } else {
             el.pinVerifyRow.classList.add('hidden');
+            el.pinVerifyRow.style.display = 'none';
             el.pinStatusMsg.textContent = '';
             updateStartButtonState(el.checkHonorCode.checked);
         }
@@ -768,9 +864,11 @@
         });
 
         el.modalStrikeVal.textContent = `${state.antiCheatStrikes} OF ${state.maxStrikes}`;
+        el.modalAntiCheat.style.display = 'grid';
         el.modalAntiCheat.hidden = false;
 
         if (state.antiCheatStrikes >= state.maxStrikes) {
+            el.modalAntiCheat.style.display = 'none';
             el.modalAntiCheat.hidden = true;
             showToast('Maximum security strikes exceeded! Examination terminating.', 'error');
             finalizeExamSubmission(true);
@@ -798,10 +896,12 @@
         el.confirmCountUnanswered.textContent = unanswered;
         el.confirmCountReview.textContent = review;
 
+        el.modalSubmitConfirm.style.display = 'grid';
         el.modalSubmitConfirm.hidden = false;
     }
 
     async function finalizeExamSubmission(isAutoSubmit = false) {
+        el.modalSubmitConfirm.style.display = 'none';
         el.modalSubmitConfirm.hidden = true;
         if (state.examTimerInterval) clearInterval(state.examTimerInterval);
         document.body.classList.remove('exam-active');
@@ -1218,9 +1318,27 @@
             }
         });
 
-        // Manage License Button in Setup
-        el.btnRelicense.addEventListener('click', () => {
+        // Manage License & Station Action Buttons
+        el.btnRelicense?.addEventListener('click', () => {
             switchView('license');
+        });
+        el.btnSwitchLicenseView?.addEventListener('click', () => {
+            switchView('license');
+        });
+        el.btnContinueToSetup?.addEventListener('click', () => {
+            switchView('setup');
+        });
+        el.btnRefreshUsb?.addEventListener('click', async () => {
+            await updateUsbStatusUI();
+            showToast('Scanned USB storage ports.', 'info');
+        });
+        el.btnDeactivateStation?.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to deactivate this station? You will need an authorized USB license to reactivate it.')) {
+                await window.rollcallCBT.deactivateLicense();
+                state.license = null;
+                showToast('Station deactivated successfully.', 'info');
+                await checkLicenseStatus(true);
+            }
         });
 
         // Exam File Dropzone
@@ -1278,6 +1396,7 @@
         el.btnChangeStudent.addEventListener('click', () => {
             state.selectedCandidate = null;
             el.candidateConfirmBox.classList.add('hidden');
+            el.candidateConfirmBox.style.display = 'none';
             document.querySelectorAll('.candidate-item-card').forEach(c => c.classList.remove('selected'));
             updateStartButtonState(false);
         });
@@ -1337,22 +1456,35 @@
 
         // Calculator toggle
         el.btnToggleCalc.addEventListener('click', () => {
-            el.modalCalc.hidden = !el.modalCalc.hidden;
+            const isShown = el.modalCalc.style.display === 'grid';
+            el.modalCalc.style.display = isShown ? 'none' : 'grid';
+            el.modalCalc.hidden = isShown;
         });
         el.btnCloseCalc.addEventListener('click', () => {
+            el.modalCalc.style.display = 'none';
             el.modalCalc.hidden = true;
         });
-        document.querySelectorAll('.calc-btn').forEach(b => {
+        document.querySelectorAll('#calc-keypad button, .calc-btn').forEach(b => {
             b.addEventListener('click', () => handleCalcButton(b.dataset.val));
         });
 
         // Scratchpad toggle
         el.btnToggleScratch.addEventListener('click', () => {
-            el.modalScratch.hidden = !el.modalScratch.hidden;
+            const isShown = el.modalScratch.style.display === 'grid';
+            el.modalScratch.style.display = isShown ? 'none' : 'grid';
+            el.modalScratch.hidden = isShown;
         });
         el.btnCloseScratch.addEventListener('click', () => {
+            el.modalScratch.style.display = 'none';
             el.modalScratch.hidden = true;
         });
+        const btnSaveScratch = document.getElementById('btn-save-scratchpad');
+        if (btnSaveScratch) {
+            btnSaveScratch.addEventListener('click', () => {
+                el.modalScratch.style.display = 'none';
+                el.modalScratch.hidden = true;
+            });
+        }
         el.btnClearScratchpad.addEventListener('click', () => {
             el.scratchpadTextarea.value = '';
             state.scratchpadContent = '';
@@ -1363,15 +1495,23 @@
 
         // Anti-cheat alert dismiss
         el.btnAckStrike.addEventListener('click', () => {
+            el.modalAntiCheat.style.display = 'none';
             el.modalAntiCheat.hidden = true;
         });
 
         // Finish exam button
-        el.btnFinishTest.addEventListener('click', openSubmitConfirmDialog);
+        el.btnFinishTest.addEventListener('click', () => {
+            openSubmitConfirmDialog();
+            el.modalSubmitConfirm.style.display = 'grid';
+            el.modalSubmitConfirm.hidden = false;
+        });
         el.btnCancelSubmit.addEventListener('click', () => {
+            el.modalSubmitConfirm.style.display = 'none';
             el.modalSubmitConfirm.hidden = true;
         });
         el.btnConfirmFinalSubmit.addEventListener('click', () => {
+            el.modalSubmitConfirm.style.display = 'none';
+            el.modalSubmitConfirm.hidden = true;
             finalizeExamSubmission(false);
         });
 
