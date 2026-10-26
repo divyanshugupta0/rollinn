@@ -340,6 +340,9 @@
         el.metricRecordsRate = document.getElementById('metric-records-rate');
         el.metricRecordsAvg = document.getElementById('metric-records-avg');
         el.recordsListContainer = document.getElementById('records-list-container');
+        el.recordsFolderNavbar = document.getElementById('records-folder-navbar');
+        el.recordsFolderBreadcrumb = document.getElementById('records-folder-breadcrumb');
+        el.selectRecordsExamFolder = document.getElementById('select-records-exam-folder');
 
         // CBT Encrypted Sync QR Elements
         el.btnShowStudentQr = document.getElementById('btn-show-student-qr');
@@ -2263,8 +2266,34 @@
                 if (Array.isArray(refreshed)) state.stationRecords = refreshed;
             } catch (_) {}
         }
-        state.recordsFilterMode = 'today';
-        const todayStr = new Date().toISOString().split('T')[0];
+
+        const allRecords = getStationRecords();
+        const todayYMD = new Date().toISOString().split('T')[0];
+        const hasTodayRecords = allRecords.some(r => {
+            const rYMD = r.dateIso ? r.dateIso.split('T')[0] : (new Date(r.timestamp).toISOString().split('T')[0]);
+            return rYMD === todayYMD;
+        });
+        state.recordsFilterMode = hasTodayRecords ? 'today' : 'all';
+
+        // Select initial folder: check active exam or multiple distinct exams
+        const activeExamKey = state.activeExam ? String(state.activeExam.examId || state.activeExam.code || '').trim() : '';
+        const hasActiveExamRecords = activeExamKey && allRecords.some(r => {
+            const k = String(r.exam?.id || r.exam?.code || r.exam?.title || '').trim();
+            return k === activeExamKey || (activeExamKey && (k.includes(activeExamKey) || activeExamKey.includes(k)));
+        });
+
+        if (hasActiveExamRecords) {
+            state.selectedExamFolder = activeExamKey;
+        } else {
+            const distinctExams = new Set(allRecords.map(r => String(r.exam?.id || r.exam?.code || r.exam?.title || 'EXAM').trim()));
+            if (distinctExams.size === 1) {
+                state.selectedExamFolder = Array.from(distinctExams)[0];
+            } else {
+                state.selectedExamFolder = 'FOLDERS';
+            }
+        }
+
+        const todayStr = todayYMD;
         if (el.recordsInputSingleDate) el.recordsInputSingleDate.value = todayStr;
         if (el.recordsInputFromDate) el.recordsInputFromDate.value = todayStr;
         if (el.recordsInputToDate) el.recordsInputToDate.value = todayStr;
@@ -2289,11 +2318,217 @@
     function filterAndRenderStationRecords() {
         if (!el.recordsListContainer) return;
         const allRecords = getStationRecords();
-        const mode = state.recordsFilterMode || 'today';
+        const mode = state.recordsFilterMode || 'all';
         const searchTerm = (el.inputRecordsSearch?.value || '').trim().toLowerCase();
         const todayYMD = new Date().toISOString().split('T')[0];
 
-        let filtered = allRecords.filter(rec => {
+        // 1. Group all records by distinct exam
+        const examGroups = {};
+        allRecords.forEach(rec => {
+            const rawId = rec.exam?.id || rec.exam?.code || rec.exam?.title || 'GENERAL';
+            const examKey = String(rawId).trim();
+            if (!examGroups[examKey]) {
+                examGroups[examKey] = {
+                    key: examKey,
+                    id: rec.exam?.id || examKey,
+                    code: rec.exam?.code || 'CBT',
+                    title: rec.exam?.title || 'Examination',
+                    subject: rec.exam?.subject || 'General',
+                    records: [],
+                    lastDate: rec.timestamp || 0
+                };
+            }
+            examGroups[examKey].records.push(rec);
+            if ((rec.timestamp || 0) > examGroups[examKey].lastDate) {
+                examGroups[examKey].lastDate = rec.timestamp;
+            }
+        });
+        const examList = Object.values(examGroups);
+        examList.sort((a, b) => (b.lastDate || 0) - (a.lastDate || 0));
+
+        if (!state.selectedExamFolder) {
+            state.selectedExamFolder = examList.length > 1 ? 'FOLDERS' : (examList[0]?.key || 'FOLDERS');
+        }
+
+        // 2. Populate Dropdown selector
+        if (el.selectRecordsExamFolder) {
+            let optHtml = `<option value="FOLDERS" ${state.selectedExamFolder === 'FOLDERS' ? 'selected' : ''}>📁 Exam Folders Directory (${examList.length} Exam${examList.length === 1 ? '' : 's'})</option>`;
+            optHtml += `<option value="ALL" ${state.selectedExamFolder === 'ALL' ? 'selected' : ''}>📋 All Exams Combined Table (${allRecords.length})</option>`;
+            examList.forEach(ex => {
+                const isSel = (state.selectedExamFolder === ex.key) ? 'selected' : '';
+                optHtml += `<option value="${escapeHtml(ex.key)}" ${isSel}>📁 ${escapeHtml(ex.title)} (Code: ${escapeHtml(ex.code)} · ${ex.records.length})</option>`;
+            });
+            el.selectRecordsExamFolder.innerHTML = optHtml;
+        }
+
+        // 3. CASE A: Root Folders Overview (state.selectedExamFolder === 'FOLDERS')
+        if (state.selectedExamFolder === 'FOLDERS') {
+            state.currentFilteredExam = null;
+            if (el.recordsFolderBreadcrumb) {
+                el.recordsFolderBreadcrumb.innerHTML = `
+                    <span style="font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-folder-tree" style="color: #6366f1;"></i> Exam Folders Directory
+                    </span>
+                    <span style="font-size: 0.76rem; color: #64748b;">(${examList.length} distinct examination${examList.length === 1 ? '' : 's'} conducted on this workstation)</span>
+                `;
+            }
+
+            const totalConducted = allRecords.length;
+            const totalPassed = allRecords.filter(r => r.scoreSummary?.passed).length;
+            const passRate = totalConducted > 0 ? Math.round((totalPassed / totalConducted) * 100) : 0;
+            let sumScore = 0;
+            allRecords.forEach(r => sumScore += (Number(r.scoreSummary?.percentage) || 0));
+            const avgScore = totalConducted > 0 ? (sumScore / totalConducted).toFixed(1) : '0.0';
+
+            if (el.metricRecordsTotal) el.metricRecordsTotal.textContent = totalConducted;
+            if (el.metricRecordsPassed) el.metricRecordsPassed.textContent = totalPassed;
+            if (el.metricRecordsRate) el.metricRecordsRate.textContent = `${passRate}%`;
+            if (el.metricRecordsAvg) el.metricRecordsAvg.textContent = `${avgScore}%`;
+
+            if (el.btnExportStationQr) {
+                el.btnExportStationQr.disabled = false;
+                el.btnExportStationQr.innerHTML = '<i class="fas fa-qrcode"></i> Export Batch QR Code';
+                el.btnExportStationQr.title = 'Select an exam folder to export its specific results QR barcode';
+            }
+
+            if (examList.length === 0) {
+                el.recordsListContainer.innerHTML = `
+                    <div style="padding: 40px 20px; text-align: center; color: var(--rc-text-secondary);">
+                        <i class="fas fa-folder-open" style="font-size: 2.5rem; color: #cbd5e1; margin-bottom: 12px; display: block;"></i>
+                        <h4 style="margin: 0 0 6px 0; color: #1e293b; font-size: 1.05rem;">No Examination Folders Yet</h4>
+                        <p style="margin: 0; font-size: 0.85rem;">Student examinations completed on this workstation will be automatically grouped into folders here.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let folderHtml = `<div class="exam-folders-grid">`;
+            examList.forEach(ex => {
+                const total = ex.records.length;
+                const passed = ex.records.filter(r => r.scoreSummary?.passed).length;
+                const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
+                let sum = 0;
+                ex.records.forEach(r => sum += (Number(r.scoreSummary?.percentage) || 0));
+                const avg = total > 0 ? (sum / total).toFixed(1) : '0.0';
+                const lastDateStr = ex.lastDate ? new Date(ex.lastDate).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '--';
+
+                folderHtml += `
+                    <div class="exam-folder-card" data-exam-key="${escapeHtml(ex.key)}">
+                        <div>
+                            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 12px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div class="exam-folder-icon-box">
+                                        <i class="fas fa-folder-open"></i>
+                                    </div>
+                                    <div>
+                                        <h4 style="margin: 0 0 2px 0; font-size: 0.95rem; color: #0f172a; font-weight: 700;">${escapeHtml(ex.title)}</h4>
+                                        <span style="font-size: 0.74rem; color: #64748b;">${escapeHtml(ex.subject.toUpperCase())} · Code: <strong>${escapeHtml(ex.code)}</strong></span>
+                                    </div>
+                                </div>
+                                <span style="background: #e0e7ff; color: #4338ca; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; white-space: nowrap;">
+                                    ${total} Candidate${total === 1 ? '' : 's'}
+                                </span>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 12px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; text-align: center;">
+                                <div>
+                                    <span style="display: block; font-size: 0.68rem; color: var(--rc-text-secondary); text-transform: uppercase;">Pass Rate</span>
+                                    <strong style="color: ${pct >= 50 ? 'var(--rc-success)' : 'var(--rc-error)'}; font-size: 0.88rem;">${pct}%</strong>
+                                </div>
+                                <div>
+                                    <span style="display: block; font-size: 0.68rem; color: var(--rc-text-secondary); text-transform: uppercase;">Passed</span>
+                                    <strong style="color: #0f172a; font-size: 0.88rem;">${passed} / ${total}</strong>
+                                </div>
+                                <div>
+                                    <span style="display: block; font-size: 0.68rem; color: var(--rc-text-secondary); text-transform: uppercase;">Avg Score</span>
+                                    <strong style="color: #6366f1; font-size: 0.88rem;">${avg}%</strong>
+                                </div>
+                            </div>
+
+                            <div style="font-size: 0.74rem; color: #64748b; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-clock-rotate-left"></i> Latest Submission: <strong>${lastDateStr}</strong>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f5f9;">
+                            <button type="button" class="btn-erp-primary btn-sm btn-open-folder" data-exam-key="${escapeHtml(ex.key)}" style="flex: 1; font-size: 0.78rem; padding: 7px 10px; background: #4f46e5; border-color: #4338ca;">
+                                <i class="fas fa-folder-open"></i> Open Exam Results
+                            </button>
+                            <button type="button" class="btn-erp-light btn-sm btn-quick-qr" data-exam-key="${escapeHtml(ex.key)}" style="font-size: 0.78rem; padding: 7px 10px; border: 1px solid #cbd5e1;" title="Export encrypted QR code for this exam only">
+                                <i class="fas fa-qrcode"></i> Export QR
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            folderHtml += `</div>`;
+            el.recordsListContainer.innerHTML = folderHtml;
+
+            // Attach folder click handlers
+            el.recordsListContainer.querySelectorAll('.exam-folder-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.btn-quick-qr')) return;
+                    const key = card.dataset.examKey;
+                    state.selectedExamFolder = key;
+                    filterAndRenderStationRecords();
+                });
+            });
+            el.recordsListContainer.querySelectorAll('.btn-quick-qr').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const key = btn.dataset.examKey;
+                    exportStationBatchQr(key);
+                });
+            });
+            return;
+        }
+
+        // 4. CASE B: Specific Exam Folder or Combined Table
+        const isCombined = (state.selectedExamFolder === 'ALL');
+        const activeExamGroup = !isCombined ? (examGroups[state.selectedExamFolder] || examList[0]) : null;
+        const sourceRecords = isCombined ? allRecords : (activeExamGroup ? activeExamGroup.records : allRecords);
+        state.currentFilteredExam = activeExamGroup;
+
+        // Update Breadcrumb
+        if (el.recordsFolderBreadcrumb) {
+            if (isCombined) {
+                el.recordsFolderBreadcrumb.innerHTML = `
+                    <button type="button" class="btn-erp-light btn-sm btn-back-folders" id="btn-records-back-to-folders" style="padding: 4px 10px; font-size: 0.78rem; border: 1px solid #cbd5e1; border-radius: 5px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                        <i class="fas fa-arrow-left"></i> All Exam Folders
+                    </button>
+                    <span style="color: #cbd5e1;">/</span>
+                    <span style="font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-table-list" style="color: #6366f1;"></i> Combined Multi-Exam Table
+                    </span>
+                `;
+            } else if (activeExamGroup) {
+                el.recordsFolderBreadcrumb.innerHTML = `
+                    <button type="button" class="btn-erp-light btn-sm btn-back-folders" id="btn-records-back-to-folders" style="padding: 4px 10px; font-size: 0.78rem; border: 1px solid #cbd5e1; border-radius: 5px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                        <i class="fas fa-arrow-left"></i> All Exam Folders
+                    </button>
+                    <span style="color: #cbd5e1;">/</span>
+                    <span style="font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-folder-open" style="color: #f59e0b;"></i> ${escapeHtml(activeExamGroup.title)}
+                    </span>
+                    <span style="background: #e0e7ff; color: #0369a1; border: 1px solid #bae6fd; font-size: 0.72rem; padding: 2px 7px; border-radius: 4px; font-weight: 600;">
+                        Code: ${escapeHtml(activeExamGroup.code)}
+                    </span>
+                    <span style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; font-size: 0.72rem; padding: 2px 7px; border-radius: 4px; font-weight: 600;">
+                        ${escapeHtml(activeExamGroup.subject.toUpperCase())}
+                    </span>
+                `;
+            }
+        }
+
+        // Attach listener for back button
+        const backBtn = document.getElementById('btn-records-back-to-folders');
+        backBtn?.addEventListener('click', () => {
+            state.selectedExamFolder = 'FOLDERS';
+            filterAndRenderStationRecords();
+        });
+
+        // Filter by Date and Search Term within sourceRecords
+        let filtered = sourceRecords.filter(rec => {
             const recYMD = rec.dateIso ? rec.dateIso.split('T')[0] : (new Date(rec.timestamp).toISOString().split('T')[0]);
 
             if (mode === 'today') {
@@ -2335,11 +2570,24 @@
         if (el.metricRecordsRate) el.metricRecordsRate.textContent = `${passRate}%`;
         if (el.metricRecordsAvg) el.metricRecordsAvg.textContent = `${avgScore}%`;
 
+        // Update Bottom Export Button to specifically export this exam
+        if (el.btnExportStationQr) {
+            el.btnExportStationQr.disabled = false;
+            if (activeExamGroup) {
+                el.btnExportStationQr.innerHTML = `<i class="fas fa-qrcode"></i> Export ${escapeHtml(activeExamGroup.code)} Batch QR`;
+                el.btnExportStationQr.title = `Export encrypted QR code for ${activeExamGroup.title} (${filtered.length} candidate results)`;
+            } else {
+                el.btnExportStationQr.innerHTML = `<i class="fas fa-qrcode"></i> Export Batch QR Code`;
+                el.btnExportStationQr.title = 'Generate encrypted QR code of current candidate records';
+            }
+        }
+
         if (filtered.length === 0) {
+            const examNote = activeExamGroup ? ` for "${activeExamGroup.title}"` : '';
             el.recordsListContainer.innerHTML = `
                 <div style="padding: 36px 20px; text-align: center; color: var(--rc-text-secondary);">
                     <i class="fas fa-clipboard-question" style="font-size: 2.2rem; color: #94a3b8; margin-bottom: 10px;"></i>
-                    <h4 style="margin: 0 0 6px 0; color: #1e293b; font-size: 1rem;">No Candidate Tests Found</h4>
+                    <h4 style="margin: 0 0 6px 0; color: #1e293b; font-size: 1rem;">No Candidate Tests Found${escapeHtml(examNote)}</h4>
                     <p style="margin: 0; font-size: 0.85rem;">No examinations match the selected date or search filter. Tests conducted on this station will appear here automatically.</p>
                 </div>
             `;
@@ -2465,16 +2713,59 @@
         }
     }
 
-    function exportStationBatchQr() {
-        const records = state.currentFilteredRecords || [];
+    function exportStationBatchQr(explicitExamKey = null) {
+        let records = [];
+        let exportExamTitle = 'Examination Results';
+        let exportExamCode = 'CBT';
+        let exportExamId = '';
+
+        if (explicitExamKey) {
+            const allRecords = getStationRecords();
+            records = allRecords.filter(r => {
+                const k = String(r.exam?.id || r.exam?.code || r.exam?.title || '').trim();
+                return k === explicitExamKey;
+            });
+            if (records[0]?.exam) {
+                exportExamTitle = records[0].exam.title || exportExamTitle;
+                exportExamCode = records[0].exam.code || exportExamCode;
+                exportExamId = records[0].exam.id || exportExamId;
+            }
+        } else if (state.currentFilteredExam) {
+            records = state.currentFilteredRecords || [];
+            exportExamTitle = state.currentFilteredExam.title || exportExamTitle;
+            exportExamCode = state.currentFilteredExam.code || exportExamCode;
+            exportExamId = state.currentFilteredExam.id || exportExamId;
+        } else if (state.selectedExamFolder && state.selectedExamFolder !== 'FOLDERS' && state.selectedExamFolder !== 'ALL') {
+            const allRecords = getStationRecords();
+            records = allRecords.filter(r => {
+                const k = String(r.exam?.id || r.exam?.code || r.exam?.title || '').trim();
+                return k === state.selectedExamFolder;
+            });
+            if (records[0]?.exam) {
+                exportExamTitle = records[0].exam.title || exportExamTitle;
+                exportExamCode = records[0].exam.code || exportExamCode;
+                exportExamId = records[0].exam.id || exportExamId;
+            }
+        } else {
+            if (state.selectedExamFolder === 'FOLDERS') {
+                showToast('Please open an exam folder to export its specific results QR code.', 'warning');
+                return;
+            }
+            records = state.currentFilteredRecords || [];
+        }
+
         if (!records.length) {
             showToast('No student examination records match the current filter to export.', 'error');
             return;
         }
+
         const batchPayload = {
             v: 1,
             type: 'BATCH_SCORES',
             timestamp: Date.now(),
+            examId: exportExamId,
+            examCode: exportExamCode,
+            examTitle: exportExamTitle,
             schoolCode: state.license?.schoolCode || '',
             filterMode: state.recordsFilterMode || 'all',
             records: records.map(r => ({
@@ -2492,8 +2783,8 @@
         };
         displaySyncQrModal(
             batchPayload,
-            'Batch Station Results QR',
-            `Encrypted payload containing ${records.length} candidate examination score${records.length === 1 ? '' : 's'}`
+            `${exportExamCode} Results Sync QR`,
+            `Encrypted payload containing ${records.length} candidate examination score${records.length === 1 ? '' : 's'} for ${exportExamTitle}`
         );
     }
 
@@ -2690,6 +2981,10 @@
             filterAndRenderStationRecords();
         });
         el.inputRecordsSearch?.addEventListener('input', () => {
+            filterAndRenderStationRecords();
+        });
+        el.selectRecordsExamFolder?.addEventListener('change', (e) => {
+            state.selectedExamFolder = e.target.value;
             filterAndRenderStationRecords();
         });
 

@@ -1039,6 +1039,22 @@
                 </div>
 
                 <div class="erp-modal-body" style="overflow-y: auto; flex: 1; padding: 20px 24px; background: #fafbfc;">
+                    <!-- Exam Folders Navigation Strip -->
+                    <div class="records-folder-navbar" id="records-folder-navbar">
+                        <div id="records-folder-breadcrumb" style="display: flex; align-items: center; gap: 8px; font-size: 0.88rem;">
+                            <!-- Injected dynamically: either "Exams Directory" or "← All Folders / [Exam Name]" -->
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label for="select-records-exam-folder" style="font-size: 0.78rem; font-weight: 700; color: var(--rc-text-secondary); text-transform: uppercase;">
+                                <i class="fas fa-folder"></i> Exam Folder:
+                            </label>
+                            <select id="select-records-exam-folder" style="padding: 6px 12px; border: 1px solid var(--rc-border); border-radius: 6px; font-size: 0.82rem; font-weight: 600; color: #1e293b; background: #f8fafc; min-width: 240px; max-width: 320px;">
+                                <option value="FOLDERS">📁 Exam Folders Directory</option>
+                                <option value="ALL">📋 All Exams Combined Table</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <!-- Filter Toolbar -->
                     <div class="records-filter-toolbar" style="background: #ffffff; border: 1px solid var(--rc-border); border-radius: 8px; padding: 14px 18px; margin-bottom: 18px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
