@@ -29,6 +29,9 @@
             <button type="button" class="btn-topbar-action btn-light" id="btn-admin-exam-setup" title="Exam Setup (Admin PIN Required)">
                 <i class="fas fa-user-gear"></i> <span>Exam Setup</span>
             </button>
+            <button type="button" class="btn-topbar-action btn-light" id="btn-admin-results" title="Station Test Records (Admin PIN Required)">
+                <i class="fas fa-chart-line"></i> <span>Results</span>
+            </button>
             <button type="button" class="btn-topbar-icon" id="btn-window-minimize" title="Minimize Window">
                 <i class="fas fa-minus"></i>
             </button>
@@ -950,8 +953,13 @@
                         <div class="candidate-selection-box">
                             <div class="candidate-selection-header">
                                 <h4>Allocated Candidates (<span id="inspect-candidate-count">0</span>)</h4>
-                                <div style="max-width: 260px; width: 100%;">
-                                    <input type="text" id="input-candidate-search" placeholder="Search candidate..." style="width: 100%; padding: 7px 12px; border: 1px solid var(--rc-border); border-radius: 6px; font-size: 0.82rem;">
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <button type="button" class="btn-erp-light btn-sm" id="btn-reset-roster-flags" title="Reset all candidate exam completion flags for testing">
+                                        <i class="fas fa-rotate-left"></i> Reset Flags
+                                    </button>
+                                    <div style="max-width: 220px; width: 100%;">
+                                        <input type="text" id="input-candidate-search" placeholder="Search candidate..." style="width: 100%; padding: 7px 12px; border: 1px solid var(--rc-border); border-radius: 6px; font-size: 0.82rem;">
+                                    </div>
                                 </div>
                             </div>
 
@@ -972,6 +980,99 @@
                         <button type="button" class="btn-erp-primary" id="btn-admin-confirm-load-candidate" disabled>
                             <i class="fas fa-check"></i> Load Exam for Candidate
                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal 5: Teacher Exam Records & Station Results Browser -->
+        <div class="erp-modal-overlay" id="modal-station-results" style="display: none;">
+            <div class="erp-modal-card" style="width: min(1000px, 95vw); max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="erp-modal-header" style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; padding: 16px 24px;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-chart-line" style="color: var(--rc-primary);"></i>
+                            Station Examination Records
+                        </h3>
+                        <small style="color: var(--rc-text-secondary); font-size: 0.78rem;">Historical records of student examinations conducted on this workstation</small>
+                    </div>
+                    <button type="button" class="btn-topbar-icon" id="btn-close-station-results">&times;</button>
+                </div>
+
+                <div class="erp-modal-body" style="overflow-y: auto; flex: 1; padding: 20px 24px; background: #fafbfc;">
+                    <!-- Filter Toolbar -->
+                    <div class="records-filter-toolbar" style="background: #ffffff; border: 1px solid var(--rc-border); border-radius: 8px; padding: 14px 18px; margin-bottom: 18px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+                            <!-- Filter Mode Tabs -->
+                            <div class="records-tab-pills" id="records-date-tabs" style="display: flex; gap: 6px;">
+                                <button type="button" class="records-tab-btn active" data-mode="today">
+                                    <i class="fas fa-calendar-day"></i> Today
+                                </button>
+                                <button type="button" class="records-tab-btn" data-mode="single">
+                                    <i class="fas fa-calendar"></i> Single Date
+                                </button>
+                                <button type="button" class="records-tab-btn" data-mode="range">
+                                    <i class="fas fa-calendar-week"></i> Date Range
+                                </button>
+                                <button type="button" class="records-tab-btn" data-mode="all">
+                                    <i class="fas fa-layer-group"></i> All Time
+                                </button>
+                            </div>
+
+                            <!-- Search -->
+                            <div style="min-width: 240px;">
+                                <input type="text" id="input-records-search" placeholder="Search candidate, roll, exam..." style="width: 100%; padding: 7px 12px; border: 1px solid var(--rc-border); border-radius: 6px; font-size: 0.82rem;">
+                            </div>
+                        </div>
+
+                        <!-- Date Pickers Row (Shown dynamically based on tab) -->
+                        <div id="records-single-picker-row" style="display: none; align-items: center; gap: 10px; font-size: 0.85rem; padding-top: 8px; border-top: 1px solid #f1f5f9;">
+                            <label for="records-input-single-date" style="font-weight: 600; color: var(--rc-text-secondary);">Select Past Date:</label>
+                            <input type="date" id="records-input-single-date" style="padding: 5px 10px; border: 1px solid var(--rc-border); border-radius: 6px; font-size: 0.82rem;">
+                        </div>
+
+                        <div id="records-range-picker-row" style="display: none; align-items: center; gap: 10px; font-size: 0.85rem; padding-top: 8px; border-top: 1px solid #f1f5f9;">
+                            <label for="records-input-from-date" style="font-weight: 600; color: var(--rc-text-secondary);">From:</label>
+                            <input type="date" id="records-input-from-date" style="padding: 5px 10px; border: 1px solid var(--rc-border); border-radius: 6px; font-size: 0.82rem;">
+                            <label for="records-input-to-date" style="font-weight: 600; color: var(--rc-text-secondary);">To:</label>
+                            <input type="date" id="records-input-to-date" style="padding: 5px 10px; border: 1px solid var(--rc-border); border-radius: 6px; font-size: 0.82rem;">
+                        </div>
+                    </div>
+
+                    <!-- Metrics Ribbon -->
+                    <div class="records-metrics-ribbon" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px;">
+                        <div class="meta-metric-card" style="background: #ffffff; padding: 12px 16px; border: 1px solid var(--rc-border); border-radius: 8px;">
+                            <span style="font-size: 0.72rem; color: var(--rc-text-secondary); text-transform: uppercase;">Tests Conducted</span>
+                            <strong style="font-size: 1.3rem; color: var(--rc-primary);" id="metric-records-total">0</strong>
+                        </div>
+                        <div class="meta-metric-card" style="background: #ffffff; padding: 12px 16px; border: 1px solid var(--rc-border); border-radius: 8px;">
+                            <span style="font-size: 0.72rem; color: var(--rc-text-secondary); text-transform: uppercase;">Passed Tests</span>
+                            <strong style="font-size: 1.3rem; color: var(--rc-success);" id="metric-records-passed">0</strong>
+                        </div>
+                        <div class="meta-metric-card" style="background: #ffffff; padding: 12px 16px; border: 1px solid var(--rc-border); border-radius: 8px;">
+                            <span style="font-size: 0.72rem; color: var(--rc-text-secondary); text-transform: uppercase;">Pass Percentage</span>
+                            <strong style="font-size: 1.3rem; color: #2563eb;" id="metric-records-rate">0%</strong>
+                        </div>
+                        <div class="meta-metric-card" style="background: #ffffff; padding: 12px 16px; border: 1px solid var(--rc-border); border-radius: 8px;">
+                            <span style="font-size: 0.72rem; color: var(--rc-text-secondary); text-transform: uppercase;">Average Score</span>
+                            <strong style="font-size: 1.3rem; color: #7c3aed;" id="metric-records-avg">0.0</strong>
+                        </div>
+                    </div>
+
+                    <!-- Records List / Table Container -->
+                    <div id="records-list-container" style="background: #ffffff; border: 1px solid var(--rc-border); border-radius: 8px; overflow: hidden;">
+                        <!-- Injected dynamically via renderRecordsList() -->
+                    </div>
+                </div>
+
+                <div class="erp-modal-footer" style="background: #f8fafc; border-top: 1.5px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; padding: 14px 24px;">
+                    <div>
+                        <button type="button" class="btn-erp-danger btn-sm" id="btn-clear-station-records">
+                            <i class="fas fa-trash-can"></i> Clear History
+                        </button>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn-erp-light" id="btn-close-records-modal">Close</button>
                     </div>
                 </div>
             </div>

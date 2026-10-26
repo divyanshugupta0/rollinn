@@ -3163,3 +3163,101 @@ body.exam-active .app-viewport {
         grid-template-columns: 1fr;
     }
 }
+
+/* ==========================================================================
+   Station Examination Records Modal Styles
+   ========================================================================== */
+.records-tab-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--rc-border);
+    background: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--rc-text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+}
+.records-tab-btn:hover {
+    background: #f1f5f9;
+    color: var(--rc-text-primary);
+}
+.records-tab-btn.active {
+    background: var(--rc-primary);
+    color: #ffffff;
+    border-color: var(--rc-primary);
+}
+
+.records-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.records-table th {
+    background: #f8fafc;
+    color: var(--rc-text-secondary);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--rc-border);
+    text-align: left;
+}
+.records-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+.records-table tr:hover {
+    background: #f8fafc;
+}
+.records-table tr:last-child td {
+    border-bottom: none;
+}
+.record-score-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+.record-score-badge.passed {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+.record-score-badge.failed {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+.record-student-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.record-student-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #e0e7ff;
+    color: #4338ca;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.record-student-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+

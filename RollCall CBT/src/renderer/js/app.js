@@ -27,7 +27,12 @@
         fontSizeLevel: 1, // 0 = small, 1 = normal, 2 = large
         paletteFilter: 'all', // 'all' | 'unanswered' | 'answered' | 'review'
         startCountdownSeconds: 0,
-        startCountdownInterval: null
+        startCountdownInterval: null,
+        recordsFilterMode: 'today',
+        recordsSingleDate: '',
+        recordsFromDate: '',
+        recordsToDate: '',
+        recordsSearch: ''
     };
 
     // DOM Elements Cache
@@ -297,6 +302,26 @@
         el.btnCancelAdminSetup = document.getElementById('btn-cancel-admin-setup');
         el.btnAdminConfirmLoadCandidate = document.getElementById('btn-admin-confirm-load-candidate');
         el.adminSetupSelectedSummary = document.getElementById('admin-setup-selected-summary');
+        el.btnResetRosterFlags = document.getElementById('btn-reset-roster-flags');
+
+        // Station Examination Records Modal
+        el.btnAdminResults = document.getElementById('btn-admin-results');
+        el.modalStationResults = document.getElementById('modal-station-results');
+        el.btnCloseStationResults = document.getElementById('btn-close-station-results');
+        el.btnCloseRecordsModal = document.getElementById('btn-close-records-modal');
+        el.btnClearStationRecords = document.getElementById('btn-clear-station-records');
+        el.recordsDateTabs = document.getElementById('records-date-tabs');
+        el.inputRecordsSearch = document.getElementById('input-records-search');
+        el.recordsSinglePickerRow = document.getElementById('records-single-picker-row');
+        el.recordsRangePickerRow = document.getElementById('records-range-picker-row');
+        el.recordsInputSingleDate = document.getElementById('records-input-single-date');
+        el.recordsInputFromDate = document.getElementById('records-input-from-date');
+        el.recordsInputToDate = document.getElementById('records-input-to-date');
+        el.metricRecordsTotal = document.getElementById('metric-records-total');
+        el.metricRecordsPassed = document.getElementById('metric-records-passed');
+        el.metricRecordsRate = document.getElementById('metric-records-rate');
+        el.metricRecordsAvg = document.getElementById('metric-records-avg');
+        el.recordsListContainer = document.getElementById('records-list-container');
     }
 
     // Switch active view
@@ -632,6 +657,26 @@
         if (!key) return;
         state.completedCandidates.add(key);
         try { localStorage.setItem(completedCandidatesStorageKey(), JSON.stringify([...state.completedCandidates])); } catch (_) { /* best effort */ }
+    }
+
+    function resetAllCompletedCandidates(silent = false) {
+        state.completedCandidates = new Set();
+        try {
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith('rollcall-cbt-completed:')) {
+                    keysToRemove.push(k);
+                }
+            }
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+        } catch (_) {}
+        if (state.visibleCandidates) {
+            renderCandidatesList(state.visibleCandidates);
+        }
+        if (!silent) {
+            showToast('All candidate exam completion flags have been reset.', 'success');
+        }
     }
 
     function renderCandidatesList(candidates) {
@@ -1541,6 +1586,41 @@
             }
         };
 
+        // Persist permanent station exam record for teacher results view
+        const stationRecord = {
+            id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            timestamp: Date.now(),
+            dateIso: new Date().toISOString(),
+            dateFormatted: new Date().toLocaleDateString(),
+            candidate: {
+                name: state.selectedCandidate?.name || 'Candidate',
+                rollNo: state.selectedCandidate?.rollNo || state.selectedCandidate?.roll || '--',
+                class: state.selectedCandidate?.class || state.selectedCandidate?.batch || state.selectedCandidate?.grade || 'Standard',
+                section: state.selectedCandidate?.section || '--',
+                sequence: state.selectedCandidate?.sectionSequence || state.selectedCandidate?.sequence || 1,
+                photo: resultPhoto || ''
+            },
+            exam: {
+                id: state.activeExam?.examId || 'EXAM',
+                code: state.activeExam?.code || 'CBT',
+                title: state.activeExam?.title || 'Examination',
+                subject: state.activeExam?.subject || 'General'
+            },
+            scoreSummary: {
+                totalScore,
+                totalPossible,
+                percentage,
+                passed,
+                correctCount,
+                incorrectCount,
+                unattemptedCount,
+                accuracy
+            },
+            timeTakenSeconds: timeTaken,
+            antiCheatStrikes: state.antiCheatStrikes || 0
+        };
+        saveStationRecord(stationRecord);
+
         if (showImmediateResult) showToast('Exam submitted successfully! Official scorecard generated.', 'success');
         else {
             state.selectedCandidate = null;
@@ -1893,6 +1973,204 @@
     }
 
     // =========================================================================
+    // STATION EXAMINATION RECORDS & RESULTS BROWSER
+    // =========================================================================
+    const STORAGE_KEY_RECORDS = 'rc_cbt_station_records';
+
+    function getStationRecords() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_RECORDS);
+            return raw ? JSON.parse(raw) : [];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function saveStationRecord(rec) {
+        try {
+            const list = getStationRecords();
+            list.unshift(rec);
+            if (list.length > 500) list.length = 500;
+            localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(list));
+        } catch (e) {
+            console.warn('Could not save station record:', e);
+        }
+    }
+
+    function clearStationRecords() {
+        try {
+            localStorage.removeItem(STORAGE_KEY_RECORDS);
+        } catch (_) {}
+    }
+
+    function openStationResultsModal() {
+        if (el.modalStationResults) {
+            el.modalStationResults.hidden = false;
+            el.modalStationResults.style.display = 'grid';
+        }
+        state.recordsFilterMode = 'today';
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (el.recordsInputSingleDate) el.recordsInputSingleDate.value = todayStr;
+        if (el.recordsInputFromDate) el.recordsInputFromDate.value = todayStr;
+        if (el.recordsInputToDate) el.recordsInputToDate.value = todayStr;
+
+        updateRecordsDateTabUI();
+        filterAndRenderStationRecords();
+    }
+
+    function updateRecordsDateTabUI() {
+        if (!el.recordsDateTabs) return;
+        el.recordsDateTabs.querySelectorAll('.records-tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === state.recordsFilterMode);
+        });
+        if (el.recordsSinglePickerRow) {
+            el.recordsSinglePickerRow.style.display = (state.recordsFilterMode === 'single') ? 'flex' : 'none';
+        }
+        if (el.recordsRangePickerRow) {
+            el.recordsRangePickerRow.style.display = (state.recordsFilterMode === 'range') ? 'flex' : 'none';
+        }
+    }
+
+    function filterAndRenderStationRecords() {
+        if (!el.recordsListContainer) return;
+        const allRecords = getStationRecords();
+        const mode = state.recordsFilterMode || 'today';
+        const searchTerm = (el.inputRecordsSearch?.value || '').trim().toLowerCase();
+        const todayYMD = new Date().toISOString().split('T')[0];
+
+        let filtered = allRecords.filter(rec => {
+            const recYMD = rec.dateIso ? rec.dateIso.split('T')[0] : (new Date(rec.timestamp).toISOString().split('T')[0]);
+
+            if (mode === 'today') {
+                if (recYMD !== todayYMD) return false;
+            } else if (mode === 'single') {
+                const targetDate = el.recordsInputSingleDate?.value || todayYMD;
+                if (recYMD !== targetDate) return false;
+            } else if (mode === 'range') {
+                const fromD = el.recordsInputFromDate?.value;
+                const toD = el.recordsInputToDate?.value;
+                if (fromD && recYMD < fromD) return false;
+                if (toD && recYMD > toD) return false;
+            }
+
+            if (searchTerm) {
+                const candName = (rec.candidate?.name || '').toLowerCase();
+                const candRoll = String(rec.candidate?.rollNo || '').toLowerCase();
+                const candClass = (rec.candidate?.class || '').toLowerCase();
+                const candSec = (rec.candidate?.section || '').toLowerCase();
+                const examTitle = (rec.exam?.title || '').toLowerCase();
+                const examSubj = (rec.exam?.subject || '').toLowerCase();
+                return candName.includes(searchTerm) || candRoll.includes(searchTerm) ||
+                       candClass.includes(searchTerm) || candSec.includes(searchTerm) ||
+                       examTitle.includes(searchTerm) || examSubj.includes(searchTerm);
+            }
+
+            return true;
+        });
+
+        const totalCount = filtered.length;
+        const passedCount = filtered.filter(r => r.scoreSummary?.passed).length;
+        const passRate = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 0;
+        let sumScore = 0;
+        filtered.forEach(r => sumScore += (Number(r.scoreSummary?.percentage) || 0));
+        const avgScore = totalCount > 0 ? (sumScore / totalCount).toFixed(1) : '0.0';
+
+        if (el.metricRecordsTotal) el.metricRecordsTotal.textContent = totalCount;
+        if (el.metricRecordsPassed) el.metricRecordsPassed.textContent = passedCount;
+        if (el.metricRecordsRate) el.metricRecordsRate.textContent = `${passRate}%`;
+        if (el.metricRecordsAvg) el.metricRecordsAvg.textContent = `${avgScore}%`;
+
+        if (filtered.length === 0) {
+            el.recordsListContainer.innerHTML = `
+                <div style="padding: 36px 20px; text-align: center; color: var(--rc-text-secondary);">
+                    <i class="fas fa-clipboard-question" style="font-size: 2.2rem; color: #94a3b8; margin-bottom: 10px;"></i>
+                    <h4 style="margin: 0 0 6px 0; color: #1e293b; font-size: 1rem;">No Candidate Tests Found</h4>
+                    <p style="margin: 0; font-size: 0.85rem;">No examinations match the selected date or search filter. Tests conducted on this station will appear here automatically.</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = `
+            <table class="records-table">
+                <thead>
+                    <tr>
+                        <th>Candidate</th>
+                        <th>Class / Sec</th>
+                        <th>Exam Paper</th>
+                        <th>Submitted At</th>
+                        <th>Score & Result</th>
+                        <th>Duration</th>
+                        <th>Integrity</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        filtered.forEach(rec => {
+            const initial = (rec.candidate?.name || 'S').charAt(0).toUpperCase();
+            const avatarImg = rec.candidate?.photo
+                ? `<img src="${rec.candidate.photo}" alt="${rec.candidate.name}">`
+                : initial;
+            const subTime = rec.timestamp ? new Date(rec.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--';
+            const subDate = rec.timestamp ? new Date(rec.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
+            const passed = rec.scoreSummary?.passed;
+            const pct = rec.scoreSummary?.percentage ?? 0;
+            const pts = rec.scoreSummary?.totalScore ?? 0;
+            const maxPts = rec.scoreSummary?.totalPossible ?? 0;
+            const strikes = rec.antiCheatStrikes || 0;
+            const mins = Math.floor((rec.timeTakenSeconds || 0) / 60);
+            const secs = (rec.timeTakenSeconds || 0) % 60;
+
+            html += `
+                <tr>
+                    <td>
+                        <div class="record-student-cell">
+                            <div class="record-student-avatar">${avatarImg}</div>
+                            <div>
+                                <strong style="display: block; color: #0f172a;">${rec.candidate?.name || 'Candidate'}</strong>
+                                <span style="font-size: 0.75rem; color: var(--rc-text-secondary);">Roll: ${rec.candidate?.rollNo || '--'} · Seq #${rec.candidate?.sequence || '--'}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600; color: #334155;">${rec.candidate?.class || 'Standard'}</div>
+                        <small style="color: var(--rc-text-secondary);">Sec ${rec.candidate?.section || '--'}</small>
+                    </td>
+                    <td>
+                        <strong style="display: block; color: #1e293b;">${rec.exam?.title || 'Exam'}</strong>
+                        <small style="color: #64748b; font-size: 0.75rem;">${(rec.exam?.subject || 'GENERAL').toUpperCase()} (Code: ${rec.exam?.code || 'CBT'})</small>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600; color: #334155;">${subTime}</div>
+                        <small style="color: #64748b; font-size: 0.75rem;">${subDate}</small>
+                    </td>
+                    <td>
+                        <div style="margin-bottom: 3px;">
+                            <span class="record-score-badge ${passed ? 'passed' : 'failed'}">
+                                <i class="fas ${passed ? 'fa-check' : 'fa-xmark'}"></i> ${pct}% (${passed ? 'PASSED' : 'FAILED'})
+                            </span>
+                        </div>
+                        <small style="color: #64748b; font-size: 0.75rem; font-family: var(--font-mono);">${pts} / ${maxPts} pts</small>
+                    </td>
+                    <td style="font-family: var(--font-mono); color: #334155;">
+                        ${mins}m ${secs}s
+                    </td>
+                    <td>
+                        ${strikes > 0
+                            ? `<span style="color: var(--rc-error); font-size: 0.78rem; font-weight: 600;"><i class="fas fa-triangle-exclamation"></i> ${strikes} Strike${strikes === 1 ? '' : 's'}</span>`
+                            : `<span style="color: var(--rc-success); font-size: 0.78rem; font-weight: 600;"><i class="fas fa-shield-check"></i> Clean</span>`
+                        }
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `</tbody></table>`;
+        el.recordsListContainer.innerHTML = html;
+    }
+
+    // =========================================================================
     // EVENT LISTENERS & SETUP
     // =========================================================================
     function setupEventListeners() {
@@ -2030,6 +2308,58 @@
             requireAdminPin(() => openAdminExamSetupModal(), 'Enter Admin PIN to access Exam Setup.');
         };
         el.btnAdminExamSetup?.addEventListener('click', triggerOpenExamSetup);
+
+        // Station Examination Results Button (Admin PIN Protected)
+        el.btnAdminResults?.addEventListener('click', () => {
+            requireAdminPin(() => openStationResultsModal(), 'Enter Admin PIN to view Station Exam Results.');
+        });
+        el.btnCloseStationResults?.addEventListener('click', () => {
+            if (el.modalStationResults) {
+                el.modalStationResults.hidden = true;
+                el.modalStationResults.style.display = 'none';
+            }
+        });
+        el.btnCloseRecordsModal?.addEventListener('click', () => {
+            if (el.modalStationResults) {
+                el.modalStationResults.hidden = true;
+                el.modalStationResults.style.display = 'none';
+            }
+        });
+        el.btnClearStationRecords?.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all examination records stored on this machine?')) {
+                clearStationRecords();
+                filterAndRenderStationRecords();
+                showToast('Station examination records cleared.', 'info');
+            }
+        });
+
+        // Records Date Filter Tabs
+        el.recordsDateTabs?.querySelectorAll('.records-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                state.recordsFilterMode = btn.dataset.mode;
+                updateRecordsDateTabUI();
+                filterAndRenderStationRecords();
+            });
+        });
+
+        // Single / Range Date Input Listeners
+        el.recordsInputSingleDate?.addEventListener('change', () => {
+            filterAndRenderStationRecords();
+        });
+        el.recordsInputFromDate?.addEventListener('change', () => {
+            filterAndRenderStationRecords();
+        });
+        el.recordsInputToDate?.addEventListener('change', () => {
+            filterAndRenderStationRecords();
+        });
+        el.inputRecordsSearch?.addEventListener('input', () => {
+            filterAndRenderStationRecords();
+        });
+
+        // Reset Candidate Exam Flags
+        el.btnResetRosterFlags?.addEventListener('click', () => {
+            resetAllCompletedCandidates();
+        });
 
         // Keyboard Shortcut Ctrl+Shift+S for Exam Setup
         document.addEventListener('keydown', (e) => {
@@ -2424,6 +2754,9 @@
         [el.modalCalc, el.modalScratch, el.modalAntiCheat, el.modalSubmitConfirm].forEach(modal => {
             if (modal) modal.hidden = true;
         });
+        // Reset all completed flags on start so all test users are available
+        resetAllCompletedCandidates(true);
+
         switchView('license');
         checkLicenseStatus();
     });
