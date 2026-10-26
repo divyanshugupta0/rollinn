@@ -1119,6 +1119,16 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
       try {
         const access = await getCbtAccess();
         if (!access.active) throw new Error('An active CBT plan is required for this school.');
+        const currentUid = (window.firebase && window.firebase.auth && window.firebase.auth().currentUser?.uid) ||
+                           window.currentTeacher?.uid ||
+                           window.currentUser?.uid ||
+                           access.profile?.uid ||
+                           '';
+        const currentTeacherName = window.currentTeacher?.name ||
+                                   window.currentTeacher?.displayName ||
+                                   access.profile?.name ||
+                                   access.profile?.displayName ||
+                                   'Teacher';
         const sections = selectedSections(modal);
         if (!sections.length) throw new Error('Select at least one class section.');
         const title = modal.querySelector('#cbtTitle').value.trim();
@@ -1223,7 +1233,7 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
             sections: examSections,
             deviceAllocation: { maxDevices: access.maxDevices, threshold: allocation.threshold, deviceCount: allocation.deviceCount, sequenceOrder: 'classRoll ascending' },
             sectionAssignment: { classId: assignment.classId, className: assignment.className, section: assignment.section, studentCount: assignedStudents.length },
-            createdAt: new Date().toISOString(), createdBy: window.currentUser?.uid || ''
+            createdAt: new Date().toISOString(), createdBy: currentUid
           };
           payload.encryptedAnswers = await encrypt(JSON.stringify(answers), examId, access.schoolCode);
           const envelope = { header: 'ROLLCALL_CBT_SECURE_EXAM_PACKAGE_V1', checksum: await sign(JSON.stringify(payload)), payload };
@@ -1238,8 +1248,9 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
             await db.ref(`schoolTests/${access.schoolId}/${examId}`).set({
               id: examId,
               title: title,
-              teacherId: window.currentUser?.uid || '',
-              teacherName: access.profile?.name || access.profile?.displayName || 'Teacher',
+              teacherId: currentUid,
+              teacherName: currentTeacherName,
+              createdBy: currentUid,
               classId: assignment.classId,
               className: assignment.className,
               section: assignment.section,
@@ -1294,7 +1305,7 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
             sections: examSections,
             deviceAllocation: { maxDevices: access.maxDevices, threshold: Math.ceil(multiSectionCandidates.length / access.maxDevices), deviceCount: access.maxDevices, sequenceOrder: 'section ascending, classRoll ascending' },
             sectionAssignment: { isMultiSection: true, sections: sections.map(s => ({ classId: s.classId, className: s.className, section: s.section, studentCount: multiSectionCandidates.filter(c => c.section === s.section).length })) },
-            createdAt: new Date().toISOString(), createdBy: window.currentUser?.uid || ''
+            createdAt: new Date().toISOString(), createdBy: currentUid
           };
           multiPayload.encryptedAnswers = await encrypt(JSON.stringify(answers), multiExamId, access.schoolCode);
           const multiEnvelope = { header: 'ROLLCALL_CBT_SECURE_EXAM_PACKAGE_V1', checksum: await sign(JSON.stringify(multiPayload)), payload: multiPayload };
@@ -1307,8 +1318,9 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
             await db.ref(`schoolTests/${access.schoolId}/${multiExamId}`).set({
               id: multiExamId,
               title: `${title} (Sections: ${multiSectionNames})`,
-              teacherId: window.currentUser?.uid || '',
-              teacherName: access.profile?.name || access.profile?.displayName || 'Teacher',
+              teacherId: currentUid,
+              teacherName: currentTeacherName,
+              createdBy: currentUid,
               classId: sections[0].classId,
               className: sections[0].className,
               section: multiSectionNames,

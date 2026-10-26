@@ -534,6 +534,25 @@
         state.questionStatus = {};
         state.completedCandidates = loadCompletedCandidates();
 
+        // Sync with permanent station vault records to block re-attempts
+        if (window.rollcallCBT && window.rollcallCBT.getStationRecords) {
+            window.rollcallCBT.getStationRecords().then(records => {
+                state.stationRecords = Array.isArray(records) ? records : [];
+                const currentExamId = String(exam.examId || exam.code || '').trim().toLowerCase();
+                state.stationRecords.forEach(r => {
+                    const recExamId = String(r.exam?.id || r.exam?.code || '').trim().toLowerCase();
+                    const examMatches = !currentExamId || !recExamId || recExamId === currentExamId || recExamId.includes(currentExamId) || currentExamId.includes(recExamId);
+                    if (examMatches && r.candidate) {
+                        const keys = getCandidateCompletionKeys(r.candidate);
+                        keys.forEach(k => state.completedCandidates.add(k));
+                    }
+                });
+                if (state.visibleCandidates) {
+                    renderCandidatesList(state.visibleCandidates);
+                }
+            }).catch(e => console.warn('Could not sync station records:', e));
+        }
+
         // Display exam details
         el.inspectSubject.textContent = (exam.subject || 'GENERAL').toUpperCase();
         el.inspectTitle.textContent = exam.title || 'Computer-Based Test';
@@ -673,6 +692,25 @@
         renderCandidatesList(list);
     }
 
+    function getCandidateCompletionKeys(candidate) {
+        if (!candidate) return [];
+        const keys = [];
+        if (candidate.uid) keys.push(`uid:${String(candidate.uid).trim().toLowerCase()}`);
+        if (candidate.id) keys.push(`id:${String(candidate.id).trim().toLowerCase()}`);
+        const roll = candidate.rollNo || candidate.rollNumber || candidate.classRoll || candidate.roll;
+        if (roll) keys.push(`roll:${String(roll).trim().toLowerCase()}`);
+        if (candidate.name) keys.push(`name:${String(candidate.name).trim().toLowerCase()}`);
+        if (roll && candidate.name) {
+            keys.push(`rollname:${String(roll).trim().toLowerCase()}_${String(candidate.name).trim().toLowerCase()}`);
+        }
+        // Also add plain raw identifiers for backwards compatibility
+        if (candidate.uid) keys.push(String(candidate.uid).trim().toLowerCase());
+        if (candidate.id) keys.push(String(candidate.id).trim().toLowerCase());
+        if (roll) keys.push(String(roll).trim().toLowerCase());
+        if (candidate.name) keys.push(String(candidate.name).trim().toLowerCase());
+        return [...new Set(keys.filter(Boolean))];
+    }
+
     function candidateCompletionKey(candidate) {
         return String(candidate?.uid || candidate?.id || candidate?.rollNo || candidate?.rollNumber || candidate?.name || '').trim().toLowerCase();
     }
@@ -688,10 +726,37 @@
         } catch (_) { return new Set(); }
     }
 
+    function isCandidateCompleted(candidate) {
+        if (!candidate) return false;
+        const keys = getCandidateCompletionKeys(candidate);
+        for (const k of keys) {
+            if (state.completedCandidates && state.completedCandidates.has(k)) return true;
+        }
+
+        // Cross-reference against local station exam records
+        if (Array.isArray(state.stationRecords) && state.stationRecords.length > 0) {
+            const currentExamId = String(state.activeExam?.examId || state.activeExam?.code || '').trim().toLowerCase();
+            const candName = String(candidate.name || '').trim().toLowerCase();
+            const candRoll = String(candidate.rollNo || candidate.rollNumber || candidate.classRoll || candidate.roll || '').trim().toLowerCase();
+
+            for (const r of state.stationRecords) {
+                const recExamId = String(r.exam?.id || r.exam?.code || '').trim().toLowerCase();
+                const examMatches = !currentExamId || !recExamId || recExamId === currentExamId || recExamId.includes(currentExamId) || currentExamId.includes(recExamId);
+                if (examMatches && r.candidate) {
+                    const rName = String(r.candidate.name || '').trim().toLowerCase();
+                    const rRoll = String(r.candidate.rollNo || r.candidate.roll || '').trim().toLowerCase();
+                    if (candRoll && rRoll && candRoll === rRoll) return true;
+                    if (candName && rName && candName === rName) return true;
+                }
+            }
+        }
+        return false;
+    }
+
     function markCandidateCompleted(candidate) {
-        const key = candidateCompletionKey(candidate);
-        if (!key) return;
-        state.completedCandidates.add(key);
+        if (!candidate) return;
+        const keys = getCandidateCompletionKeys(candidate);
+        keys.forEach(k => state.completedCandidates.add(k));
         try { localStorage.setItem(completedCandidatesStorageKey(), JSON.stringify([...state.completedCandidates])); } catch (_) { /* best effort */ }
     }
 
@@ -738,7 +803,7 @@
 
         candidates.forEach(c => {
             const card = document.createElement('div');
-            const completed = state.completedCandidates.has(candidateCompletionKey(c));
+            const completed = isCandidateCompleted(c);
             card.className = `candidate-item-card${completed ? ' completed' : ''}`;
             const initial = (c.name || 'S').charAt(0).toUpperCase();
             const seqNumber = c.sectionSequence || c.sequence || '';
@@ -748,10 +813,13 @@
                 <div class="c-info">
                     <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;">
                         <strong style="margin:0;">${c.name}</strong>
-                        ${seqNumber ? `<span class="c-seq-pill" title="Section Sequence #${seqNumber}">#${seqNumber}</span>` : ''}
+                        <div style="display:flex;align-items:center;gap:4px;">
+                            ${completed ? '<span class="c-completed-badge" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;padding:1px 6px;border-radius:4px;font-size:0.65rem;font-weight:700;"><i class="fas fa-check-circle"></i> SUBMITTED</span>' : ''}
+                            ${seqNumber ? `<span class="c-seq-pill" title="Section Sequence #${seqNumber}">#${seqNumber}</span>` : ''}
+                        </div>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:0.75rem;color:var(--rc-text-secondary);">
-                        <span>Roll: <strong>${c.rollNo || 'N/A'}</strong></span>
+                        <span>Roll: <strong>${c.rollNo || c.roll || 'N/A'}</strong></span>
                         ${sectionLabel ? `<span class="c-sec-tag"><i class="fas fa-users" style="font-size:0.65rem;"></i> ${sectionLabel}</span>` : ''}
                         <span>· ${c.batch || c.class || 'Student'}</span>
                     </div>
@@ -772,17 +840,30 @@
                     avatar.textContent = initial;
                 };
             }
-            if (!completed) card.addEventListener('click', () => {
-                document.querySelectorAll('.candidate-item-card').forEach(ci => ci.classList.remove('selected'));
-                card.classList.add('selected');
-                selectCandidate(c);
-            });
-            else card.setAttribute('aria-disabled', 'true');
+            if (!completed) {
+                card.addEventListener('click', () => {
+                    document.querySelectorAll('.candidate-item-card').forEach(ci => ci.classList.remove('selected'));
+                    card.classList.add('selected');
+                    selectCandidate(c);
+                });
+            } else {
+                card.setAttribute('aria-disabled', 'true');
+                card.style.opacity = '0.55';
+                card.style.cursor = 'not-allowed';
+                card.addEventListener('click', () => {
+                    showToast(`Candidate ${c.name} (Roll #${c.rollNo || c.roll || '--'}) has already completed and submitted this examination. Re-attempts are prohibited.`, 'warning');
+                });
+            }
             el.candidateListGrid.appendChild(card);
         });
     }
 
     function selectCandidate(candidate) {
+        if (!candidate) return;
+        if (isCandidateCompleted(candidate)) {
+            showToast(`Candidate ${candidate.name} has already submitted this examination. Re-attempts are prohibited.`, 'warning');
+            return;
+        }
         state.selectedCandidate = candidate;
         if (el.adminSetupSelectedSummary) {
             const secStr = candidate.section ? ` · Sec ${candidate.section}` : '';
@@ -795,6 +876,11 @@
     }
 
     function loadCandidateToDesk(candidate) {
+        if (!candidate) return;
+        if (isCandidateCompleted(candidate)) {
+            showToast(`Candidate ${candidate.name} has already submitted this examination and cannot be loaded.`, 'warning');
+            return;
+        }
         state.selectedCandidate = candidate;
 
         if (el.stationStandbyView) el.stationStandbyView.style.display = 'none';
@@ -887,8 +973,7 @@
         let nextCandidate = null;
         for (let i = currentIdx + 1; i < candidates.length; i++) {
             const c = candidates[i];
-            const r = String(c.rollNo || c.roll);
-            if (!state.completedCandidates.has(r)) {
+            if (!isCandidateCompleted(c)) {
                 nextCandidate = c;
                 break;
             }
@@ -913,8 +998,7 @@
         let nextCandidate = null;
         for (let i = currentIdx + 1; i < candidates.length; i++) {
             const c = candidates[i];
-            const r = String(c.rollNo || c.roll);
-            if (!state.completedCandidates.has(r)) {
+            if (!isCandidateCompleted(c)) {
                 nextCandidate = c;
                 break;
             }
@@ -922,8 +1006,7 @@
         if (!nextCandidate) {
             for (let i = 0; i <= currentIdx; i++) {
                 const c = candidates[i];
-                const r = String(c.rollNo || c.roll);
-                if (!state.completedCandidates.has(r)) {
+                if (!isCandidateCompleted(c)) {
                     nextCandidate = c;
                     break;
                 }
@@ -1002,6 +1085,10 @@
     async function startExamSession() {
         if (!state.activeExam || !state.selectedCandidate) {
             showToast('Please select a candidate before proceeding.', 'error');
+            return;
+        }
+        if (isCandidateCompleted(state.selectedCandidate)) {
+            showToast(`Candidate ${state.selectedCandidate.name} has already completed and submitted this examination. Re-attempts are prohibited.`, 'error');
             return;
         }
 
@@ -1576,9 +1663,8 @@
         // Render Question Reviews
         renderReviewList(reviewItems);
 
-        // Respect the exam-file result policy. Hidden results return to the roster.
-        const showImmediateResult = state.activeExam.rules?.showImmediateResult === true;
-        if (showImmediateResult) switchView('results');
+        // Always display official scorecard results on station screen upon submission
+        switchView('results');
 
         // Prepare submission object
         state.lastSubmissionPackage = {
@@ -1636,16 +1722,10 @@
             antiCheatStrikes: state.antiCheatStrikes || 0
         };
         saveStationRecord(stationRecord);
+        if (!state.stationRecords) state.stationRecords = [];
+        state.stationRecords.unshift(stationRecord);
 
-        if (showImmediateResult) showToast('Exam submitted successfully! Official scorecard generated.', 'success');
-        else {
-            state.selectedCandidate = null;
-            state.candidateResponses = {};
-            state.questionStatus = {};
-            renderCandidatesList(state.visibleCandidates);
-            switchView('setup');
-            showToast('Exam submitted successfully. Results are hidden by exam settings.', 'success');
-        }
+        showToast('Exam submitted successfully! Official scorecard generated.', 'success');
     }
 
     function renderReviewList(items) {
@@ -2716,6 +2796,10 @@
                 showToast('Please select a candidate to load onto this station.', 'error');
                 return;
             }
+            if (isCandidateCompleted(state.selectedCandidate)) {
+                showToast(`Candidate ${state.selectedCandidate.name} has already completed and submitted this examination. Re-attempts are prohibited.`, 'error');
+                return;
+            }
             loadCandidateToDesk(state.selectedCandidate);
             if (el.modalAdminExamSetup) el.modalAdminExamSetup.style.display = 'none';
             showToast(`Exam loaded for ${state.selectedCandidate.name}. Station ready to start.`, 'success');
@@ -3018,10 +3102,19 @@
 
         el.btnBackToHome.addEventListener('click', () => {
             state.selectedCandidate = null;
+            state.candidateResponses = {};
+            state.questionStatus = {};
+            if (el.adminSetupSelectedSummary) el.adminSetupSelectedSummary.innerHTML = '';
+            if (el.btnAdminConfirmLoadCandidate) el.btnAdminConfirmLoadCandidate.disabled = true;
+            if (el.stationStandbyView) el.stationStandbyView.style.display = 'block';
+            if (el.stationDeskView) el.stationDeskView.style.display = 'none';
+
             document.body.classList.remove('exam-active');
             if (state.activeExam) {
                 state.completedCandidates = loadCompletedCandidates();
-                renderCandidatesList(state.visibleCandidates);
+                if (state.visibleCandidates) {
+                    renderCandidatesList(state.visibleCandidates);
+                }
                 el.examInspectContainer.classList.remove('hidden');
                 el.examDropzone.classList.add('hidden');
             }

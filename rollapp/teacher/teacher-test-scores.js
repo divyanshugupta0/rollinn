@@ -3398,7 +3398,19 @@
 
             db.ref(`schoolTests/${schoolId}`).on('value', snapshot => {
                 const data = snapshot.val() || {};
-                testsList = Object.values(data).filter(t => t.teacherId === currentTeacher.uid);
+                testsList = Object.values(data).filter(t => {
+                    if (!t) return false;
+                    if (t.teacherId && t.teacherId === currentTeacher.uid) return true;
+                    if (t.createdBy && t.createdBy === currentTeacher.uid) return true;
+                    if (t.teacherName && (t.teacherName === currentTeacher.name || t.teacherName === currentTeacher.displayName)) return true;
+                    if (t.isCbtExam || t.examType === 'Mock CBT Test') {
+                        if (!t.teacherId || t.teacherId === '') {
+                            const hasClass = Array.from(myClassesMap.values()).some(c => c.classId === t.classId || c.className === t.className);
+                            if (hasClass) return true;
+                        }
+                    }
+                    return false;
+                });
 
                 // Sort descending by testDate then createdAt
                 testsList.sort((a, b) => {
