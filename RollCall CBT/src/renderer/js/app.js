@@ -404,13 +404,13 @@
         if (license.inGracePeriod) {
             el.setupLicenseExpiry.textContent = `Renewal required - grace period ends ${new Date(license.gracePeriodEndsAt).toLocaleDateString()}`;
         }
-        if (el.setupLicenseDevices) el.setupLicenseDevices.textContent = `Devices remaining: ${Number(license.remainingDevices ?? 0)} / ${Number(license.maxDevices || 1)}`;
+        if (el.setupLicenseDevices) el.setupLicenseDevices.textContent = 'License Active';
 
         // Update the Activation View (StartupLayout card)
         if (el.licenseActiveIdentity) el.licenseActiveIdentity.style.display = 'flex';
         if (el.activeSchoolName) el.activeSchoolName.textContent = `${instName} (${schoolCode})`;
         if (el.activeDeviceInfo) {
-            el.activeDeviceInfo.textContent = `Station Activated · Valid until ${license.expiryDate || 'N/A'} · Remaining seats: ${Number(license.remainingDevices ?? 0)} / ${Number(license.maxDevices || 1)}`;
+            el.activeDeviceInfo.textContent = `Station Activated · Valid until ${license.expiryDate || 'N/A'}`;
         }
         if (el.activeLicenseActions) el.activeLicenseActions.style.display = 'block';
         if (el.gateMainTitle) el.gateMainTitle.textContent = 'RollCall CBT Station Workspace';
@@ -1875,7 +1875,6 @@
         if (el.licDetailSchoolCode) el.licDetailSchoolCode.textContent = lic.schoolCode || '----';
         if (el.licDetailDeviceId) el.licDetailDeviceId.textContent = lic.deviceId || state.license?.deviceId || 'STATION-HW';
         if (el.licDetailExpiry) el.licDetailExpiry.textContent = lic.expiryDate || 'Perpetual';
-        if (el.licDetailDevices) el.licDetailDevices.textContent = `${Number(lic.remainingDevices ?? 0)} remaining / ${Number(lic.maxDevices || 1)} authorized`;
         if (el.modalLicenseDetails) {
             el.modalLicenseDetails.hidden = false;
             el.modalLicenseDetails.style.display = 'grid';
