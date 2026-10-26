@@ -31,7 +31,10 @@
         </div>
 
         <div class="topbar-actions" id="topbar-main-actions">
-            <button type="button" class="btn-topbar-action btn-light" id="btn-relicense" title="Station License Details">
+            <button type="button" class="btn-topbar-action btn-light" id="btn-admin-exam-setup" title="Exam Supervisor Console (Admin PIN Required)">
+                <i class="fas fa-user-gear"></i> <span>Exam Setup</span>
+            </button>
+            <button type="button" class="btn-topbar-action btn-light" id="btn-relicense" title="Station License Details (Admin PIN Required)">
                 <i class="fas fa-id-card"></i> <span>License</span>
             </button>
             <button type="button" class="btn-topbar-icon" id="btn-fullscreen-toggle" title="Toggle Fullscreen">
@@ -215,8 +218,8 @@
                                 <button type="button" class="btn-erp-primary" id="btn-continue-to-setup" style="margin-bottom: 10px;">
                                     <i class="fas fa-arrow-right"></i> Continue to Exam Station
                                 </button>
-                                <button type="button" class="btn-erp-danger" id="btn-deactivate-station" style="width: 100%;">
-                                    <i class="fas fa-trash-can"></i> Deactivate Station License
+                                <button type="button" class="btn-erp-light" id="btn-view-license-details" style="width: 100%;">
+                                    <i class="fas fa-shield-halved"></i> View License Details (Admin PIN Required)
                                 </button>
                             </div>
 
@@ -242,171 +245,227 @@
 
         <!-- ======================================================== -->
         <!-- VIEW 2: STAGE 2 - EXAM STATION SETUP & ROSTER ALLOCATION -->
-        <!-- ======================================================== -->
-        <section class="cbt-view" id="view-setup-exam">
-            <div class="erp-container">
-                <!-- Station Status Card -->
-                <div class="erp-card" style="padding: 20px 24px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                        <div style="display: flex; align-items: center; gap: 14px;">
-                            <div class="school-identity-icon" style="width: 40px; height: 40px; flex: 0 0 40px; font-size: 1.1rem;">
+        <!-- ======================================================== -->        <section class="cbt-view" id="view-setup-exam">
+            <!-- State 1: Station Standby (When no student test is loaded yet) -->
+            <div class="station-standby-container" id="station-standby-view">
+                <div class="station-standby-card">
+                    <div class="standby-header-bar">
+                        <div class="standby-brand-box">
+                            <div class="school-identity-icon" style="width: 38px; height: 38px; flex: 0 0 38px; font-size: 1rem;">
                                 <i class="fas fa-school"></i>
                             </div>
                             <div>
-                                <h3 style="font-size: 1.1rem; font-weight: 750; color: #172044; margin: 0;" id="setup-inst-title">
-                                    RollCall Institution
-                                </h3>
-                                <div style="display: flex; gap: 12px; margin-top: 3px; font-size: 0.8rem; color: var(--rc-text-secondary);">
-                                    <span id="setup-license-expiry">Valid until ...</span>
+                                <h3 class="standby-school-title" id="setup-inst-title">RollCall Institution</h3>
+                                <div class="standby-license-meta">
+                                    <span id="setup-license-expiry">Offline CBT Terminal</span>
                                     <span>·</span>
-                                    <span id="setup-license-devices">Devices remaining: ...</span>
+                                    <span id="setup-license-devices">License Active</span>
                                 </div>
                             </div>
                         </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button type="button" class="btn-erp-light" id="btn-switch-license-view">
-                                <i class="fas fa-id-card"></i> Manage License
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Step 1: Upload Exam Package (.rollcbt) -->
-                <div class="erp-card">
-                    <div class="erp-card-header">
-                        <div class="erp-card-header-left">
-                            <small>STEP 1 · EXAM INITIALIZATION</small>
-                            <h2>Upload Offline Exam Package</h2>
-                            <p>Select the encrypted <code>.rollcbt</code> exam package exported from the Teacher or Admin Portal.</p>
+                        <div class="standby-status-pill">
+                            <span class="pulse-dot"></span>
+                            <span>TERMINAL STANDBY</span>
                         </div>
                     </div>
 
-                    <div class="erp-dropzone" id="exam-file-dropzone">
-                        <input type="file" id="input-hidden-exam-file" accept=".rollcbt" hidden>
-                        <div class="dropzone-icon-box">
-                            <i class="fas fa-file-circle-check"></i>
+                    <div class="standby-content-body">
+                        <div class="standby-emblem">
+                            <i class="fas fa-laptop-code"></i>
                         </div>
-                        <h3>Upload .rollcbt Exam Package</h3>
-                        <p>Drop the file here, or click Browse to select from USB or local drive.</p>
-                        <div class="dropzone-actions">
-                            <button type="button" class="btn-erp-primary" id="btn-browse-exam-file" style="max-width: 260px;">
-                                <i class="fas fa-folder-open"></i> Browse .rollcbt File
-                            </button>
-                            <button type="button" class="btn-erp-light" id="btn-load-sample-exam">
-                                <i class="fas fa-flask"></i> Load Demo Exam
-                            </button>
+                        <h2>Examination Workstation Ready</h2>
+                        <p class="standby-instruction">
+                            This workstation is securely connected and awaiting examination initialization by the hall invigilator.
+                            Please remain in your seat until your assigned paper is loaded.
+                        </p>
+
+                        <div class="standby-spec-grid">
+                            <div class="standby-spec-card">
+                                <small>Station Identifier</small>
+                                <strong id="standby-station-code">STATION-1</strong>
+                            </div>
+                            <div class="standby-spec-card">
+                                <small>Examination Mode</small>
+                                <strong>Offline Kiosk Guard</strong>
+                            </div>
+                            <div class="standby-spec-card">
+                                <small>Security Protocol</small>
+                                <strong>Cryptographic Local Seal</strong>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Inspected Exam Details (Revealed once file is loaded) -->
-                    <div id="exam-inspect-container" style="display: none; margin-top: 28px;">
-                        <!-- 4-Column Metrics Grid -->
-                        <div class="exam-meta-grid">
-                            <div class="meta-metric-card">
-                                <span>Subject</span>
-                                <strong id="inspect-exam-subject">General</strong>
-                            </div>
-                            <div class="meta-metric-card">
-                                <span>Exam Code</span>
-                                <strong id="inspect-exam-code">EXAM-01</strong>
-                            </div>
-                            <div class="meta-metric-card">
-                                <span>Duration</span>
-                                <strong id="inspect-exam-duration">60 Mins</strong>
-                            </div>
-                            <div class="meta-metric-card">
-                                <span>Total Marks</span>
-                                <strong id="inspect-exam-marks">100</strong>
-                            </div>
+                    <div class="standby-footer-bar">
+                        <div class="standby-invigilator-hint">
+                            <i class="fas fa-user-shield"></i>
+                            <span>Invigilator Controls: Click <strong>Exam Setup</strong> in top header or press <code>Ctrl+Shift+S</code></span>
                         </div>
-
-                        <!-- Device Roster Allocation Banner -->
-                        <div class="station-allocation-banner" id="station-device-banner">
-                            <i class="fas fa-network-wired"></i>
-                            <div>
-                                <strong id="inspect-exam-title">Exam Title</strong>
-                                <p id="inspect-device-allocation-text">
-                                    Station Roster Allocated: Candidates assigned for this device.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div style="font-size: 0.84rem; color: var(--rc-text-secondary); margin-bottom: 20px; padding: 12px 16px; background: #f8fafc; border-radius: var(--radius-sm); border: 1px solid var(--rc-border);" id="inspect-exam-instructions">
-                            Instructions: Answer all questions within the allocated duration.
-                        </div>
-
-                        <!-- Step 2: Candidate Verification & Selection -->
-                        <div class="candidate-selection-box">
-                            <div class="candidate-selection-header">
-                                <h4>Allocated Candidates (<span id="inspect-candidate-count">0</span>)</h4>
-                                <div style="max-width: 240px; width: 100%;">
-                                    <input type="text" id="input-candidate-search" placeholder="Search candidate..." style="width: 100%; padding: 6px 10px; border: 1px solid var(--rc-border); border-radius: 6px; font-size: 0.82rem;">
-                                </div>
-                            </div>
-
-                            <!-- Section Filter Tabs for Multi-Section Exams -->
-                            <div class="candidate-section-tabs-bar" id="candidate-section-tabs" style="display: none;">
-                                <!-- Populated dynamically by app.js: e.g. [All Sections (50)] [Sec A (25)] [Sec B (25)] -->
-                            </div>
-
-                            <div class="candidate-cards-grid" id="candidate-list-grid">
-                                <!-- Populated dynamically by app.js -->
-                            </div>
-
-                            <!-- Selected Candidate Confirmation & PIN box -->
-                            <div class="pin-confirm-card" id="candidate-confirm-box" style="display: none;">
-                                <div style="display: flex; align-items: center; gap: 14px;">
-                                    <div class="confirm-avatar-box">
-                                        <img id="confirm-student-image" src="" alt="Candidate" style="display: none;">
-                                        <div id="confirm-student-fallback" class="confirm-avatar-fallback">S</div>
-                                    </div>
-                                    <div>
-                                        <small style="color: var(--rc-text-dimmed); font-weight: 700; text-transform: uppercase; font-size: 0.72rem;">Selected Candidate</small>
-                                        <h3 style="font-size: 1.05rem; font-weight: 750; color: #172044; margin: 2px 0;" id="confirm-student-name">Candidate Name</h3>
-                                        <span style="font-size: 0.8rem; color: var(--rc-text-secondary);">
-                                            Roll #<span id="confirm-student-roll">1</span> · Class <span id="confirm-student-class">10</span>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 12px;">
-                                    <div class="pin-input-group" id="pin-verify-row" style="display: none;">
-                                        <input type="password" id="input-candidate-pin" maxlength="6" placeholder="PIN">
-                                        <button type="button" class="btn-erp-light" id="btn-verify-pin">Verify</button>
-                                        <span id="pin-status-msg" style="font-size: 0.78rem;"></span>
-                                    </div>
-                                    <button type="button" class="btn-erp-subtle" id="btn-change-student">
-                                        <i class="fas fa-user-pen"></i> Change
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Honor Code & Start Button -->
-                            <div class="honor-code-row">
-                                <input type="checkbox" id="check-honor-code">
-                                <label for="check-honor-code">
-                                    I confirm my candidate identity and agree to comply with examination regulations.
-                                </label>
-                            </div>
-
-                            <div style="display: flex; justify-content: flex-end; gap: 12px;">
-                                <button type="button" class="btn-erp-primary" id="btn-enter-exam-hall" style="max-width: 280px; height: 46px; font-size: 1rem;" disabled>
-                                    <i class="fas fa-play"></i> Start Examination
-                                </button>
-                            </div>
-
-                            <!-- Hidden diagnostics hooks for compatibility -->
-                            <div hidden>
-                                <span id="diag-webcam-status"></span>
-                                <span id="diag-webcam-text"></span>
-                                <video id="setup-webcam-video"></video>
-                                <span id="inspect-exam-questions"></span>
-                                <div id="inspect-rules-tags"></div>
-                            </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="btn-erp-light btn-sm" id="btn-quick-admin-login">
+                                <i class="fas fa-lock"></i> Supervisor Login
+                            </button>
+                            <button type="button" class="btn-erp-subtle btn-sm" id="btn-switch-license-view">
+                                <i class="fas fa-id-card"></i> License
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
-        </section>
+
+            <!-- State 2: Candidate Desk Ready Screen (Shown when exam is loaded for student) -->
+            <div class="station-desk-container" id="station-desk-view" style="display: none;">
+                <div class="station-desk-card">
+                    <!-- Desk Header: Paper & Institution Details -->
+                    <div class="desk-header">
+                        <div class="desk-paper-details">
+                            <div class="desk-paper-tag-row">
+                                <span class="desk-subject-badge" id="desk-exam-subject">SCIENCE &amp; TECHNOLOGY</span>
+                                <span class="desk-paper-code" id="desk-exam-code">CODE: CBT-2026</span>
+                            </div>
+                            <h2 class="desk-paper-title" id="desk-exam-title">Computer-Based Examination</h2>
+                        </div>
+                        <div class="desk-metric-badges">
+                            <div class="desk-metric-pill">
+                                <i class="fas fa-clock"></i>
+                                <div>
+                                    <small>DURATION</small>
+                                    <strong id="desk-exam-duration">60 Mins</strong>
+                                </div>
+                            </div>
+                            <div class="desk-metric-pill">
+                                <i class="fas fa-award"></i>
+                                <div>
+                                    <small>TOTAL MARKS</small>
+                                    <strong id="desk-exam-marks">100</strong>
+                                </div>
+                            </div>
+                            <div class="desk-metric-pill">
+                                <i class="fas fa-list-check"></i>
+                                <div>
+                                    <small>QUESTIONS</small>
+                                    <strong id="desk-exam-questions">--</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Two-Column Desk Body: Candidate Verification & Exam Rules -->
+                    <div class="desk-body-grid">
+                        <!-- Left: Candidate Identity Verification -->
+                        <div class="desk-candidate-panel">
+                            <div class="desk-panel-heading">
+                                <i class="fas fa-id-card-clip"></i>
+                                <span>Candidate Verification</span>
+                            </div>
+
+                            <div class="desk-student-profile-card">
+                                <div class="desk-avatar-box">
+                                    <img id="confirm-student-image" src="" alt="Candidate" style="display: none;">
+                                    <div id="confirm-student-fallback" class="confirm-avatar-fallback">S</div>
+                                    <span class="desk-avatar-dot"></span>
+                                </div>
+                                <div class="desk-student-info">
+                                    <span class="desk-alloc-badge"><i class="fas fa-circle-check"></i> Allocated Desk Candidate</span>
+                                    <h3 class="desk-student-name" id="confirm-student-name">Candidate Name</h3>
+                                    <div class="desk-tags-list">
+                                        <span class="desk-tag-item"><i class="fas fa-id-card"></i> Roll: <strong id="confirm-student-roll">--</strong></span>
+                                        <span class="desk-tag-item"><i class="fas fa-users"></i> Class: <strong id="confirm-student-class">--</strong></span>
+                                        <span class="desk-tag-item"><i class="fas fa-hashtag"></i> Seq: <strong id="confirm-student-seq">--</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Candidate PIN Verification (if roster specifies student PIN) -->
+                            <div class="desk-pin-verification" id="pin-verify-row" style="display: none;">
+                                <label for="input-candidate-pin">Enter Student Security PIN</label>
+                                <div class="desk-pin-input-group">
+                                    <input type="password" id="input-candidate-pin" maxlength="6" placeholder="PIN" autocomplete="off">
+                                    <button type="button" class="btn-erp-primary btn-sm" id="btn-verify-pin">Verify</button>
+                                </div>
+                                <div id="pin-status-msg" class="desk-pin-msg"></div>
+                            </div>
+
+                            <div class="desk-allocation-confirm-box">
+                                <i class="fas fa-shield-halved"></i>
+                                <span>Terminal workstation verified for this student sequence.</span>
+                            </div>
+                        </div>
+
+                        <!-- Right: Examination Integrity & Regulations -->
+                        <div class="desk-rules-panel">
+                            <div class="desk-panel-heading">
+                                <i class="fas fa-file-shield"></i>
+                                <span>Official Regulations</span>
+                            </div>
+
+                            <div class="desk-rules-box">
+                                <div class="desk-rule-item">
+                                    <i class="fas fa-arrows-to-eye"></i>
+                                    <div>
+                                        <strong>Full Kiosk Environment</strong>
+                                        <p>Fullscreen is locked. Alt-Tab or minimizing will immediately generate a security strike.</p>
+                                    </div>
+                                </div>
+                                <div class="desk-rule-item">
+                                    <i class="fas fa-triangle-exclamation"></i>
+                                    <div>
+                                        <strong>3 Strikes Limit</strong>
+                                        <p>Reaching 3 strikes triggers automatic submission and invigilator disqualification review.</p>
+                                    </div>
+                                </div>
+                                <div class="desk-rule-item">
+                                    <i class="fas fa-lock"></i>
+                                    <div>
+                                        <strong>Local Encryption &amp; Auto-Submit</strong>
+                                        <p>Responses are saved locally and securely submitted at the exact conclusion of duration.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="desk-honor-agreement">
+                                <input type="checkbox" id="check-honor-code">
+                                <label for="check-honor-code">
+                                    I confirm that the candidate identity shown above is mine and I agree to strictly adhere to all examination integrity regulations.
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Start Examination Action Bar (With 1-Minute Countdown) -->
+                    <div class="desk-action-bar">
+                        <div class="desk-countdown-banner" id="desk-countdown-banner">
+                            <i class="fas fa-hourglass-half"></i>
+                            <span>Station Preparation Period: Unlocks in <strong id="desk-countdown-timer">01:00</strong></span>
+                        </div>
+
+                        <div class="desk-actions-group">
+                            <button type="button" class="btn-erp-light" id="btn-auto-load-next" title="Load next candidate in roster sequence">
+                                <i class="fas fa-forward-step"></i> Next Candidate (<span id="auto-load-next-seq">Seq #--</span>)
+                            </button>
+                            <button type="button" class="btn-desk-start" id="btn-enter-exam-hall" disabled>
+                                <i class="fas fa-lock"></i> Start Examination (Unlocks in 60s)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden compatibility hooks required by existing JS -->
+            <div hidden>
+                <div id="candidate-confirm-box"></div>
+                <button type="button" id="btn-change-student"></button>
+                <div id="station-device-banner">
+                    <strong id="inspect-exam-title"></strong>
+                    <p id="inspect-device-allocation-text"></p>
+                </div>
+                <div id="inspect-exam-instructions"></div>
+                <span id="inspect-exam-questions"></span>
+                <div id="inspect-rules-tags"></div>
+                <span id="diag-webcam-status"></span>
+                <span id="diag-webcam-text"></span>
+                <video id="setup-webcam-video"></video>
+            </div>
+        </section>ion>
 
         <!-- ======================================================== -->
         <!-- VIEW 3: STAGE 3 - FULLSCREEN EXAM HALL                   -->
@@ -754,6 +813,199 @@
                 <div class="erp-modal-footer">
                     <button type="button" class="btn-erp-subtle" id="btn-clear-scratchpad">Clear Notes</button>
                     <button type="button" class="btn-erp-primary" id="btn-save-scratchpad" style="width: 100px;">Done</button>
+                </div>
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- MODALS: SUPERVISOR & STATION MANAGEMENT                  -->
+        <!-- ======================================================== -->
+
+        <!-- Modal 1: Admin PIN Prompt -->
+        <div class="erp-modal-overlay" id="modal-admin-pin" style="display: none;">
+            <div class="erp-modal-card" style="width: 400px;">
+                <div class="erp-modal-header">
+                    <h3><i class="fas fa-user-shield"></i> Supervisor Authentication</h3>
+                    <button type="button" class="btn-topbar-icon" id="btn-close-admin-pin">&times;</button>
+                </div>
+                <div class="erp-modal-body" style="padding: 24px;">
+                    <p id="admin-pin-prompt-msg" style="margin-bottom: 16px; font-size: 0.88rem; color: var(--rc-text-secondary); text-align: center;">
+                        Enter Station Administrator PIN to access supervisor controls.
+                    </p>
+                    <div style="margin-bottom: 8px;">
+                        <input type="password" id="input-admin-pin" maxlength="8" placeholder="••••" autocomplete="off" style="width: 100%; height: 48px; font-size: 1.5rem; letter-spacing: 0.35em; text-align: center; border: 2px solid var(--rc-border); border-radius: var(--radius-md); font-family: var(--font-mono);">
+                    </div>
+                    <div id="admin-pin-error" style="color: var(--rc-error); font-size: 0.82rem; min-height: 20px; text-align: center; margin-top: 6px;"></div>
+                </div>
+                <div class="erp-modal-footer">
+                    <button type="button" class="btn-erp-light" id="btn-cancel-admin-pin">Cancel</button>
+                    <button type="button" class="btn-erp-primary" id="btn-submit-admin-pin">Verify &amp; Continue</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal 2: Set Admin PIN (Prompted after station activation) -->
+        <div class="erp-modal-overlay" id="modal-set-admin-pin" style="display: none;">
+            <div class="erp-modal-card" style="width: 440px;">
+                <div class="erp-modal-header">
+                    <h3><i class="fas fa-key"></i> Set Station Supervisor PIN</h3>
+                </div>
+                <div class="erp-modal-body" style="padding: 24px;">
+                    <p style="margin-bottom: 16px; font-size: 0.86rem; color: var(--rc-text-secondary);">
+                        Station activated! Create a 4 to 6-digit Supervisor PIN to secure exam package loading, candidate allocations, and license settings.
+                    </p>
+                    <div style="margin-bottom: 14px;">
+                        <label style="display: block; font-size: 0.76rem; font-weight: 750; margin-bottom: 5px; color: var(--rc-text-secondary); text-transform: uppercase;">CREATE SUPERVISOR PIN</label>
+                        <input type="password" id="input-new-admin-pin" maxlength="8" placeholder="e.g. 1234" style="width: 100%; height: 42px; font-size: 1.1rem; border: 1.5px solid var(--rc-border); border-radius: var(--radius-sm); text-align: center; letter-spacing: 0.2em; font-family: var(--font-mono);">
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 0.76rem; font-weight: 750; margin-bottom: 5px; color: var(--rc-text-secondary); text-transform: uppercase;">CONFIRM SUPERVISOR PIN</label>
+                        <input type="password" id="input-confirm-admin-pin" maxlength="8" placeholder="Re-enter PIN" style="width: 100%; height: 42px; font-size: 1.1rem; border: 1.5px solid var(--rc-border); border-radius: var(--radius-sm); text-align: center; letter-spacing: 0.2em; font-family: var(--font-mono);">
+                    </div>
+                    <div id="set-pin-error" style="color: var(--rc-error); font-size: 0.82rem; min-height: 20px;"></div>
+                </div>
+                <div class="erp-modal-footer">
+                    <button type="button" class="btn-erp-primary" id="btn-save-admin-pin" style="width: 100%;">
+                        Save Supervisor PIN &amp; Proceed
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal 3: Station License Details (Protected by PIN) -->
+        <div class="erp-modal-overlay" id="modal-license-details" style="display: none;">
+            <div class="erp-modal-card" style="width: 520px;">
+                <div class="erp-modal-header">
+                    <h3><i class="fas fa-certificate"></i> Verified Station License Details</h3>
+                    <button type="button" class="btn-topbar-icon" id="btn-close-license-details">&times;</button>
+                </div>
+                <div class="erp-modal-body" style="padding: 22px 24px;">
+                    <div class="lic-details-table">
+                        <div class="lic-table-row">
+                            <span class="lic-table-label">Institution</span>
+                            <strong class="lic-table-val" id="lic-detail-school-name">--</strong>
+                        </div>
+                        <div class="lic-table-row">
+                            <span class="lic-table-label">School Code</span>
+                            <span class="lic-table-val code-pill" id="lic-detail-school-code">----</span>
+                        </div>
+                        <div class="lic-table-row">
+                            <span class="lic-table-label">Hardware Machine ID</span>
+                            <span class="lic-table-val font-mono" id="lic-detail-device-id">--</span>
+                        </div>
+                        <div class="lic-table-row">
+                            <span class="lic-table-label">License Status</span>
+                            <span class="lic-table-val" style="color: var(--rc-success); font-weight: 700;"><i class="fas fa-circle-check"></i> Active &amp; Verified</span>
+                        </div>
+                        <div class="lic-table-row">
+                            <span class="lic-table-label">Expiry Date</span>
+                            <strong class="lic-table-val" id="lic-detail-expiry">--</strong>
+                        </div>
+                        <div class="lic-table-row">
+                            <span class="lic-table-label">Device Quota</span>
+                            <span class="lic-table-val" id="lic-detail-devices">--</span>
+                        </div>
+                        <div class="lic-table-row">
+                            <span class="lic-table-label">Cryptographic Seal</span>
+                            <span class="lic-table-val" style="color: #2563eb; font-size: 0.78rem;"><i class="fas fa-shield-halved"></i> RSA-SHA256 Metered Signature</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rc-border-subtle); display: flex; justify-content: space-between; align-items: center;">
+                        <button type="button" class="btn-erp-light btn-sm" id="btn-modal-change-pin">
+                            <i class="fas fa-key"></i> Change Admin PIN
+                        </button>
+                        <button type="button" class="btn-erp-danger btn-sm" id="btn-deactivate-station">
+                            <i class="fas fa-trash-can"></i> Deactivate Station
+                        </button>
+                    </div>
+                </div>
+                <div class="erp-modal-footer">
+                    <button type="button" class="btn-erp-primary" id="btn-done-license-details">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal 4: Admin Exam Setup & Roster Allocation Popup -->
+        <div class="erp-modal-overlay" id="modal-admin-exam-setup" style="display: none;">
+            <div class="erp-modal-card" style="width: min(880px, 95vw); max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="erp-modal-header" style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-user-gear" style="color: var(--rc-primary);"></i>
+                            Exam Station Invigilator Console
+                        </h3>
+                        <small style="color: var(--rc-text-secondary); font-size: 0.78rem;">Upload encrypted exam package, review candidate roster, and load exam for this desk</small>
+                    </div>
+                    <button type="button" class="btn-topbar-icon" id="btn-close-admin-setup">&times;</button>
+                </div>
+
+                <div class="erp-modal-body" style="overflow-y: auto; flex: 1; padding: 22px 26px;">
+                    <!-- Step 1: Upload or Load Sample Exam -->
+                    <div class="erp-dropzone" id="exam-file-dropzone" style="margin-bottom: 20px;">
+                        <input type="file" id="input-hidden-exam-file" accept=".rollcbt" hidden>
+                        <div class="dropzone-icon-box">
+                            <i class="fas fa-file-circle-check"></i>
+                        </div>
+                        <h3>Upload .rollcbt Exam Package</h3>
+                        <p>Select the offline package from USB storage or local computer drive.</p>
+                        <div class="dropzone-actions">
+                            <button type="button" class="btn-erp-primary" id="btn-browse-exam-file" style="max-width: 240px;">
+                                <i class="fas fa-folder-open"></i> Browse .rollcbt File
+                            </button>
+                            <button type="button" class="btn-erp-light" id="btn-load-sample-exam">
+                                <i class="fas fa-flask"></i> Load Demo Exam
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Inspected Exam Info Block -->
+                    <div id="exam-inspect-container" style="display: none; margin-bottom: 20px;">
+                        <div class="exam-meta-grid" style="margin-bottom: 18px;">
+                            <div class="meta-metric-card">
+                                <span>Subject</span>
+                                <strong id="inspect-exam-subject">General</strong>
+                            </div>
+                            <div class="meta-metric-card">
+                                <span>Paper Code</span>
+                                <strong id="inspect-exam-code">EXAM-01</strong>
+                            </div>
+                            <div class="meta-metric-card">
+                                <span>Duration</span>
+                                <strong id="inspect-exam-duration">60 Mins</strong>
+                            </div>
+                            <div class="meta-metric-card">
+                                <span>Total Marks</span>
+                                <strong id="inspect-exam-marks">100</strong>
+                            </div>
+                        </div>
+
+                        <!-- Candidates Roster Selection -->
+                        <div class="candidate-selection-box">
+                            <div class="candidate-selection-header">
+                                <h4>Allocated Candidates (<span id="inspect-candidate-count">0</span>)</h4>
+                                <div style="max-width: 260px; width: 100%;">
+                                    <input type="text" id="input-candidate-search" placeholder="Search candidate..." style="width: 100%; padding: 7px 12px; border: 1px solid var(--rc-border); border-radius: 6px; font-size: 0.82rem;">
+                                </div>
+                            </div>
+
+                            <div class="candidate-section-tabs-bar" id="candidate-section-tabs" style="display: none;"></div>
+
+                            <div class="candidate-cards-grid" id="candidate-list-grid" style="max-height: 260px; overflow-y: auto;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="erp-modal-footer" style="background: #f8fafc; border-top: 1.5px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                    <div id="admin-setup-selected-summary" style="font-size: 0.85rem; color: var(--rc-text-secondary); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Select a candidate from the roster above to load onto this station.</span>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn-erp-light" id="btn-cancel-admin-setup">Close</button>
+                        <button type="button" class="btn-erp-primary" id="btn-admin-confirm-load-candidate" disabled>
+                            <i class="fas fa-check"></i> Load Exam for Candidate
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

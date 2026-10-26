@@ -25,7 +25,9 @@
         visibleCandidates: [],
         scratchpadContent: '',
         fontSizeLevel: 1, // 0 = small, 1 = normal, 2 = large
-        paletteFilter: 'all' // 'all' | 'unanswered' | 'answered' | 'review'
+        paletteFilter: 'all', // 'all' | 'unanswered' | 'answered' | 'review'
+        startCountdownSeconds: 0,
+        startCountdownInterval: null
     };
 
     // DOM Elements Cache
@@ -239,6 +241,60 @@
         el.reviewQuestionsList = document.getElementById('review-questions-list');
         el.btnBackToHome = document.getElementById('btn-back-to-home');
         el.toastStack = document.getElementById('toast-stack');
+
+        // Supervisor, Station Standby, and Candidate Desk Elements
+        el.btnAdminExamSetup = document.getElementById('btn-admin-exam-setup');
+        el.btnViewLicenseDetails = document.getElementById('btn-view-license-details');
+        el.btnQuickAdminLogin = document.getElementById('btn-quick-admin-login');
+        el.stationStandbyView = document.getElementById('station-standby-view');
+        el.stationDeskView = document.getElementById('station-desk-view');
+        el.standbyStationCode = document.getElementById('standby-station-code');
+
+        el.deskExamSubject = document.getElementById('desk-exam-subject');
+        el.deskExamCode = document.getElementById('desk-exam-code');
+        el.deskExamTitle = document.getElementById('desk-exam-title');
+        el.deskExamDuration = document.getElementById('desk-exam-duration');
+        el.deskExamMarks = document.getElementById('desk-exam-marks');
+        el.deskExamQuestions = document.getElementById('desk-exam-questions');
+        el.confirmStudentSeq = document.getElementById('confirm-student-seq');
+        el.deskCountdownBanner = document.getElementById('desk-countdown-banner');
+        el.deskCountdownTimer = document.getElementById('desk-countdown-timer');
+        el.btnAutoLoadNext = document.getElementById('btn-auto-load-next');
+        el.autoLoadNextSeq = document.getElementById('auto-load-next-seq');
+
+        // Admin PIN Modal
+        el.modalAdminPin = document.getElementById('modal-admin-pin');
+        el.inputAdminPin = document.getElementById('input-admin-pin');
+        el.btnSubmitAdminPin = document.getElementById('btn-submit-admin-pin');
+        el.btnCancelAdminPin = document.getElementById('btn-cancel-admin-pin');
+        el.btnCloseAdminPin = document.getElementById('btn-close-admin-pin');
+        el.adminPinError = document.getElementById('admin-pin-error');
+        el.adminPinPromptMsg = document.getElementById('admin-pin-prompt-msg');
+
+        // Set Admin PIN Modal
+        el.modalSetAdminPin = document.getElementById('modal-set-admin-pin');
+        el.inputNewAdminPin = document.getElementById('input-new-admin-pin');
+        el.inputConfirmAdminPin = document.getElementById('input-confirm-admin-pin');
+        el.btnSaveAdminPin = document.getElementById('btn-save-admin-pin');
+        el.setPinError = document.getElementById('set-pin-error');
+
+        // License Details Modal
+        el.modalLicenseDetails = document.getElementById('modal-license-details');
+        el.licDetailSchoolName = document.getElementById('lic-detail-school-name');
+        el.licDetailSchoolCode = document.getElementById('lic-detail-school-code');
+        el.licDetailDeviceId = document.getElementById('lic-detail-device-id');
+        el.licDetailExpiry = document.getElementById('lic-detail-expiry');
+        el.licDetailDevices = document.getElementById('lic-detail-devices');
+        el.btnModalChangePin = document.getElementById('btn-modal-change-pin');
+        el.btnDoneLicenseDetails = document.getElementById('btn-done-license-details');
+        el.btnCloseLicenseDetails = document.getElementById('btn-close-license-details');
+
+        // Admin Exam Setup Modal
+        el.modalAdminExamSetup = document.getElementById('modal-admin-exam-setup');
+        el.btnCloseAdminSetup = document.getElementById('btn-close-admin-setup');
+        el.btnCancelAdminSetup = document.getElementById('btn-cancel-admin-setup');
+        el.btnAdminConfirmLoadCandidate = document.getElementById('btn-admin-confirm-load-candidate');
+        el.adminSetupSelectedSummary = document.getElementById('admin-setup-selected-summary');
     }
 
     // Switch active view
@@ -649,12 +705,48 @@
 
     function selectCandidate(candidate) {
         state.selectedCandidate = candidate;
-        el.confirmStudentName.textContent = candidate.name;
-        el.confirmStudentRoll.textContent = candidate.rollNo;
-        const secText = candidate.section ? ` · Sec ${candidate.section}` : '';
-        const seqText = (candidate.sectionSequence || candidate.sequence) ? ` · Seq #${candidate.sectionSequence || candidate.sequence}` : '';
-        el.confirmStudentClass.textContent = `${candidate.batch || candidate.class || 'Student'}${secText}${seqText}`;
+        if (el.adminSetupSelectedSummary) {
+            const secStr = candidate.section ? ` · Sec ${candidate.section}` : '';
+            const seqStr = (candidate.sectionSequence || candidate.sequence) ? ` · Seq #${candidate.sectionSequence || candidate.sequence}` : '';
+            el.adminSetupSelectedSummary.innerHTML = `<i class="fas fa-user-check" style="color: var(--rc-success);"></i> <span>Selected: <strong>${candidate.name}</strong> (Roll #${candidate.rollNo || candidate.roll || '--'}${secStr}${seqStr})</span>`;
+        }
+        if (el.btnAdminConfirmLoadCandidate) {
+            el.btnAdminConfirmLoadCandidate.disabled = false;
+        }
+    }
 
+    function loadCandidateToDesk(candidate) {
+        state.selectedCandidate = candidate;
+
+        if (el.stationStandbyView) el.stationStandbyView.style.display = 'none';
+        if (el.stationDeskView) el.stationDeskView.style.display = 'block';
+
+        // Exam Paper Details
+        if (state.activeExam) {
+            if (el.deskExamSubject) el.deskExamSubject.textContent = (state.activeExam.subject || 'GENERAL').toUpperCase();
+            if (el.deskExamCode) el.deskExamCode.textContent = `CODE: ${state.activeExam.code || 'CBT-2026'}`;
+            if (el.deskExamTitle) el.deskExamTitle.textContent = state.activeExam.title || 'Computer-Based Examination';
+            if (el.deskExamDuration) el.deskExamDuration.textContent = `${state.activeExam.durationMinutes || 60} Mins`;
+            if (el.deskExamMarks) el.deskExamMarks.textContent = state.activeExam.totalMarks || 100;
+
+            let totalQ = 0;
+            if (state.activeExam.sections) {
+                state.activeExam.sections.forEach(s => totalQ += (s.questions ? s.questions.length : 0));
+            } else if (state.activeExam.questions) {
+                totalQ = state.activeExam.questions.length;
+            }
+            if (el.deskExamQuestions) el.deskExamQuestions.textContent = totalQ;
+        }
+
+        // Candidate Profile Details
+        if (el.confirmStudentName) el.confirmStudentName.textContent = candidate.name;
+        if (el.confirmStudentRoll) el.confirmStudentRoll.textContent = candidate.rollNo || candidate.roll || '--';
+        const secText = candidate.section ? `Sec ${candidate.section}` : '--';
+        const seqVal = candidate.sectionSequence || candidate.sequence || candidate.rollNo || '--';
+        if (el.confirmStudentClass) el.confirmStudentClass.textContent = `${candidate.batch || candidate.class || 'Student'} (${secText})`;
+        if (el.confirmStudentSeq) el.confirmStudentSeq.textContent = `#${seqVal}`;
+
+        // Student Photo
         const photo = candidate.profilePicData || candidate.profilePic || candidate.profilePhoto || candidate.photoURL || candidate.photoUrl || candidate.profilePicture || candidate.imageUrl;
         const initial = (candidate.name || 'S').charAt(0).toUpperCase();
         if (el.confirmStudentImage && el.confirmStudentFallback) {
@@ -674,27 +766,156 @@
             }
         }
 
-        el.candidateConfirmBox.classList.remove('hidden');
-        el.candidateConfirmBox.style.display = 'flex';
-
-        // Check if PIN is required
+        // Student PIN Verification
         if (candidate.pin && String(candidate.pin).trim()) {
-            el.pinVerifyRow.classList.remove('hidden');
-            el.pinVerifyRow.style.display = 'flex';
-            el.inputCandidatePin.value = '';
-            el.pinStatusMsg.textContent = 'Enter student PIN to unlock exam session.';
-            el.pinStatusMsg.style.color = 'var(--rc-text-dimmed)';
-            updateStartButtonState(false);
+            if (el.pinVerifyRow) el.pinVerifyRow.style.display = 'block';
+            if (el.inputCandidatePin) el.inputCandidatePin.value = '';
+            if (el.pinStatusMsg) {
+                el.pinStatusMsg.textContent = 'Enter student PIN to unlock session.';
+                el.pinStatusMsg.style.color = '#92400e';
+            }
         } else {
-            el.pinVerifyRow.classList.add('hidden');
-            el.pinVerifyRow.style.display = 'none';
-            el.pinStatusMsg.textContent = '';
-            updateStartButtonState(el.checkHonorCode.checked);
+            if (el.pinVerifyRow) el.pinVerifyRow.style.display = 'none';
+            if (el.pinStatusMsg) el.pinStatusMsg.textContent = '';
+        }
+
+        // Reset honor code
+        if (el.checkHonorCode) el.checkHonorCode.checked = false;
+
+        updateNextCandidateSeqChip();
+        startDeskCountdown();
+    }
+
+    function updateNextCandidateSeqChip() {
+        if (!state.activeExam || !state.activeExam.candidates || state.activeExam.candidates.length === 0) {
+            if (el.autoLoadNextSeq) el.autoLoadNextSeq.textContent = '--';
+            return;
+        }
+        const candidates = state.activeExam.candidates;
+        const currentIdx = state.selectedCandidate
+            ? candidates.findIndex(c => String(c.rollNo || c.roll) === String(state.selectedCandidate.rollNo || state.selectedCandidate.roll))
+            : -1;
+
+        let nextCandidate = null;
+        for (let i = currentIdx + 1; i < candidates.length; i++) {
+            const c = candidates[i];
+            const r = String(c.rollNo || c.roll);
+            if (!state.completedCandidates.has(r)) {
+                nextCandidate = c;
+                break;
+            }
+        }
+        if (el.autoLoadNextSeq) {
+            el.autoLoadNextSeq.textContent = nextCandidate
+                ? `Seq #${nextCandidate.sectionSequence || nextCandidate.sequence || nextCandidate.rollNo}`
+                : 'End of Queue';
         }
     }
 
-    function updateStartButtonState(ready) {
-        el.btnEnterExamHall.disabled = !ready;
+    function autoLoadNextCandidate() {
+        if (!state.activeExam || !state.activeExam.candidates || state.activeExam.candidates.length === 0) {
+            showToast('No exam roster loaded.', 'error');
+            return;
+        }
+        const candidates = state.activeExam.candidates;
+        const currentIdx = state.selectedCandidate
+            ? candidates.findIndex(c => String(c.rollNo || c.roll) === String(state.selectedCandidate.rollNo || state.selectedCandidate.roll))
+            : -1;
+
+        let nextCandidate = null;
+        for (let i = currentIdx + 1; i < candidates.length; i++) {
+            const c = candidates[i];
+            const r = String(c.rollNo || c.roll);
+            if (!state.completedCandidates.has(r)) {
+                nextCandidate = c;
+                break;
+            }
+        }
+        if (!nextCandidate) {
+            for (let i = 0; i <= currentIdx; i++) {
+                const c = candidates[i];
+                const r = String(c.rollNo || c.roll);
+                if (!state.completedCandidates.has(r)) {
+                    nextCandidate = c;
+                    break;
+                }
+            }
+        }
+
+        if (nextCandidate) {
+            selectCandidate(nextCandidate);
+            loadCandidateToDesk(nextCandidate);
+            showToast(`Loaded candidate #${nextCandidate.sectionSequence || nextCandidate.sequence || nextCandidate.rollNo}: ${nextCandidate.name}`, 'success');
+        } else {
+            showToast('All candidates in the exam roster have completed their examination.', 'info');
+        }
+    }
+
+    function startDeskCountdown() {
+        state.startCountdownSeconds = 60;
+        if (state.startCountdownInterval) {
+            clearInterval(state.startCountdownInterval);
+            state.startCountdownInterval = null;
+        }
+
+        function renderCountdown() {
+            const mins = Math.floor(state.startCountdownSeconds / 60);
+            const secs = state.startCountdownSeconds % 60;
+            const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+            if (el.deskCountdownTimer) el.deskCountdownTimer.textContent = formatted;
+
+            if (state.startCountdownSeconds > 0) {
+                if (el.btnEnterExamHall) {
+                    el.btnEnterExamHall.disabled = true;
+                    el.btnEnterExamHall.className = 'btn-desk-start';
+                    el.btnEnterExamHall.innerHTML = `<i class="fas fa-lock"></i> Start Examination (Unlocks in ${state.startCountdownSeconds}s)`;
+                }
+                if (el.deskCountdownBanner) {
+                    el.deskCountdownBanner.className = 'desk-countdown-banner';
+                    el.deskCountdownBanner.innerHTML = `<i class="fas fa-hourglass-half"></i> <span>Station Preparation Period: Unlocks in <strong id="desk-countdown-timer">${formatted}</strong></span>`;
+                }
+            } else {
+                clearInterval(state.startCountdownInterval);
+                state.startCountdownInterval = null;
+                if (el.deskCountdownBanner) {
+                    el.deskCountdownBanner.className = 'desk-countdown-banner unlocked';
+                    el.deskCountdownBanner.innerHTML = `<i class="fas fa-circle-check"></i> <span>Station Unlocked • Candidate Ready to Begin</span>`;
+                }
+                updateStartButtonState();
+            }
+        }
+
+        renderCountdown();
+        state.startCountdownInterval = setInterval(() => {
+            state.startCountdownSeconds--;
+            renderCountdown();
+        }, 1000);
+    }
+
+    function updateStartButtonState() {
+        if (!el.btnEnterExamHall) return;
+
+        if (state.startCountdownSeconds > 0) {
+            el.btnEnterExamHall.disabled = true;
+            el.btnEnterExamHall.className = 'btn-desk-start';
+            el.btnEnterExamHall.innerHTML = `<i class="fas fa-lock"></i> Start Examination (Unlocks in ${state.startCountdownSeconds}s)`;
+            return;
+        }
+
+        const pinRequired = state.selectedCandidate?.pin && String(state.selectedCandidate.pin).trim();
+        const pinValid = !pinRequired || (el.pinStatusMsg && el.pinStatusMsg.textContent.includes('✓'));
+        const honorChecked = el.checkHonorCode ? el.checkHonorCode.checked : true;
+
+        if (honorChecked && pinValid) {
+            el.btnEnterExamHall.disabled = false;
+            el.btnEnterExamHall.className = 'btn-desk-start active';
+            el.btnEnterExamHall.innerHTML = `<i class="fas fa-play"></i> Start Examination`;
+        } else {
+            el.btnEnterExamHall.disabled = true;
+            el.btnEnterExamHall.className = 'btn-desk-start';
+            el.btnEnterExamHall.innerHTML = `<i class="fas fa-play"></i> Start Examination`;
+        }
     }
 
     // Hardware diagnostics & Webcam Stream
@@ -1556,6 +1777,104 @@
     }
 
     // =========================================================================
+    // SUPERVISOR AUTHENTICATION & ADMIN PIN CONTROLS
+    // =========================================================================
+    function getAdminPin() {
+        return localStorage.getItem('rc_cbt_admin_pin') || '1234';
+    }
+
+    function setAdminPin(pin) {
+        localStorage.setItem('rc_cbt_admin_pin', pin);
+    }
+
+    function hasCustomAdminPin() {
+        return !!localStorage.getItem('rc_cbt_admin_pin');
+    }
+
+    let pendingAdminAction = null;
+
+    function requireAdminPin(actionCallback, promptMsg = 'Enter Station Administrator PIN to access supervisor controls.') {
+        pendingAdminAction = actionCallback;
+        if (el.adminPinPromptMsg) el.adminPinPromptMsg.textContent = promptMsg;
+        if (el.inputAdminPin) el.inputAdminPin.value = '';
+        if (el.adminPinError) el.adminPinError.textContent = '';
+        if (el.modalAdminPin) el.modalAdminPin.style.display = 'grid';
+        setTimeout(() => { if (el.inputAdminPin) el.inputAdminPin.focus(); }, 80);
+    }
+
+    function submitAdminPin() {
+        const entered = (el.inputAdminPin?.value || '').trim();
+        if (!entered) {
+            if (el.adminPinError) el.adminPinError.textContent = 'Please enter the supervisor PIN.';
+            return;
+        }
+        const correctPin = getAdminPin();
+        if (entered === correctPin) {
+            if (el.modalAdminPin) el.modalAdminPin.style.display = 'none';
+            if (typeof pendingAdminAction === 'function') {
+                const fn = pendingAdminAction;
+                pendingAdminAction = null;
+                fn();
+            }
+        } else {
+            if (el.adminPinError) el.adminPinError.textContent = '✗ Incorrect Admin PIN. Try again.';
+            if (el.inputAdminPin) {
+                el.inputAdminPin.value = '';
+                el.inputAdminPin.focus();
+            }
+        }
+    }
+
+    function promptSetAdminPin(onSaved) {
+        if (el.inputNewAdminPin) el.inputNewAdminPin.value = '';
+        if (el.inputConfirmAdminPin) el.inputConfirmAdminPin.value = '';
+        if (el.setPinError) el.setPinError.textContent = '';
+        if (el.modalSetAdminPin) el.modalSetAdminPin.style.display = 'grid';
+        setTimeout(() => { if (el.inputNewAdminPin) el.inputNewAdminPin.focus(); }, 80);
+
+        if (el.btnSaveAdminPin) {
+            el.btnSaveAdminPin.onclick = () => {
+                const p1 = (el.inputNewAdminPin?.value || '').trim();
+                const p2 = (el.inputConfirmAdminPin?.value || '').trim();
+                if (!p1 || p1.length < 4) {
+                    if (el.setPinError) el.setPinError.textContent = 'PIN must be at least 4 digits.';
+                    return;
+                }
+                if (p1 !== p2) {
+                    if (el.setPinError) el.setPinError.textContent = 'PINs do not match. Please re-enter.';
+                    return;
+                }
+                setAdminPin(p1);
+                if (el.modalSetAdminPin) el.modalSetAdminPin.style.display = 'none';
+                showToast('Supervisor PIN saved successfully.', 'success');
+                if (typeof onSaved === 'function') onSaved();
+            };
+        }
+    }
+
+    function openLicenseDetailsModal() {
+        if (!state.license) {
+            showToast('No active station license installed.', 'error');
+            return;
+        }
+        const lic = state.license;
+        if (el.licDetailSchoolName) el.licDetailSchoolName.textContent = lic.schoolName || lic.institutionName || 'RollCall Institution';
+        if (el.licDetailSchoolCode) el.licDetailSchoolCode.textContent = lic.schoolCode || '----';
+        if (el.licDetailDeviceId) el.licDetailDeviceId.textContent = lic.deviceId || state.license?.deviceId || 'STATION-HW';
+        if (el.licDetailExpiry) el.licDetailExpiry.textContent = lic.expiryDate || 'Perpetual';
+        if (el.licDetailDevices) el.licDetailDevices.textContent = `${Number(lic.remainingDevices ?? 0)} remaining / ${Number(lic.maxDevices || 1)} authorized`;
+        if (el.modalLicenseDetails) el.modalLicenseDetails.style.display = 'grid';
+    }
+
+    function openAdminExamSetupModal() {
+        if (el.modalAdminExamSetup) el.modalAdminExamSetup.style.display = 'grid';
+        if (state.activeExam) {
+            if (el.examInspectContainer) el.examInspectContainer.style.display = 'block';
+            if (el.inspectCandidateCount) el.inspectCandidateCount.textContent = (state.activeExam.candidates || []).length;
+        }
+    }
+
+    // =========================================================================
     // EVENT LISTENERS & SETUP
     // =========================================================================
     function setupEventListeners() {
@@ -1593,7 +1912,13 @@
                     : `License activated for ${res.license.institutionName}!`, 'success');
                 state.license = res.license;
                 applyActiveLicenseUI(res.license);
-                switchView('setup');
+                if (!hasCustomAdminPin()) {
+                    promptSetAdminPin(() => {
+                        switchView('setup');
+                    });
+                } else {
+                    switchView('setup');
+                }
             } else {
                 showToast(res.error || 'Failed to activate license.', 'error');
             }
@@ -1612,7 +1937,13 @@
                 state.license = res.license;
                 applyActiveLicenseUI(res.license);
                 showToast('Temporary test license activated on this device for 24 hours.', 'success');
-                switchView('setup');
+                if (!hasCustomAdminPin()) {
+                    promptSetAdminPin(() => {
+                        switchView('setup');
+                    });
+                } else {
+                    switchView('setup');
+                }
             } else showToast(res.error || 'Temporary test activation failed.', 'error');
         });
 
@@ -1656,7 +1987,13 @@
                     : `License activated for ${res.license.schoolCode}!`, 'success');
                 state.license = res.license;
                 applyActiveLicenseUI(res.license);
-                switchView('setup');
+                if (!hasCustomAdminPin()) {
+                    promptSetAdminPin(() => {
+                        switchView('setup');
+                    });
+                } else {
+                    switchView('setup');
+                }
             } else {
                 showToast(res.error || 'Activation failed.', 'error');
             }
@@ -1664,11 +2001,37 @@
 
         // Manage License & Station Action Buttons
         el.btnRelicense?.addEventListener('click', () => {
-            switchView('license');
+            if (state.license) {
+                requireAdminPin(() => openLicenseDetailsModal(), 'Enter Admin PIN to view Station License Details.');
+            } else {
+                switchView('license');
+            }
         });
         el.btnSwitchLicenseView?.addEventListener('click', () => {
-            switchView('license');
+            if (state.license) {
+                requireAdminPin(() => openLicenseDetailsModal(), 'Enter Admin PIN to view Station License Details.');
+            } else {
+                switchView('license');
+            }
         });
+        el.btnViewLicenseDetails?.addEventListener('click', () => {
+            requireAdminPin(() => openLicenseDetailsModal(), 'Enter Admin PIN to view Station License Details.');
+        });
+        el.btnAdminExamSetup?.addEventListener('click', () => {
+            requireAdminPin(() => openAdminExamSetupModal(), 'Enter Admin PIN to access Exam Supervisor Console.');
+        });
+        el.btnQuickAdminLogin?.addEventListener('click', () => {
+            requireAdminPin(() => openAdminExamSetupModal(), 'Enter Admin PIN to access Exam Supervisor Console.');
+        });
+
+        // Keyboard Shortcut Ctrl+Shift+S for Supervisor Console
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
+                e.preventDefault();
+                requireAdminPin(() => openAdminExamSetupModal(), 'Enter Admin PIN to access Exam Supervisor Console.');
+            }
+        });
+
         el.btnContinueToSetup?.addEventListener('click', () => {
             switchView('setup');
         });
@@ -1678,11 +2041,58 @@
         });
         el.btnDeactivateStation?.addEventListener('click', async () => {
             if (confirm('Are you sure you want to deactivate this station? You will need an authorized USB license to reactivate it.')) {
+                if (el.modalLicenseDetails) el.modalLicenseDetails.style.display = 'none';
                 await window.rollcallCBT.deactivateLicense();
                 state.license = null;
                 showToast('Station deactivated successfully.', 'info');
                 await checkLicenseStatus(true);
             }
+        });
+
+        // Supervisor Modal Listeners
+        el.btnSubmitAdminPin?.addEventListener('click', submitAdminPin);
+        el.inputAdminPin?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') submitAdminPin();
+        });
+        el.btnCancelAdminPin?.addEventListener('click', () => {
+            if (el.modalAdminPin) el.modalAdminPin.style.display = 'none';
+            pendingAdminAction = null;
+        });
+        el.btnCloseAdminPin?.addEventListener('click', () => {
+            if (el.modalAdminPin) el.modalAdminPin.style.display = 'none';
+            pendingAdminAction = null;
+        });
+
+        el.btnCloseLicenseDetails?.addEventListener('click', () => {
+            if (el.modalLicenseDetails) el.modalLicenseDetails.style.display = 'none';
+        });
+        el.btnDoneLicenseDetails?.addEventListener('click', () => {
+            if (el.modalLicenseDetails) el.modalLicenseDetails.style.display = 'none';
+        });
+        el.btnModalChangePin?.addEventListener('click', () => {
+            if (el.modalLicenseDetails) el.modalLicenseDetails.style.display = 'none';
+            promptSetAdminPin();
+        });
+
+        el.btnCloseAdminSetup?.addEventListener('click', () => {
+            if (el.modalAdminExamSetup) el.modalAdminExamSetup.style.display = 'none';
+        });
+        el.btnCancelAdminSetup?.addEventListener('click', () => {
+            if (el.modalAdminExamSetup) el.modalAdminExamSetup.style.display = 'none';
+        });
+        el.btnAdminConfirmLoadCandidate?.addEventListener('click', () => {
+            if (!state.selectedCandidate) {
+                showToast('Please select a candidate to load onto this station.', 'error');
+                return;
+            }
+            loadCandidateToDesk(state.selectedCandidate);
+            if (el.modalAdminExamSetup) el.modalAdminExamSetup.style.display = 'none';
+            showToast(`Exam loaded for ${state.selectedCandidate.name}. 1-minute countdown started.`, 'success');
+        });
+
+        // Auto-Load Next Candidate
+        el.btnAutoLoadNext?.addEventListener('click', () => {
+            autoLoadNextCandidate();
         });
 
         // Exam File Dropzone
