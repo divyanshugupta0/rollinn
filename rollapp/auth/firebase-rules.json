@@ -302,7 +302,9 @@
           "teacherId",
           "testDate",
           "createdAt",
-          "status"
+          "status",
+          "examType",
+          "assessmentComponent"
         ]
       }
     },
@@ -326,7 +328,8 @@
           ".indexOn": [
             "testDate",
             "subject",
-            "isAbsent"
+            "isAbsent",
+            "examType"
           ]
         }
       }
