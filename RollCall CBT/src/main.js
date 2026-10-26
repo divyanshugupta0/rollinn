@@ -167,11 +167,12 @@ function createWindow() {
     const { width, height } = primaryDisplay.workAreaSize;
 
     mainWindow = new BrowserWindow({
-        width: Math.min(1440, width),
-        height: Math.min(920, height),
+        width: width,
+        height: height,
         minWidth: 1024,
         minHeight: 700,
         frame: false,
+        fullscreen: true,
         titleBarStyle: 'hidden',
         backgroundColor: '#0a0f1d',
         title: 'RollCall CBT - Offline Computer-Based Testing System',
@@ -192,6 +193,7 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
     mainWindow.once('ready-to-show', () => {
+        mainWindow.setFullScreen(true);
         mainWindow.show();
         handleCommandLineFiles();
     });

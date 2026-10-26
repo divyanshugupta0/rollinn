@@ -164,6 +164,13 @@ button, input, select, textarea {
     font-size: 0.82rem;
     color: #172044;
     font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.institution-badge:hover {
+    background: #eef2ff;
+    border-color: rgba(57, 75, 138, 0.3);
 }
 
 .institution-badge i {

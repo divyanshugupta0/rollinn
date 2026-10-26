@@ -47,6 +47,7 @@
 
         // Topbar
         el.topbarInstName = document.getElementById('topbar-institution-name');
+        el.topbarInstitutionBadge = document.getElementById('topbar-institution-badge');
         el.topbarSchoolCode = document.getElementById('topbar-school-code');
         el.topbarStationId = document.getElementById('topbar-station-id');
         el.topbarStationPill = document.getElementById('topbar-station-pill');
@@ -1948,10 +1949,8 @@
             return;
         }
         const lic = state.license;
-        if (el.licDetailSchoolName) el.licDetailSchoolName.textContent = lic.schoolName || lic.institutionName || 'RollCall Institution';
         if (el.licDetailSchoolCode) el.licDetailSchoolCode.textContent = lic.schoolCode || '----';
         if (el.licDetailDeviceId) el.licDetailDeviceId.textContent = lic.deviceId || state.license?.deviceId || 'STATION-HW';
-        if (el.licDetailExpiry) el.licDetailExpiry.textContent = lic.expiryDate || 'Perpetual';
         if (el.modalLicenseDetails) {
             el.modalLicenseDetails.hidden = false;
             el.modalLicenseDetails.style.display = 'grid';
@@ -2301,6 +2300,13 @@
         });
 
         el.btnViewLicenseDetails?.addEventListener('click', () => {
+            requireAdminPin(() => openLicenseDetailsModal(), 'Enter Admin PIN to view Station License Details.');
+        });
+        el.topbarInstitutionBadge?.addEventListener('click', () => {
+            if (!state.license) {
+                showToast('Station is not activated yet.', 'info');
+                return;
+            }
             requireAdminPin(() => openLicenseDetailsModal(), 'Enter Admin PIN to view Station License Details.');
         });
         // Single Exam Setup Handler
