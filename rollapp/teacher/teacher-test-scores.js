@@ -1709,6 +1709,9 @@
                                 <button type="button" class="tts-filter-pill" id="ttsRosterScanQrBtn" style="display:none; background:#eef2ff; color:#4338ca; border-color:#c7d2fe; align-items:center; gap:5px;" title="Scan CBT scores directly into this roster">
                                     <i class="fas fa-qrcode"></i> Scan CBT QR
                                 </button>
+                                <button type="button" class="tts-filter-pill" id="ttsMarkUnscoredAbsentBtn" style="display:none; background:#fef2f2; color:#b91c1c; border-color:#fecaca; align-items:center; gap:5px;" title="Mark all students who have no scanned score as Absent">
+                                    <i class="fas fa-user-slash"></i> Mark Unscanned as Absent
+                                </button>
                             </div>
                         </div>
 
@@ -1980,6 +1983,7 @@
         const createTestFromTilesBtn = panel.querySelector('#ttsCreateTestFromTilesBtn');
         const openQrScannerBtn = panel.querySelector('#ttsOpenQrScannerBtn');
         const rosterScanQrBtn = panel.querySelector('#ttsRosterScanQrBtn');
+        const markUnscoredAbsentBtn = panel.querySelector('#ttsMarkUnscoredAbsentBtn');
         const workspaceTitleText = panel.querySelector('#ttsWorkspaceTitleText');
         const workspaceSubtitle = panel.querySelector('#ttsWorkspaceSubtitle');
         const workspaceStatusPill = panel.querySelector('#ttsWorkspaceStatusPill');
@@ -1993,6 +1997,7 @@
             const displayVal = visible ? 'inline-flex' : 'none';
             if (openQrScannerBtn) openQrScannerBtn.style.display = displayVal;
             if (rosterScanQrBtn) rosterScanQrBtn.style.display = displayVal;
+            if (markUnscoredAbsentBtn) markUnscoredAbsentBtn.style.display = displayVal;
         }
 
         function setActiveTab(tab) {
@@ -2625,7 +2630,8 @@
         // Render Student Roster with Student Photos, Zoom Preview, and Mobile Keyboard Auto-Advance
         function renderStudentsRoster(students) {
             const listEl = panel.querySelector('#ttsStudentsList');
-            const isFuture = (dateInput.value || '') > getTodayStr();
+            // Only treat as scheduled/future if creating a brand new test with no active editing test open
+            const isFuture = (dateInput.value || '') > getTodayStr() && !activeEditingTestId;
 
             if (students.length === 0) {
                 const hasClass = !!classSelect.value;
@@ -3108,6 +3114,36 @@
         // ======================================================================
         // Submitting & Saving Test Scores (School-Scoped Isolation)
         // ======================================================================
+        // Helper: Mark all students without scanned/entered scores as Absent
+        function markUnscannedAsAbsent() {
+            let markedCount = 0;
+            currentStudents.forEach(st => {
+                const inp = panel.querySelector(`#ttsScoreInp_${st.id}`);
+                const abBtn = panel.querySelector(`#ttsAbBtn_${st.id}`);
+                const row = panel.querySelector(`#ttsRow_${st.id}`);
+                const hasScore = inp && inp.value.trim() !== '';
+                const isAbsent = abBtn && abBtn.classList.contains('active');
+                if (!hasScore && !isAbsent) {
+                    if (abBtn) abBtn.classList.add('active');
+                    if (row) row.classList.add('is-absent');
+                    if (inp) {
+                        inp.value = '';
+                        inp.disabled = true;
+                        updateStudentScoreBadge(inp);
+                    }
+                    markedCount++;
+                }
+            });
+            updateSummaryCounters();
+            scheduleAutoDraftSave();
+            return markedCount;
+        }
+
+        markUnscoredAbsentBtn?.addEventListener('click', () => {
+            const marked = markUnscannedAsAbsent();
+            alert(`Marked ${marked} unscanned student(s) without device scores as Absent.`);
+        });
+
         const submitBtn = panel.querySelector('#ttsSubmitBtn');
         submitBtn.addEventListener('click', handleSubmitScores);
 
@@ -3147,8 +3183,20 @@
             const scoresMap = {};
             let scoredCount = 0;
             let invalidScore = false;
+            let presentCount = 0;
+            let absentCount = 0;
 
-            if (isFuture) {
+            // Check if any student has a score entered or was marked absent
+            const hasAnyScoreData = currentStudents.some(st => {
+                const inp = panel.querySelector(`#ttsScoreInp_${st.id}`);
+                const abBtn = panel.querySelector(`#ttsAbBtn_${st.id}`);
+                return (inp && inp.value.trim() !== '') || (abBtn && abBtn.classList.contains('active'));
+            });
+
+            // Only treat as scheduled future test if creating a test from scratch with no scores entered yet
+            const isSchedulingFutureTest = isFuture && !hasAnyScoreData && !activeEditingTestId;
+
+            if (isSchedulingFutureTest) {
                 // Future test: do not ask for scores or absent
                 currentStudents.forEach(st => {
                     const rollNo = st.classRoll || st.univRoll || st.rollNo || '';
@@ -3165,20 +3213,12 @@
                 currentStudents.forEach(st => {
                     const inp = panel.querySelector(`#ttsScoreInp_${st.id}`);
                     const abBtn = panel.querySelector(`#ttsAbBtn_${st.id}`);
-                    const isAbsent = abBtn?.classList.contains('active') || false;
+                    const row = panel.querySelector(`#ttsRow_${st.id}`);
+                    const isExplicitAbsent = abBtn?.classList.contains('active') || false;
                     const rollNo = st.classRoll || st.univRoll || st.rollNo || '';
+                    const hasScore = inp && inp.value.trim() !== '';
 
-                    if (isAbsent) {
-                        scoresMap[st.id] = {
-                            studentUid: st.id,
-                            studentName: st.name || st.displayName || 'Student',
-                            rollNo: rollNo,
-                            marksObtained: null,
-                            maxMarks: maxMarks,
-                            isAbsent: true
-                        };
-                        scoredCount++;
-                    } else if (inp && inp.value.trim() !== '') {
+                    if (hasScore && !isExplicitAbsent) {
                         const marks = parseFloat(inp.value);
                         if (isNaN(marks) || marks < 0 || marks > maxMarks) {
                             invalidScore = true;
@@ -3193,6 +3233,27 @@
                                 isAbsent: false
                             };
                             scoredCount++;
+                            presentCount++;
+                        }
+                    } else {
+                        // NO data scanned from device OR marked absent: MUST be saved as Absent!
+                        scoresMap[st.id] = {
+                            studentUid: st.id,
+                            studentName: st.name || st.displayName || 'Student',
+                            rollNo: rollNo,
+                            marksObtained: null,
+                            maxMarks: maxMarks,
+                            isAbsent: true
+                        };
+                        scoredCount++;
+                        absentCount++;
+
+                        // Reflect absent state in UI
+                        if (abBtn && !abBtn.classList.contains('active')) abBtn.classList.add('active');
+                        if (row && !row.classList.contains('is-absent')) row.classList.add('is-absent');
+                        if (inp) {
+                            inp.value = '';
+                            inp.disabled = true;
                         }
                     }
                 });
@@ -3203,14 +3264,14 @@
                 }
             }
 
-            const confirmMsg = isFuture
+            const confirmMsg = isSchedulingFutureTest
                 ? `Assign and schedule this test on ${testDate} for ${className} Sec ${section}? All ${currentStudents.length} students will see this as an upcoming test in their dashboard.`
-                : `Submit test scores for ${scoredCount} students (${className} Sec ${section})?`;
+                : `Save test scores for ${currentStudents.length} students (${className} Sec ${section})?\n• Present (Scored): ${presentCount}\n• Absent (No Data Scanned): ${absentCount}`;
 
             if (!confirm(confirmMsg)) return;
 
             submitBtn.disabled = true;
-            submitBtn.innerHTML = isFuture
+            submitBtn.innerHTML = isSchedulingFutureTest
                 ? '<i class="fas fa-spinner fa-spin"></i> Scheduling Test...'
                 : '<i class="fas fa-spinner fa-spin"></i> Submitting...';
 
@@ -3228,6 +3289,17 @@
                 const weightageVal = parseFloat(weightageInput?.value) || 20;
                 const examInstructionsVal = (examInstructionsInput?.value || '').trim();
 
+                const existingTest = activeEditingTestId ? testsList.find(t => t.id === activeEditingTestId) : null;
+                const isCbt = !!(
+                    existingTest?.isCbtExam || 
+                    existingTest?.cbtCode || 
+                    examTypeVal === 'Mock CBT Test' || 
+                    examTypeVal === 'CBT' ||
+                    (existingTest?.title && /cbt/i.test(existingTest.title)) ||
+                    (testId && String(testId).startsWith('EXAM-')) ||
+                    (testId && /cbt/i.test(String(testId)))
+                );
+
                 const testPayload = {
                     id: testId,
                     title: title,
@@ -3242,10 +3314,12 @@
                     createdAt: activeEditingTestId ? (testsList.find(t => t.id === testId)?.createdAt || Date.now()) : Date.now(),
                     updatedAt: Date.now(),
                     studentCount: currentStudents.length,
-                    scoredCount: isFuture ? 0 : scoredCount,
-                    status: isFuture ? 'scheduled' : 'completed',
-                    isFuture: isFuture,
-                    examType: examTypeVal,
+                    scoredCount: isSchedulingFutureTest ? 0 : scoredCount,
+                    status: isSchedulingFutureTest ? 'scheduled' : 'completed',
+                    isFuture: isSchedulingFutureTest,
+                    isCbtExam: isCbt,
+                    cbtCode: existingTest?.cbtCode || (isCbt ? (existingTest?.id || testId) : null),
+                    examType: isCbt && examTypeVal !== 'Mock CBT Test' ? 'Mock CBT Test' : examTypeVal,
                     passingMarks: passingMarksVal,
                     passingPct: passingPct,
                     durationMinutes: examDurationVal,
@@ -3477,8 +3551,27 @@
             updateDateNotice(dateInput.value);
             totalMarksInput.value = test.maxMarks || 50;
 
-            // Only show CBT QR Scanner buttons if this tile is a CBT exam
-            const isCbt = !!(test.isCbtExam || test.examType === 'Mock CBT Test' || test.examType === 'CBT' || test.cbtCode);
+            // Robust CBT detection: show scan button even if results are already scanned!
+            let isCbt = !!(
+                test.isCbtExam || 
+                test.cbtCode || 
+                test.examType === 'Mock CBT Test' || 
+                test.examType === 'CBT' ||
+                (test.title && /cbt/i.test(test.title)) ||
+                (test.id && String(test.id).startsWith('EXAM-')) ||
+                (test.id && /cbt/i.test(String(test.id)))
+            );
+
+            if (!isCbt && schoolId && test.id) {
+                try {
+                    const cbtSnap = await db.ref(`cbtTeacherExams/${schoolId}/${test.id}`).once('value');
+                    if (cbtSnap.exists()) {
+                        isCbt = true;
+                        test.isCbtExam = true;
+                    }
+                } catch (_) {}
+            }
+
             setCbtScanButtonsVisibility(isCbt);
 
             const isFuture = (test.testDate > getTodayStr()) || test.status === 'scheduled';
@@ -4158,7 +4251,10 @@
         openQrScannerBtn?.addEventListener('click', () => startContinuousScanner());
         rosterScanQrBtn?.addEventListener('click', () => startContinuousScanner());
         closeQrScannerBtn?.addEventListener('click', () => stopContinuousScanner());
-        finishScanBtn?.addEventListener('click', () => stopContinuousScanner());
+        finishScanBtn?.addEventListener('click', () => {
+            stopContinuousScanner();
+            markUnscannedAsAbsent();
+        });
 
         // Close on escape key
         document.addEventListener('keydown', (e) => {
