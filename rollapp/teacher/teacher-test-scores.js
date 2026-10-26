@@ -1448,27 +1448,21 @@
         panel.innerHTML = `
             <div class="tts-shell">
                 <!-- Header -->
-                <div class="tts-header-card">
+                <div class="tts-header-card" id="ttsMainHeader">
                     <div class="tts-header-left">
-                        <div class="tts-header-kicker"><i class="fas fa-graduation-cap"></i> Academic Assessments &amp; Exam Studio</div>
+                        <div class="tts-header-kicker"><i class="fas fa-graduation-cap"></i> Academic Assessments</div>
                         <h1 class="tts-header-title"><i class="fas fa-file-pen"></i> Test Scores &amp; Exam Records</h1>
-                        <p class="tts-header-subtitle">Browse scheduled exam tiles, click any tile to view class roster &amp; enter marks, or continuously scan encrypted RollCall CBT barcodes.</p>
+                        <p class="tts-header-subtitle">Select any test card below to record student scores, or create a new test.</p>
                     </div>
                     <div class="tts-header-actions">
-                        <button type="button" class="tts-btn-secondary" id="ttsToggleHistoryBtn">
-                            <i class="fas fa-plus"></i> Schedule New Test
-                        </button>
-                        <button type="button" class="tts-btn-primary" id="ttsOpenQrScannerBtn" style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); border-color: #4338ca;" title="Continuous QR Scanner for CBT Student Scores">
-                            <i class="fas fa-qrcode"></i> Scan CBT Scores
-                        </button>
                         <button type="button" class="tts-btn-primary" id="ttsNewTestBtn">
-                            <i class="fas fa-plus"></i> Assign New Test
+                            <i class="fas fa-plus"></i> Create Test
                         </button>
                     </div>
                 </div>
 
                 <!-- Top Segmented Navigation Tabs (Mobile & Desktop) -->
-                <div class="tts-nav-tabs" role="tablist" id="ttsNavTabs">
+                <div class="tts-nav-tabs" role="tablist" id="ttsNavTabs" style="display:none;">
                     <button type="button" class="tts-nav-tab active" id="ttsTabHistory" role="tab" aria-selected="true">
                         <i class="fas fa-layer-group"></i> <span>Scheduled Tests</span>
                         <span class="tts-tab-pill count" id="ttsHistoryCountBadge">0</span>
@@ -1483,7 +1477,7 @@
                 </div>
 
                 <!-- Stats Bar (2x2 on Mobile, 4-col on Desktop) -->
-                <div class="tts-stats-row">
+                <div class="tts-stats-row" id="ttsStatsRow">
                     <div class="tts-stat-chip">
                         <div class="tts-stat-icon blue"><i class="fas fa-clipboard-list"></i></div>
                         <div>
@@ -1520,8 +1514,8 @@
                         <!-- Active Exam Workspace Breadcrumb / Navigation Banner -->
                         <div class="tts-workspace-banner" id="ttsWorkspaceBanner">
                             <div class="tts-workspace-banner-left">
-                                <button type="button" class="tts-btn-back" id="ttsBackToTestsBtn" title="Return to Scheduled Tests Tiles">
-                                    <i class="fas fa-arrow-left"></i> <span>All Scheduled Tests</span>
+                                <button type="button" class="tts-btn-back" id="ttsBackToTestsBtn" title="Return to All Tests">
+                                    <i class="fas fa-arrow-left"></i> <span>All Tests</span>
                                 </button>
                                 <div class="tts-workspace-title-box">
                                     <div class="tts-workspace-title" id="ttsWorkspaceTitle">
@@ -1532,6 +1526,9 @@
                             </div>
                             <div class="tts-workspace-banner-actions">
                                 <span class="tts-status-pill scheduled" id="ttsWorkspaceStatusPill"><i class="fas fa-sparkles"></i> New Assessment</span>
+                                <button type="button" class="tts-btn-primary" id="ttsOpenQrScannerBtn" style="display:none; background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); border-color: #4338ca; padding: 6px 14px; font-size: 0.80rem;" title="Continuous QR Scanner for CBT Student Scores">
+                                    <i class="fas fa-qrcode"></i> Scan CBT Scores
+                                </button>
                             </div>
                         </div>
 
@@ -1709,7 +1706,7 @@
                                 <button type="button" class="tts-filter-pill" data-filter="scored">Scored (<span id="ttsFilterScoredCount">0</span>)</button>
                                 <button type="button" class="tts-filter-pill" data-filter="unscored">Unscored (<span id="ttsFilterUnscoredCount">0</span>)</button>
                                 <button type="button" class="tts-filter-pill" data-filter="absent">Absent (<span id="ttsFilterAbsentCount">0</span>)</button>
-                                <button type="button" class="tts-filter-pill" id="ttsRosterScanQrBtn" style="background:#eef2ff; color:#4338ca; border-color:#c7d2fe; display:inline-flex; align-items:center; gap:5px;" title="Scan CBT scores directly into this roster">
+                                <button type="button" class="tts-filter-pill" id="ttsRosterScanQrBtn" style="display:none; background:#eef2ff; color:#4338ca; border-color:#c7d2fe; align-items:center; gap:5px;" title="Scan CBT scores directly into this roster">
                                     <i class="fas fa-qrcode"></i> Scan CBT QR
                                 </button>
                             </div>
@@ -1748,9 +1745,6 @@
                                     <button type="button" class="tts-filter-pill" id="ttsFilterUpcomingTests"><i class="fas fa-clock"></i> Scheduled</button>
                                     <button type="button" class="tts-filter-pill" id="ttsFilterPastTests"><i class="fas fa-check-circle"></i> Completed</button>
                                 </div>
-                                <button type="button" class="tts-btn-primary" id="ttsCreateTestFromTilesBtn" style="font-size:0.80rem; padding:7px 14px;">
-                                    <i class="fas fa-plus"></i> Schedule New Test
-                                </button>
                             </div>
                         </div>
 
@@ -1969,7 +1963,10 @@
         dateInput.addEventListener('change', handleDateChange);
         dateInput.addEventListener('input', handleDateChange);
 
-        // Toggle Views: Editor vs History & Segmented Tabs
+        // Toggle Views: Editor vs History
+        const mainHeader = panel.querySelector('#ttsMainHeader');
+        const statsRow = panel.querySelector('#ttsStatsRow');
+        const navTabs = panel.querySelector('#ttsNavTabs');
         const editorView = panel.querySelector('#ttsEditorView');
         const historyView = panel.querySelector('#ttsHistoryView');
         const toggleHistoryBtn = panel.querySelector('#ttsToggleHistoryBtn');
@@ -1981,6 +1978,8 @@
         const tabHistory = panel.querySelector('#ttsTabHistory');
         const backToTestsBtn = panel.querySelector('#ttsBackToTestsBtn');
         const createTestFromTilesBtn = panel.querySelector('#ttsCreateTestFromTilesBtn');
+        const openQrScannerBtn = panel.querySelector('#ttsOpenQrScannerBtn');
+        const rosterScanQrBtn = panel.querySelector('#ttsRosterScanQrBtn');
         const workspaceTitleText = panel.querySelector('#ttsWorkspaceTitleText');
         const workspaceSubtitle = panel.querySelector('#ttsWorkspaceSubtitle');
         const workspaceStatusPill = panel.querySelector('#ttsWorkspaceStatusPill');
@@ -1988,6 +1987,13 @@
         const quickToggleSettingsBtn = panel.querySelector('#ttsQuickToggleSettingsBtn');
         const quickToggleSettingsText = panel.querySelector('#ttsQuickToggleSettingsText');
         const closeSettingsBtn = panel.querySelector('#ttsCloseSettingsBtn');
+
+        // Helper: Toggle CBT QR Scanner buttons (only visible when a CBT exam is actively opened)
+        function setCbtScanButtonsVisibility(visible) {
+            const displayVal = visible ? 'inline-flex' : 'none';
+            if (openQrScannerBtn) openQrScannerBtn.style.display = displayVal;
+            if (rosterScanQrBtn) rosterScanQrBtn.style.display = displayVal;
+        }
 
         function setActiveTab(tab) {
             [tabMarks, tabSettings, tabHistory].forEach(t => {
@@ -1998,28 +2004,12 @@
             });
 
             if (tab === 'history') {
-                tabHistory?.classList.add('active');
-                tabHistory?.setAttribute('aria-selected', 'true');
-                editorView.style.display = 'none';
-                historyView.style.display = 'block';
-                toggleHistoryBtn.innerHTML = '<i class="fas fa-plus"></i> Schedule New Test';
-                bottomBar.style.display = 'none';
-                renderHistoryView();
+                showHistoryView();
             } else if (tab === 'marks') {
-                tabMarks?.classList.add('active');
-                tabMarks?.setAttribute('aria-selected', 'true');
-                editorView.style.display = 'block';
-                historyView.style.display = 'none';
-                toggleHistoryBtn.innerHTML = '<i class="fas fa-arrow-left"></i> Scheduled Tests';
-                updateBottomBarVisibility();
+                showEditorView();
             } else if (tab === 'settings') {
-                tabSettings?.classList.add('active');
-                tabSettings?.setAttribute('aria-selected', 'true');
-                editorView.style.display = 'block';
-                historyView.style.display = 'none';
-                toggleHistoryBtn.innerHTML = '<i class="fas fa-arrow-left"></i> Scheduled Tests';
+                showEditorView();
                 toggleExamSettings(true);
-                updateBottomBarVisibility();
             }
         }
 
@@ -2052,12 +2042,41 @@
         quickToggleSettingsBtn?.addEventListener('click', () => toggleExamSettings());
         closeSettingsBtn?.addEventListener('click', () => toggleExamSettings(false));
 
+        // When a test tile is opened or new test created: Hide header, stats, and tabs for clean Google-like focus
         function showEditorView() {
-            setActiveTab('marks');
+            if (mainHeader) mainHeader.style.display = 'none';
+            if (statsRow) statsRow.style.display = 'none';
+            if (navTabs) navTabs.style.display = 'none';
+            if (tabMarks) {
+                tabMarks.classList.add('active');
+                tabMarks.setAttribute('aria-selected', 'true');
+            }
+            if (tabHistory) {
+                tabHistory.classList.remove('active');
+                tabHistory.setAttribute('aria-selected', 'false');
+            }
+            editorView.style.display = 'block';
+            historyView.style.display = 'none';
+            updateBottomBarVisibility();
         }
 
+        // When viewing all tests tiles: Restore clean dashboard header and stats
         function showHistoryView() {
-            setActiveTab('history');
+            if (mainHeader) mainHeader.style.display = 'flex';
+            if (statsRow) statsRow.style.display = 'grid';
+            if (navTabs) navTabs.style.display = 'none';
+            if (tabHistory) {
+                tabHistory.classList.add('active');
+                tabHistory.setAttribute('aria-selected', 'true');
+            }
+            if (tabMarks) {
+                tabMarks.classList.remove('active');
+                tabMarks.setAttribute('aria-selected', 'false');
+            }
+            editorView.style.display = 'none';
+            historyView.style.display = 'block';
+            bottomBar.style.display = 'none';
+            renderHistoryView();
         }
 
         window.ttsStartNewTest = function() {
@@ -2065,7 +2084,7 @@
             showEditorView();
         };
 
-        toggleHistoryBtn.addEventListener('click', () => {
+        toggleHistoryBtn?.addEventListener('click', () => {
             if (historyView.style.display === 'none') {
                 showHistoryView();
             } else {
@@ -2074,7 +2093,7 @@
             }
         });
 
-        newTestBtn.addEventListener('click', () => {
+        newTestBtn?.addEventListener('click', () => {
             resetEditorForm();
             showEditorView();
         });
@@ -2327,6 +2346,11 @@
         [examTypeSelect, publishResultsSelect, negativeMarkingSelect, assessmentComponentSelect, weightageInput, examInstructionsInput].forEach(el => {
             el?.addEventListener('change', scheduleAutoDraftSave);
             el?.addEventListener('input', scheduleAutoDraftSave);
+        });
+
+        examTypeSelect?.addEventListener('change', () => {
+            const isCbt = examTypeSelect.value === 'Mock CBT Test';
+            setCbtScanButtonsVisibility(isCbt);
         });
 
         // Search & Filter Events
@@ -3453,6 +3477,10 @@
             updateDateNotice(dateInput.value);
             totalMarksInput.value = test.maxMarks || 50;
 
+            // Only show CBT QR Scanner buttons if this tile is a CBT exam
+            const isCbt = !!(test.isCbtExam || test.examType === 'Mock CBT Test' || test.examType === 'CBT' || test.cbtCode);
+            setCbtScanButtonsVisibility(isCbt);
+
             const isFuture = (test.testDate > getTodayStr()) || test.status === 'scheduled';
             if (workspaceTitleText) workspaceTitleText.textContent = test.title || 'Scheduled Assessment';
             if (workspaceSubtitle) workspaceSubtitle.textContent = `${test.className} - Sec ${test.section} · ${test.subject} · Date: ${test.testDate} · Total: ${test.maxMarks} Marks`;
@@ -3559,6 +3587,7 @@
 
         function resetEditorForm() {
             activeEditingTestId = null;
+            setCbtScanButtonsVisibility(false);
             if (workspaceTitleText) workspaceTitleText.textContent = 'Create & Schedule New Assessment';
             if (workspaceSubtitle) workspaceSubtitle.textContent = 'Select class, section, subject, test date, rules, and enter student marks';
             if (workspaceStatusPill) {
@@ -3680,8 +3709,6 @@
         const CBT_QR_SYNC_SALT = 'ROLLCALL_EXAM_PACKAGE_INTEGRITY_SALT_2026';
 
         const scannerModal = panel.querySelector('#ttsScannerModal');
-        const openQrScannerBtn = panel.querySelector('#ttsOpenQrScannerBtn');
-        const rosterScanQrBtn = panel.querySelector('#ttsRosterScanQrBtn');
         const closeQrScannerBtn = panel.querySelector('#ttsCloseQrScannerBtn');
         const finishScanBtn = panel.querySelector('#ttsFinishScanBtn');
         const videoEl = panel.querySelector('#ttsQrVideo');
