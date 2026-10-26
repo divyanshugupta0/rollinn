@@ -42,6 +42,8 @@ contextBridge.exposeInMainWorld('rollcallCBT', {
     cacheSessionProgress: (sessionData) => ipcRenderer.invoke('cbt:cache-session-progress', sessionData),
     saveSubmission: (submissionData) => ipcRenderer.invoke('cbt:save-submission', submissionData),
 
-    // Exit
+    // Exit & Window controls
+    minimizeWindow: () => ipcRenderer.invoke('cbt:minimize-window'),
+    toggleMaximizeWindow: () => ipcRenderer.invoke('cbt:toggle-maximize-window'),
     exitApp: () => ipcRenderer.invoke('cbt:exit-app')
 });

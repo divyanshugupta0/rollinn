@@ -98,6 +98,17 @@ button, input, select, textarea {
     padding: 0 20px;
     z-index: 100;
     flex-shrink: 0;
+    -webkit-app-region: drag;
+    user-select: none;
+}
+
+.app-topbar button,
+.app-topbar a,
+.app-topbar input,
+.app-topbar select,
+.app-topbar .topbar-actions,
+.app-topbar .topbar-exam-tools {
+    -webkit-app-region: no-drag;
 }
 
 .topbar-brand {

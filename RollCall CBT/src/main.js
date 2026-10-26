@@ -171,6 +171,8 @@ function createWindow() {
         height: Math.min(920, height),
         minWidth: 1024,
         minHeight: 700,
+        frame: false,
+        titleBarStyle: 'hidden',
         backgroundColor: '#0a0f1d',
         title: 'RollCall CBT - Offline Computer-Based Testing System',
         icon: path.join(__dirname, '..', 'images', 'icon.ico'),
@@ -474,6 +476,18 @@ function setupIpcHandlers() {
             return { success: true };
         } catch (e) {
             return { success: false, error: e.message };
+        }
+    });
+
+    // Window controls for frameless window
+    ipcMain.handle('cbt:minimize-window', async () => {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
+    });
+
+    ipcMain.handle('cbt:toggle-maximize-window', async () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            if (mainWindow.isMaximized()) mainWindow.unmaximize();
+            else mainWindow.maximize();
         }
     });
 

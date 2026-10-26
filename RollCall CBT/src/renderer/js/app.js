@@ -47,6 +47,7 @@
         el.topbarStationPill = document.getElementById('topbar-station-pill');
         el.topbarMainActions = document.getElementById('topbar-main-actions');
         el.btnThemeToggle = document.getElementById('btn-theme-toggle');
+        el.btnWindowMinimize = document.getElementById('btn-window-minimize');
         el.btnFullscreenToggle = document.getElementById('btn-fullscreen-toggle');
         el.btnExitApp = document.getElementById('btn-exit-app');
 
@@ -1901,6 +1902,11 @@
             document.body.classList.toggle('dark-theme');
             const isDark = document.body.classList.contains('dark-theme');
             el.btnThemeToggle.innerHTML = `<i class="fas fa-${isDark ? 'moon' : 'sun'}"></i>`;
+        });
+
+        // Window Minimize
+        el.btnWindowMinimize?.addEventListener('click', () => {
+            window.rollcallCBT.minimizeWindow?.();
         });
 
         // Fullscreen toggle
