@@ -27,6 +27,7 @@ const {
     verifyCbtLicenseKey,
     verifyCbtLicenseFile,
     applyCbtLicenseGracePeriod,
+    verifyClockIntegrity,
     consumeCbtLicenseFile,
     unpackRollCbt,
     packageExamToRollCbt,
@@ -110,18 +111,60 @@ function readStoredLicense() {
         if (data && data.licenseKey && data.schoolCode) {
             const currentDeviceId = getMachineFingerprint();
             if (data.activatedDeviceId && data.activatedDeviceId !== currentDeviceId) {
-                return { valid: false, expired: false, error: 'This CBT license is activated for a different device.', deviceId: currentDeviceId };
+                return {
+                    valid: false,
+                    expired: false,
+                    clockTampered: false,
+                    error: 'This CBT license is activated for a different device.',
+                    deviceId: currentDeviceId
+                };
             }
-            const verification = verifyCbtLicenseKey(data.licenseKey, data.schoolCode);
-            const temporaryExpired = Boolean(data.temporaryTest && Number(data.testExpiresAt || 0) <= Date.now());
+
+            // Monotonic air-gapped clock integrity check
+            const clockCheck = verifyClockIntegrity(vault, data, Date.now());
+            if (clockCheck.tampered) {
+                return {
+                    ...data,
+                    valid: false,
+                    expired: false,
+                    clockTampered: true,
+                    error: clockCheck.error,
+                    lastVerifiedTime: clockCheck.lastVerifiedTime,
+                    deviceId: currentDeviceId
+                };
+            }
+
+            if (clockCheck.permanentlyExpired) {
+                return {
+                    ...data,
+                    valid: false,
+                    expired: true,
+                    clockTampered: false,
+                    error: clockCheck.error,
+                    lastVerifiedTime: clockCheck.lastVerifiedTime,
+                    deviceId: currentDeviceId
+                };
+            }
+
+            // Normal clock: Ratchet forward monotonic timestamp if system clock has progressed
+            const effectiveNow = clockCheck.effectiveTime;
+            if (effectiveNow > (vault.lastKnownTimestamp || 0)) {
+                vault.lastKnownTimestamp = effectiveNow;
+                saveStationVault(vault);
+            }
+
+            const verification = verifyCbtLicenseKey(data.licenseKey, data.schoolCode, effectiveNow);
+            const temporaryExpired = Boolean(data.temporaryTest && Number(data.testExpiresAt || 0) <= effectiveNow);
             return applyCbtLicenseGracePeriod({
                 ...data,
                 ...verification,
                 valid: verification.valid && !temporaryExpired,
                 expired: verification.expired || temporaryExpired,
+                clockTampered: false,
+                lastVerifiedTime: effectiveNow,
                 error: temporaryExpired ? 'Temporary test license expired. Activate it again for testing.' : verification.error,
                 deviceId: currentDeviceId
-            });
+            }, effectiveNow);
         }
     } catch (err) {
         console.error('Error reading stored license from station vault:', err);
@@ -130,7 +173,8 @@ function readStoredLicense() {
         valid: false,
         schoolCode: null,
         licenseKey: null,
-        deviceId: getMachineFingerprint()
+        deviceId: getMachineFingerprint(),
+        clockTampered: false
     };
 }
 
@@ -651,6 +695,27 @@ function setupIpcHandlers() {
     ipcMain.handle('cbt:exit-app', async () => {
         app.quit();
     });
+
+    // Monotonic clock ratchet & anti-rollback heartbeat (runs every 60s)
+    setInterval(() => {
+        try {
+            const vault = readStationVault();
+            if (vault && vault.license) {
+                const check = verifyClockIntegrity(vault, vault.license, Date.now());
+                if (check.tampered) {
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('cbt:clock-tamper-detected', {
+                            message: check.error,
+                            lastVerifiedTime: check.lastVerifiedTime
+                        });
+                    }
+                } else if (Date.now() > (vault.lastKnownTimestamp || 0) + 60000) {
+                    vault.lastKnownTimestamp = Date.now();
+                    saveStationVault(vault);
+                }
+            }
+        } catch (_) {}
+    }, 60000);
 }
 
 // Single instance lock

@@ -4,6 +4,80 @@ const os = require('os');
 const CBT_SALT = 'ROLLCALL_CBT_SECURE_AUTH_V1_SECRET_2026';
 const CBT_EXAM_SALT = 'ROLLCALL_EXAM_PACKAGE_INTEGRITY_SALT_2026';
 const CBT_LICENSE_GRACE_PERIOD_MS = 5 * 24 * 60 * 60 * 1000;
+const CLOCK_ROLLBACK_TOLERANCE_MS = 15 * 60 * 1000; // 15-minute allowable tolerance for clock drift
+
+/**
+ * Air-gapped monotonic offline clock and anti-rollback verification.
+ * Prevents dishonest users from rewinding the system clock or setting BIOS date backwards
+ * to obtain unauthorized infinite trial or bypass license expiration.
+ */
+function verifyClockIntegrity(vault, licenseInfo, currentSystemTime = Date.now()) {
+    const now = Number(currentSystemTime) || Date.now();
+    const lastKnown = Number(vault?.lastKnownTimestamp || 0);
+    const maxExamTime = Array.isArray(vault?.records)
+        ? vault.records.reduce((max, r) => Math.max(max, Number(r.timestamp) || 0), 0)
+        : 0;
+
+    // Check 1: System clock is set earlier than the irreversible high-water mark stored in the encrypted .rollcbt vault
+    if (lastKnown > 0 && now < (lastKnown - CLOCK_ROLLBACK_TOLERANCE_MS)) {
+        return {
+            tampered: true,
+            permanentlyExpired: false,
+            error: `Clock tampering detected: System time (${new Date(now).toLocaleString()}) is earlier than previously verified activity on this workstation (${new Date(lastKnown).toLocaleString()}). Please restore your computer's correct date and time.`,
+            lastVerifiedTime: lastKnown,
+            effectiveTime: lastKnown
+        };
+    }
+
+    // Check 2: System clock is set earlier than completed examinations already conducted on this workstation
+    if (maxExamTime > 0 && now < (maxExamTime - CLOCK_ROLLBACK_TOLERANCE_MS)) {
+        return {
+            tampered: true,
+            permanentlyExpired: false,
+            error: `Clock tampering detected: System time (${new Date(now).toLocaleString()}) is earlier than recorded examinations on this station (${new Date(maxExamTime).toLocaleString()}). Please restore your computer's correct date and time.`,
+            lastVerifiedTime: maxExamTime,
+            effectiveTime: maxExamTime
+        };
+    }
+
+    // Check 3: System clock is set earlier than when the license was activated or issued
+    if (licenseInfo && (licenseInfo.activationStartDate || licenseInfo.activatedAt || licenseInfo.issuedAt)) {
+        const startTimestamp = Date.parse(licenseInfo.activationStartDate || licenseInfo.activatedAt || licenseInfo.issuedAt || '');
+        if (startTimestamp && now < (startTimestamp - CLOCK_ROLLBACK_TOLERANCE_MS)) {
+            return {
+                tampered: true,
+                permanentlyExpired: false,
+                error: `Clock tampering detected: System time (${new Date(now).toLocaleString()}) is earlier than when this station license was activated (${new Date(startTimestamp).toLocaleString()}). Please restore your computer's correct date and time.`,
+                lastVerifiedTime: startTimestamp,
+                effectiveTime: startTimestamp
+            };
+        }
+    }
+
+    const baseline = Math.max(now, lastKnown, maxExamTime);
+
+    // Check 4: Permanent expiration lock
+    // Once this station has verified time crossing the license expiration (+ grace period),
+    // the station locks permanently and rewinding the clock cannot resurrect it.
+    const expiry = Number(licenseInfo?.expiryTimestamp || Date.parse(licenseInfo?.expiryDate || ''));
+    if (expiry > 0 && lastKnown >= (expiry + CBT_LICENSE_GRACE_PERIOD_MS)) {
+        return {
+            tampered: false,
+            permanentlyExpired: true,
+            error: `License expired on ${new Date(expiry).toLocaleDateString()}. This workstation has passed the valid subscription and grace period. Rewinding the system clock cannot restore expired access.`,
+            lastVerifiedTime: lastKnown,
+            effectiveTime: lastKnown
+        };
+    }
+
+    return {
+        tampered: false,
+        permanentlyExpired: false,
+        error: null,
+        lastVerifiedTime: baseline,
+        effectiveTime: baseline
+    };
+}
 
 function applyCbtLicenseGracePeriod(licenseInfo, now = Date.now()) {
     const expiryTimestamp = Number(licenseInfo?.expiryTimestamp) || Date.parse(licenseInfo?.expiryDate || '');
@@ -121,7 +195,7 @@ function generateCbtLicenseFile(schoolCode, institutionName = 'RollCall Institut
 /**
  * Verify a CBT License key string
  */
-function verifyCbtLicenseKey(licenseKey, expectedSchoolCode = null) {
+function verifyCbtLicenseKey(licenseKey, expectedSchoolCode = null, referenceTime = null) {
     if (!licenseKey || typeof licenseKey !== 'string') {
         return { valid: false, error: 'License key is missing or invalid.' };
     }
@@ -152,7 +226,7 @@ function verifyCbtLicenseKey(licenseKey, expectedSchoolCode = null) {
         return { valid: false, error: 'License cryptographic signature verification failed. Code is corrupted or forged.' };
     }
 
-    const now = Date.now();
+    const now = Number(referenceTime) || Date.now();
     const isExpired = now > expiry;
     const daysRemaining = Math.max(0, Math.ceil((expiry - now) / (1000 * 60 * 60 * 24)));
 
@@ -471,6 +545,7 @@ function createSubmissionArchive(submissionData) {
  */
 function packStationVault(vaultData, machineId = null) {
     const hwId = machineId || getMachineFingerprint();
+    const lastKnown = Number(vaultData.lastKnownTimestamp || 0);
     const payload = {
         magic: 'ROLLCBT_STATION_VAULT',
         version: '1.0',
@@ -478,7 +553,8 @@ function packStationVault(vaultData, machineId = null) {
         schoolCode: vaultData?.license?.schoolCode || 'ROLLCALL',
         institutionName: vaultData?.license?.institutionName || '',
         deviceId: hwId,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        lastKnownTimestamp: lastKnown
     };
 
     const vaultSecret = `${hwId}::${CBT_SALT}::ROLLCALL_STATION_VAULT_2026`;
@@ -488,7 +564,8 @@ function packStationVault(vaultData, machineId = null) {
 
     const innerPayload = {
         license: vaultData.license || null,
-        records: Array.isArray(vaultData.records) ? vaultData.records : []
+        records: Array.isArray(vaultData.records) ? vaultData.records : [],
+        lastKnownTimestamp: lastKnown
     };
 
     let encryptedData = cipher.update(JSON.stringify(innerPayload), 'utf8', 'base64');
@@ -540,7 +617,7 @@ function unpackStationVault(rawContent, machineId = null) {
         throw new Error('Station vault is locked to a different workstation hardware ID.');
     }
 
-    let inner = { license: null, records: [] };
+    let inner = { license: null, records: [], lastKnownTimestamp: 0 };
     if (payload.encryptedVault) {
         try {
             const vaultSecret = `${hwId}::${CBT_SALT}::ROLLCALL_STATION_VAULT_2026`;
@@ -560,6 +637,7 @@ function unpackStationVault(rawContent, machineId = null) {
         institutionName: payload.institutionName,
         deviceId: payload.deviceId,
         updatedAt: payload.updatedAt,
+        lastKnownTimestamp: Number(inner.lastKnownTimestamp || payload.lastKnownTimestamp || 0),
         license: inner.license || null,
         records: Array.isArray(inner.records) ? inner.records : []
     };
@@ -578,6 +656,8 @@ module.exports = {
     unpackStationVault,
     createSubmissionArchive,
     applyCbtLicenseGracePeriod,
+    verifyClockIntegrity,
+    CLOCK_ROLLBACK_TOLERANCE_MS,
     CBT_LICENSE_GRACE_PERIOD_MS,
     CBT_SALT,
     CBT_EXAM_SALT

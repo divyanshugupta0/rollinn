@@ -37,6 +37,11 @@ contextBridge.exposeInMainWorld('rollcallCBT', {
         ipcRenderer.on('cbt:error-message', handler);
         return () => ipcRenderer.removeListener('cbt:error-message', handler);
     },
+    onClockTamperDetected: (callback) => {
+        const handler = (event, data) => callback(data);
+        ipcRenderer.on('cbt:clock-tamper-detected', handler);
+        return () => ipcRenderer.removeListener('cbt:clock-tamper-detected', handler);
+    },
 
     // Session caching & Submission
     cacheSessionProgress: (sessionData) => ipcRenderer.invoke('cbt:cache-session-progress', sessionData),

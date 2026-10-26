@@ -292,11 +292,24 @@
 
         // License Details Modal
         el.modalLicenseDetails = document.getElementById('modal-license-details');
-        el.licDetailSchoolName = document.getElementById('lic-detail-school-name');
+        el.licStatusBanner = document.getElementById('lic-status-banner');
+        el.licStatusIcon = document.getElementById('lic-status-icon');
+        el.licStatusTitle = document.getElementById('lic-status-title');
+        el.licStatusDesc = document.getElementById('lic-status-desc');
+        el.licStatusPill = document.getElementById('lic-status-pill');
+        el.licDetailInstName = document.getElementById('lic-detail-inst-name');
         el.licDetailSchoolCode = document.getElementById('lic-detail-school-code');
+        el.licDetailTier = document.getElementById('lic-detail-tier');
+        el.licDetailKeyPreview = document.getElementById('lic-detail-key-preview');
+        el.btnCopyLicKey = document.getElementById('btn-copy-lic-key');
+        el.licDetailId = document.getElementById('lic-detail-id');
         el.licDetailDeviceId = document.getElementById('lic-detail-device-id');
-        el.licDetailExpiry = document.getElementById('lic-detail-expiry');
-        el.licDetailDevices = document.getElementById('lic-detail-devices');
+        el.btnCopyDeviceId = document.getElementById('btn-copy-device-id');
+        el.licDetailStartDate = document.getElementById('lic-detail-start-date');
+        el.licDetailEndDate = document.getElementById('lic-detail-end-date');
+        el.licDetailDaysRemaining = document.getElementById('lic-detail-days-remaining');
+        el.licDetailSeats = document.getElementById('lic-detail-seats');
+        el.licDetailLastClock = document.getElementById('lic-detail-last-clock');
         el.btnModalChangePin = document.getElementById('btn-modal-change-pin');
         el.btnDoneLicenseDetails = document.getElementById('btn-done-license-details');
         el.btnCloseLicenseDetails = document.getElementById('btn-close-license-details');
@@ -1951,8 +1964,127 @@
             return;
         }
         const lic = state.license;
+        if (el.licDetailInstName) el.licDetailInstName.textContent = lic.institutionName || lic.schoolName || 'RollCall Institution';
         if (el.licDetailSchoolCode) el.licDetailSchoolCode.textContent = lic.schoolCode || '----';
-        if (el.licDetailDeviceId) el.licDetailDeviceId.textContent = lic.deviceId || state.license?.deviceId || 'STATION-HW';
+        if (el.licDetailTier) el.licDetailTier.textContent = lic.tier || 'RollCall CBT Offline Enterprise Edition';
+        if (el.licDetailKeyPreview) {
+            const rawKey = lic.licenseKey || '';
+            el.licDetailKeyPreview.textContent = rawKey.length > 25
+                ? `${rawKey.substring(0, 14)}...${rawKey.substring(rawKey.length - 8)}`
+                : rawKey || 'N/A';
+            el.licDetailKeyPreview.title = rawKey;
+        }
+        if (el.licDetailId) el.licDetailId.textContent = lic.licenseId || `RCCBT-${lic.schoolCode || 'LIC'}`;
+        if (el.licDetailDeviceId) el.licDetailDeviceId.textContent = lic.deviceId || lic.activatedDeviceId || 'STATION-HW';
+
+        // Start Date
+        const startDateVal = lic.activationStartDate || lic.activatedAt || lic.issuedAt;
+        if (el.licDetailStartDate) {
+            if (startDateVal) {
+                const sDate = new Date(startDateVal);
+                el.licDetailStartDate.textContent = isNaN(sDate.getTime())
+                    ? String(startDateVal)
+                    : sDate.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+            } else {
+                el.licDetailStartDate.textContent = 'Activation Date';
+            }
+        }
+
+        // End Date (Expiry)
+        const expiryVal = lic.expiryTimestamp || lic.expiresAt || lic.expiryDate;
+        if (el.licDetailEndDate) {
+            if (expiryVal) {
+                const eDate = new Date(typeof expiryVal === 'number' ? expiryVal : Date.parse(expiryVal));
+                el.licDetailEndDate.textContent = isNaN(eDate.getTime())
+                    ? String(lic.expiryDate || expiryVal)
+                    : eDate.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+            } else {
+                el.licDetailEndDate.textContent = 'Lifetime / None';
+            }
+        }
+
+        // Days Remaining
+        const days = lic.daysRemaining !== undefined
+            ? lic.daysRemaining
+            : (lic.expiryTimestamp ? Math.max(0, Math.ceil((lic.expiryTimestamp - Date.now()) / (1000 * 60 * 60 * 24))) : '--');
+        if (el.licDetailDaysRemaining) {
+            el.licDetailDaysRemaining.textContent = lic.expired ? 'Expired' : `${days} day${days === 1 ? '' : 's'} remaining`;
+            el.licDetailDaysRemaining.style.color = lic.expired ? '#dc2626' : (lic.inGracePeriod ? '#d97706' : '#2563eb');
+        }
+
+        // Seats
+        if (el.licDetailSeats) {
+            const max = lic.maxDevices || 1;
+            const remaining = lic.remainingDevices !== undefined ? lic.remainingDevices : 0;
+            const used = (lic.activationCount !== undefined) ? lic.activationCount : Math.max(1, max - remaining);
+            el.licDetailSeats.textContent = `Station ${used} of ${max} authorized seat${max === 1 ? '' : 's'}`;
+        }
+
+        // Last verified monotonic time
+        if (el.licDetailLastClock) {
+            const lastTime = lic.lastVerifiedTime || Date.now();
+            el.licDetailLastClock.textContent = `Last Verified System Time: ${new Date(lastTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`;
+        }
+
+        // Status banner styling
+        if (lic.clockTampered) {
+            if (el.licStatusBanner) {
+                el.licStatusBanner.style.background = '#fef2f2';
+                el.licStatusBanner.style.borderColor = '#fca5a5';
+                el.licStatusBanner.style.color = '#991b1b';
+            }
+            if (el.licStatusIcon) el.licStatusIcon.className = 'fas fa-clock-rotate-left';
+            if (el.licStatusTitle) el.licStatusTitle.textContent = 'Clock Tampering Detected';
+            if (el.licStatusDesc) el.licStatusDesc.textContent = lic.error || 'System date has been turned backward. Restore correct computer time.';
+            if (el.licStatusPill) {
+                el.licStatusPill.textContent = 'Clock Tampered';
+                el.licStatusPill.style.background = '#fee2e2';
+                el.licStatusPill.style.color = '#b91c1c';
+            }
+        } else if (lic.expired) {
+            if (el.licStatusBanner) {
+                el.licStatusBanner.style.background = '#fef2f2';
+                el.licStatusBanner.style.borderColor = '#fca5a5';
+                el.licStatusBanner.style.color = '#991b1b';
+            }
+            if (el.licStatusIcon) el.licStatusIcon.className = 'fas fa-circle-xmark';
+            if (el.licStatusTitle) el.licStatusTitle.textContent = 'License Expired';
+            if (el.licStatusDesc) el.licStatusDesc.textContent = lic.error || 'Subscription period has elapsed. Please renew from RollCall Admin.';
+            if (el.licStatusPill) {
+                el.licStatusPill.textContent = 'Expired';
+                el.licStatusPill.style.background = '#fee2e2';
+                el.licStatusPill.style.color = '#b91c1c';
+            }
+        } else if (lic.inGracePeriod) {
+            if (el.licStatusBanner) {
+                el.licStatusBanner.style.background = '#fffbeb';
+                el.licStatusBanner.style.borderColor = '#fde68a';
+                el.licStatusBanner.style.color = '#92400e';
+            }
+            if (el.licStatusIcon) el.licStatusIcon.className = 'fas fa-triangle-exclamation';
+            if (el.licStatusTitle) el.licStatusTitle.textContent = 'License in Grace Period';
+            if (el.licStatusDesc) el.licStatusDesc.textContent = lic.error || 'Renewal required soon.';
+            if (el.licStatusPill) {
+                el.licStatusPill.textContent = 'Grace Period';
+                el.licStatusPill.style.background = '#fef3c7';
+                el.licStatusPill.style.color = '#b45309';
+            }
+        } else {
+            if (el.licStatusBanner) {
+                el.licStatusBanner.style.background = '#ecfdf5';
+                el.licStatusBanner.style.borderColor = '#a7f3d0';
+                el.licStatusBanner.style.color = '#065f46';
+            }
+            if (el.licStatusIcon) el.licStatusIcon.className = 'fas fa-circle-check';
+            if (el.licStatusTitle) el.licStatusTitle.textContent = 'License Active & Verified';
+            if (el.licStatusDesc) el.licStatusDesc.textContent = 'Workstation authorized for full offline examination delivery.';
+            if (el.licStatusPill) {
+                el.licStatusPill.textContent = 'Active';
+                el.licStatusPill.style.background = '#d1fae5';
+                el.licStatusPill.style.color = '#047857';
+            }
+        }
+
         if (el.modalLicenseDetails) {
             el.modalLicenseDetails.hidden = false;
             el.modalLicenseDetails.style.display = 'grid';
@@ -2546,6 +2678,19 @@
                 el.modalLicenseDetails.style.display = 'none';
             }
         });
+        el.btnCopyLicKey?.addEventListener('click', () => {
+            if (state.license?.licenseKey) {
+                navigator.clipboard.writeText(state.license.licenseKey);
+                showToast('License Key copied to clipboard.', 'info');
+            }
+        });
+        el.btnCopyDeviceId?.addEventListener('click', () => {
+            const devId = state.license?.deviceId || state.license?.activatedDeviceId;
+            if (devId) {
+                navigator.clipboard.writeText(devId);
+                showToast('Station Machine ID copied to clipboard.', 'info');
+            }
+        });
         el.btnModalChangePin?.addEventListener('click', () => {
             if (el.modalLicenseDetails) {
                 el.modalLicenseDetails.hidden = true;
@@ -2916,6 +3061,14 @@
         if (window.rollcallCBT && window.rollcallCBT.onErrorMessage) {
             window.rollcallCBT.onErrorMessage((msg) => {
                 showToast(msg, 'error');
+            });
+        }
+
+        // Monotonic Clock Tampering Detection
+        if (window.rollcallCBT && window.rollcallCBT.onClockTamperDetected) {
+            window.rollcallCBT.onClockTamperDetected((data) => {
+                showToast(data.message || 'System clock rollback detected! Please restore the accurate date and time.', 'error');
+                checkLicenseStatus();
             });
         }
     }
