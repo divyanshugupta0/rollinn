@@ -319,12 +319,18 @@
 
                             <!-- Selected Candidate Confirmation & PIN box -->
                             <div class="pin-confirm-card" id="candidate-confirm-box" style="display: none;">
-                                <div>
-                                    <small style="color: var(--rc-text-dimmed); font-weight: 700; text-transform: uppercase; font-size: 0.72rem;">Selected Candidate</small>
-                                    <h3 style="font-size: 1.05rem; font-weight: 750; color: #172044; margin: 2px 0;" id="confirm-student-name">Candidate Name</h3>
-                                    <span style="font-size: 0.8rem; color: var(--rc-text-secondary);">
-                                        Roll #<span id="confirm-student-roll">1</span> · Class <span id="confirm-student-class">10</span>
-                                    </span>
+                                <div style="display: flex; align-items: center; gap: 14px;">
+                                    <div class="confirm-avatar-box">
+                                        <img id="confirm-student-image" src="" alt="Candidate" style="display: none;">
+                                        <div id="confirm-student-fallback" class="confirm-avatar-fallback">S</div>
+                                    </div>
+                                    <div>
+                                        <small style="color: var(--rc-text-dimmed); font-weight: 700; text-transform: uppercase; font-size: 0.72rem;">Selected Candidate</small>
+                                        <h3 style="font-size: 1.05rem; font-weight: 750; color: #172044; margin: 2px 0;" id="confirm-student-name">Candidate Name</h3>
+                                        <span style="font-size: 0.8rem; color: var(--rc-text-secondary);">
+                                            Roll #<span id="confirm-student-roll">1</span> · Class <span id="confirm-student-class">10</span>
+                                        </span>
+                                    </div>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 12px;">
                                     <div class="pin-input-group" id="pin-verify-row" style="display: none;">
@@ -378,7 +384,10 @@
                 </div>
 
                 <div class="hall-candidate-badge">
-                    <img src="assets/rollcall-icon.svg" id="hall-candidate-image" alt="Candidate">
+                    <div class="hall-avatar-circle">
+                        <img src="" id="hall-candidate-image" alt="Candidate" style="display: none;">
+                        <span id="hall-candidate-fallback" class="hall-avatar-initial">S</span>
+                    </div>
                     <div class="hall-candidate-meta">
                         <strong id="hall-candidate-name">Candidate</strong>
                         <span>Roll: <span id="hall-candidate-roll">--</span></span>
@@ -491,8 +500,16 @@
                         <i class="fas fa-check"></i>
                     </div>
 
-                    <h2 id="result-candidate-greeting">Exam Submitted Successfully</h2>
-                    <p id="result-subtitle">Your responses have been securely packaged and verified.</p>
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 12px;">
+                        <div class="confirm-avatar-box" id="result-avatar-box">
+                            <img id="result-student-image" src="" alt="Candidate" style="display: none;">
+                            <div id="result-student-fallback" class="confirm-avatar-fallback">S</div>
+                        </div>
+                        <div style="text-align: left;">
+                            <h2 id="result-candidate-greeting" style="margin: 0; font-size: 1.25rem;">Exam Submitted Successfully</h2>
+                            <p id="result-subtitle" style="margin: 3px 0 0; font-size: 0.85rem; color: var(--rc-text-secondary);">Your responses have been securely packaged and verified.</p>
+                        </div>
+                    </div>
 
                     <div class="score-stats-grid">
                         <div class="score-box">

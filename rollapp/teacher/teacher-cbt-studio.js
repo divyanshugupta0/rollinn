@@ -30,14 +30,39 @@
   }
 
   async function embedStudentPhoto(student) {
-    const url = student.profilePic || student.profilePhoto || student.photoURL || student.photoUrl || student.profilePicture || student.imageUrl || '';
+    const url = student.profilePicData || student.profilePic || student.profilePhoto || student.photoURL || student.photoUrl || student.profilePicture || student.imageUrl || '';
     if (!url || String(url).startsWith('data:')) return url || '';
     try {
       const response = await fetch(url, { mode: 'cors' });
-      if (!response.ok) return url;
-      const blob = await response.blob();
-      const buffer = await blob.arrayBuffer();
-      return `data:${blob.type || 'image/jpeg'};base64,${bytesToBase64(new Uint8Array(buffer))}`;
+      if (response.ok) {
+        const blob = await response.blob();
+        const buffer = await blob.arrayBuffer();
+        return `data:${blob.type || 'image/jpeg'};base64,${bytesToBase64(new Uint8Array(buffer))}`;
+      }
+    } catch (_) {}
+
+    // Fallback: load into HTML Image element and extract to canvas
+    try {
+      const dataUri = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.min(256, img.naturalWidth || img.width || 128);
+            canvas.height = Math.min(256, img.naturalHeight || img.height || 128);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+          } catch (e) {
+            reject(e);
+          }
+        };
+        img.onerror = () => reject(new Error('image load failed'));
+        img.src = url;
+        setTimeout(() => reject(new Error('timeout')), 3000);
+      });
+      return dataUri;
     } catch (_) {
       return url;
     }
@@ -129,11 +154,15 @@
   }
 
   function candidateRecord(student, assignment, index, deviceIndex) {
+    const photo = student.profilePicData || student.profilePic || student.profilePhoto || student.photoURL || student.photoUrl || student.profilePicture || student.imageUrl || '';
     return {
       uid: student.id,
       id: student.id,
       name: student.name || student.displayName || student.email || `Student ${index + 1}`,
-      profilePic: student.profilePic || student.profilePhoto || student.photoURL || student.photoUrl || student.profilePicture || student.imageUrl || '',
+      profilePic: photo,
+      profilePhoto: photo,
+      profilePicData: photo,
+      photoURL: photo,
       class: assignment.className,
       batch: assignment.className,
       classId: assignment.classId,
@@ -390,10 +419,17 @@
         for (const assignment of sections) {
           const rawStudents = await loadStudents(db, access, assignment);
           const allocation = createDeviceAssignments(rawStudents, access.maxDevices);
-          const assignedStudents = await Promise.all(allocation.students.map(async (student, index) => ({
-            ...candidateRecord(student, assignment, index, student.deviceIndex),
-            profilePicData: await embedStudentPhoto(student)
-          })));
+          const assignedStudents = await Promise.all(allocation.students.map(async (student, index) => {
+            const pic = await embedStudentPhoto(student);
+            const rec = candidateRecord(student, assignment, index, student.deviceIndex);
+            if (pic) {
+              rec.profilePic = pic;
+              rec.profilePhoto = pic;
+              rec.profilePicData = pic;
+              rec.photoURL = pic;
+            }
+            return rec;
+          }));
           const examId = `EXAM-${Date.now()}-${norm(assignment.section).replace(/[^a-z0-9]+/g, '-').toUpperCase()}`;
           const payload = {
             version: '1.0', magic: 'ROLLCBT', schoolCode: access.schoolCode, schoolName: access.schoolName,

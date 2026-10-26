@@ -982,23 +982,47 @@ button, input, select, textarea {
     box-shadow: 0 0 0 1px var(--rc-interactive);
 }
 
-.candidate-avatar {
+.candidate-avatar, .c-avatar {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    object-fit: cover;
     background: #e2e8f0;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1.5px solid #cbd5e1;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--rc-brand-purple, #6366f1);
+    flex-shrink: 0;
+    user-select: none;
 }
 
-.candidate-info-wrap strong {
+.candidate-avatar img, .c-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+
+.candidate-info-wrap, .c-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.candidate-info-wrap strong, .c-info strong {
     display: block;
     font-size: 0.88rem;
     font-weight: 650;
     color: #172044;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.candidate-info-wrap span {
+.candidate-info-wrap span, .c-info span {
     display: block;
     font-size: 0.76rem;
     color: var(--rc-text-secondary);
@@ -1015,7 +1039,37 @@ button, input, select, textarea {
     color: #2b6cb0;
 }
 
-/* PIN Verification Box */
+/* PIN Verification & Candidate Confirmation Box */
+.confirm-avatar-box {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #cbd5e1;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.confirm-avatar-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+
+.confirm-avatar-fallback {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--rc-brand-purple, #6366f1);
+    text-transform: uppercase;
+    line-height: 1;
+}
+
 .pin-confirm-card {
     padding: 16px 20px;
     background: #f8fafc;
@@ -1124,11 +1178,35 @@ button, input, select, textarea {
     border: 1px solid #e2e8f0;
 }
 
-.hall-candidate-badge img {
+.hall-avatar-circle {
     width: 32px;
     height: 32px;
     border-radius: 50%;
+    overflow: hidden;
+    background: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid #cbd5e1;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.hall-avatar-circle img,
+.hall-candidate-badge img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
     object-fit: cover;
+    display: block;
+}
+
+.hall-avatar-initial {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--rc-brand-purple, #6366f1);
+    text-transform: uppercase;
+    line-height: 1;
 }
 
 .hall-candidate-meta strong {

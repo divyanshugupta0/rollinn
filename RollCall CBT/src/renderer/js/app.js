@@ -103,6 +103,8 @@
         el.confirmStudentName = document.getElementById('confirm-student-name');
         el.confirmStudentRoll = document.getElementById('confirm-student-roll');
         el.confirmStudentClass = document.getElementById('confirm-student-class');
+        el.confirmStudentImage = document.getElementById('confirm-student-image');
+        el.confirmStudentFallback = document.getElementById('confirm-student-fallback');
         el.btnChangeStudent = document.getElementById('btn-change-student');
         el.pinVerifyRow = document.getElementById('pin-verify-row');
         el.inputCandidatePin = document.getElementById('input-candidate-pin');
@@ -122,6 +124,7 @@
         el.hallCandidateName = document.getElementById('hall-candidate-name');
         el.hallCandidateRoll = document.getElementById('hall-candidate-roll');
         el.hallCandidateImage = document.getElementById('hall-candidate-image');
+        el.hallCandidateFallback = document.getElementById('hall-candidate-fallback');
         el.hallProctorVideo = document.getElementById('hall-proctor-video');
         el.hallStrikeCount = document.getElementById('hall-strike-count');
         el.hallStrikeMax = document.getElementById('hall-strike-max');
@@ -180,6 +183,8 @@
 
         // Results
         el.resultBadgeIcon = document.getElementById('result-badge-icon');
+        el.resultStudentImage = document.getElementById('result-student-image');
+        el.resultStudentFallback = document.getElementById('result-student-fallback');
         el.resultCandidateGreeting = document.getElementById('result-candidate-greeting');
         el.resultSubtitle = document.getElementById('result-subtitle');
         el.resultScoreVal = document.getElementById('result-score-val');
@@ -464,8 +469,9 @@
             const card = document.createElement('div');
             const completed = state.completedCandidates.has(candidateCompletionKey(c));
             card.className = `candidate-item-card${completed ? ' completed' : ''}`;
+            const initial = (c.name || 'S').charAt(0).toUpperCase();
             card.innerHTML = `
-                <div class="c-avatar">${(c.name || 'S').charAt(0).toUpperCase()}</div>
+                <div class="c-avatar">${initial}</div>
                 <div class="c-info">
                     <strong>${c.name}</strong>
                     <span>Roll: ${c.rollNo || 'N/A'} · ${c.batch || c.class || 'Student'}</span>
@@ -474,11 +480,17 @@
             const photo = c.profilePicData || c.profilePic || c.profilePhoto || c.photoURL || c.photoUrl || c.profilePicture || c.imageUrl;
             if (photo) {
                 const avatar = card.querySelector('.c-avatar');
-                avatar.textContent = '';
                 const image = document.createElement('img');
                 image.src = photo;
-                image.alt = '';
-                avatar.appendChild(image);
+                image.alt = c.name || '';
+                image.onload = () => {
+                    avatar.innerHTML = '';
+                    avatar.appendChild(image);
+                };
+                image.onerror = () => {
+                    avatar.innerHTML = '';
+                    avatar.textContent = initial;
+                };
             }
             if (!completed) card.addEventListener('click', () => {
                 document.querySelectorAll('.candidate-item-card').forEach(ci => ci.classList.remove('selected'));
@@ -495,6 +507,25 @@
         el.confirmStudentName.textContent = candidate.name;
         el.confirmStudentRoll.textContent = candidate.rollNo;
         el.confirmStudentClass.textContent = `${candidate.batch || candidate.class || 'Student'}${candidate.section ? ` - Sec ${candidate.section}` : ''}`;
+
+        const photo = candidate.profilePicData || candidate.profilePic || candidate.profilePhoto || candidate.photoURL || candidate.photoUrl || candidate.profilePicture || candidate.imageUrl;
+        const initial = (candidate.name || 'S').charAt(0).toUpperCase();
+        if (el.confirmStudentImage && el.confirmStudentFallback) {
+            if (photo) {
+                el.confirmStudentImage.src = photo;
+                el.confirmStudentImage.style.display = 'block';
+                el.confirmStudentFallback.style.display = 'none';
+                el.confirmStudentImage.onerror = () => {
+                    el.confirmStudentImage.style.display = 'none';
+                    el.confirmStudentFallback.style.display = 'flex';
+                    el.confirmStudentFallback.textContent = initial;
+                };
+            } else {
+                el.confirmStudentImage.style.display = 'none';
+                el.confirmStudentFallback.style.display = 'flex';
+                el.confirmStudentFallback.textContent = initial;
+            }
+        }
 
         el.candidateConfirmBox.classList.remove('hidden');
         el.candidateConfirmBox.style.display = 'flex';
@@ -571,12 +602,31 @@
         if (webcamActive) {
             el.hallProctorVideo.srcObject = state.webcamStream;
         }
-        const candidatePhoto = state.selectedCandidate.profilePicData || state.selectedCandidate.profilePic || state.selectedCandidate.profilePhoto || state.selectedCandidate.photoURL || state.selectedCandidate.photoUrl || state.selectedCandidate.profilePicture || state.selectedCandidate.imageUrl;
-        if (el.hallCandidateImage) {
-            el.hallCandidateImage.src = candidatePhoto || '';
-            el.hallCandidateImage.classList.toggle('hidden', webcamActive || !candidatePhoto);
-        }
         el.hallProctorVideo.classList.toggle('hidden', !webcamActive);
+
+        // Candidate Photo / Avatar Badge (Always clearly visible in exam hall)
+        const candidatePhoto = state.selectedCandidate.profilePicData || state.selectedCandidate.profilePic || state.selectedCandidate.profilePhoto || state.selectedCandidate.photoURL || state.selectedCandidate.photoUrl || state.selectedCandidate.profilePicture || state.selectedCandidate.imageUrl;
+        const initial = (state.selectedCandidate.name || 'S').charAt(0).toUpperCase();
+
+        if (el.hallCandidateImage && el.hallCandidateFallback) {
+            if (candidatePhoto) {
+                el.hallCandidateImage.src = candidatePhoto;
+                el.hallCandidateImage.style.display = 'block';
+                el.hallCandidateFallback.style.display = 'none';
+                el.hallCandidateImage.onerror = () => {
+                    el.hallCandidateImage.style.display = 'none';
+                    el.hallCandidateFallback.style.display = 'flex';
+                    el.hallCandidateFallback.textContent = initial;
+                };
+            } else {
+                el.hallCandidateImage.style.display = 'none';
+                el.hallCandidateFallback.style.display = 'flex';
+                el.hallCandidateFallback.textContent = initial;
+            }
+        } else if (el.hallCandidateImage) {
+            el.hallCandidateImage.src = candidatePhoto || '';
+            el.hallCandidateImage.classList.toggle('hidden', !candidatePhoto);
+        }
 
         // Setup candidate display
         el.hallExamTitle.textContent = state.activeExam.title;
@@ -964,7 +1014,27 @@
 
         // Render Results UI
         el.resultCandidateGreeting.textContent = `${state.selectedCandidate.name} - Exam Complete!`;
-        el.resultSubtitle.textContent = `Official candidate record for ${state.activeExam.title} (${state.activeExam.code || 'CBT'})`;
+        el.resultSubtitle.textContent = `Roll No: ${state.selectedCandidate.rollNo || '--'} · ${state.activeExam.title} (${state.activeExam.code || 'CBT'})`;
+
+        const resultPhoto = state.selectedCandidate.profilePicData || state.selectedCandidate.profilePic || state.selectedCandidate.profilePhoto || state.selectedCandidate.photoURL || state.selectedCandidate.photoUrl || state.selectedCandidate.profilePicture || state.selectedCandidate.imageUrl;
+        const resultInitial = (state.selectedCandidate.name || 'S').charAt(0).toUpperCase();
+        if (el.resultStudentImage && el.resultStudentFallback) {
+            if (resultPhoto) {
+                el.resultStudentImage.src = resultPhoto;
+                el.resultStudentImage.style.display = 'block';
+                el.resultStudentFallback.style.display = 'none';
+                el.resultStudentImage.onerror = () => {
+                    el.resultStudentImage.style.display = 'none';
+                    el.resultStudentFallback.style.display = 'flex';
+                    el.resultStudentFallback.textContent = resultInitial;
+                };
+            } else {
+                el.resultStudentImage.style.display = 'none';
+                el.resultStudentFallback.style.display = 'flex';
+                el.resultStudentFallback.textContent = resultInitial;
+            }
+        }
+
         el.resultScoreVal.textContent = totalScore.toFixed(1);
         el.resultTotalVal.textContent = totalPossible.toFixed(1);
         el.resultPercentagePill.textContent = `${percentage}%`;
