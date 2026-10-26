@@ -465,6 +465,106 @@ function createSubmissionArchive(submissionData) {
     }, null, 2);
 }
 
+/**
+ * Pack Station Vault into application-private .rollcbt file format
+ * Stores workstation license and previously held exam records securely
+ */
+function packStationVault(vaultData, machineId = null) {
+    const hwId = machineId || getMachineFingerprint();
+    const payload = {
+        magic: 'ROLLCBT_STATION_VAULT',
+        version: '1.0',
+        vaultType: 'STATION_DATA',
+        schoolCode: vaultData?.license?.schoolCode || 'ROLLCALL',
+        institutionName: vaultData?.license?.institutionName || '',
+        deviceId: hwId,
+        updatedAt: new Date().toISOString()
+    };
+
+    const vaultSecret = `${hwId}::${CBT_SALT}::ROLLCALL_STATION_VAULT_2026`;
+    const cipherKey = crypto.createHash('sha256').update(vaultSecret).digest();
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', cipherKey, iv);
+
+    const innerPayload = {
+        license: vaultData.license || null,
+        records: Array.isArray(vaultData.records) ? vaultData.records : []
+    };
+
+    let encryptedData = cipher.update(JSON.stringify(innerPayload), 'utf8', 'base64');
+    encryptedData += cipher.final('base64');
+
+    payload.encryptedVault = {
+        iv: iv.toString('hex'),
+        data: encryptedData
+    };
+
+    const contentString = JSON.stringify(payload);
+    const checksum = crypto.createHmac('sha256', CBT_EXAM_SALT).update(contentString).digest('hex');
+
+    const envelope = {
+        header: 'ROLLCALL_CBT_SECURE_EXAM_PACKAGE_V1',
+        vaultHeader: 'ROLLCALL_CBT_STATION_VAULT_V1',
+        checksum,
+        payload
+    };
+
+    return JSON.stringify(envelope, null, 2);
+}
+
+/**
+ * Unpack Station Vault from application-private .rollcbt file
+ */
+function unpackStationVault(rawContent, machineId = null) {
+    let envelope;
+    try {
+        envelope = typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
+    } catch {
+        throw new Error('Invalid station vault format.');
+    }
+
+    if (!envelope || !envelope.payload || (envelope.vaultHeader !== 'ROLLCALL_CBT_STATION_VAULT_V1' && envelope.payload.magic !== 'ROLLCBT_STATION_VAULT')) {
+        throw new Error('Not a valid RollCall station vault archive.');
+    }
+
+    const contentString = JSON.stringify(envelope.payload);
+    const expectedChecksum = crypto.createHmac('sha256', CBT_EXAM_SALT).update(contentString).digest('hex');
+    if (envelope.checksum !== expectedChecksum) {
+        throw new Error('Station vault checksum validation failed (tampering detected).');
+    }
+
+    const payload = envelope.payload;
+    const hwId = machineId || getMachineFingerprint();
+
+    if (payload.deviceId && payload.deviceId !== hwId) {
+        throw new Error('Station vault is locked to a different workstation hardware ID.');
+    }
+
+    let inner = { license: null, records: [] };
+    if (payload.encryptedVault) {
+        try {
+            const vaultSecret = `${hwId}::${CBT_SALT}::ROLLCALL_STATION_VAULT_2026`;
+            const cipherKey = crypto.createHash('sha256').update(vaultSecret).digest();
+            const iv = Buffer.from(payload.encryptedVault.iv, 'hex');
+            const decipher = crypto.createDecipheriv('aes-256-cbc', cipherKey, iv);
+            let decrypted = decipher.update(payload.encryptedVault.data, 'base64', 'utf8');
+            decrypted += decipher.final('utf8');
+            inner = JSON.parse(decrypted);
+        } catch (e) {
+            throw new Error('Failed to decrypt station vault: ' + e.message);
+        }
+    }
+
+    return {
+        schoolCode: payload.schoolCode,
+        institutionName: payload.institutionName,
+        deviceId: payload.deviceId,
+        updatedAt: payload.updatedAt,
+        license: inner.license || null,
+        records: Array.isArray(inner.records) ? inner.records : []
+    };
+}
+
 module.exports = {
     getMachineFingerprint,
     generateCbtLicenseKey,
@@ -474,9 +574,12 @@ module.exports = {
     consumeCbtLicenseFile,
     packageExamToRollCbt,
     unpackRollCbt,
+    packStationVault,
+    unpackStationVault,
     createSubmissionArchive,
     applyCbtLicenseGracePeriod,
     CBT_LICENSE_GRACE_PERIOD_MS,
     CBT_SALT,
     CBT_EXAM_SALT
 };
+

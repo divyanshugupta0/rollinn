@@ -43,6 +43,11 @@ contextBridge.exposeInMainWorld('rollcallCBT', {
     saveSubmission: (submissionData) => ipcRenderer.invoke('cbt:save-submission', submissionData),
     generateSyncQr: (payload) => ipcRenderer.invoke('cbt:generate-sync-qr', payload),
 
+    // Station Vault Records (.rollcbt)
+    getStationRecords: () => ipcRenderer.invoke('cbt:get-station-records'),
+    saveStationRecord: (record) => ipcRenderer.invoke('cbt:save-station-record', record),
+    clearStationRecords: () => ipcRenderer.invoke('cbt:clear-station-records'),
+
     // Exit & Window controls
     minimizeWindow: () => ipcRenderer.invoke('cbt:minimize-window'),
     toggleMaximizeWindow: () => ipcRenderer.invoke('cbt:toggle-maximize-window'),

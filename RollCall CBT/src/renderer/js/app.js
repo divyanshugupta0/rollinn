@@ -32,7 +32,8 @@
         recordsSingleDate: '',
         recordsFromDate: '',
         recordsToDate: '',
-        recordsSearch: ''
+        recordsSearch: '',
+        stationRecords: []
     };
 
     // DOM Elements Cache
@@ -1973,40 +1974,82 @@
     }
 
     // =========================================================================
-    // STATION EXAMINATION RECORDS & RESULTS BROWSER
+    // STATION EXAMINATION RECORDS & RESULTS BROWSER (Encrypted .rollcbt Vault)
     // =========================================================================
     const STORAGE_KEY_RECORDS = 'rc_cbt_station_records';
 
+    async function initStationVaultRecords() {
+        try {
+            let records = [];
+            if (window.rollcallCBT && window.rollcallCBT.getStationRecords) {
+                records = await window.rollcallCBT.getStationRecords();
+            }
+            // Migrate legacy localStorage records into private vault if present
+            const legacyRaw = localStorage.getItem(STORAGE_KEY_RECORDS);
+            if (legacyRaw) {
+                try {
+                    const legacyList = JSON.parse(legacyRaw);
+                    if (Array.isArray(legacyList) && legacyList.length > 0) {
+                        if (window.rollcallCBT && window.rollcallCBT.saveStationRecord) {
+                            await window.rollcallCBT.saveStationRecord(legacyList);
+                            records = await window.rollcallCBT.getStationRecords();
+                        }
+                    }
+                    localStorage.removeItem(STORAGE_KEY_RECORDS);
+                } catch (_) {}
+            }
+            state.stationRecords = Array.isArray(records) ? records : [];
+        } catch (err) {
+            console.warn('Error loading station vault records:', err);
+            state.stationRecords = [];
+        }
+        return state.stationRecords;
+    }
+
     function getStationRecords() {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY_RECORDS);
-            return raw ? JSON.parse(raw) : [];
-        } catch (_) {
-            return [];
-        }
+        return Array.isArray(state.stationRecords) ? state.stationRecords : [];
     }
 
-    function saveStationRecord(rec) {
+    async function saveStationRecord(rec) {
         try {
-            const list = getStationRecords();
-            list.unshift(rec);
-            if (list.length > 500) list.length = 500;
-            localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(list));
+            if (!state.stationRecords) state.stationRecords = [];
+            const recId = rec.id || `${rec.candidate?.rollNo}_${rec.exam?.id}_${rec.timestamp}`;
+            const existingIdx = state.stationRecords.findIndex(r => (r.id && r.id === recId) || (`${r.candidate?.rollNo}_${r.exam?.id}_${r.timestamp}` === recId));
+            if (existingIdx >= 0) {
+                state.stationRecords[existingIdx] = { ...state.stationRecords[existingIdx], ...rec };
+            } else {
+                state.stationRecords.unshift(rec);
+            }
+            if (state.stationRecords.length > 1000) state.stationRecords.length = 1000;
+
+            if (window.rollcallCBT && window.rollcallCBT.saveStationRecord) {
+                await window.rollcallCBT.saveStationRecord(rec);
+            }
         } catch (e) {
-            console.warn('Could not save station record:', e);
+            console.warn('Could not save station record into .rollcbt vault:', e);
         }
     }
 
-    function clearStationRecords() {
+    async function clearStationRecords() {
         try {
+            state.stationRecords = [];
+            if (window.rollcallCBT && window.rollcallCBT.clearStationRecords) {
+                await window.rollcallCBT.clearStationRecords();
+            }
             localStorage.removeItem(STORAGE_KEY_RECORDS);
         } catch (_) {}
     }
 
-    function openStationResultsModal() {
+    async function openStationResultsModal() {
         if (el.modalStationResults) {
             el.modalStationResults.hidden = false;
             el.modalStationResults.style.display = 'grid';
+        }
+        if (window.rollcallCBT && window.rollcallCBT.getStationRecords) {
+            try {
+                const refreshed = await window.rollcallCBT.getStationRecords();
+                if (Array.isArray(refreshed)) state.stationRecords = refreshed;
+            } catch (_) {}
         }
         state.recordsFilterMode = 'today';
         const todayStr = new Date().toISOString().split('T')[0];
@@ -2407,9 +2450,9 @@
         el.btnExportStationQr?.addEventListener('click', () => {
             exportStationBatchQr();
         });
-        el.btnClearStationRecords?.addEventListener('click', () => {
+        el.btnClearStationRecords?.addEventListener('click', async () => {
             if (confirm('Are you sure you want to clear all examination records stored on this machine?')) {
-                clearStationRecords();
+                await clearStationRecords();
                 filterAndRenderStationRecords();
                 showToast('Station examination records cleared.', 'info');
             }
@@ -2894,5 +2937,6 @@
 
         switchView('license');
         checkLicenseStatus();
+        initStationVaultRecords();
     });
 })();

@@ -30,6 +30,8 @@ const {
     consumeCbtLicenseFile,
     unpackRollCbt,
     packageExamToRollCbt,
+    packStationVault,
+    unpackStationVault,
     createSubmissionArchive
 } = require('./crypto');
 
@@ -37,7 +39,12 @@ let mainWindow = null;
 let activeExamSession = null;
 let isKioskModeActive = false;
 
-// License file path in user data directory
+// Application-private .rollcbt vault path for license & station records
+function getStationVaultPath() {
+    return path.join(app.getPath('userData'), 'rollcall-station-vault.rollcbt');
+}
+
+// Legacy JSON license file path for automatic migration
 function getLicenseFilePath() {
     return path.join(app.getPath('userData'), 'rollcall-cbt-license.json');
 }
@@ -46,31 +53,78 @@ function isCbtTestMode() {
     return !app.isPackaged || process.argv.includes('--test-license') || process.env.ROLLCALL_CBT_TEST_MODE === '1';
 }
 
-// Read stored license
+// Read application-private .rollcbt vault
+function readStationVault() {
+    const vaultPath = getStationVaultPath();
+    const legacyPath = getLicenseFilePath();
+    const hwId = getMachineFingerprint();
+
+    if (fs.existsSync(vaultPath)) {
+        try {
+            const raw = fs.readFileSync(vaultPath, 'utf8');
+            return unpackStationVault(raw, hwId);
+        } catch (err) {
+            console.error('Error reading station vault .rollcbt:', err);
+        }
+    }
+
+    // Migration from legacy plain JSON license if vault doesn't exist yet
+    let legacyLicense = null;
+    if (fs.existsSync(legacyPath)) {
+        try {
+            legacyLicense = JSON.parse(fs.readFileSync(legacyPath, 'utf8'));
+        } catch (_) {}
+    }
+
+    const defaultVault = {
+        license: legacyLicense || null,
+        records: []
+    };
+
+    if (legacyLicense) {
+        saveStationVault(defaultVault);
+    }
+
+    return defaultVault;
+}
+
+// Save to application-private .rollcbt vault
+function saveStationVault(vaultData) {
+    try {
+        const vaultPath = getStationVaultPath();
+        fs.mkdirSync(path.dirname(vaultPath), { recursive: true });
+        const packed = packStationVault(vaultData, getMachineFingerprint());
+        fs.writeFileSync(vaultPath, packed, 'utf8');
+        return true;
+    } catch (err) {
+        console.error('Error saving station vault .rollcbt:', err);
+        return false;
+    }
+}
+
+// Read stored license from private .rollcbt vault
 function readStoredLicense() {
     try {
-        const filePath = getLicenseFilePath();
-        if (fs.existsSync(filePath)) {
-            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-            if (data && data.licenseKey && data.schoolCode) {
-                const currentDeviceId = getMachineFingerprint();
-                if (data.activatedDeviceId && data.activatedDeviceId !== currentDeviceId) {
-                    return { valid: false, expired: false, error: 'This CBT license is activated for a different device.', deviceId: currentDeviceId };
-                }
-                const verification = verifyCbtLicenseKey(data.licenseKey, data.schoolCode);
-                const temporaryExpired = Boolean(data.temporaryTest && Number(data.testExpiresAt || 0) <= Date.now());
-                return applyCbtLicenseGracePeriod({
-                    ...data,
-                    ...verification,
-                    valid: verification.valid && !temporaryExpired,
-                    expired: verification.expired || temporaryExpired,
-                    error: temporaryExpired ? 'Temporary test license expired. Activate it again for testing.' : verification.error,
-                    deviceId: currentDeviceId
-                });
+        const vault = readStationVault();
+        const data = vault.license;
+        if (data && data.licenseKey && data.schoolCode) {
+            const currentDeviceId = getMachineFingerprint();
+            if (data.activatedDeviceId && data.activatedDeviceId !== currentDeviceId) {
+                return { valid: false, expired: false, error: 'This CBT license is activated for a different device.', deviceId: currentDeviceId };
             }
+            const verification = verifyCbtLicenseKey(data.licenseKey, data.schoolCode);
+            const temporaryExpired = Boolean(data.temporaryTest && Number(data.testExpiresAt || 0) <= Date.now());
+            return applyCbtLicenseGracePeriod({
+                ...data,
+                ...verification,
+                valid: verification.valid && !temporaryExpired,
+                expired: verification.expired || temporaryExpired,
+                error: temporaryExpired ? 'Temporary test license expired. Activate it again for testing.' : verification.error,
+                deviceId: currentDeviceId
+            });
         }
     } catch (err) {
-        console.error('Error reading stored license:', err);
+        console.error('Error reading stored license from station vault:', err);
     }
     return {
         valid: false,
@@ -165,14 +219,23 @@ function activateLicenseFromExternalPath(filePath) {
 
 // Save license
 function saveStoredLicense(licenseData) {
-    const filePath = getLicenseFilePath();
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, JSON.stringify(licenseData, null, 2), 'utf8');
+    const vault = readStationVault();
+    vault.license = licenseData;
+    saveStationVault(vault);
+    try {
+        const legacyPath = getLicenseFilePath();
+        if (fs.existsSync(legacyPath)) {
+            fs.unlinkSync(legacyPath);
+        }
+    } catch (_) {}
 }
 
 // Clear license
 function clearStoredLicense() {
     try {
+        const vault = readStationVault();
+        vault.license = null;
+        saveStationVault(vault);
         const filePath = getLicenseFilePath();
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
@@ -236,6 +299,9 @@ function handleCommandLineFiles() {
     const args = process.argv.slice(app.isPackaged ? 1 : 2);
     for (const arg of args) {
         if (fs.existsSync(arg)) {
+            if (path.basename(arg) === 'rollcall-station-vault.rollcbt') {
+                continue;
+            }
             if (arg.endsWith('.rollcbt')) {
                 setTimeout(() => {
                     try {
@@ -533,6 +599,54 @@ function setupIpcHandlers() {
         }
     });
 
+    // Station Exam Records & Vault (.rollcbt)
+    ipcMain.handle('cbt:get-station-records', async () => {
+        try {
+            const vault = readStationVault();
+            return Array.isArray(vault.records) ? vault.records : [];
+        } catch (err) {
+            console.error('Error getting station records from vault:', err);
+            return [];
+        }
+    });
+
+    ipcMain.handle('cbt:save-station-record', async (event, recordOrList) => {
+        try {
+            const vault = readStationVault();
+            let records = Array.isArray(vault.records) ? vault.records : [];
+            const toAdd = Array.isArray(recordOrList) ? recordOrList : [recordOrList];
+            for (const item of toAdd) {
+                if (!item) continue;
+                const itemId = item.id || `${item.candidate?.rollNo}_${item.exam?.id}_${item.timestamp}`;
+                const existingIdx = records.findIndex(r => (r.id && r.id === itemId) || (`${r.candidate?.rollNo}_${r.exam?.id}_${r.timestamp}` === itemId));
+                if (existingIdx >= 0) {
+                    records[existingIdx] = { ...records[existingIdx], ...item };
+                } else {
+                    records.unshift(item);
+                }
+            }
+            if (records.length > 1000) records.length = 1000;
+            vault.records = records;
+            const success = saveStationVault(vault);
+            return { success, count: records.length };
+        } catch (err) {
+            console.error('Error saving station record to vault:', err);
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcMain.handle('cbt:clear-station-records', async () => {
+        try {
+            const vault = readStationVault();
+            vault.records = [];
+            const success = saveStationVault(vault);
+            return { success };
+        } catch (err) {
+            console.error('Error clearing station records from vault:', err);
+            return { success: false, error: err.message };
+        }
+    });
+
     // Close window / Quit application
     ipcMain.handle('cbt:exit-app', async () => {
         app.quit();
@@ -548,7 +662,7 @@ if (!gotTheLock) {
         if (mainWindow) {
             if (mainWindow.isMinimized()) mainWindow.restore();
             mainWindow.focus();
-            const filePath = commandLine.find(arg => arg.endsWith('.rollcbt') || arg.endsWith('.rolllic'));
+            const filePath = commandLine.find(arg => (arg.endsWith('.rollcbt') || arg.endsWith('.rolllic')) && path.basename(arg) !== 'rollcall-station-vault.rollcbt');
             if (filePath && fs.existsSync(filePath)) {
                 try {
                     if (filePath.endsWith('.rolllic') || filePath.endsWith('.cbtlic')) {
