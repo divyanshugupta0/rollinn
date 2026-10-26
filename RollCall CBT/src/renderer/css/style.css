@@ -7,6 +7,9 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
 :root {
+    --rc-primary: #4f46e5;
+    --rc-primary-hover: #4338ca;
+    --rc-primary-light: #eef2ff;
     --rc-brand-purple: #8a3ffc;
     --rc-interactive: #0f62fe;
     --rc-interactive-hover: #0043ce;
@@ -3206,28 +3209,44 @@ body.exam-active .app-viewport {
 /* ==========================================================================
    Station Examination Records Modal Styles
    ========================================================================== */
+.records-tab-pills {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
 .records-tab-btn {
     padding: 6px 14px;
     border-radius: 6px;
-    border: 1px solid var(--rc-border);
-    background: #ffffff;
+    border: 1px solid transparent;
+    background: transparent;
     font-size: 0.82rem;
     font-weight: 600;
-    color: var(--rc-text-secondary);
+    color: #64748b;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    transition: all 0.15s ease;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
 }
 .records-tab-btn:hover {
-    background: #f1f5f9;
-    color: var(--rc-text-primary);
+    background: #ffffff;
+    color: #1e293b;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 .records-tab-btn.active {
-    background: var(--rc-primary);
-    color: #ffffff;
-    border-color: var(--rc-primary);
+    background: #4f46e5 !important;
+    color: #ffffff !important;
+    border-color: #4338ca !important;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4) !important;
+    font-weight: 700;
+}
+.records-tab-btn.active i {
+    color: #ffffff !important;
 }
 
 .records-table {

@@ -2317,6 +2317,7 @@
 
     function filterAndRenderStationRecords() {
         if (!el.recordsListContainer) return;
+        updateRecordsDateTabUI();
         const allRecords = getStationRecords();
         const mode = state.recordsFilterMode || 'all';
         const searchTerm = (el.inputRecordsSearch?.value || '').trim().toLowerCase();
