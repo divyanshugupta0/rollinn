@@ -366,6 +366,22 @@
                 flex: 1;
                 min-width: 0;
             }
+            .tts-student-avatar, .tts-student-avatar-fallback {
+                width: 34px;
+                height: 34px;
+                border-radius: 50%;
+                object-fit: cover;
+                flex: 0 0 34px;
+            }
+            .tts-student-avatar-fallback {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: #dbeafe;
+                color: #1d4ed8;
+                font-weight: 800;
+                font-size: .82rem;
+            }
             .tts-roll-badge {
                 font-size: 0.74rem;
                 font-weight: 800;
@@ -562,6 +578,45 @@
                 .tts-roll-badge { font-size: 0.70rem; padding: 2px 5px; }
                 .tts-student-name { font-size: 0.80rem; }
             }
+
+            .tts-workspace-intro {
+                display: grid;
+                grid-template-columns: 1.3fr 1fr;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+            .tts-intro-card {
+                border: 1px solid #dbeafe;
+                border-radius: 14px;
+                padding: 14px 16px;
+                background: linear-gradient(135deg, #eff6ff, #ffffff);
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .tts-intro-card.cbt {
+                border-color: #ddd6fe;
+                background: linear-gradient(135deg, #f5f3ff, #ffffff);
+            }
+            .tts-intro-icon { width: 38px; height: 38px; border-radius: 11px; display:flex; align-items:center; justify-content:center; background:#dbeafe; color:#2563eb; flex:0 0 auto; }
+            .tts-intro-card.cbt .tts-intro-icon { background:#ede9fe; color:#7c3aed; }
+            .tts-intro-card strong { display:block; color:#0f172a; font-size:.9rem; }
+            .tts-intro-card span { display:block; color:#64748b; font-size:.75rem; margin-top:2px; line-height:1.35; }
+
+            .cbt-exam-settings { margin: 14px 0 4px; padding: 14px; border: 1px solid #dbeafe; border-radius: 12px; background: #f8fbff; }
+            .cbt-settings-heading { display:flex; align-items:center; gap:7px; color:#0f3b68; font-weight:800; font-size:.86rem; margin-bottom:10px; }
+            .cbt-settings-heading small { color:#64748b; font-weight:500; margin-left:4px; }
+            .cbt-settings-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+            .cbt-settings-grid label { display:flex; align-items:center; gap:7px; min-height:34px; padding:7px 9px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; color:#334155; font-size:.78rem; }
+            .cbt-settings-grid label span { flex:1; }
+            .cbt-settings-grid input[type="number"], .cbt-settings-grid select { width:72px; margin-left:auto; padding:5px 6px; border:1px solid #cbd5e1; border-radius:6px; }
+            @media (max-width: 760px) {
+                .tts-workspace-intro, .cbt-settings-grid { grid-template-columns: 1fr; }
+                .tts-header-actions { width:100%; }
+                .tts-header-actions button { flex:1; }
+                .cbt-settings-heading { align-items:flex-start; flex-wrap:wrap; }
+                .cbt-settings-heading small { flex-basis:100%; margin-left:0; }
+            }
         `;
         document.head.appendChild(style);
 
@@ -587,6 +642,17 @@
                         <button type="button" class="tts-btn-primary" id="ttsNewTestBtn">
                             <i class="fas fa-plus"></i> Assign New Test
                         </button>
+                    </div>
+                </div>
+
+                <div class="tts-workspace-intro">
+                    <div class="tts-intro-card">
+                        <div class="tts-intro-icon"><i class="fas fa-pen-to-square"></i></div>
+                        <div><strong>Marks workspace</strong><span>Choose a class, enter scores quickly, and save student results in one school-scoped record.</span></div>
+                    </div>
+                    <div class="tts-intro-card cbt">
+                        <div class="tts-intro-icon"><i class="fas fa-display"></i></div>
+                        <div><strong>CBT exam delivery</strong><span>Build an offline exam package with roster photos and device-ready settings.</span></div>
                     </div>
                 </div>
 
@@ -1303,10 +1369,13 @@
             students.forEach((st, idx) => {
                 const roll = st.classRoll || st.univRoll || st.rollNo || (idx + 1);
                 const name = st.name || st.displayName || 'Student';
+                const photo = st.profilePhoto || st.profilePic || st.photoURL || st.photoUrl || st.profilePicture || st.imageUrl || '';
+                const avatar = photo ? `<img class="tts-student-avatar" src="${escapeHtml(photo)}" alt="" loading="lazy">` : `<span class="tts-student-avatar-fallback">${escapeHtml(name.charAt(0).toUpperCase())}</span>`;
                 if (isFuture) {
                     html += `
                         <div class="tts-student-row" id="ttsRow_${st.id}" data-uid="${st.id}">
                             <div class="tts-student-meta">
+                                ${avatar}
                                 <span class="tts-roll-badge">#${roll}</span>
                                 <span class="tts-student-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
                             </div>
@@ -1321,6 +1390,7 @@
                     html += `
                         <div class="tts-student-row" id="ttsRow_${st.id}" data-uid="${st.id}">
                             <div class="tts-student-meta">
+                                ${avatar}
                                 <span class="tts-roll-badge">#${roll}</span>
                                 <span class="tts-student-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
                             </div>

@@ -378,7 +378,7 @@
                     <span>Roll: ${c.rollNo || 'N/A'} · ${c.batch || c.class || 'Student'}</span>
                 </div>
             `;
-            const photo = c.profilePic || c.profilePhoto || c.photoURL || c.photoUrl || c.profilePicture || c.imageUrl;
+            const photo = c.profilePicData || c.profilePic || c.profilePhoto || c.photoURL || c.photoUrl || c.profilePicture || c.imageUrl;
             if (photo) {
                 const avatar = card.querySelector('.c-avatar');
                 avatar.textContent = '';
@@ -475,7 +475,7 @@
         if (webcamActive) {
             el.hallProctorVideo.srcObject = state.webcamStream;
         }
-        const candidatePhoto = state.selectedCandidate.profilePic || state.selectedCandidate.profilePhoto || state.selectedCandidate.photoURL || state.selectedCandidate.photoUrl || state.selectedCandidate.profilePicture || state.selectedCandidate.imageUrl;
+        const candidatePhoto = state.selectedCandidate.profilePicData || state.selectedCandidate.profilePic || state.selectedCandidate.profilePhoto || state.selectedCandidate.photoURL || state.selectedCandidate.photoUrl || state.selectedCandidate.profilePicture || state.selectedCandidate.imageUrl;
         if (el.hallCandidateImage) {
             el.hallCandidateImage.src = candidatePhoto || '';
             el.hallCandidateImage.classList.toggle('hidden', webcamActive || !candidatePhoto);

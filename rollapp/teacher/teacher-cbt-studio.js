@@ -7,6 +7,11 @@
   const bytes = value => new TextEncoder().encode(value);
   const hex = buffer => Array.from(new Uint8Array(buffer)).map(value => value.toString(16).padStart(2, '0')).join('');
   const b64 = buffer => btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  const bytesToBase64 = bytesValue => {
+    let binary = '';
+    for (let index = 0; index < bytesValue.length; index += 0x8000) binary += String.fromCharCode(...bytesValue.subarray(index, index + 0x8000));
+    return btoa(binary);
+  };
 
   async function digest(value) {
     return crypto.subtle.digest('SHA-256', bytes(value));
@@ -22,6 +27,20 @@
     const iv = crypto.getRandomValues(new Uint8Array(16));
     const data = await crypto.subtle.encrypt({ name: 'AES-CBC', iv }, key, bytes(value));
     return { iv: hex(iv), data: b64(data) };
+  }
+
+  async function embedStudentPhoto(student) {
+    const url = student.profilePic || student.profilePhoto || student.photoURL || student.photoUrl || student.profilePicture || student.imageUrl || '';
+    if (!url || String(url).startsWith('data:')) return url || '';
+    try {
+      const response = await fetch(url, { mode: 'cors' });
+      if (!response.ok) return url;
+      const blob = await response.blob();
+      const buffer = await blob.arrayBuffer();
+      return `data:${blob.type || 'image/jpeg'};base64,${bytesToBase64(new Uint8Array(buffer))}`;
+    } catch (_) {
+      return url;
+    }
   }
 
   async function getCbtAccess() {
@@ -148,8 +167,8 @@
     panel.appendChild(modal);
 
     const cbtSettings = document.createElement('div');
-    cbtSettings.style = 'display:flex;gap:16px;align-items:center;margin:10px 0;color:#334155;font-size:.85rem';
-    cbtSettings.innerHTML = '<label><input id="cbtWebcam" type="checkbox"> Require webcam proctoring</label><label><input id="cbtShowResult" type="checkbox" checked> Show result after submission</label>';
+    cbtSettings.className = 'cbt-exam-settings';
+    cbtSettings.innerHTML = '<div class="cbt-settings-heading"><i class="fas fa-sliders"></i><span>Exam settings</span><small>These settings are saved into every generated .rollcbt file.</small></div><div class="cbt-settings-grid"><label><input id="cbtFullscreen" type="checkbox" checked> Fullscreen lockdown</label><label><input id="cbtWebcam" type="checkbox"> Require webcam proctoring</label><label><input id="cbtShuffleQ" type="checkbox"> Shuffle questions</label><label><input id="cbtShuffleOpt" type="checkbox"> Shuffle options</label><label><input id="cbtScratchpad" type="checkbox" checked> Allow scratchpad</label><label><input id="cbtShowResult" type="checkbox" checked> Show result after submission</label><label><span>Max focus-loss strikes</span><input id="cbtStrikes" type="number" min="1" max="10" value="3"></label><label><span>Calculator</span><select id="cbtCalculator"><option value="none">None</option><option value="basic" selected>Basic</option><option value="scientific">Scientific</option></select></label><label><span>Negative marks/question</span><input id="cbtNegative" type="number" min="0" step="0.25" value="0"></label></div>';
     modal.querySelector('.tts-config-grid').appendChild(cbtSettings);
 
     const list = modal.querySelector('#cbtQuestionList');
@@ -202,7 +221,10 @@
         for (const assignment of sections) {
           const rawStudents = await loadStudents(db, access, assignment);
           const allocation = createDeviceAssignments(rawStudents, access.maxDevices);
-          const assignedStudents = allocation.students.map((student, index) => candidateRecord(student, assignment, index, student.deviceIndex));
+          const assignedStudents = await Promise.all(allocation.students.map(async (student, index) => ({
+            ...candidateRecord(student, assignment, index, student.deviceIndex),
+            profilePicData: await embedStudentPhoto(student)
+          })));
           const examId = `EXAM-${Date.now()}-${norm(assignment.section).replace(/[^a-z0-9]+/g, '-').toUpperCase()}`;
           const payload = {
             version: '1.0', magic: 'ROLLCBT', schoolCode: access.schoolCode, schoolName: access.schoolName,
@@ -213,7 +235,7 @@
             durationMinutes: Number(modal.querySelector('#cbtDuration').value) || 60,
             totalMarks: Number(modal.querySelector('#cbtMarks').value) || questions.reduce((sum, question) => sum + question.marks, 0),
             passMarks: 40, instructions: modal.querySelector('#cbtInstructions').value,
-            rules: { fullScreenEnforced: true, maxBlurStrikes: 3, webcamProctoringRequired: modal.querySelector('#cbtWebcam')?.checked === true, randomizeQuestions: false, randomizeOptions: false, calculatorAllowed: 'basic', scratchpadAllowed: true, showImmediateResult: modal.querySelector('#cbtShowResult')?.checked !== false, negativeMarkingPerQuestion: 0 },
+            rules: { fullScreenEnforced: modal.querySelector('#cbtFullscreen')?.checked !== false, maxBlurStrikes: Number(modal.querySelector('#cbtStrikes')?.value || 3), webcamProctoringRequired: modal.querySelector('#cbtWebcam')?.checked === true, randomizeQuestions: modal.querySelector('#cbtShuffleQ')?.checked === true, randomizeOptions: modal.querySelector('#cbtShuffleOpt')?.checked === true, calculatorAllowed: modal.querySelector('#cbtCalculator')?.value || 'basic', scratchpadAllowed: modal.querySelector('#cbtScratchpad')?.checked !== false, showImmediateResult: modal.querySelector('#cbtShowResult')?.checked !== false, negativeMarkingPerQuestion: Number(modal.querySelector('#cbtNegative')?.value || 0) },
             candidates: assignedStudents,
             sections: [{ id: 'section-1', name: 'General', questions }],
             deviceAllocation: { maxDevices: access.maxDevices, threshold: allocation.threshold, deviceCount: allocation.deviceCount, sequenceOrder: 'classRoll ascending' },
