@@ -2860,7 +2860,7 @@
         .login-container .form-group { margin: 0; }
         .login-container label { display: block; margin-bottom: 8px; color: #35453b; font-size: 12px; font-weight: 650; }
         .login-container label i { width: 16px; color: var(--rc-green); margin-right: 4px; }
-        .login-container input[type="email"], .login-container input[type="password"] {
+        .login-container input[type="email"], .login-container input[type="text"], .login-container input[type="password"] {
             display: block;
             width: 100%;
             min-height: 51px;
@@ -2876,7 +2876,7 @@
             transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
         }
         .login-container input::placeholder { color: #9aa69e; }
-        .login-container input[type="email"]:focus, .login-container input[type="password"]:focus {
+        .login-container input[type="email"]:focus, .login-container input[type="text"]:focus, .login-container input[type="password"]:focus {
             border-color: #73a88c;
             background: #fff;
             box-shadow: 0 0 0 4px rgba(23,107,77,.1);
@@ -3067,7 +3067,7 @@
             .login-brand { margin-bottom: 27px; }
             .login-heading { margin-bottom: 23px; }
             .login-container h1 { font-size: 26px; }
-            .login-container input[type="email"], .login-container input[type="password"] { min-height: 52px; font-size: 16px; }
+            .login-container input[type="email"], .login-container input[type="text"], .login-container input[type="password"] { min-height: 52px; font-size: 16px; }
             .login-container button[type="submit"] { min-height: 54px; font-size: 15px; }
         }
 
@@ -3122,6 +3122,7 @@
         body:not(.teacher-authenticated) #loginContainer #loginForm { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 19px !important; }
         body:not(.teacher-authenticated) #loginContainer #loginForm .form-group { min-width: 0 !important; }
         body:not(.teacher-authenticated) #loginContainer #loginForm input[type="email"],
+        body:not(.teacher-authenticated) #loginContainer #loginForm input[type="text"],
         body:not(.teacher-authenticated) #loginContainer #loginForm input[type="password"] {
             box-sizing: border-box !important;
             width: 100% !important;
@@ -4238,8 +4239,8 @@
                 <div id="loginAlert" class="alert" style="display: none;"></div>
                 <form id="loginForm">
                     <div class="form-group">
-                        <label for="email"><i class="fas fa-envelope"></i> Email address</label>
-                        <input type="email" id="email" name="email" autocomplete="username" autocapitalize="none" spellcheck="false" required placeholder="name@college.edu">
+                        <label for="email"><i class="fas fa-envelope"></i> Email or mobile number</label>
+                        <input type="text" id="email" name="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" required placeholder="name@college.edu or 9876543210">
                     </div>
                     <div class="form-group">
                         <label for="password"><i class="fas fa-lock"></i> Password</label>
@@ -6108,6 +6109,7 @@
     <script src="section-fix.js"></script>
     <script src="../auth/subscription-expiry.js"></script>
     <script src="../shared/account-block-status.js"></script>
+    <script src="../auth/portal-login-identifier.js?v=20261027-staff-mobile-login"></script>
     <script src="../auth/login-handler.js"></script>
     <script src="teacher-features.js"></script>
     <script src="teacher-settings.js"></script>

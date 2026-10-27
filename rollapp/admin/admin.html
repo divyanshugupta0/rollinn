@@ -4596,11 +4596,11 @@
                                 <p>Use your administrator credentials to continue.</p>
                             </div>
                             <div class="form-group">
-                                <label for="email">Email Address</label>
+                                <label for="email">Email or mobile number</label>
                                 <div class="input-wrap">
                                     <i class="fas fa-envelope"></i>
-                                    <input type="email" id="email" name="email" placeholder="name@school.edu"
-                                        autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false"
+                                    <input type="text" id="email" name="email" placeholder="name@school.edu or 9876543210"
+                                        autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false"
                                         required>
                                 </div>
                             </div>
@@ -6318,6 +6318,7 @@
         });
     </script>
 
+        <script src="../auth/portal-login-identifier.js?v=20261027-staff-mobile-login"></script>
         <script type="module">
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
@@ -7434,11 +7435,23 @@
                 return;
             }
 
-            const email = emailInput.value.trim();
+            const identifier = emailInput.value.trim();
             const password = passwordInput.value;
 
-            if (!email || !password) {
+            if (!identifier || !password) {
                 showLoginStatus('Please enter both email and password', 'error');
+                return;
+            }
+
+            let email;
+            try {
+                email = await window.RollCallPortalLogin.resolveEmail(
+                    identifier,
+                    async () => (await get(ref(database, 'users'))).val() || {},
+                    ['admin']
+                );
+            } catch (error) {
+                showLoginStatus('Could not look up that mobile number. Please try again.', 'error');
                 return;
             }
 

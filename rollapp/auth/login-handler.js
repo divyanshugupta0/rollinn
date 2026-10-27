@@ -5,11 +5,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
     
     if (loginForm) {
-        loginForm.addEventListener('submit', function(e) {
+        loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const email = document.getElementById('email').value;
+            const identifier = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
+
+            if (!identifier || !password) {
+                showAlert(loginAlert, 'Please enter your email/mobile number and password.', 'error');
+                return;
+            }
             
             // Show loading state
             const submitBtn = loginForm.querySelector('button[type="submit"]');
@@ -17,6 +22,20 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
             submitBtn.disabled = true;
             
+            let email;
+            try {
+                email = await window.RollCallPortalLogin.resolveEmail(
+                    identifier,
+                    async () => (await firebase.database().ref('users').once('value')).val() || {},
+                    ['teacher']
+                );
+            } catch (error) {
+                showAlert(loginAlert, 'Could not look up that mobile number. Please try again.', 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+                return;
+            }
+
             // Set persistence and login
             firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
                 .then(() => {
