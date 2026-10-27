@@ -1346,7 +1346,7 @@
         }
 
         function populateClassDropdowns() {
-            const formSelect = panel.querySelector('#thmFormClass');
+            const formSelect = document.getElementById('thmFormClass');
             const filterSelect = panel.querySelector('#thmFilterClass');
             const filterSubject = panel.querySelector('#thmFilterSubject');
 
@@ -1580,45 +1580,45 @@
         }
 
         // Modal Management
-        const modal = panel.querySelector('#thmModal');
-        const form = panel.querySelector('#thmForm');
+        const modal = document.getElementById('thmModal');
+        const form = modal?.querySelector('#thmForm');
 
         function openCreateModal() {
             form.reset();
-            panel.querySelector('#thmEditId').value = '';
-            panel.querySelector('#thmModalTitle').innerHTML = '<i class="fas fa-pencil"></i> Assign New Homework';
-            panel.querySelector('#thmModalSubmitBtn').innerHTML = '<i class="fas fa-paper-plane"></i> Publish Homework';
+            modal.querySelector('#thmEditId').value = '';
+            modal.querySelector('#thmModalTitle').innerHTML = '<i class="fas fa-pencil"></i> Assign New Homework';
+            modal.querySelector('#thmModalSubmitBtn').innerHTML = '<i class="fas fa-paper-plane"></i> Publish Homework';
 
             // Set default date to tomorrow
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             const dateStr = tomorrow.toISOString().split('T')[0];
-            panel.querySelector('#thmFormDueDate').value = dateStr;
-            panel.querySelector('#thmFormDueDate').min = new Date().toISOString().split('T')[0];
-            panel.querySelector('#thmFormDueTime').value = '23:59';
+            modal.querySelector('#thmFormDueDate').value = dateStr;
+            modal.querySelector('#thmFormDueDate').min = new Date().toISOString().split('T')[0];
+            modal.querySelector('#thmFormDueTime').value = '23:59';
 
             // Auto-fill subject if class selected
-            const classSelect = panel.querySelector('#thmFormClass');
+            const classSelect = modal.querySelector('#thmFormClass');
             classSelect.dispatchEvent(new Event('change'));
 
             modal.classList.add('active');
         }
 
         function openEditModal(item) {
-            panel.querySelector('#thmEditId').value = item.id;
-            panel.querySelector('#thmModalTitle').innerHTML = '<i class="fas fa-pen-to-square"></i> Edit Homework';
-            panel.querySelector('#thmModalSubmitBtn').innerHTML = '<i class="fas fa-check"></i> Save Changes';
+            modal.querySelector('#thmEditId').value = item.id;
+            modal.querySelector('#thmModalTitle').innerHTML = '<i class="fas fa-pen-to-square"></i> Edit Homework';
+            modal.querySelector('#thmModalSubmitBtn').innerHTML = '<i class="fas fa-check"></i> Save Changes';
 
-            const classSelect = panel.querySelector('#thmFormClass');
+            const classSelect = modal.querySelector('#thmFormClass');
             const targetKey = `${item.classId || item.className}_${normSec(item.section)}`;
             classSelect.value = targetKey;
 
-            panel.querySelector('#thmFormSubject').value = item.subject || '';
-            panel.querySelector('#thmFormTitle').value = item.title || '';
-            panel.querySelector('#thmFormDesc').value = item.description || '';
-            panel.querySelector('#thmFormDueDate').value = item.dueDate || '';
-            panel.querySelector('#thmFormDueTime').value = item.dueTime || '23:59';
-            panel.querySelector('#thmFormNote').value = item.note || '';
+            modal.querySelector('#thmFormSubject').value = item.subject || '';
+            modal.querySelector('#thmFormTitle').value = item.title || '';
+            modal.querySelector('#thmFormDesc').value = item.description || '';
+            modal.querySelector('#thmFormDueDate').value = item.dueDate || '';
+            modal.querySelector('#thmFormDueTime').value = item.dueTime || '23:59';
+            modal.querySelector('#thmFormNote').value = item.note || '';
 
             modal.classList.add('active');
         }
@@ -1629,37 +1629,37 @@
 
         // Event Listeners for UI
         panel.querySelector('#thmCreateBtn')?.addEventListener('click', openCreateModal);
-        panel.querySelector('#thmModalCloseBtn')?.addEventListener('click', closeModal);
-        panel.querySelector('#thmModalCancelBtn')?.addEventListener('click', closeModal);
+        modal?.querySelector('#thmModalCloseBtn')?.addEventListener('click', closeModal);
+        modal?.querySelector('#thmModalCancelBtn')?.addEventListener('click', closeModal);
 
         // When Class selection changes in form, prefill subject if mapped
-        panel.querySelector('#thmFormClass')?.addEventListener('change', (e) => {
+        modal?.querySelector('#thmFormClass')?.addEventListener('change', (e) => {
             const key = e.target.value;
             const cls = myClassesMap.get(key);
-            const subInput = panel.querySelector('#thmFormSubject');
+            const subInput = modal.querySelector('#thmFormSubject');
             if (cls && cls.subject && !subInput.value) {
                 subInput.value = cls.subject;
             }
         });
 
         // Form Submit
-        form.addEventListener('submit', async (e) => {
+        form?.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const submitBtn = panel.querySelector('#thmModalSubmitBtn');
+            const submitBtn = modal.querySelector('#thmModalSubmitBtn');
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
             try {
-                const editId = panel.querySelector('#thmEditId').value;
-                const classKey = panel.querySelector('#thmFormClass').value;
+                const editId = modal.querySelector('#thmEditId').value;
+                const classKey = modal.querySelector('#thmFormClass').value;
                 const selectedCls = myClassesMap.get(classKey) || {};
 
-                const title = panel.querySelector('#thmFormTitle').value.trim();
-                const subject = panel.querySelector('#thmFormSubject').value.trim();
-                const description = panel.querySelector('#thmFormDesc').value.trim();
-                const dueDate = panel.querySelector('#thmFormDueDate').value;
-                const dueTime = panel.querySelector('#thmFormDueTime').value || '23:59';
-                const note = panel.querySelector('#thmFormNote').value.trim();
+                const title = modal.querySelector('#thmFormTitle').value.trim();
+                const subject = modal.querySelector('#thmFormSubject').value.trim();
+                const description = modal.querySelector('#thmFormDesc').value.trim();
+                const dueDate = modal.querySelector('#thmFormDueDate').value;
+                const dueTime = modal.querySelector('#thmFormDueTime').value || '23:59';
+                const note = modal.querySelector('#thmFormNote').value.trim();
 
                 const homeworkId = editId || db.ref(`schoolHomework/${schoolId}`).push().key;
 
@@ -1729,13 +1729,13 @@
         let activeClassStudents = [];
         let selectedDefaultersMap = {};
 
-        const defModal = panel.querySelector('#thmDefaultersModal');
-        const defCloseBtn = panel.querySelector('#thmDefModalCloseBtn');
-        const defCancelBtn = panel.querySelector('#thmDefCancelBtn');
-        const defSubmitBtn = panel.querySelector('#thmDefSubmitBtn');
-        const defSearchInput = panel.querySelector('#thmDefSearchInput');
-        const defSelectAllBtn = panel.querySelector('#thmDefSelectAllBtn');
-        const defClearAllBtn = panel.querySelector('#thmDefClearAllBtn');
+        const defModal = document.getElementById('thmDefaultersModal');
+        const defCloseBtn = defModal?.querySelector('#thmDefModalCloseBtn');
+        const defCancelBtn = defModal?.querySelector('#thmDefCancelBtn');
+        const defSubmitBtn = defModal?.querySelector('#thmDefSubmitBtn');
+        const defSearchInput = defModal?.querySelector('#thmDefSearchInput');
+        const defSelectAllBtn = defModal?.querySelector('#thmDefSelectAllBtn');
+        const defClearAllBtn = defModal?.querySelector('#thmDefClearAllBtn');
 
         function closeDefaultersModal() {
             if (defModal) defModal.classList.remove('active');
