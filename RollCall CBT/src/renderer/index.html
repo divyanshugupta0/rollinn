@@ -19,6 +19,10 @@
         </div>
 
         <div class="topbar-center" id="topbar-center-info">
+            <div class="institution-badge" id="topbar-station-badge" style="background: #e0f2fe; color: #0369a1; border-color: #bae6fd;" title="Workstation Number">
+                <i class="fas fa-desktop"></i>
+                <span id="topbar-station-label">PC #1</span>
+            </div>
             <div class="institution-badge" id="topbar-institution-badge" title="Active Institution">
                 <i class="fas fa-building"></i>
                 <span id="topbar-institution-name">Station Not Activated</span>
@@ -1040,7 +1044,7 @@
                             </div>
                         </div>
 
-                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 14px;">
+                        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
                             <div>
                                 <label style="display: block; font-size: 0.76rem; font-weight: 700; color: #475569; margin-bottom: 4px;">
                                     ERP Host Address (IP:Port)
@@ -1064,6 +1068,19 @@
                                 </div>
                                 <small style="display: block; font-size: 0.70rem; color: #94a3b8; margin-top: 3px;">
                                     Security code from ERP
+                                </small>
+                            </div>
+
+                            <div>
+                                <label style="display: block; font-size: 0.76rem; font-weight: 700; color: #475569; margin-bottom: 4px;">
+                                    <i class="fas fa-desktop"></i> Workstation / Desk #
+                                </label>
+                                <div style="position: relative; display: flex; align-items: center;">
+                                    <i class="fas fa-hashtag" style="position: absolute; left: 10px; color: #94a3b8; font-size: 0.85rem;"></i>
+                                    <input type="number" id="input-lan-station-number" min="1" max="100" placeholder="1" value="1" style="width: 100%; padding: 8px 12px 8px 32px; border: 1.5px solid #38bdf8; border-radius: 6px; font-size: 0.84rem; font-family: monospace; font-weight: 700; background: #f0f9ff;">
+                                </div>
+                                <small style="display: block; font-size: 0.70rem; color: #0284c7; margin-top: 3px; font-weight: 600;">
+                                    e.g. PC 1 to 10 for sequential seating
                                 </small>
                             </div>
                         </div>

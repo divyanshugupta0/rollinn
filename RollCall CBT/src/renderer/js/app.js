@@ -40,6 +40,7 @@
             connected: false,
             hostUrl: localStorage.getItem('rc_lan_host_url') || 'http://localhost:8788',
             pairingCode: localStorage.getItem('rc_lan_pairing_code') || '',
+            stationNumber: parseInt(localStorage.getItem('rc_lan_station_number') || '1', 10) || 1,
             activeExam: null,
             heartbeatInterval: null,
             deskStationId: localStorage.getItem('rc_station_desk_id') || ('DESK-' + Math.floor(100 + Math.random() * 900))
@@ -59,6 +60,8 @@
 
         // Topbar
         el.appTopbar = document.getElementById('app-topbar');
+        el.topbarStationBadge = document.getElementById('topbar-station-badge');
+        el.topbarStationLabel = document.getElementById('topbar-station-label');
         el.topbarInstName = document.getElementById('topbar-institution-name');
         el.topbarInstitutionBadge = document.getElementById('topbar-institution-badge');
         el.topbarSchoolCode = document.getElementById('topbar-school-code');
@@ -385,6 +388,7 @@
         el.lanStatusText = document.getElementById('lan-status-text');
         el.inputLanHostUrl = document.getElementById('input-lan-host-url');
         el.inputLanPairingCode = document.getElementById('input-lan-pairing-code');
+        el.inputLanStationNumber = document.getElementById('input-lan-station-number');
         el.btnLanAutoDiscover = document.getElementById('btn-lan-auto-discover');
         el.btnLanConnectSync = document.getElementById('btn-lan-connect-sync');
         el.lanLiveExamBanner = document.getElementById('lan-live-exam-banner');
@@ -665,16 +669,35 @@
             if (!c.sequence) c.sequence = idx + 1;
         });
 
-        // Each activated IDE device sees only its assigned roster range.
-        const deviceIndex = Number(state.license?.activationCount || 0);
-        const candidates = deviceIndex > 0
-            ? sortedCandidates.filter(candidate => !candidate.deviceIndex || Number(candidate.deviceIndex) === deviceIndex)
-            : sortedCandidates;
+        // Workstation desk division:
+        const currentStationNumber = Number(state.lan.stationNumber || 1);
+        const hasStationAllocations = sortedCandidates.some(c => c.stationNumber != null);
+
+        let candidates = sortedCandidates;
+        if (hasStationAllocations && currentStationNumber > 0) {
+            const deskMatches = sortedCandidates.filter(c => Number(c.stationNumber) === currentStationNumber);
+            if (deskMatches.length > 0) {
+                candidates = deskMatches;
+            }
+        } else {
+            const deviceIndex = Number(state.license?.activationCount || 0);
+            if (deviceIndex > 0) {
+                candidates = sortedCandidates.filter(candidate => !candidate.deviceIndex || Number(candidate.deviceIndex) === deviceIndex);
+            }
+        }
         state.visibleCandidates = candidates;
         state.selectedCandidateSection = 'ALL';
 
         renderCandidateSectionTabs(candidates);
         applyCandidateFilters();
+
+        // Auto-select the first pending candidate for this workstation's active slot
+        const firstPending = candidates.find(c => !isCandidateCompleted(c));
+        if (firstPending) {
+            selectCandidate(firstPending);
+            loadCandidateToDesk(firstPending);
+        }
+
         if (areAllCandidatesCompleted()) {
             showAllExamsCompletedScreen();
         }
@@ -823,7 +846,8 @@
                 const total = list.length;
                 if (el.completedCountText) el.completedCountText.textContent = `${total} / ${total} Candidates Completed (100%)`;
                 if (el.completedExamDesc) {
-                    el.completedExamDesc.textContent = `All ${total} registered candidate(s) for "${state.activeExam.title || 'this examination'}" have completed and submitted their tests. Submissions are securely sealed in the station vault and synced to RollCall ERP.`;
+                    const stNum = state.lan.stationNumber || 1;
+                    el.completedExamDesc.textContent = `All ${total} candidate(s) allocated to Workstation #${stNum} for "${state.activeExam.title || 'this examination'}" have completed and submitted their tests. Submissions are securely sealed in the station vault and synced to RollCall ERP.`;
                 }
             }
         }
@@ -915,6 +939,12 @@
             const initial = (c.name || 'S').charAt(0).toUpperCase();
             const seqNumber = c.sectionSequence || c.sequence || '';
             const sectionLabel = c.section ? `Sec ${c.section}` : '';
+            const slotPill = c.slotRound
+                ? `<span class="c-slot-pill" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:1px 6px;border-radius:4px;font-size:0.65rem;font-weight:750;" title="Exam Seating Slot"><i class="fas fa-clock"></i> Slot ${c.slotRound}</span>`
+                : '';
+            const stationPill = c.stationNumber
+                ? `<span class="c-station-pill" style="background:#f8fafc;color:#475569;border:1px solid #e2e8f0;padding:1px 5px;border-radius:4px;font-size:0.65rem;font-weight:600;"><i class="fas fa-desktop"></i> PC ${c.stationNumber}</span>`
+                : '';
             card.innerHTML = `
                 <div class="c-avatar">${initial}</div>
                 <div class="c-info">
@@ -922,6 +952,8 @@
                         <strong style="margin:0;">${c.name}</strong>
                         <div style="display:flex;align-items:center;gap:4px;">
                             ${completed ? '<span class="c-completed-badge" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;padding:1px 6px;border-radius:4px;font-size:0.65rem;font-weight:700;"><i class="fas fa-check-circle"></i> SUBMITTED</span>' : ''}
+                            ${slotPill}
+                            ${stationPill}
                             ${seqNumber ? `<span class="c-seq-pill" title="Section Sequence #${seqNumber}">#${seqNumber}</span>` : ''}
                         </div>
                     </div>
@@ -1149,12 +1181,14 @@
 
     function autoLoadNextCandidateAfterSubmission() {
         if (!state.activeExam?.candidates?.length) return false;
-        const candidates = state.activeExam.candidates;
+        const roster = (Array.isArray(state.visibleCandidates) && state.visibleCandidates.length > 0)
+            ? state.visibleCandidates
+            : state.activeExam.candidates;
         const currentIdx = state.selectedCandidate
-            ? candidates.findIndex(c => String(c.rollNo || c.roll) === String(state.selectedCandidate.rollNo || state.selectedCandidate.roll))
+            ? roster.findIndex(c => String(c.rollNo || c.roll) === String(state.selectedCandidate.rollNo || state.selectedCandidate.roll))
             : -1;
-        let nextCandidate = candidates.slice(currentIdx + 1).find(c => !isCandidateCompleted(c));
-        if (!nextCandidate) nextCandidate = candidates.slice(0, Math.max(currentIdx, 0)).find(c => !isCandidateCompleted(c));
+        let nextCandidate = roster.slice(currentIdx + 1).find(c => !isCandidateCompleted(c));
+        if (!nextCandidate) nextCandidate = roster.slice(0, Math.max(currentIdx, 0)).find(c => !isCandidateCompleted(c));
         if (!nextCandidate) {
             if (areAllCandidatesCompleted()) {
                 showAllExamsCompletedScreen();
@@ -1166,7 +1200,7 @@
         loadCandidateToDesk(nextCandidate);
         switchView('setup');
         startNextCandidateCountdown(120);
-        showToast(`Next candidate loaded: ${nextCandidate.name}. Examination unlocks after the 2-minute station transition timer.`, 'info');
+        showToast(`Next candidate loaded: ${nextCandidate.name}${nextCandidate.slotRound ? ` (Slot ${nextCandidate.slotRound})` : ''}. Examination unlocks after the 2-minute station transition timer.`, 'info');
         return true;
     }
 
@@ -3555,13 +3589,22 @@
             updateLanStatusUI(false, 'Connecting to ERP...');
         }
 
+        const stationNum = parseInt(el.inputLanStationNumber ? el.inputLanStationNumber.value : (state.lan.stationNumber || 1), 10) || 1;
+        state.lan.stationNumber = stationNum;
+        localStorage.setItem('rc_lan_station_number', String(stationNum));
+        if (el.topbarStationLabel) el.topbarStationLabel.textContent = `PC #${stationNum}`;
+
         try {
-            const queryParams = pairingCode ? `?code=${encodeURIComponent(pairingCode)}` : '';
+            const baseQuery = pairingCode ? `code=${encodeURIComponent(pairingCode)}` : '';
+            const stationQuery = `stationNumber=${encodeURIComponent(stationNum)}&stationId=${encodeURIComponent(state.lan.deskStationId)}`;
+            const queryParams = baseQuery ? `?${baseQuery}&${stationQuery}` : `?${stationQuery}`;
+
             const res = await window.rollcallCBT.lanFetch({
                 url: `${hostUrl}/api/cbt/active-exam${queryParams}`,
                 method: 'GET',
                 headers: {
-                    'x-cbt-pairing-code': pairingCode
+                    'x-cbt-pairing-code': pairingCode,
+                    'x-cbt-station-number': String(stationNum)
                 },
                 timeoutMs: 6000
             });
@@ -3628,13 +3671,19 @@
             try {
                 const pairingCode = state.lan.pairingCode;
                 const queryParams = pairingCode ? `?code=${encodeURIComponent(pairingCode)}` : '';
+                const stNum = Number(state.lan.stationNumber || 1);
                 await window.rollcallCBT.lanFetch({
                     url: `${state.lan.hostUrl}/api/cbt/station-heartbeat${queryParams}`,
                     method: 'POST',
-                    headers: { 'x-cbt-pairing-code': pairingCode },
+                    headers: {
+                        'x-cbt-pairing-code': pairingCode,
+                        'x-cbt-station-number': String(stNum)
+                    },
                     body: {
                         stationId: state.lan.deskStationId,
-                        stationName: `Workstation ${state.lan.deskStationId}`,
+                        stationNumber: stNum,
+                        stationName: `Workstation ${stNum} (${state.lan.deskStationId})`,
+                        slotRound: state.selectedCandidate?.slotRound || 1,
                         candidateRoll: state.selectedCandidate?.rollNo || state.selectedCandidate?.roll || null,
                         candidateName: state.selectedCandidate?.name || null,
                         status: document.body.classList.contains('exam-active') ? 'in_progress' : (state.selectedCandidate ? 'ready' : 'idle')
@@ -4204,6 +4253,16 @@
         // LAN Mode Tab Switcher & Action Handlers
         el.btnTabSourceLan?.addEventListener('click', () => setExamSourceMode('lan'));
         el.btnTabSourceFile?.addEventListener('click', () => setExamSourceMode('file'));
+        el.inputLanStationNumber?.addEventListener('change', () => {
+            const num = parseInt(el.inputLanStationNumber.value, 10) || 1;
+            state.lan.stationNumber = num;
+            localStorage.setItem('rc_lan_station_number', String(num));
+            if (el.topbarStationLabel) el.topbarStationLabel.textContent = `PC #${num}`;
+            showToast(`Workstation set to Desk #${num}. Re-syncing exam roster...`, 'info');
+            if (state.lan.activeExam) {
+                loadExamIntoSetup(state.lan.activeExam);
+            }
+        });
         el.btnLanConnectSync?.addEventListener('click', () => connectAndSyncLanExam(false));
         el.btnLanAutoDiscover?.addEventListener('click', () => autoDiscoverLanErp());
         el.btnStandbySyncLan?.addEventListener('click', () => {
@@ -4563,6 +4622,8 @@
         // Initialize LAN Live Sync Mode
         if (el.inputLanHostUrl) el.inputLanHostUrl.value = state.lan.hostUrl;
         if (el.inputLanPairingCode) el.inputLanPairingCode.value = state.lan.pairingCode;
+        if (el.inputLanStationNumber) el.inputLanStationNumber.value = state.lan.stationNumber || 1;
+        if (el.topbarStationLabel) el.topbarStationLabel.textContent = `PC #${state.lan.stationNumber || 1}`;
         setExamSourceMode('lan');
         connectAndSyncLanExam(true);
     });
