@@ -3757,3 +3757,12 @@ div[hidden] {
     pointer-events: auto !important;
 }
 
+/* Hide topbar completely on Activation Gate */
+body.view-license .app-topbar {
+    display: none !important;
+}
+body.view-license .app-viewport {
+    height: 100vh;
+    max-height: 100vh;
+}
+

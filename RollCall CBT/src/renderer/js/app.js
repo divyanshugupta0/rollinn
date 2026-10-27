@@ -58,6 +58,7 @@
         el.viewResults = document.getElementById('view-results');
 
         // Topbar
+        el.appTopbar = document.getElementById('app-topbar');
         el.topbarInstName = document.getElementById('topbar-institution-name');
         el.topbarInstitutionBadge = document.getElementById('topbar-institution-badge');
         el.topbarSchoolCode = document.getElementById('topbar-school-code');
@@ -400,10 +401,13 @@
     function switchView(viewName) {
         document.querySelectorAll('.cbt-view').forEach(v => v.classList.remove('active'));
         const isExamHall = (viewName === 'hall');
+        const isLicenseGate = (viewName === 'license');
         document.body.classList.toggle('exam-active', isExamHall);
+        document.body.classList.toggle('view-license', isLicenseGate);
 
+        if (el.appTopbar) el.appTopbar.style.display = isLicenseGate ? 'none' : 'flex';
         if (el.topbarExamTools) el.topbarExamTools.style.display = isExamHall ? 'flex' : 'none';
-        if (el.topbarMainActions) el.topbarMainActions.style.display = isExamHall ? 'none' : 'flex';
+        if (el.topbarMainActions) el.topbarMainActions.style.display = (isExamHall || isLicenseGate) ? 'none' : 'flex';
 
         if (viewName === 'license') el.viewLicenseGate.classList.add('active');
         else if (viewName === 'setup') el.viewSetupExam.classList.add('active');
@@ -2182,6 +2186,9 @@
         };
         await saveStationRecord(stationRecord);
 
+        // Queue exam submission result into outbox to sync with RollCall ERP over LAN
+        enqueueSubmissionRecord(stationRecord, state.lastSubmissionPackage);
+
         const allCompleted = areAllCandidatesCompleted();
         const nextCandidateLoaded = autoLoadNextCandidateAfterSubmission();
 
@@ -3577,6 +3584,7 @@
 
                     loadExamIntoSetup(exam);
                     startLanHeartbeat();
+                    processOutboxQueue();
 
                     if (!silent) {
                         showToast(`Successfully synced "${exam.title}" directly from RollCall ERP over LAN! (No file upload needed)`, 'success');
@@ -3585,6 +3593,7 @@
                     updateLanStatusUI(true, 'Connected (No Live Exam Broadcasted)');
                     if (el.lanLiveExamBanner) el.lanLiveExamBanner.style.display = 'none';
                     startLanHeartbeat();
+                    processOutboxQueue();
                     if (!silent) {
                         showToast('Connected to RollCall ERP. No exam is currently broadcasting. Start broadcast in ERP Exams > CBT LAN.', 'info');
                     }
@@ -3611,7 +3620,9 @@
     }
 
     function startLanHeartbeat() {
+        if (state.lan.heartbeatTimer) clearTimeout(state.lan.heartbeatTimer);
         if (state.lan.heartbeatInterval) clearInterval(state.lan.heartbeatInterval);
+
         const sendPing = async () => {
             if (!state.lan.connected || !state.lan.hostUrl || !window.rollcallCBT?.lanFetch) return;
             try {
@@ -3630,12 +3641,27 @@
                     },
                     timeoutMs: 4000
                 });
+
+                // Opportunistically check and process any pending outbox items gently
+                processOutboxQueue();
             } catch (e) {
-                // Heartbeat error
+                // Heartbeat error - ignore to prevent hammering
             }
         };
-        sendPing();
-        state.lan.heartbeatInterval = setInterval(sendPing, 15000);
+
+        // Random jitter (1000 - 6000ms) on initial startup so 50 PCs do not hit host laptop at once
+        const initialJitter = 1000 + Math.floor(Math.random() * 5000);
+        setTimeout(sendPing, initialJitter);
+
+        // Schedule next heartbeats every 45-55s (lightweight to protect low-end host laptop)
+        const scheduleNextPing = () => {
+            const nextDelay = 45000 + Math.floor(Math.random() * 10000);
+            state.lan.heartbeatTimer = setTimeout(async () => {
+                await sendPing();
+                scheduleNextPing();
+            }, nextDelay);
+        };
+        scheduleNextPing();
     }
 
     async function autoDiscoverLanErp() {
@@ -3676,29 +3702,119 @@
         }
     }
 
-    async function postLanSubmissionRecord(stationRecord, rawSubmission) {
-        if (!state.lan.connected || !state.lan.hostUrl || !window.rollcallCBT?.lanFetch) return;
+    // =========================================================================
+    // LAN SUBMISSION OUTBOX MESSAGING QUEUE (Protect low-end host ERP laptop)
+    // =========================================================================
+    const CBT_OUTBOX_STORAGE_KEY = 'rollcall_cbt_outbox_queue_v1';
+
+    function getOutboxQueue() {
         try {
-            const pairingCode = state.lan.pairingCode;
-            const queryParams = pairingCode ? `?code=${encodeURIComponent(pairingCode)}` : '';
-            const res = await window.rollcallCBT.lanFetch({
-                url: `${state.lan.hostUrl}/api/cbt/submit-record${queryParams}`,
-                method: 'POST',
-                headers: { 'x-cbt-pairing-code': pairingCode },
-                body: {
-                    stationId: state.lan.deskStationId,
-                    ...stationRecord,
-                    rawSubmission: rawSubmission || null
-                },
-                timeoutMs: 8000
-            });
-            if (res && res.ok) {
-                console.info('[LAN] Exam result synced directly to RollCall ERP database!');
-                showToast('Exam result successfully reported to RollCall ERP database over LAN.', 'success');
-            }
-        } catch (err) {
-            console.warn('[LAN] Failed to sync exam result to ERP:', err);
+            const raw = localStorage.getItem(CBT_OUTBOX_STORAGE_KEY);
+            return raw ? JSON.parse(raw) : [];
+        } catch (_) {
+            return [];
         }
+    }
+
+    function saveOutboxQueue(q) {
+        try {
+            localStorage.setItem(CBT_OUTBOX_STORAGE_KEY, JSON.stringify(q));
+        } catch (_) {}
+    }
+
+    function enqueueSubmissionRecord(stationRecord, rawSubmission) {
+        const queue = getOutboxQueue();
+        const subId = stationRecord.id || `sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        stationRecord.id = subId;
+
+        const item = {
+            id: subId,
+            stationRecord,
+            rawSubmission: rawSubmission || null,
+            attempts: 0,
+            nextRetry: 0,
+            createdAt: Date.now()
+        };
+
+        if (!queue.some(q => q.id === item.id)) {
+            queue.push(item);
+            saveOutboxQueue(queue);
+            console.info(`[LAN Outbox] Queued submission for ${stationRecord.candidate?.name || stationRecord.candidate?.rollNo} (Queue size: ${queue.length})`);
+        }
+
+        // Trigger queue processing
+        processOutboxQueue();
+    }
+
+    let isProcessingOutbox = false;
+    async function processOutboxQueue() {
+        if (isProcessingOutbox) return;
+        if (!state.lan.connected || !state.lan.hostUrl || !window.rollcallCBT?.lanFetch) return;
+
+        isProcessingOutbox = true;
+        try {
+            const queue = getOutboxQueue();
+            if (!queue || queue.length === 0) return;
+
+            const now = Date.now();
+            const remaining = [];
+            let modified = false;
+
+            for (const item of queue) {
+                if (now < (item.nextRetry || 0)) {
+                    remaining.push(item);
+                    continue;
+                }
+
+                try {
+                    const pairingCode = state.lan.pairingCode;
+                    const queryParams = pairingCode ? `?code=${encodeURIComponent(pairingCode)}` : '';
+                    const res = await window.rollcallCBT.lanFetch({
+                        url: `${state.lan.hostUrl}/api/cbt/submit-record${queryParams}`,
+                        method: 'POST',
+                        headers: { 'x-cbt-pairing-code': pairingCode },
+                        body: {
+                            stationId: state.lan.deskStationId,
+                            ...item.stationRecord,
+                            rawSubmission: item.rawSubmission || null
+                        },
+                        timeoutMs: 10000
+                    });
+
+                    if (res && res.ok) {
+                        console.info(`[LAN Outbox] Submission ${item.id} successfully synced to ERP.`);
+                        showToast(`Exam result for ${item.stationRecord?.candidate?.name || 'Candidate'} successfully synced to RollCall ERP!`, 'success');
+                        modified = true;
+                        // Sleep 250ms to give the host ERP laptop breathing room
+                        await new Promise(r => setTimeout(r, 250));
+                    } else {
+                        item.attempts = (item.attempts || 0) + 1;
+                        item.nextRetry = Date.now() + Math.min(60000, 3000 * Math.pow(2, Math.min(item.attempts, 5))) + Math.floor(Math.random() * 2000);
+                        remaining.push(item);
+                        modified = true;
+                        break;
+                    }
+                } catch (err) {
+                    console.warn(`[LAN Outbox] Sync failed for ${item.id}:`, err);
+                    item.attempts = (item.attempts || 0) + 1;
+                    item.nextRetry = Date.now() + Math.min(60000, 3000 * Math.pow(2, Math.min(item.attempts, 5))) + Math.floor(Math.random() * 2000);
+                    remaining.push(item);
+                    modified = true;
+                    break;
+                }
+            }
+
+            if (modified) {
+                saveOutboxQueue(remaining);
+            }
+        } finally {
+            isProcessingOutbox = false;
+        }
+    }
+
+    async function postLanSubmissionRecord(stationRecord, rawSubmission) {
+        // Delegate to persistent outbox queue
+        enqueueSubmissionRecord(stationRecord, rawSubmission);
     }
 
 
