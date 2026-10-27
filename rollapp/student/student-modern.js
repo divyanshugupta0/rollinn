@@ -101,6 +101,7 @@
        Mobile Navigation Sidebar Drawer
        ========================================================================== */
     function initMobileSidebar() {
+        const backBtn = document.getElementById('student-mobile-back-btn');
         const toggleBtn = document.getElementById('mobile-sidebar-toggle');
         const closeBtn = document.getElementById('mobile-sidebar-close');
         const drawer = document.getElementById('mobile-sidebar-drawer');
@@ -120,6 +121,20 @@
             document.body.classList.remove('mobile-sidebar-active');
         }
 
+        function goBack() {
+            closeSidebar();
+            if (state.activeTab !== 'tab-overview') {
+                switchTab('tab-overview');
+                return;
+            }
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                showModernToast('You are already on the student portal home.', 'info');
+            }
+        }
+
+        if (backBtn) backBtn.addEventListener('click', goBack);
         if (toggleBtn) toggleBtn.addEventListener('click', openSidebar);
         if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
         if (backdrop) backdrop.addEventListener('click', closeSidebar);

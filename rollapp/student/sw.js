@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rollcall-student-portal-v3-navigation-safe';
+const CACHE_NAME = 'rollcall-student-portal-v4-mobile-back-navigation';
 const META_KEY = new URL('./__student-cache-meta__', self.registration.scope).pathname;
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
