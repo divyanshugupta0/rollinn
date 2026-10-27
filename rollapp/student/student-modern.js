@@ -78,6 +78,13 @@
        ========================================================================== */
     function initNavigationTabs() {
         const tabBtns = document.querySelectorAll('.nav-tab-btn');
+        const tabIds = new Set([...document.querySelectorAll('.student-tab-panel')].map(panel => panel.id));
+
+        const tabFromUrl = () => {
+            const requestedTab = window.location.hash.replace(/^#/, '');
+            return tabIds.has(requestedTab) ? requestedTab : 'tab-overview';
+        };
+
         tabBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const targetTab = btn.getAttribute('data-tab');
@@ -95,13 +102,16 @@
                 if (jump) switchTab(jump);
             });
         });
+
+        window.addEventListener('popstate', () => switchTab(tabFromUrl(), { fromHistory: true }));
+        window.addEventListener('hashchange', () => switchTab(tabFromUrl(), { fromHistory: true }));
+        if (window.location.hash) switchTab(tabFromUrl(), { fromHistory: true });
     }
 
     /* ==========================================================================
        Mobile Navigation Sidebar Drawer
        ========================================================================== */
     function initMobileSidebar() {
-        const backBtn = document.getElementById('student-mobile-back-btn');
         const toggleBtn = document.getElementById('mobile-sidebar-toggle');
         const closeBtn = document.getElementById('mobile-sidebar-close');
         const drawer = document.getElementById('mobile-sidebar-drawer');
@@ -121,20 +131,6 @@
             document.body.classList.remove('mobile-sidebar-active');
         }
 
-        function goBack() {
-            closeSidebar();
-            if (state.activeTab !== 'tab-overview') {
-                switchTab('tab-overview');
-                return;
-            }
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                showModernToast('You are already on the student portal home.', 'info');
-            }
-        }
-
-        if (backBtn) backBtn.addEventListener('click', goBack);
         if (toggleBtn) toggleBtn.addEventListener('click', openSidebar);
         if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
         if (backdrop) backdrop.addEventListener('click', closeSidebar);
@@ -158,13 +154,17 @@
         }
     }
 
-    function switchTab(tabId) {
+    function switchTab(tabId, options = {}) {
         if (tabId === 'tab-attendance' && !state.mobileAttendanceEnabled) {
             showModernToast('Mobile attendance is not available for school accounts.', 'info');
             tabId = 'tab-overview';
         }
         if (tabId === 'tab-analytics' && state.schoolType === 'school') {
             tabId = 'tab-overview';
+        }
+        if (!options.fromHistory && state.activeTab !== tabId) {
+            const nextUrl = `${window.location.pathname}${window.location.search}#${tabId}`;
+            window.history.pushState({ studentTab: tabId }, '', nextUrl);
         }
         state.activeTab = tabId;
 
