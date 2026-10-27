@@ -5840,6 +5840,133 @@
         #attendancePopup .attendance-table td { padding-top: 7px !important; padding-bottom: 7px !important; }
         #attendancePopup .ap-footer { padding: 7px 9px !important; gap: 6px !important; }
         #attendancePopup .ap-footer button { height: 34px !important; font-size: 11px !important; padding: 0 8px !important; }
+
+        /* Mobile roster: replace the wide desktop table with compact student cards. */
+        #attendancePopup.ap-school-mode .table-responsive,
+        body.teacher-school-mode #attendancePopup .table-responsive,
+        #attendancePopup .table-responsive {
+            overflow-x: visible !important;
+        }
+        #attendancePopup.ap-school-mode .attendance-table,
+        body.teacher-school-mode #attendancePopup .attendance-table,
+        #attendancePopup .attendance-table {
+            display: block !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            table-layout: auto !important;
+        }
+        #attendancePopup.ap-school-mode .attendance-table thead,
+        body.teacher-school-mode #attendancePopup .attendance-table thead,
+        #attendancePopup .attendance-table thead {
+            display: none !important;
+        }
+        #attendancePopup.ap-school-mode .attendance-table tbody,
+        body.teacher-school-mode #attendancePopup .attendance-table tbody,
+        #attendancePopup .attendance-table tbody {
+            display: block !important;
+            width: 100% !important;
+        }
+        #attendancePopup.ap-school-mode .attendance-table tr.student-row,
+        body.teacher-school-mode #attendancePopup .attendance-table tr.student-row,
+        #attendancePopup .attendance-table tr.student-row {
+            display: grid !important;
+            grid-template-columns: 38px minmax(0, 1fr) 92px !important;
+            grid-template-rows: auto auto !important;
+            width: 100% !important;
+            min-height: 62px !important;
+            padding: 7px 8px !important;
+            margin: 0 !important;
+            border-bottom: 1px solid #edf3ef !important;
+            background: #fff !important;
+            box-sizing: border-box !important;
+        }
+        #attendancePopup.ap-school-mode .attendance-table tr.student-row td,
+        body.teacher-school-mode #attendancePopup .attendance-table tr.student-row td,
+        #attendancePopup .attendance-table tr.student-row td {
+            display: block !important;
+            width: auto !important;
+            min-width: 0 !important;
+            padding: 2px 4px !important;
+            border: 0 !important;
+            text-align: left !important;
+            box-sizing: border-box !important;
+        }
+        #attendancePopup .attendance-table tr.student-row td.st-roll-cell {
+            grid-column: 1 !important;
+            grid-row: 1 / span 2 !important;
+            align-self: center !important;
+            padding: 0 3px 0 0 !important;
+            text-align: center !important;
+        }
+        #attendancePopup .attendance-table tr.student-row td.st-name-cell {
+            grid-column: 2 !important;
+            grid-row: 1 !important;
+            padding-top: 1px !important;
+        }
+        #attendancePopup .attendance-table tr.student-row td.st-running-cell {
+            grid-column: 2 !important;
+            grid-row: 2 !important;
+            padding-top: 0 !important;
+            text-align: left !important;
+        }
+        #attendancePopup .attendance-table tr.student-row td.st-actions-cell {
+            grid-column: 3 !important;
+            grid-row: 1 / span 2 !important;
+            align-self: center !important;
+            padding: 0 0 0 4px !important;
+            text-align: right !important;
+        }
+        #attendancePopup .st-roll-badge {
+            padding: 3px 5px !important;
+            font-size: 10px !important;
+            min-width: 28px;
+        }
+        #attendancePopup .st-name {
+            max-width: 100% !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            font-size: 12px !important;
+        }
+        #attendancePopup .st-name-cell small {
+            max-width: 100% !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            font-size: 9px !important;
+            margin-top: 1px !important;
+        }
+        #attendancePopup .running-att-wrap {
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 4px !important;
+        }
+        #attendancePopup .running-att-badge {
+            min-width: 35px !important;
+            padding: 2px 5px !important;
+            font-size: 9px !important;
+        }
+        #attendancePopup .running-att-count {
+            font-size: 8px !important;
+        }
+        #attendancePopup .attendance-buttons {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 3px !important;
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+        }
+        #attendancePopup .attendance-btn {
+            min-width: 76px !important;
+            width: 76px !important;
+            height: 25px !important;
+            padding: 0 5px !important;
+            border-radius: 6px !important;
+            font-size: 9px !important;
+            gap: 3px !important;
+        }
     }
     </style>
 
