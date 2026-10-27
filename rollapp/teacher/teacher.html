@@ -6105,20 +6105,25 @@
         #attendancePopup.ap-school-mode .attendance-table tr.student-row,
         body.teacher-school-mode #attendancePopup .attendance-table tr.student-row {
             display: grid !important;
-            grid-template-columns: minmax(0, 1fr) 92px !important;
+            grid-template-columns: 38px minmax(0, 1fr) 92px !important;
             grid-template-rows: auto !important;
             width: 100% !important;
             min-width: 0 !important;
         }
         #attendancePopup.ap-school-mode .attendance-table tr.student-row td.st-roll-cell,
         body.teacher-school-mode #attendancePopup .attendance-table tr.student-row td.st-roll-cell {
-            display: none !important;
-            visibility: hidden !important;
+            display: block !important;
+            visibility: visible !important;
+            grid-column: 1 !important;
+            grid-row: 1 !important;
+            align-self: start !important;
+            width: 38px !important;
+            padding: 2px 3px 0 0 !important;
         }
         #attendancePopup.ap-school-mode .attendance-table tr.student-row td.st-name-cell,
         body.teacher-school-mode #attendancePopup .attendance-table tr.student-row td.st-name-cell {
             display: flex !important;
-            grid-column: 1 !important;
+            grid-column: 2 !important;
             grid-row: 1 !important;
             width: 100% !important;
             min-width: 0 !important;
@@ -6126,10 +6131,41 @@
         #attendancePopup.ap-school-mode .attendance-table tr.student-row td.st-actions-cell,
         body.teacher-school-mode #attendancePopup .attendance-table tr.student-row td.st-actions-cell {
             display: block !important;
-            grid-column: 2 !important;
+            grid-column: 3 !important;
             grid-row: 1 !important;
             width: 92px !important;
         }
+        #attendancePopup.ap-school-mode .attendance-table tr.student-row td.st-name-cell::after,
+        body.teacher-school-mode #attendancePopup .attendance-table tr.student-row td.st-name-cell::after { display: none !important; }
+
+        #attendancePopup .rc-attendance-table .rc-student-row {
+            grid-template-columns: 24px 34px minmax(0, 1fr) 112px !important;
+        }
+        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(2) {
+            grid-column: 3 !important;
+            grid-row: 1 !important;
+        }
+        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(3) {
+            display: flex !important;
+            grid-column: 2 !important;
+            grid-row: 1 !important;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            min-height: 22px;
+            padding: 3px 2px !important;
+            border: 1px solid #bbf7d0 !important;
+            border-radius: 6px;
+            background: #eef6f1;
+            color: #166534;
+            font-size: 10px;
+            font-weight: 700;
+        }
+        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(4) {
+            grid-column: 4 !important;
+            grid-row: 1 !important;
+        }
+        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(2)::after { display: none !important; }
     }
     </style>
 
