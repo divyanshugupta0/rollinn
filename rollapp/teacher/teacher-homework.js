@@ -708,8 +708,19 @@
                     border-radius: 9px;
                     font-size: 0;
                     box-shadow: none;
+                    display: grid !important;
+                    place-items: center !important;
+                    line-height: 1 !important;
                 }
-                .thm-header-actions .thm-btn-primary i { margin: 0; font-size: .9rem; }
+                .thm-header-actions .thm-btn-primary i {
+                    display: block;
+                    width: 1em;
+                    height: 1em;
+                    margin: 0 !important;
+                    font-size: .9rem;
+                    line-height: 1 !important;
+                    text-align: center;
+                }
                 .thm-stats-grid {
                     grid-template-columns: repeat(4, minmax(0, 1fr));
                     gap: 6px;
