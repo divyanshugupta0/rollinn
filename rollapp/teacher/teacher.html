@@ -8129,6 +8129,25 @@
             }
         }
 
+        function matchesCurrentPopupClass(student) {
+            if (!document.body.classList.contains('teacher-school-mode')) return true;
+            const card = currentClassData || {};
+            const cleanSection = value => String(value || '').trim().replace(/^section\s+/i, '').toLowerCase();
+            const targetSection = cleanSection(card.section);
+            const studentSection = cleanSection(student.section);
+            if (targetSection && studentSection !== targetSection) return false;
+
+            const targetClassId = String(card.classId || '').trim().toLowerCase();
+            const studentClassIds = [student.classId, student.courseId, student.enrolledClassId]
+                .map(value => String(value || '').trim().toLowerCase()).filter(Boolean);
+            if (targetClassId && studentClassIds.length) return studentClassIds.includes(targetClassId);
+
+            const targetName = String(card.className || card.name || '').trim().toLowerCase();
+            const studentNames = [student.className, student.courseName, student.course, student.class, student.grade]
+                .map(value => String(value || '').trim().toLowerCase()).filter(Boolean);
+            return !targetName || studentNames.includes(targetName);
+        }
+
         // Modify displaySubmittedAttendance to use popup elements
         function displaySubmittedAttendance(classId) {
             const submittedData = submittedAttendances[classId];
@@ -8149,11 +8168,10 @@
                         snapshot.forEach((childSnapshot) => {
                             const student = childSnapshot.val();
                             student.id = childSnapshot.key;
-                            students.push(student);
+                            if (matchesCurrentPopupClass(student)) students.push(student);
                         });
                     }
                     
-                    // Use all students, without filtering by class
                     const classStudents = students;
                     
                     if (classStudents.length === 0) {
@@ -8277,11 +8295,10 @@
                         snapshot.forEach((childSnapshot) => {
                             const student = childSnapshot.val();
                             student.id = childSnapshot.key;
-                            students.push(student);
+                            if (matchesCurrentPopupClass(student)) students.push(student);
                         });
                     }
                     
-                    // Use all students, without filtering by class
                     const classStudents = students;
                     
                     if (classStudents.length === 0) {
