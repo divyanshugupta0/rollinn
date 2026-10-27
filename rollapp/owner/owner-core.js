@@ -3279,7 +3279,7 @@
             const columns = section.querySelector('#ownerBulkRequiredColumns');
             const teacherColumns = [
                 ['name', 'Required', 'Full name; max 120 characters.', 'Aarav Sharma'],
-                ['email', authTypeSelect.value === 'email' ? 'Required' : 'Optional', 'Valid email address when email login is selected.', 'aarav@example.com'],
+                ['email', 'Required', 'Valid email address; must not already be registered.', 'aarav@example.com'],
                 ['password', 'Required', 'At least 8 characters.', 'ChangeMe123!'],
                 ['dateOfBirth', 'Required', 'DD-MM-YYYY or YYYY-MM-DD; real date, not in the future.', '15-05-2000'],
                 ['phone', 'Required', '10 digits; Excel-stripped leading zeros are restored.', '0987654321'],
@@ -3288,7 +3288,7 @@
             ];
             const studentColumns = [
                 ['name', 'Required', 'Full name; max 120 characters.', 'Aarav Sharma'],
-                ['email', 'Required', 'Valid email address; must not already be registered.', 'aarav@example.com'],
+                ['email', authTypeSelect.value === 'email' ? 'Required' : 'Optional', authTypeSelect.value === 'email' ? 'Valid email address; must not already be registered.' : 'Optional for mobile login; no credentials email is sent.', 'aarav@example.com'],
                 ['dateOfBirth', 'Required', 'DD-MM-YYYY or YYYY-MM-DD; real date, not in the future.', '15-05-2010'],
                 ['mobile', 'Required', '10 digits; Excel-stripped leading zeros are restored and this becomes the password.', '0987654321'],
                 ['class', 'Required', classColumnFormat, classColumnExample],
@@ -3305,10 +3305,17 @@
             const exampleCsv = [fields.map(([name]) => name), fields.map(([, , , example]) => example)]
                 .map(row => row.map(csvEscape).join(','))
                 .join('\n');
-            columns.innerHTML = `<strong>CSV columns and required formats</strong><div class="table-responsive mt-2"><table class="table table-sm table-bordered align-middle mb-2"><thead><tr><th>Column</th><th>Required</th><th>Format</th><th>Example</th></tr></thead><tbody>${fields.map(([name, required, format, example]) => `<tr><td><code>${escapeHtml(name)}</code></td><td>${required}</td><td>${escapeHtml(format)}</td><td>${escapeHtml(example)}</td></tr>`).join('')}</tbody></table></div><div class="small"><strong>Example CSV</strong><pre class="bg-white border rounded p-2 mt-1 mb-0" style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(exampleCsv)}</pre></div><div class="small text-muted mt-2">Use one account per row. Column names are case-insensitive. Quote any cell containing a comma. ${student ? `Student password is automatically set to the mobile number. ${college ? '' : schoolSelected ? '' : 'College or university students also need univRoll and academicYear.'} ${schoolSelected && classSelect.value && selectedSection ? 'Only rows matching the selected class and section are added. School class numbers are converted to Class N.' : 'Select a school, class, and section before uploading student rows.'} Each account is created separately and credentials are emailed.` : 'Each account is created separately and credentials are emailed.'}</div>`;
+            const credentialsNote = student && authTypeSelect.value === 'mobile'
+                ? 'Mobile-login accounts use the mobile number and do not send an email.'
+                : 'Each account is created separately and credentials are emailed.';
+            columns.innerHTML = `<strong>CSV columns and required formats</strong><div class="table-responsive mt-2"><table class="table table-sm table-bordered align-middle mb-2"><thead><tr><th>Column</th><th>Required</th><th>Format</th><th>Example</th></tr></thead><tbody>${fields.map(([name, required, format, example]) => `<tr><td><code>${escapeHtml(name)}</code></td><td>${required}</td><td>${escapeHtml(format)}</td><td>${escapeHtml(example)}</td></tr>`).join('')}</tbody></table></div><div class="small"><strong>Example CSV</strong><pre class="bg-white border rounded p-2 mt-1 mb-0" style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(exampleCsv)}</pre></div><div class="small text-muted mt-2">Use one account per row. Column names are case-insensitive. Quote any cell containing a comma. ${student ? `Student password is automatically set to the mobile number. ${college ? '' : schoolSelected ? '' : 'College or university students also need univRoll and academicYear.'} ${schoolSelected && classSelect.value && selectedSection ? 'Only rows matching the selected class and section are added. School class numbers are converted to Class N.' : 'Select a school, class, and section before uploading student rows.'} ` : ''}${credentialsNote}</div>`;
             section.querySelector('#ownerBulkCsvHelp').textContent = student
                 ? `${authTypeSelect.value === 'mobile' ? 'Mobile login is selected: email is optional and the student signs in with the 10-digit mobile number.' : 'Email login is selected: email is required.'} Excel-stripped leading zeros are restored for fixed-width numeric fields; the padded mobile number becomes the student password.`
                 : 'Include every required column shown below. Separate multiple subjects with |. Excel-stripped leading zeros are restored to the 10-digit phone number.';
+        }
+        function shouldSendCredentialsEmail(accountType, email) {
+            const registrationType = accountType === 'student' ? authTypeSelect.value : 'email';
+            return registrationType === 'email' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
         }
         async function sendRegistrationCredentialsEmail({ uid, name, email, password, profile, school, accountType }) {
             const ownerUser = ownerAuth?.auth().currentUser;
@@ -3490,8 +3497,9 @@
                         account = (await temporaryApp.auth().createUserWithEmailAndPassword(authEmail, password)).user; profile.uid = account.uid; await account.updateProfile({ displayName: name });
                         await database.ref().update({ [`users/${account.uid}`]: profile, [`schoolUsers/${school.id}/${account.uid}`]: profile });
                         profileSaved = true; accountCreated = true; created += 1;
-                        progressLabel.textContent = `CSV row ${rowNumber}: sending credentials email`;
-                        if (!isMobileAuth && email) {
+                        const sendCredentialsEmail = shouldSendCredentialsEmail(accountType, email);
+                        progressLabel.textContent = sendCredentialsEmail ? `CSV row ${rowNumber}: sending credentials email` : `CSV row ${rowNumber}: saving account`;
+                        if (sendCredentialsEmail) {
                             try {
                                 await sendRegistrationCredentialsEmail({ uid: account.uid, name, email, password, profile, school, accountType });
                                 emailsSent += 1;
