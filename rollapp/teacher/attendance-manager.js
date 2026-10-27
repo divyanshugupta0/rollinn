@@ -1083,6 +1083,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 return (a.name || a.email || '').localeCompare(b.name || b.email || '');
             });
 
+            // Load this section's historical attendance so each row can show
+            // the student's running percentage without exposing email data.
+            const history = {};
+            try {
+                const historySnap = await firebase.database().ref(`attendance_by_location/${card.id}`).once('value');
+                historySnap.forEach(daySnap => {
+                    if (daySnap.key === selectedDate) return;
+                    const day = daySnap.val() || {};
+                    Object.keys(day).forEach(key => {
+                        if (key.startsWith('_') || /_(record|remark|verification)$/.test(key)) return;
+                        const raw = day[key];
+                        const status = String((raw && typeof raw === 'object' ? raw.status : raw) || '').toLowerCase();
+                        if (!['present', 'absent', 'late', 'excused', 'onduty'].includes(status)) return;
+                        const item = history[key] || { present: 0, total: 0 };
+                        item.total += 1;
+                        if (['present', 'late', 'onduty'].includes(status)) item.present += 1;
+                        history[key] = item;
+                    });
+                });
+            } catch (historyError) {
+                console.warn('Could not load student attendance history:', historyError);
+            }
+            window.__teacherStudentHistory = history;
+
             // LocalStorage key: stores attendance draft in browser, NO per-student DB calls!
             const draftKey = `rc_draft_${schoolId}_${card.id}_${selectedDate}`;
             let localDraft = null;
@@ -1166,7 +1190,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Live calculation of currently running attendance for each student
         const computeRunningAtt = (studentId, currentStatus) => {
-            const hist = (studentHistory && studentHistory[studentId]) || { present: 0, total: 0 };
+            const hist = (window.__teacherStudentHistory && window.__teacherStudentHistory[studentId]) || { present: 0, total: 0 };
             let p = hist.present || 0;
             let t = hist.total || 0;
 
@@ -1239,8 +1263,9 @@ document.addEventListener('DOMContentLoaded', function() {
         studentsList.forEach((st, idx) => {
             const rawRoll = st.classRoll || st.rollNo || st.roll || (idx + 1);
             const cleanRoll = String(rawRoll).trim();
-            const name = st.name || st.email || `Student ${idx + 1}`;
+            const name = st.name || st.fullName || st.displayName || `Student ${idx + 1}`;
             const currentStatus = attData[st.id] || '';
+            const running = computeRunningAtt(st.id, currentStatus);
 
             tableHtml += `
                 <tr class="student-row ${currentStatus === 'present' ? 'is-present' : currentStatus === 'absent' ? 'is-absent' : ''}" data-student-id="${st.id}">
@@ -1249,7 +1274,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                     <td class="st-name-cell" data-roll="${escapeHtml(cleanRoll)}" style="padding:10px 16px;text-align:left;vertical-align:middle;">
                         <div class="st-name" style="font-weight:700;color:#111827;font-size:14px;line-height:1.25;">${escapeHtml(name)}</div>
-                        ${st.email ? `<small style="color:#6b7280;font-size:12px;display:block;margin-top:2px;">${escapeHtml(st.email)}</small>` : ''}
+                        <span class="mobile-attendance-percent" style="display:none;">${running.pct == null ? '—' : `${running.pct}% attendance`}</span>
                     </td>
                     <td class="st-actions-cell" style="width:270px;text-align:center;padding:10px 28px 10px 12px;vertical-align:middle;">
                         <div class="attendance-buttons" style="display:inline-flex;gap:8px;justify-content:center;">

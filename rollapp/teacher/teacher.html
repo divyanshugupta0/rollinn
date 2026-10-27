@@ -6182,7 +6182,18 @@
             grid-row: 1 !important;
         }
         #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(2)::after { display: none !important; }
+        #attendancePopup .mobile-attendance-percent {
+            display: inline-flex !important;
+            margin-top: 3px;
+            color: #557363;
+            font-size: 9px !important;
+            font-weight: 700;
+        }
     }
+
+    /* Email is intentionally omitted from attendance roster cards on every screen. */
+    #attendancePopup .st-name-cell > small,
+    #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(2) > small { display: none !important; }
     </style>
 
     <div id="attendancePopup" class="popup-overlay" role="dialog" aria-modal="true" aria-labelledby="attendancePopupTitle" style="display: none;">
