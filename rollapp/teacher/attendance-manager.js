@@ -1247,7 +1247,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="st-roll-cell" style="width:95px;text-align:center;padding:10px 14px 10px 20px;vertical-align:middle;">
                         <span class="st-roll-badge" style="display:inline-block;padding:4px 10px;border-radius:6px;background:#eef6f1;color:#166534;font-weight:700;font-size:13px;border:1px solid #bbf7d0;">${escapeHtml(cleanRoll)}</span>
                     </td>
-                    <td class="st-name-cell" style="padding:10px 16px;text-align:left;vertical-align:middle;">
+                    <td class="st-name-cell" data-roll="${escapeHtml(cleanRoll)}" style="padding:10px 16px;text-align:left;vertical-align:middle;">
                         <div class="st-name" style="font-weight:700;color:#111827;font-size:14px;line-height:1.25;">${escapeHtml(name)}</div>
                         ${st.email ? `<small style="color:#6b7280;font-size:12px;display:block;margin-top:2px;">${escapeHtml(st.email)}</small>` : ''}
                     </td>
