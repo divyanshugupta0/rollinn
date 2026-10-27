@@ -588,8 +588,10 @@
                 questions: exam.questions
             }];
         }
+        exam.examId = exam.examId || exam.id || exam.code || 'exam';
         state.rawExam = JSON.parse(JSON.stringify(exam));
         state.activeExam = JSON.parse(JSON.stringify(exam));
+        state.activeExam.examId = state.activeExam.examId || state.activeExam.id || state.activeExam.code || 'exam';
         state.selectedCandidate = null;
         state.currentSectionIndex = 0;
         state.currentQuestionIndex = 0;
@@ -602,10 +604,11 @@
         if (window.rollcallCBT && window.rollcallCBT.getStationRecords) {
             window.rollcallCBT.getStationRecords().then(records => {
                 state.stationRecords = Array.isArray(records) ? records : [];
-                const currentExamId = String(exam.examId || exam.code || '').trim().toLowerCase();
+                const currentExamId = String(state.activeExam?.examId || state.activeExam?.id || state.activeExam?.code || '').trim().toLowerCase();
                 state.stationRecords.forEach(r => {
+                    if (r.rescheduledAt || r.status === 'RESCHEDULED') return;
                     const recExamId = String(r.exam?.id || r.exam?.code || '').trim().toLowerCase();
-                    const examMatches = !currentExamId || !recExamId || recExamId === currentExamId || recExamId.includes(currentExamId) || currentExamId.includes(recExamId);
+                    const examMatches = !currentExamId || !recExamId || recExamId === 'exam' || currentExamId === 'exam' || recExamId === currentExamId || recExamId.includes(currentExamId) || currentExamId.includes(recExamId);
                     if (examMatches && r.candidate) {
                         const keys = getCandidateCompletionKeys(r.candidate);
                         keys.forEach(k => state.completedCandidates.add(k));
@@ -616,6 +619,14 @@
                 }
                 if (areAllCandidatesCompleted()) {
                     showAllExamsCompletedScreen();
+                } else if (state.selectedCandidate && isCandidateCompleted(state.selectedCandidate)) {
+                    const nextPending = state.visibleCandidates?.find(c => !isCandidateCompleted(c));
+                    if (nextPending) {
+                        selectCandidate(nextPending);
+                        loadCandidateToDesk(nextPending);
+                    } else {
+                        showAllExamsCompletedScreen();
+                    }
                 }
             }).catch(e => console.warn('Could not sync station records:', e));
         }
@@ -696,6 +707,8 @@
         if (firstPending) {
             selectCandidate(firstPending);
             loadCandidateToDesk(firstPending);
+        } else {
+            showAllExamsCompletedScreen();
         }
 
         if (areAllCandidatesCompleted()) {
@@ -805,7 +818,7 @@
     }
 
     function completedCandidatesStorageKey() {
-        return `rollcall-cbt-completed:${state.activeExam?.examId || state.activeExam?.code || 'exam'}`;
+        return `rollcall-cbt-completed:${state.activeExam?.examId || state.activeExam?.id || state.activeExam?.code || 'exam'}`;
     }
 
     function loadCompletedCandidates() {
@@ -864,15 +877,15 @@
 
         // Cross-reference against local station exam records
         if (Array.isArray(state.stationRecords) && state.stationRecords.length > 0) {
-            const currentExamId = String(state.activeExam?.examId || state.activeExam?.code || '').trim().toLowerCase();
+            const currentExamId = String(state.activeExam?.examId || state.activeExam?.id || state.activeExam?.code || '').trim().toLowerCase();
             const candName = String(candidate.name || '').trim().toLowerCase();
             const candRoll = String(candidate.rollNo || candidate.rollNumber || candidate.classRoll || candidate.roll || '').trim().toLowerCase();
 
             for (const r of state.stationRecords) {
+                if (r.rescheduledAt || r.status === 'RESCHEDULED') continue;
                 const recExamId = String(r.exam?.id || r.exam?.code || '').trim().toLowerCase();
-                const examMatches = !currentExamId || !recExamId || recExamId === currentExamId || recExamId.includes(currentExamId) || currentExamId.includes(recExamId);
+                const examMatches = !currentExamId || !recExamId || recExamId === 'exam' || currentExamId === 'exam' || recExamId === currentExamId || recExamId.includes(currentExamId) || currentExamId.includes(recExamId);
                 if (examMatches && r.candidate) {
-                    if (r.rescheduledAt || r.status === 'RESCHEDULED') continue;
                     const rName = String(r.candidate.name || '').trim().toLowerCase();
                     const rRoll = String(r.candidate.rollNo || r.candidate.roll || '').trim().toLowerCase();
                     if (candRoll && rRoll && candRoll === rRoll) return true;
@@ -1017,9 +1030,11 @@
     function loadCandidateToDesk(candidate) {
         if (!candidate) return;
         if (isCandidateCompleted(candidate)) {
+            if (el.stationDeskView) el.stationDeskView.style.display = 'none';
             if (areAllCandidatesCompleted()) {
                 showAllExamsCompletedScreen();
             } else {
+                if (el.stationStandbyView) el.stationStandbyView.style.display = 'block';
                 showToast(`Candidate ${candidate.name} has already submitted this examination and cannot be loaded.`, 'warning');
             }
             return;
@@ -1113,11 +1128,13 @@
     }
 
     function updateNextCandidateSeqChip() {
-        if (!state.activeExam || !state.activeExam.candidates || state.activeExam.candidates.length === 0) {
+        const candidates = (Array.isArray(state.visibleCandidates) && state.visibleCandidates.length > 0)
+            ? state.visibleCandidates
+            : (Array.isArray(state.activeExam?.candidates) ? state.activeExam.candidates : []);
+        if (!candidates || candidates.length === 0) {
             if (el.autoLoadNextSeq) el.autoLoadNextSeq.textContent = '--';
             return;
         }
-        const candidates = state.activeExam.candidates;
         const currentIdx = state.selectedCandidate
             ? candidates.findIndex(c => String(c.rollNo || c.roll) === String(state.selectedCandidate.rollNo || state.selectedCandidate.roll))
             : -1;
@@ -1138,11 +1155,13 @@
     }
 
     function autoLoadNextCandidate() {
-        if (!state.activeExam || !state.activeExam.candidates || state.activeExam.candidates.length === 0) {
+        const candidates = (Array.isArray(state.visibleCandidates) && state.visibleCandidates.length > 0)
+            ? state.visibleCandidates
+            : (Array.isArray(state.activeExam?.candidates) ? state.activeExam.candidates : []);
+        if (!candidates || candidates.length === 0) {
             showToast('No exam roster loaded.', 'error');
             return;
         }
-        const candidates = state.activeExam.candidates;
         const currentIdx = state.selectedCandidate
             ? candidates.findIndex(c => String(c.rollNo || c.roll) === String(state.selectedCandidate.rollNo || state.selectedCandidate.roll))
             : -1;
@@ -2355,7 +2374,7 @@
                 photo: resultPhoto || ''
             },
             exam: {
-                id: state.activeExam?.examId || 'EXAM',
+                id: state.activeExam?.examId || state.activeExam?.id || state.activeExam?.code || 'EXAM',
                 code: state.activeExam?.code || 'CBT',
                 title: state.activeExam?.title || 'Examination',
                 subject: state.activeExam?.subject || 'General'
@@ -3012,6 +3031,46 @@
                 }
             }
         } catch (_) {}
+
+        // 3b. Remove pending submission from local outbox queue so old submission is never resent
+        try {
+            const queue = getOutboxQueue();
+            const candRoll = String(record.candidate?.rollNo || record.candidate?.roll || '').toLowerCase().trim();
+            const candName = String(record.candidate?.name || '').toLowerCase().trim();
+            const updatedQueue = queue.filter(item => {
+                const itemRec = item.stationRecord;
+                const rRoll = String(itemRec?.candidate?.rollNo || itemRec?.candidate?.roll || '').toLowerCase().trim();
+                const rName = String(itemRec?.candidate?.name || '').toLowerCase().trim();
+                const matchRoll = candRoll && rRoll && candRoll === rRoll;
+                const matchName = candName && rName && candName === rName;
+                return !(matchRoll || matchName);
+            });
+            saveOutboxQueue(updatedQueue);
+        } catch (_) {}
+
+        // 3c. Delete record from RollCall ERP over LAN so supervisor sees fresh state
+        if (state.lan.connected && state.lan.hostUrl && window.rollcallCBT?.lanFetch) {
+            try {
+                const pairingCode = state.lan.pairingCode;
+                const queryParams = pairingCode ? `?code=${encodeURIComponent(pairingCode)}` : '';
+                await window.rollcallCBT.lanFetch({
+                    url: `${state.lan.hostUrl}/api/cbt/reschedule-record${queryParams}`,
+                    method: 'POST',
+                    headers: { 'x-cbt-pairing-code': pairingCode },
+                    body: {
+                        stationId: state.lan.deskStationId,
+                        stationNumber: state.lan.stationNumber || 1,
+                        candidateRoll: record.candidate?.rollNo || record.candidate?.roll || null,
+                        candidateName: record.candidate?.name || null,
+                        examId: record.exam?.id || record.examId || record.exam?.code || null,
+                        examTitle: record.exam?.title || record.examTitle || null
+                    },
+                    timeoutMs: 6000
+                });
+            } catch (lanErr) {
+                console.warn('[LAN Reschedule] Could not delete record from ERP:', lanErr);
+            }
+        }
 
         // 4. Update candidate filters & re-render candidate cards so cards are active and clickable
         if (state.activeExam) {
