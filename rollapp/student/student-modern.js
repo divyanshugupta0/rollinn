@@ -186,7 +186,16 @@
 
         // Load each panel only on first visit; its rendered content remains cached while hidden.
         const shouldLoadPanel = !state.loadedTabs.has(tabId) || options.forceReload === true;
-        if (!shouldLoadPanel) return;
+        if (!shouldLoadPanel) {
+            if (!options.forceReload && !options.fromHistory) {
+                const refreshPanel = () => {
+                    if (state.activeTab === tabId) switchTab(tabId, { forceReload: true, fromHistory: true });
+                };
+                if (window.requestIdleCallback) window.requestIdleCallback(refreshPanel, { timeout: 1200 });
+                else setTimeout(refreshPanel, 0);
+            }
+            return;
+        }
         state.loadedTabs.add(tabId);
         if (tabId === 'tab-overview' || tabId === 'tab-home') {
             loadFirebaseAnnouncements();

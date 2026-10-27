@@ -189,6 +189,12 @@
             } catch (hookErr) {
                 console.warn('Teacher section hook error:', hookErr);
             }
+        } else if (!options.forceReload) {
+            const refreshPanel = () => {
+                if (target.classList.contains('active')) switchTeacherSection(canonical, { updateUrl: false, forceReload: true });
+            };
+            if (window.requestIdleCallback) window.requestIdleCallback(refreshPanel, { timeout: 1200 });
+            else setTimeout(refreshPanel, 0);
         }
 
         return true;

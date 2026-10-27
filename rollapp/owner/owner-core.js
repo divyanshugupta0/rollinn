@@ -2933,6 +2933,13 @@
             if (activeSection === 'analytics' && typeof initializeAnalyticsCharts === 'function') initializeAnalyticsCharts();
             if (selectedSection) selectedSection.dataset.panelLoaded = 'true';
         }
+        else if (selectedSection && !options.forceReload) {
+            const refreshPanel = () => {
+                if (selectedSection.classList.contains('active')) switchSection(activeSection, { updateUrl: false, forceReload: true });
+            };
+            if (window.requestIdleCallback) window.requestIdleCallback(refreshPanel, { timeout: 1200 });
+            else setTimeout(refreshPanel, 0);
+        }
         if (activeSection !== 'owner-bulk-profile-photos') document.getElementById('owner-bulk-profile-photos')?._onBulkPhotosClose?.();
         if (window.innerWidth <= 768) document.querySelector('.sidebar')?.classList.remove('show');
     }
