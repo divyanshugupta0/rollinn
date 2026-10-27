@@ -28,6 +28,8 @@
         paletteFilter: 'all', // 'all' | 'unanswered' | 'answered' | 'review'
         startCountdownSeconds: 0,
         startCountdownInterval: null,
+        nextCandidateCountdownSeconds: 0,
+        nextCandidateCountdownInterval: null,
         recordsFilterMode: 'today',
         recordsSingleDate: '',
         recordsFromDate: '',
@@ -328,6 +330,7 @@
         el.btnCloseStationResults = document.getElementById('btn-close-station-results');
         el.btnCloseRecordsModal = document.getElementById('btn-close-records-modal');
         el.btnClearStationRecords = document.getElementById('btn-clear-station-records');
+        el.btnOpenExamSetupFromRecords = document.getElementById('btn-open-exam-setup-from-records');
         el.recordsDateTabs = document.getElementById('records-date-tabs');
         el.inputRecordsSearch = document.getElementById('input-records-search');
         el.recordsSinglePickerRow = document.getElementById('records-single-picker-row');
@@ -509,6 +512,12 @@
                 const content = e.target.result;
                 const result = await window.rollcallCBT.inspectExamContent(content);
                 if (result.success) {
+                    console.info('[exam-flow] uploaded exam:', {
+                        examId: result.exam?.examId,
+                        title: result.exam?.title,
+                        candidates: result.exam?.candidates?.length || 0,
+                        sections: result.exam?.sections?.length || 0
+                    });
                     loadExamIntoSetup(result.exam);
                     showToast(`Loaded exam: ${result.exam.title}`, 'success');
                 } else {
@@ -522,6 +531,11 @@
     }
 
     function loadExamIntoSetup(exam) {
+        console.info('[exam-flow] load exam into setup:', {
+            examId: exam?.examId,
+            title: exam?.title,
+            candidates: exam?.candidates?.length || 0
+        });
         if ((!exam.sections || exam.sections.length === 0) && Array.isArray(exam.questions) && exam.questions.length > 0) {
             exam.sections = [{
                 id: 'sec-general',
@@ -535,6 +549,7 @@
         state.currentQuestionIndex = 0;
         state.candidateResponses = {};
         state.questionStatus = {};
+        state.sessionExamPrepared = false;
         state.completedCandidates = loadCompletedCandidates();
 
         // Sync with permanent station vault records to block re-attempts
@@ -746,6 +761,7 @@
                 const recExamId = String(r.exam?.id || r.exam?.code || '').trim().toLowerCase();
                 const examMatches = !currentExamId || !recExamId || recExamId === currentExamId || recExamId.includes(currentExamId) || currentExamId.includes(recExamId);
                 if (examMatches && r.candidate) {
+                    if (r.rescheduledAt || r.status === 'RESCHEDULED') continue;
                     const rName = String(r.candidate.name || '').trim().toLowerCase();
                     const rRoll = String(r.candidate.rollNo || r.candidate.roll || '').trim().toLowerCase();
                     if (candRoll && rRoll && candRoll === rRoll) return true;
@@ -955,6 +971,11 @@
         }
 
         updateNextCandidateSeqChip();
+        if (state.nextCandidateCountdownInterval) {
+            clearInterval(state.nextCandidateCountdownInterval);
+            state.nextCandidateCountdownInterval = null;
+        }
+        state.nextCandidateCountdownSeconds = 0;
         state.startCountdownSeconds = 0;
         if (state.startCountdownInterval) {
             clearInterval(state.startCountdownInterval);
@@ -1025,6 +1046,39 @@
         }
     }
 
+    function autoLoadNextCandidateAfterSubmission() {
+        if (!state.activeExam?.candidates?.length) return false;
+        const candidates = state.activeExam.candidates;
+        const currentIdx = state.selectedCandidate
+            ? candidates.findIndex(c => String(c.rollNo || c.roll) === String(state.selectedCandidate.rollNo || state.selectedCandidate.roll))
+            : -1;
+        let nextCandidate = candidates.slice(currentIdx + 1).find(c => !isCandidateCompleted(c));
+        if (!nextCandidate) nextCandidate = candidates.slice(0, Math.max(currentIdx, 0)).find(c => !isCandidateCompleted(c));
+        if (!nextCandidate) return false;
+
+        selectCandidate(nextCandidate);
+        loadCandidateToDesk(nextCandidate);
+        switchView('setup');
+        startNextCandidateCountdown(120);
+        showToast(`Next candidate loaded: ${nextCandidate.name}. Examination unlocks after the 2-minute station transition timer.`, 'info');
+        return true;
+    }
+
+    function startNextCandidateCountdown(seconds = 120) {
+        if (state.nextCandidateCountdownInterval) clearInterval(state.nextCandidateCountdownInterval);
+        state.nextCandidateCountdownSeconds = Math.max(0, Number(seconds) || 0);
+        updateStartButtonState();
+        state.nextCandidateCountdownInterval = setInterval(() => {
+            state.nextCandidateCountdownSeconds = Math.max(0, state.nextCandidateCountdownSeconds - 1);
+            updateStartButtonState();
+            if (state.nextCandidateCountdownSeconds <= 0) {
+                clearInterval(state.nextCandidateCountdownInterval);
+                state.nextCandidateCountdownInterval = null;
+                showToast('Station transition complete. The next candidate may start the examination.', 'success');
+            }
+        }, 1000);
+    }
+
     function startDeskCountdown() {
         state.startCountdownSeconds = 0;
         if (state.startCountdownInterval) {
@@ -1039,6 +1093,16 @@
 
         const pinRequired = state.selectedCandidate?.pin && String(state.selectedCandidate.pin).trim();
         const pinValid = !pinRequired || state.candidatePinVerified === true;
+        const cooldown = Number(state.nextCandidateCountdownSeconds) || 0;
+
+        if (cooldown > 0) {
+            const mins = Math.floor(cooldown / 60);
+            const secs = String(cooldown % 60).padStart(2, '0');
+            el.btnEnterExamHall.disabled = true;
+            el.btnEnterExamHall.className = 'btn-desk-start';
+            el.btnEnterExamHall.innerHTML = `<i class="fas fa-hourglass-half"></i> Start Examination (${mins}:${secs})`;
+            return;
+        }
 
         if (pinValid) {
             el.btnEnterExamHall.disabled = false;
@@ -1085,6 +1149,55 @@
     // =========================================================================
     // EXAM HALL ENGINE
     // =========================================================================
+    function shuffleInPlace(items) {
+        for (let i = items.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [items[i], items[j]] = [items[j], items[i]];
+        }
+        return items;
+    }
+
+    function prepareExamForSession() {
+        if (!state.activeExam || state.sessionExamPrepared) return;
+
+        const rules = state.activeExam.rules || {};
+        state.activeExam.sections = (state.activeExam.sections || []).map(section => {
+            let questions = (section.questions || []).map(question => {
+                const q = { ...question };
+                const originalOptions = (q.options || []).map(option => (
+                    typeof option === 'object' && option !== null
+                        ? (option.text || option.label || option.optionText || '')
+                        : String(option)
+                ));
+                const keyedAnswer = q.correctAnswer;
+                let correctIndex = Number.isInteger(keyedAnswer)
+                    ? keyedAnswer
+                    : (typeof keyedAnswer === 'string' && /^[A-D]$/i.test(keyedAnswer.trim())
+                        ? keyedAnswer.trim().toUpperCase().charCodeAt(0) - 65
+                        : Number.parseInt(keyedAnswer, 10));
+
+                if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= originalOptions.length) {
+                    correctIndex = -1;
+                }
+
+                const optionPairs = originalOptions.map((text, index) => ({ text, originalIndex: index }));
+                if (rules.randomizeOptions === true) shuffleInPlace(optionPairs);
+                q.options = optionPairs.map(pair => pair.text);
+                if (correctIndex >= 0) {
+                    const displayedIndex = optionPairs.findIndex(pair => pair.originalIndex === correctIndex);
+                    q.correctAnswer = displayedIndex >= 0 ? String.fromCharCode(65 + displayedIndex) : null;
+                } else {
+                    q.correctAnswer = null;
+                }
+                return q;
+            });
+
+            if (rules.randomizeQuestions === true) shuffleInPlace(questions);
+            return { ...section, questions };
+        });
+        state.sessionExamPrepared = true;
+    }
+
     async function startExamSession() {
         if (!state.activeExam || !state.selectedCandidate) {
             showToast('Please select a candidate before proceeding.', 'error');
@@ -1178,6 +1291,7 @@
                 questions: state.activeExam.questions
             }];
         }
+        prepareExamForSession();
         renderExamSections();
         loadQuestion(0, 0);
 
@@ -1666,8 +1780,14 @@
         // Render Question Reviews
         renderReviewList(reviewItems);
 
-        // Always display official scorecard results on station screen upon submission
-        switchView('results');
+        // Respect the teacher's result-visibility setting. The score is still
+        // calculated and stored for authorized teacher/admin records.
+        const showImmediateResult = state.activeExam.rules?.showImmediateResult === true;
+        if (showImmediateResult) {
+            switchView('results');
+        } else {
+            switchView('setup');
+        }
 
         // Prepare submission object
         state.lastSubmissionPackage = {
@@ -1724,11 +1844,18 @@
             timeTakenSeconds: timeTaken,
             antiCheatStrikes: state.antiCheatStrikes || 0
         };
-        saveStationRecord(stationRecord);
-        if (!state.stationRecords) state.stationRecords = [];
-        state.stationRecords.unshift(stationRecord);
+        await saveStationRecord(stationRecord);
 
-        showToast('Exam submitted successfully! Official scorecard generated.', 'success');
+        const nextCandidateLoaded = autoLoadNextCandidateAfterSubmission();
+
+        showToast(
+            nextCandidateLoaded
+                ? 'Exam submitted successfully. Next candidate is ready for the station transition timer.'
+                : showImmediateResult
+                ? 'Exam submitted successfully! Official scorecard generated.'
+                : 'Exam submitted successfully. Results are hidden by exam settings.',
+            'success'
+        );
     }
 
     function renderReviewList(items) {
@@ -2214,6 +2341,20 @@
                 } catch (_) {}
             }
             state.stationRecords = Array.isArray(records) ? records : [];
+            console.info('[exam-flow] initial station records:', state.stationRecords.length);
+            // Remove legacy rescheduled rows created by the previous audit-row
+            // behavior so the vault contains only active result entries.
+            const legacyRescheduled = state.stationRecords.filter(r => r?.rescheduledAt || r?.status === 'RESCHEDULED');
+            for (const record of legacyRescheduled) {
+                await window.rollcallCBT.deleteStationRecord?.({
+                    recordId: record.id,
+                    examId: record.exam?.id || record.examId || record.exam?.code
+                });
+            }
+            if (legacyRescheduled.length) {
+                state.stationRecords = state.stationRecords.filter(r => !legacyRescheduled.includes(r));
+                console.info('[exam-flow] removed legacy rescheduled records:', legacyRescheduled.length);
+            }
         } catch (err) {
             console.warn('Error loading station vault records:', err);
             state.stationRecords = [];
@@ -2221,8 +2362,31 @@
         return state.stationRecords;
     }
 
+    function normalizeStationRecord(record) {
+        if (!record || typeof record !== 'object') return null;
+        const rawExam = record.exam && typeof record.exam === 'object' ? record.exam : {};
+        const examTitle = rawExam.title || rawExam.name || (typeof record.exam === 'string' ? record.exam : '') || record.examTitle || record.examName || record.title || 'Examination';
+        const examCode = rawExam.code || record.examCode || record.code || 'CBT';
+        const examId = rawExam.id || record.examId || record.examCode || examTitle;
+        const candidate = record.candidate && typeof record.candidate === 'object'
+            ? record.candidate
+            : {
+                name: record.studentName || record.candidateName || record.name || 'Candidate',
+                rollNo: record.rollNo || record.roll || '--',
+                class: record.class || record.className || record.grade || 'Standard',
+                section: record.section || '--'
+            };
+        return {
+            ...record,
+            exam: { ...rawExam, id: examId, code: examCode, title: examTitle, subject: rawExam.subject || record.subject || 'General' },
+            candidate
+        };
+    }
+
     function getStationRecords() {
-        return Array.isArray(state.stationRecords) ? state.stationRecords : [];
+        return Array.isArray(state.stationRecords)
+            ? state.stationRecords.map(normalizeStationRecord).filter(Boolean)
+            : [];
     }
 
     async function saveStationRecord(rec) {
@@ -2238,7 +2402,13 @@
             if (state.stationRecords.length > 1000) state.stationRecords.length = 1000;
 
             if (window.rollcallCBT && window.rollcallCBT.saveStationRecord) {
-                await window.rollcallCBT.saveStationRecord(rec);
+                const result = await window.rollcallCBT.saveStationRecord(rec);
+                console.info('[exam-flow] station record save result:', {
+                    result,
+                    examId: rec.exam?.id,
+                    examTitle: rec.exam?.title,
+                    candidate: rec.candidate?.name
+                });
             }
         } catch (e) {
             console.warn('Could not save station record into .rollcbt vault:', e);
@@ -2255,6 +2425,64 @@
         } catch (_) {}
     }
 
+    async function rescheduleStationRecord(recordId) {
+        const record = getStationRecords().find(r => String(r.id) === String(recordId));
+        if (!record) {
+            showToast('The selected examination record could not be found.', 'error');
+            return;
+        }
+
+        const candidateName = record.candidate?.name || 'this candidate';
+        const examTitle = record.exam?.title || 'this examination';
+        if (!confirm(`Reschedule ${candidateName} for "${examTitle}"?\n\nThe current result will be removed, and the candidate will be allowed to take the exam again.`)) return;
+
+        const deleteResult = await window.rollcallCBT.deleteStationRecord?.({
+            recordId: record.id,
+            examId: record.exam?.id || record.examId || record.exam?.code
+        });
+        if (!deleteResult?.success) {
+            showToast(deleteResult?.error || 'The result could not be removed from the station vault.', 'error');
+            return;
+        }
+        state.stationRecords = state.stationRecords.filter(r => String(r?.id) !== String(record.id));
+
+        // Completion locks are scoped by exam. Remove the lock only from this
+        // exam so the candidate can be attempted again.
+        const examKey = String(record.exam?.id || record.exam?.code || 'exam').trim();
+        const storageKey = `rollcall-cbt-completed:${examKey}`;
+        try { localStorage.removeItem(storageKey); } catch (_) {}
+
+        if (state.activeExam) {
+            const activeKey = String(state.activeExam.examId || state.activeExam.code || '').trim();
+            if (activeKey && (activeKey === examKey || activeKey.includes(examKey) || examKey.includes(activeKey))) {
+                state.completedCandidates = loadCompletedCandidates();
+                if (state.visibleCandidates) applyCandidateFilters();
+            }
+        }
+
+        filterAndRenderStationRecords();
+        showToast(`${candidateName} can now be scheduled for another attempt.`, 'success');
+    }
+
+    function stationLocalDateYmd(value = Date.now()) {
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${date.getFullYear()}-${month}-${day}`;
+    }
+
+    // Records are rendered from exam/student data, so escape every value
+    // before inserting it into the folder selector or results markup.
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     async function openStationResultsModal() {
         if (el.modalStationResults) {
             el.modalStationResults.hidden = false;
@@ -2264,13 +2492,20 @@
             try {
                 const refreshed = await window.rollcallCBT.getStationRecords();
                 if (Array.isArray(refreshed)) state.stationRecords = refreshed;
-            } catch (_) {}
+                console.info('[exam-flow] records popup refresh:', state.stationRecords.length, getStationRecords().map(r => r.exam?.title));
+            } catch (error) {
+                console.error('[exam-flow] records popup refresh failed:', error);
+            }
         }
 
-        const allRecords = getStationRecords();
-        const todayYMD = new Date().toISOString().split('T')[0];
+        // Rescheduled attempts remain in the encrypted vault for audit, but
+        // must not appear as active results beside the candidate's new attempt.
+        const allRecords = getStationRecords().filter(record => (
+            !record.rescheduledAt && record.status !== 'RESCHEDULED'
+        ));
+        const todayYMD = stationLocalDateYmd();
         const hasTodayRecords = allRecords.some(r => {
-            const rYMD = r.dateIso ? r.dateIso.split('T')[0] : (new Date(r.timestamp).toISOString().split('T')[0]);
+            const rYMD = stationLocalDateYmd(r.timestamp || r.dateIso);
             return rYMD === todayYMD;
         });
         state.recordsFilterMode = hasTodayRecords ? 'today' : 'all';
@@ -2318,10 +2553,14 @@
     function filterAndRenderStationRecords() {
         if (!el.recordsListContainer) return;
         updateRecordsDateTabUI();
-        const allRecords = getStationRecords();
+        // Rescheduled records are retained only as an encrypted audit trail;
+        // show the candidate's latest valid attempt in the active result list.
+        const allRecords = getStationRecords().filter(record => (
+            !record.rescheduledAt && record.status !== 'RESCHEDULED'
+        ));
         const mode = state.recordsFilterMode || 'all';
         const searchTerm = (el.inputRecordsSearch?.value || '').trim().toLowerCase();
-        const todayYMD = new Date().toISOString().split('T')[0];
+        const todayYMD = stationLocalDateYmd();
 
         // 1. Group all records by distinct exam
         const examGroups = {};
@@ -2344,6 +2583,23 @@
                 examGroups[examKey].lastDate = rec.timestamp;
             }
         });
+
+        // Keep the uploaded/active exam visible even before its first
+        // candidate submission is saved to the station vault.
+        if (state.activeExam?.title) {
+            const activeKey = String(state.activeExam.examId || state.activeExam.code || state.activeExam.title).trim();
+            if (!examGroups[activeKey]) {
+                examGroups[activeKey] = {
+                    key: activeKey,
+                    id: state.activeExam.examId || activeKey,
+                    code: state.activeExam.code || 'CBT',
+                    title: state.activeExam.title,
+                    subject: state.activeExam.subject || 'General',
+                    records: [],
+                    lastDate: 0
+                };
+            }
+        }
         const examList = Object.values(examGroups);
         examList.sort((a, b) => (b.lastDate || 0) - (a.lastDate || 0));
 
@@ -2530,7 +2786,7 @@
 
         // Filter by Date and Search Term within sourceRecords
         let filtered = sourceRecords.filter(rec => {
-            const recYMD = rec.dateIso ? rec.dateIso.split('T')[0] : (new Date(rec.timestamp).toISOString().split('T')[0]);
+            const recYMD = stationLocalDateYmd(rec.timestamp || rec.dateIso);
 
             if (mode === 'today') {
                 if (recYMD !== todayYMD) return false;
@@ -2560,11 +2816,12 @@
         });
 
         const totalCount = filtered.length;
-        const passedCount = filtered.filter(r => r.scoreSummary?.passed).length;
-        const passRate = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 0;
+        const activeFiltered = filtered.filter(r => !r.rescheduledAt && r.status !== 'RESCHEDULED');
+        const passedCount = activeFiltered.filter(r => r.scoreSummary?.passed).length;
+        const passRate = activeFiltered.length > 0 ? Math.round((passedCount / activeFiltered.length) * 100) : 0;
         let sumScore = 0;
-        filtered.forEach(r => sumScore += (Number(r.scoreSummary?.percentage) || 0));
-        const avgScore = totalCount > 0 ? (sumScore / totalCount).toFixed(1) : '0.0';
+        activeFiltered.forEach(r => sumScore += (Number(r.scoreSummary?.percentage) || 0));
+        const avgScore = activeFiltered.length > 0 ? (sumScore / activeFiltered.length).toFixed(1) : '0.0';
 
         if (el.metricRecordsTotal) el.metricRecordsTotal.textContent = totalCount;
         if (el.metricRecordsPassed) el.metricRecordsPassed.textContent = passedCount;
@@ -2606,6 +2863,7 @@
                         <th>Score & Result</th>
                         <th>Duration</th>
                         <th>Integrity</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2625,6 +2883,7 @@
             const strikes = rec.antiCheatStrikes || 0;
             const mins = Math.floor((rec.timeTakenSeconds || 0) / 60);
             const secs = (rec.timeTakenSeconds || 0) % 60;
+            const isRescheduled = rec.rescheduledAt || rec.status === 'RESCHEDULED';
 
             html += `
                 <tr>
@@ -2666,6 +2925,12 @@
                             : `<span style="color: var(--rc-success); font-size: 0.78rem; font-weight: 600;"><i class="fas fa-shield-check"></i> Clean</span>`
                         }
                     </td>
+                    <td>
+                        ${isRescheduled
+                            ? '<span class="record-rescheduled-badge"><i class="fas fa-calendar-check"></i> Rescheduled</span>'
+                            : `<button type="button" class="btn-erp-light btn-sm btn-reschedule-record" data-record-id="${escapeHtml(rec.id)}" title="Allow this candidate to retake this examination"><i class="fas fa-calendar-plus"></i> Reschedule</button>`
+                        }
+                    </td>
                 </tr>
             `;
         });
@@ -2673,6 +2938,9 @@
         html += `</tbody></table>`;
         el.recordsListContainer.innerHTML = html;
         state.currentFilteredRecords = filtered;
+        el.recordsListContainer.querySelectorAll('.btn-reschedule-record').forEach(button => {
+            button.addEventListener('click', () => rescheduleStationRecord(button.dataset.recordId));
+        });
     }
 
     // =========================================================================
@@ -2721,7 +2989,7 @@
         let exportExamId = '';
 
         if (explicitExamKey) {
-            const allRecords = getStationRecords();
+            const allRecords = getStationRecords().filter(r => !r.rescheduledAt && r.status !== 'RESCHEDULED');
             records = allRecords.filter(r => {
                 const k = String(r.exam?.id || r.exam?.code || r.exam?.title || '').trim();
                 return k === explicitExamKey;
@@ -2737,7 +3005,7 @@
             exportExamCode = state.currentFilteredExam.code || exportExamCode;
             exportExamId = state.currentFilteredExam.id || exportExamId;
         } else if (state.selectedExamFolder && state.selectedExamFolder !== 'FOLDERS' && state.selectedExamFolder !== 'ALL') {
-            const allRecords = getStationRecords();
+            const allRecords = getStationRecords().filter(r => !r.rescheduledAt && r.status !== 'RESCHEDULED');
             records = allRecords.filter(r => {
                 const k = String(r.exam?.id || r.exam?.code || r.exam?.title || '').trim();
                 return k === state.selectedExamFolder;
@@ -2949,6 +3217,23 @@
             if (el.modalStationResults) {
                 el.modalStationResults.hidden = true;
                 el.modalStationResults.style.display = 'none';
+            }
+        });
+        el.btnOpenExamSetupFromRecords?.addEventListener('click', () => {
+            if (el.modalStationResults) {
+                el.modalStationResults.hidden = true;
+                el.modalStationResults.style.display = 'none';
+            }
+            openAdminExamSetupModal();
+        });
+        el.modalStationResults?.addEventListener('click', (event) => {
+            if (event.target === el.modalStationResults) {
+                el.btnCloseStationResults?.click();
+            }
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && el.modalStationResults?.style.display === 'grid') {
+                el.btnCloseStationResults?.click();
             }
         });
         el.btnExportStationQr?.addEventListener('click', () => {

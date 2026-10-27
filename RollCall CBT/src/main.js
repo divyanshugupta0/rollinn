@@ -332,6 +332,9 @@ function createWindow() {
     mainWindow.once('ready-to-show', () => {
         mainWindow.setFullScreen(true);
         mainWindow.show();
+        // Diagnostic build: keep Chromium DevTools visible so exam-file,
+        // submission, and station-vault failures can be identified directly.
+        mainWindow.webContents.openDevTools({ mode: 'detach' });
         handleCommandLineFiles();
     });
 
@@ -657,7 +660,14 @@ function setupIpcHandlers() {
     ipcMain.handle('cbt:get-station-records', async () => {
         try {
             const vault = readStationVault();
-            return Array.isArray(vault.records) ? vault.records : [];
+            const records = Array.isArray(vault.records) ? vault.records : [];
+            console.log('[station-vault] get records:', records.length, records.slice(0, 3).map(r => ({
+                id: r?.id,
+                examId: r?.exam?.id || r?.examId,
+                examTitle: r?.exam?.title || r?.examTitle,
+                candidate: r?.candidate?.name || r?.candidateName
+            })));
+            return records;
         } catch (err) {
             console.error('Error getting station records from vault:', err);
             return [];
@@ -682,9 +692,40 @@ function setupIpcHandlers() {
             if (records.length > 1000) records.length = 1000;
             vault.records = records;
             const success = saveStationVault(vault);
+            console.log('[station-vault] saved record:', {
+                success,
+                total: records.length,
+                examId: recordOrList?.exam?.id || recordOrList?.examId,
+                examTitle: recordOrList?.exam?.title || recordOrList?.examTitle,
+                candidate: recordOrList?.candidate?.name || recordOrList?.candidateName
+            });
             return { success, count: records.length };
         } catch (err) {
             console.error('Error saving station record to vault:', err);
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcMain.handle('cbt:delete-station-record', async (event, payload) => {
+        try {
+            const recordId = String(payload?.recordId || '').trim();
+            const examId = String(payload?.examId || '').trim();
+            if (!recordId) return { success: false, error: 'Missing station record ID.' };
+
+            const vault = readStationVault();
+            const records = Array.isArray(vault.records) ? vault.records : [];
+            const before = records.length;
+            vault.records = records.filter(record => {
+                const sameId = String(record?.id || '').trim() === recordId;
+                const recordExamId = String(record?.exam?.id || record?.examId || record?.exam?.code || '').trim();
+                const sameExam = !examId || recordExamId === examId;
+                return !(sameId && sameExam);
+            });
+            const success = before !== vault.records.length ? saveStationVault(vault) : true;
+            console.log('[station-vault] deleted record:', { success, recordId, examId, removed: before - vault.records.length });
+            return { success, removed: before - vault.records.length };
+        } catch (err) {
+            console.error('Error deleting station record from vault:', err);
             return { success: false, error: err.message };
         }
     });

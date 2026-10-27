@@ -26,11 +26,8 @@
         </div>
 
         <div class="topbar-actions" id="topbar-main-actions">
-            <button type="button" class="btn-topbar-action btn-light" id="btn-admin-exam-setup" title="Exam Setup (Admin PIN Required)">
-                <i class="fas fa-user-gear"></i> <span>Exam Setup</span>
-            </button>
-            <button type="button" class="btn-topbar-action btn-light" id="btn-admin-results" title="Station Test Records (Admin PIN Required)">
-                <i class="fas fa-chart-line"></i> <span>Results</span>
+            <button type="button" class="btn-topbar-action btn-light" id="btn-admin-results" title="Exam Setup and Station Records (Admin PIN Required)">
+                <i class="fas fa-table-columns"></i> <span>Exam Setup &amp; Records</span>
             </button>
             <button type="button" class="btn-topbar-icon" id="btn-window-minimize" title="Minimize Window">
                 <i class="fas fa-minus"></i>
@@ -1025,22 +1022,23 @@
         </div>
 
         <!-- Modal 5: Teacher Exam Records & Station Results Browser -->
-        <div class="erp-modal-overlay" id="modal-station-results" style="display: none;">
-            <div class="erp-modal-card" style="width: min(1000px, 95vw); max-height: 90vh; display: flex; flex-direction: column;">
-                <div class="erp-modal-header" style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; padding: 16px 24px;">
+        <div class="erp-modal-overlay station-records-overlay" id="modal-station-results" style="display: none;">
+            <div class="erp-modal-card station-records-modal" role="dialog" aria-modal="true" aria-labelledby="station-records-title">
+                <div class="erp-modal-header station-records-header">
                     <div>
-                        <h3 style="margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-chart-line" style="color: var(--rc-primary);"></i>
+                        <div class="station-records-eyebrow"><i class="fas fa-shield-halved"></i> Local examination vault</div>
+                        <h3 id="station-records-title">
+                            <span class="station-records-title-icon"><i class="fas fa-chart-line"></i></span>
                             Station Examination Records
                         </h3>
-                        <small style="color: var(--rc-text-secondary); font-size: 0.78rem;">Historical records of student examinations conducted on this workstation</small>
+                        <small>Historical records of examinations conducted on this workstation</small>
                     </div>
-                    <button type="button" class="btn-topbar-icon" id="btn-close-station-results">&times;</button>
+                    <button type="button" class="station-records-close" id="btn-close-station-results" aria-label="Close station examination records">&times;</button>
                 </div>
 
-                <div class="erp-modal-body" style="overflow-y: auto; flex: 1; padding: 20px 24px; background: #fafbfc;">
+                <div class="erp-modal-body station-records-body">
                     <!-- Exam Folders Navigation Strip -->
-                    <div class="records-folder-navbar" id="records-folder-navbar">
+                    <div class="records-folder-navbar station-records-folderbar" id="records-folder-navbar">
                         <div id="records-folder-breadcrumb" style="display: flex; align-items: center; gap: 8px; font-size: 0.88rem;">
                             <!-- Injected dynamically: either "Exams Directory" or "← All Folders / [Exam Name]" -->
                         </div>
@@ -1056,7 +1054,7 @@
                     </div>
 
                     <!-- Filter Toolbar -->
-                    <div class="records-filter-toolbar" style="background: #ffffff; border: 1px solid var(--rc-border); border-radius: 8px; padding: 14px 18px; margin-bottom: 18px;">
+                    <div class="records-filter-toolbar station-records-toolbar">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
                             <!-- Filter Mode Tabs -->
                             <div class="records-tab-pills" id="records-date-tabs" style="display: flex; gap: 6px;">
@@ -1075,8 +1073,8 @@
                             </div>
 
                             <!-- Search -->
-                            <div style="min-width: 240px;">
-                                <input type="text" id="input-records-search" placeholder="Search candidate, roll, exam..." style="width: 100%; padding: 7px 12px; border: 1px solid var(--rc-border); border-radius: 6px; font-size: 0.82rem;">
+                            <div class="records-search-wrap">
+                                <i class="fas fa-search"></i><input type="text" id="input-records-search" placeholder="Search candidate, roll, exam..." aria-label="Search examination records">
                             </div>
                         </div>
 
@@ -1095,39 +1093,42 @@
                     </div>
 
                     <!-- Metrics Ribbon -->
-                    <div class="records-metrics-ribbon" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px;">
-                        <div class="meta-metric-card" style="background: #ffffff; padding: 12px 16px; border: 1px solid var(--rc-border); border-radius: 8px;">
+                    <div class="records-metrics-ribbon station-records-metrics">
+                        <div class="meta-metric-card station-metric-card">
                             <span style="font-size: 0.72rem; color: var(--rc-text-secondary); text-transform: uppercase;">Tests Conducted</span>
                             <strong style="font-size: 1.3rem; color: var(--rc-primary);" id="metric-records-total">0</strong>
                         </div>
-                        <div class="meta-metric-card" style="background: #ffffff; padding: 12px 16px; border: 1px solid var(--rc-border); border-radius: 8px;">
+                        <div class="meta-metric-card station-metric-card">
                             <span style="font-size: 0.72rem; color: var(--rc-text-secondary); text-transform: uppercase;">Passed Tests</span>
                             <strong style="font-size: 1.3rem; color: var(--rc-success);" id="metric-records-passed">0</strong>
                         </div>
-                        <div class="meta-metric-card" style="background: #ffffff; padding: 12px 16px; border: 1px solid var(--rc-border); border-radius: 8px;">
+                        <div class="meta-metric-card station-metric-card">
                             <span style="font-size: 0.72rem; color: var(--rc-text-secondary); text-transform: uppercase;">Pass Percentage</span>
                             <strong style="font-size: 1.3rem; color: #2563eb;" id="metric-records-rate">0%</strong>
                         </div>
-                        <div class="meta-metric-card" style="background: #ffffff; padding: 12px 16px; border: 1px solid var(--rc-border); border-radius: 8px;">
+                        <div class="meta-metric-card station-metric-card">
                             <span style="font-size: 0.72rem; color: var(--rc-text-secondary); text-transform: uppercase;">Average Score</span>
                             <strong style="font-size: 1.3rem; color: #7c3aed;" id="metric-records-avg">0.0</strong>
                         </div>
                     </div>
 
                     <!-- Records List / Table Container -->
-                    <div id="records-list-container" style="background: #ffffff; border: 1px solid var(--rc-border); border-radius: 8px; overflow: hidden;">
+                    <div id="records-list-container" class="station-records-list">
                         <!-- Injected dynamically via renderRecordsList() -->
                     </div>
                 </div>
 
-                <div class="erp-modal-footer" style="background: #f8fafc; border-top: 1.5px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; padding: 14px 24px;">
+                <div class="erp-modal-footer station-records-footer">
                     <div>
+                        <button type="button" class="btn-erp-light btn-sm" id="btn-open-exam-setup-from-records">
+                            <i class="fas fa-user-gear"></i> Exam Setup
+                        </button>
                         <button type="button" class="btn-erp-danger btn-sm" id="btn-clear-station-records">
                             <i class="fas fa-trash-can"></i> Clear History
                         </button>
                     </div>
-                    <div style="display: flex; gap: 10px;">
-                        <button type="button" class="btn-erp-primary" id="btn-export-station-qr" style="background: #4f46e5; border-color: #4338ca;" title="Generate encrypted QR code of current batch records for Teacher Portal continuous scanner">
+                    <div class="station-records-footer-actions">
+                        <button type="button" class="btn-erp-primary" id="btn-export-station-qr" title="Generate encrypted QR code of current batch records for Teacher Portal continuous scanner">
                             <i class="fas fa-qrcode"></i> Export Batch QR Code
                         </button>
                         <button type="button" class="btn-erp-light" id="btn-close-records-modal">Close</button>

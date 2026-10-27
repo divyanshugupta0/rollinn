@@ -277,6 +277,10 @@
             <input id="cbtCode" placeholder="e.g. MATH-CBT-01" style="padding:10px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:0.88rem;background:#f8fafc;width:100%;box-sizing:border-box;text-transform:uppercase;">
           </div>
           <div class="tts-field-group">
+            <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;"><i class="fas fa-book" style="color:#0284c7;"></i> Subject</label>
+            <input id="cbtSubject" placeholder="e.g. Mathematics, Physics, Java" style="padding:10px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:0.88rem;background:#f8fafc;width:100%;box-sizing:border-box;">
+          </div>
+          <div class="tts-field-group">
             <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;"><i class="fas fa-stopwatch" style="color:#0284c7;"></i> Duration (Minutes)</label>
             <input id="cbtDuration" type="number" min="5" value="60" style="padding:10px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:0.88rem;background:#f8fafc;width:100%;box-sizing:border-box;">
           </div>
@@ -1133,7 +1137,8 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
         if (!sections.length) throw new Error('Select at least one class section.');
         const title = modal.querySelector('#cbtTitle').value.trim();
         const code = modal.querySelector('#cbtCode').value.trim().toUpperCase();
-        if (!title || !code) throw new Error('Enter exam title and exam code.');
+        const subject = modal.querySelector('#cbtSubject')?.value.trim() || '';
+        if (!title || !code || !subject) throw new Error('Enter exam title, exam code, and subject.');
 
         // Build exam sections and questions
         const sectionCards = [...sectionsContainer.querySelectorAll('.cbt-section-card')];
@@ -1175,7 +1180,6 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
           });
         }
 
-        const subject = panel.querySelector('#ttsSubjectSelect')?.value || 'General';
         const scheduledAt = modal.querySelector('#cbtScheduledAt').value ? new Date(modal.querySelector('#cbtScheduledAt').value).toISOString() : null;
         const db = window.firebase?.database?.();
         const generatedFiles = [];

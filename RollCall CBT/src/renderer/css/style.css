@@ -3295,6 +3295,19 @@ body.exam-active .app-viewport {
     color: #dc2626;
     border: 1px solid #fecaca;
 }
+.record-rescheduled-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+    font-size: .72rem;
+    font-weight: 750;
+    white-space: nowrap;
+}
 .record-student-cell {
     display: flex;
     align-items: center;
@@ -3317,6 +3330,169 @@ body.exam-active .app-viewport {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+/* Station records redesign: compact desktop workspace with a mobile-safe layout. */
+.station-records-overlay {
+    padding: 20px !important;
+    background: rgba(15, 23, 42, 0.68) !important;
+    backdrop-filter: blur(5px);
+}
+.station-records-modal {
+    width: min(1180px, 96vw) !important;
+    height: min(880px, 92vh) !important;
+    max-height: 92vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    border: 1px solid #dbe4f0 !important;
+    border-radius: 18px !important;
+    box-shadow: 0 26px 80px rgba(15, 23, 42, 0.28) !important;
+}
+.station-records-header {
+    flex: 0 0 auto;
+    padding: 20px 26px !important;
+    background: linear-gradient(135deg, #f8fbff, #eef4ff) !important;
+    border-bottom: 1px solid #dbe4f0 !important;
+    align-items: flex-start !important;
+}
+.station-records-eyebrow {
+    color: #4f46e5;
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+.station-records-eyebrow i { margin-right: 5px; }
+.station-records-header h3 {
+    margin: 0 !important;
+    color: #172554;
+    font-size: 1.25rem !important;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.station-records-header small {
+    display: block;
+    margin-top: 5px;
+    color: #64748b;
+    font-size: .78rem;
+}
+.station-records-title-icon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    color: #fff;
+    background: linear-gradient(135deg, #6366f1, #2563eb);
+    box-shadow: 0 6px 14px rgba(79, 70, 229, .22);
+    font-size: .92rem;
+}
+.station-records-close {
+    border: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    color: #64748b;
+    background: rgba(255,255,255,.8);
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: .18s ease;
+}
+.station-records-close:hover { color: #1e293b; background: #fff; transform: rotate(90deg); }
+.station-records-body {
+    flex: 1 1 auto !important;
+    min-height: 0;
+    overflow-y: auto !important;
+    padding: 20px 26px 24px !important;
+    background: #f5f7fb !important;
+}
+.station-records-folderbar {
+    padding: 12px 16px !important;
+    margin-bottom: 14px !important;
+    border: 1px solid #dbe4f0 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, .03);
+}
+.station-records-folderbar select {
+    min-height: 36px;
+    border-color: #cbd5e1 !important;
+    background: #fff !important;
+}
+.station-records-toolbar {
+    padding: 14px 16px !important;
+    margin-bottom: 14px !important;
+    border: 1px solid #dbe4f0 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, .03);
+}
+.records-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: min(310px, 100%);
+    padding: 0 11px;
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    background: #fff;
+    color: #94a3b8;
+}
+.records-search-wrap:focus-within { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
+.records-search-wrap input { width: 100%; min-height: 36px; border: 0 !important; outline: 0; font-size: .82rem; background: transparent; }
+.station-records-metrics {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin-bottom: 14px !important;
+}
+.station-metric-card {
+    min-width: 0;
+    padding: 10px 13px !important;
+    border: 1px solid #dbe4f0 !important;
+    border-radius: 12px !important;
+    background: #fff !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, .03);
+}
+.station-metric-card span { display: block; margin-bottom: 3px; letter-spacing: .06em; font-weight: 700; font-size: .66rem !important; }
+.station-metric-card strong { font-size: 1.18rem !important; line-height: 1.1; }
+.station-records-list { border: 1px solid #dbe4f0 !important; border-radius: 12px !important; background: #fff !important; box-shadow: 0 2px 8px rgba(15, 23, 42, .03); overflow: auto !important; }
+.station-records-list .records-table { min-width: 900px; }
+.station-records-list .records-table th { position: sticky; top: 0; z-index: 1; background: #f8fafc; }
+.station-records-footer {
+    flex: 0 0 auto;
+    padding: 14px 26px !important;
+    background: #fff !important;
+    border-top: 1px solid #dbe4f0 !important;
+}
+.station-records-footer-actions { display: flex; gap: 10px; }
+.station-records-footer #btn-export-station-qr { background: #4f46e5; border-color: #4338ca; }
+
+@media (max-width: 760px) {
+    .station-records-overlay { padding: 8px !important; }
+    .station-records-modal { width: 100% !important; height: 96vh !important; max-height: 96vh !important; border-radius: 14px !important; }
+    .station-records-header, .station-records-body, .station-records-footer { padding-left: 14px !important; padding-right: 14px !important; }
+    .station-records-folderbar { align-items: stretch !important; }
+    .station-records-folderbar > div { width: 100%; }
+    .station-records-folderbar select { width: 100%; max-width: none !important; }
+    .station-records-toolbar > div:first-child { align-items: stretch !important; flex-direction: column; }
+    .records-tab-pills { width: 100%; overflow-x: auto; }
+    .records-tab-btn { flex: 0 0 auto; padding: 7px 10px; }
+    .records-search-wrap { min-width: 0; width: 100%; }
+    .station-records-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .station-records-footer { align-items: stretch !important; flex-direction: column; gap: 10px; }
+    .station-records-footer-actions { width: 100%; }
+    .station-records-footer-actions button { flex: 1; }
+}
+
+@media (max-width: 430px) {
+    .station-records-header h3 { font-size: 1.05rem !important; }
+    .station-records-header small { max-width: 230px; }
+    .station-records-metrics { gap: 8px !important; }
+    .station-metric-card { padding: 11px 12px !important; }
+    .station-metric-card strong { font-size: 1.2rem !important; }
 }
 
 /* =========================================================================
@@ -3399,4 +3575,3 @@ body.exam-active .app-viewport {
     border-radius: 6px;
     font-weight: 600;
 }
-

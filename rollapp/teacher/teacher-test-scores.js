@@ -1318,6 +1318,115 @@
                 justify-content: space-between;
                 gap: 10px;
             }
+
+            /* Keep the scanner usable on narrow phones and short landscape screens. */
+            @media (max-width: 640px) {
+                .tts-scanner-modal-overlay {
+                    align-items: stretch;
+                    padding: 0;
+                }
+                .tts-scanner-dialog {
+                    width: 100%;
+                    max-width: none;
+                    height: 100dvh;
+                    max-height: 100dvh;
+                    border-radius: 0;
+                }
+                .tts-scanner-header {
+                    flex: 0 0 auto;
+                    padding: 11px 12px;
+                    gap: 7px;
+                }
+                .tts-scanner-title {
+                    min-width: 0;
+                    gap: 7px;
+                    font-size: 0.82rem;
+                }
+                .tts-scanner-title > span:not(.tts-scanner-live-badge) {
+                    min-width: 0;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+                .tts-scanner-live-badge {
+                    flex: 0 0 auto;
+                    font-size: 0.6rem;
+                    padding: 2px 5px;
+                }
+                .tts-scanner-header button {
+                    flex: 0 0 auto;
+                    padding: 6px 8px !important;
+                    font-size: 0.76rem !important;
+                }
+                .tts-scanner-viewport-wrap {
+                    flex: 0 0 clamp(220px, 43dvh, 360px);
+                    height: auto;
+                    min-height: 220px;
+                    max-height: 43dvh;
+                }
+                .tts-scanner-viewfinder {
+                    width: min(64vw, 220px);
+                    height: min(64vw, 220px);
+                }
+                .tts-scanner-toolbar {
+                    flex: 0 0 auto;
+                    padding: 8px 10px;
+                    gap: 6px;
+                }
+                .tts-scanner-tool-btn {
+                    padding: 7px 9px;
+                    font-size: 0.74rem;
+                }
+                .tts-scanner-toolbar > div:first-child {
+                    gap: 5px !important;
+                }
+                .tts-scanner-toolbar > div:last-child {
+                    font-size: 0.7rem !important;
+                    padding: 4px 7px !important;
+                }
+                .tts-scanner-log-section {
+                    flex: 1 1 auto;
+                    min-height: 76px;
+                    max-height: none;
+                    min-width: 0;
+                    overflow-y: auto;
+                    padding: 8px 10px;
+                }
+                .tts-scanner-log-title {
+                    font-size: 0.68rem;
+                }
+                .tts-scanner-log-title span:last-child {
+                    display: none;
+                }
+                .tts-scanner-footer {
+                    flex: 0 0 auto;
+                    padding: 9px 10px calc(9px + env(safe-area-inset-bottom));
+                    gap: 7px;
+                    flex-wrap: wrap;
+                }
+                .tts-scanner-footer > span {
+                    font-size: 0.68rem !important;
+                }
+                .tts-scanner-footer button {
+                    flex: 1 1 100%;
+                    width: 100%;
+                    padding: 8px 12px !important;
+                }
+            }
+
+            @media (max-height: 520px) and (orientation: landscape) {
+                .tts-scanner-viewport-wrap {
+                    flex-basis: 190px;
+                    min-height: 190px;
+                }
+                .tts-scanner-log-section {
+                    min-height: 55px;
+                }
+                .tts-scanner-footer {
+                    padding-top: 6px;
+                    padding-bottom: 6px;
+                }
+            }
             .tts-score-just-scanned {
                 animation: ttsHighlightRow 1.6s ease-out;
             }
@@ -2115,6 +2224,18 @@
         async function loadTeacherClasses(user, profile) {
             schoolId = profile.schoolId || user.schoolId || window.currentTeacher?.schoolId || window.rollCallAdminMode?.schoolId || '';
             if (!schoolId) return;
+
+            // The CBT app signs result packages with schools/{schoolId}.code. The
+            // teacher profile can be older and may not contain that field, so load
+            // the authoritative school code once when the portal session starts.
+            try {
+                const schoolSnapshot = await db.ref(`schools/${schoolId}`).once('value');
+                const schoolRecord = schoolSnapshot.val() || {};
+                const schoolCode = schoolRecord.code || schoolRecord.schoolCode || '';
+                if (schoolCode && currentTeacher) currentTeacher.schoolRecordCode = schoolCode;
+            } catch (error) {
+                console.warn('[CBT QR] Could not load the school code for QR verification.', error);
+            }
 
             myClassesMap.clear();
             teacherAllSubjects.clear();
@@ -3937,39 +4058,60 @@
                 return;
             }
 
-            // 1. Strict School Code Verification
-            const activeSchoolCode = String(
-                currentTeacher?.schoolCode ||
-                currentTeacher?.institutionCode ||
-                window.currentSchoolCode ||
-                schoolId ||
-                ''
-            ).trim().toUpperCase();
+            // 1. Strict School Code Verification. CBT stores the license school code,
+            // while the teacher portal may identify the same school by its Firebase
+            // schoolId or institutionCode. Treat only known session identifiers as
+            // aliases; never disable the school boundary check.
+            const normalizeSchoolCode = value => String(value ?? '')
+                .trim()
+                .toUpperCase()
+                .replace(/\s+/g, '');
+            const activeSchoolCodes = [
+                currentTeacher?.schoolCode,
+                currentTeacher?.institutionCode,
+                currentTeacher?.schoolId,
+                currentTeacher?.schoolRecordCode,
+                window.currentTeacher?.schoolCode,
+                window.currentTeacher?.institutionCode,
+                window.currentTeacher?.schoolId,
+                window.currentTeacher?.schoolRecordCode,
+                window.currentSchoolCode,
+                window.currentSchoolId,
+                window.currentSchool?.schoolCode,
+                window.currentSchool?.institutionCode,
+                window.currentSchool?.id,
+                window.rollCallAdminMode?.schoolCode,
+                window.rollCallAdminMode?.institutionCode,
+                window.rollCallAdminMode?.schoolId,
+                schoolId
+            ].map(normalizeSchoolCode).filter(Boolean);
+            const uniqueActiveSchoolCodes = [...new Set(activeSchoolCodes)];
+            const incomingSchoolCode = normalizeSchoolCode(payload.schoolCode);
+            const isMatch = !incomingSchoolCode ||
+                !uniqueActiveSchoolCodes.length ||
+                uniqueActiveSchoolCodes.includes(incomingSchoolCode);
 
-            const incomingSchoolCode = String(payload.schoolCode || '').trim().toUpperCase();
+            console.info('[CBT QR] school verification', {
+                incomingSchoolCode: incomingSchoolCode || '(missing)',
+                activeSchoolCodes: uniqueActiveSchoolCodes,
+                schoolId: normalizeSchoolCode(schoolId),
+                examId: payload.examId || '',
+                examCode: payload.examCode || ''
+            });
 
-            if (incomingSchoolCode && activeSchoolCode) {
-                const isMatch = (
-                    incomingSchoolCode === activeSchoolCode ||
-                    incomingSchoolCode === String(schoolId).trim().toUpperCase() ||
-                    (currentTeacher?.schoolCode && incomingSchoolCode === String(currentTeacher.schoolCode).trim().toUpperCase()) ||
-                    (currentTeacher?.institutionCode && incomingSchoolCode === String(currentTeacher.institutionCode).trim().toUpperCase())
-                );
-
-                if (!isMatch) {
-                    playScanBeep(false);
-                    if (scannerHint) {
-                        scannerHint.innerHTML = `<i class="fas fa-shield-xmark" style="color:#ef4444;"></i> <strong>Security Error:</strong> School code mismatch!`;
-                    }
-                    appendScannerLog(`
-                        <div style="color:#dc2626; font-weight:700;">
-                            <i class="fas fa-ban"></i> <strong>School Code Mismatch</strong>: Barcode issued for "${escapeHtml(incomingSchoolCode)}", but current school session is "${escapeHtml(activeSchoolCode || schoolId)}". Ingestion rejected.
-                        </div>
-                        <small style="color:#94a3b8;">${new Date().toLocaleTimeString()}</small>
-                    `);
-                    alert(`Security Verification Failed:\n\nThis QR barcode was generated for school code "${incomingSchoolCode}", but your active portal session belongs to "${activeSchoolCode || schoolId}".\n\nIngestion has been rejected.`);
-                    return;
+            if (incomingSchoolCode && uniqueActiveSchoolCodes.length && !isMatch) {
+                playScanBeep(false);
+                if (scannerHint) {
+                    scannerHint.innerHTML = `<i class="fas fa-shield-xmark" style="color:#ef4444;"></i> <strong>Security Error:</strong> School code mismatch!`;
                 }
+                appendScannerLog(`
+                    <div style="color:#dc2626; font-weight:700;">
+                        <i class="fas fa-ban"></i> <strong>School Code Mismatch</strong>: Barcode issued for "${escapeHtml(incomingSchoolCode)}", but current school session has no matching school identifier. Ingestion rejected.
+                    </div>
+                    <small style="color:#94a3b8;">${new Date().toLocaleTimeString()}</small>
+                `);
+                alert(`Security Verification Failed:\n\nThis QR barcode was generated for school code "${incomingSchoolCode}".\n\nThe active teacher session has no matching school identifier. Ingestion has been rejected.`);
+                return;
             }
 
             // Visual flash & sound chime

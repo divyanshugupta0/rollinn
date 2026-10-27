@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('rollcallCBT', {
     // Station Vault Records (.rollcbt)
     getStationRecords: () => ipcRenderer.invoke('cbt:get-station-records'),
     saveStationRecord: (record) => ipcRenderer.invoke('cbt:save-station-record', record),
+    deleteStationRecord: (payload) => ipcRenderer.invoke('cbt:delete-station-record', payload),
     clearStationRecords: () => ipcRenderer.invoke('cbt:clear-station-records'),
 
     // Exit & Window controls

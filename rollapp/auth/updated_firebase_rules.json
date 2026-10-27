@@ -572,6 +572,16 @@
         ".indexOn": ["createdBy", "classId", "section", "createdAt"]
       }
     },
+    "schoolTests": {
+      "$schoolId": {
+        ".read": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || (root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'teacher')))",
+        ".write": "auth != null && (root.child('schools').child($schoolId).child('ownerId').val() === auth.uid || (root.child('users').child(auth.uid).child('schoolId').val() === $schoolId && (root.child('users').child(auth.uid).child('role').val() === 'admin' || (root.child('users').child(auth.uid).child('role').val() === 'teacher' && newData.child('teacherId').val() === auth.uid))))",
+        ".indexOn": ["section", "classId", "className", "teacherId", "testDate", "createdAt", "status", "examType", "assessmentComponent"],
+        "$examId": {
+          ".validate": "newData.hasChildren(['title', 'subject']) && newData.child('title').isString() && newData.child('subject').isString()"
+        }
+      }
+    },
     "cloudflare_r2": {
       ".read": "auth != null",
       ".write": "auth != null"
