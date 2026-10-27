@@ -50,7 +50,7 @@
             .tb-intro h2{margin:5px 0;font-size:21px}
             .tb-intro p,.tb-status{margin:5px 0 0;color:#718178;font-size:13px}
             .tb-refresh,.tb-action{min-height:42px;padding:0 13px;border:1px solid #d8e6dc;border-radius:9px;background:#f5faf6;color:#196c49;font:inherit;font-size:12px;font-weight:750;cursor:pointer}
-            .tb-refresh{white-space:nowrap}
+            .tb-refresh{width:auto!important;min-width:104px;max-width:max-content;flex:0 0 auto;white-space:nowrap;align-self:center}
             .tb-action:disabled,.tb-refresh:disabled{opacity:.55;cursor:wait}
             .tb-filter{display:grid;grid-template-columns:minmax(180px,.7fr) minmax(230px,1.3fr);gap:8px 12px;align-items:center;margin:14px 0;padding:15px;border:1px solid #e3ebe5;border-radius:13px;background:#fff}
             .tb-filter label{color:#5f7065;font-size:11px;font-weight:750}
@@ -74,7 +74,7 @@
                 .tb-intro{align-items:stretch;flex-direction:column;margin:12px 0;padding:17px}
                 .tb-intro h2{font-size:19px;line-height:1.3}
                 .tb-intro p{line-height:1.5}
-                .tb-refresh{width:100%}
+                .tb-refresh{width:auto!important;min-width:104px;align-self:flex-start}
                 .tb-filter{grid-template-columns:1fr;gap:6px;margin:12px 0;padding:13px}
                 .tb-filter label:not(:first-child){margin-top:7px}
                 .tb-table-wrap{overflow:visible;border:0;background:transparent}
