@@ -257,7 +257,7 @@
     studioStyles.id = 'teacher-cbt-studio-responsive-styles';
     studioStyles.textContent = `
       .teacher-cbt-studio-modal .teacher-cbt-studio-page { min-width: 0; }
-      .teacher-cbt-studio-modal .cbt-mobile-back { display: none; }
+      .teacher-cbt-studio-modal .cbt-mobile-sidebar-toggle { display: none; }
       @media (max-width: 700px) {
         .teacher-cbt-studio-modal {
           align-items: stretch !important;
@@ -282,7 +282,7 @@
           display: grid !important;
           grid-template-columns: auto minmax(0, 1fr) auto;
           grid-template-rows: auto auto;
-          grid-template-areas: "back spacer close" "title title title";
+          grid-template-areas: "sidebar spacer close" "title title title";
           position: sticky;
           top: 0;
           z-index: 10;
@@ -314,15 +314,18 @@
         .teacher-cbt-studio-modal .cbt-studio-header-copy p {
           display: none;
         }
-        .teacher-cbt-studio-modal .cbt-mobile-back {
-          grid-area: back;
+        .teacher-cbt-studio-modal .cbt-mobile-sidebar-toggle {
+          grid-area: sidebar;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           gap: 5px;
           flex: 0 0 auto;
+          width: 34px;
+          height: 34px;
+          min-width: 34px;
           min-height: 34px;
-          padding: 6px 9px;
+          padding: 6px;
           border: 1px solid #cbd5e1;
           border-radius: 8px;
           background: #f8fafc;
@@ -461,7 +464,7 @@
       <div class="teacher-cbt-studio-page" style="width:100%;max-width:980px;margin:24px auto;background:#ffffff;border-radius:20px;padding:26px;box-shadow:0 25px 60px rgba(15,23,42,0.35);border:1px solid #e2e8f0;box-sizing:border-box;font-family:inherit;">
         <!-- Modal Header -->
         <div class="cbt-studio-header" style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #e2e8f0;padding-bottom:16px;margin-bottom:18px;">
-          <button class="cbt-mobile-back" id="teacherCbtBack" type="button"><i class="fas fa-arrow-left"></i> Back</button>
+          <button class="cbt-mobile-sidebar-toggle" id="teacherCbtSidebarToggle" type="button" aria-label="Open sidebar" title="Open sidebar"><i class="fas fa-bars"></i></button>
           <div class="cbt-studio-header-copy">
             <div style="display:inline-flex;align-items:center;gap:6px;background:#e0f2fe;color:#0369a1;font-size:0.72rem;font-weight:800;padding:3px 9px;border-radius:6px;margin-bottom:6px;letter-spacing:0.04em;text-transform:uppercase;">
               <i class="fas fa-shield-halved"></i> CBT Exam Authoring Studio
@@ -785,8 +788,15 @@
 
     const closeBtn = modal.querySelector('#teacherCbtClose');
     if (closeBtn) closeBtn.onclick = closeModal;
-    const backBtn = modal.querySelector('#teacherCbtBack');
-    if (backBtn) backBtn.onclick = closeModal;
+    const studioSidebarToggle = modal.querySelector('#teacherCbtSidebarToggle');
+    if (studioSidebarToggle) {
+      studioSidebarToggle.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        closeModal(event);
+        setTimeout(() => window.toggleMobileSidebar?.(), 0);
+      };
+    }
     const cancelBtn = modal.querySelector('#cbtCancel');
     if (cancelBtn) cancelBtn.onclick = closeModal;
     modal.onclick = (e) => { if (e.target === modal) closeModal(e); };
