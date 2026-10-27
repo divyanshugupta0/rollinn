@@ -989,6 +989,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const popup = document.getElementById('attendancePopup');
         if (!popup) return;
+        // Older cached renderers may have left these controls in the shared
+        // edit/take-attendance popup. Drafts are automatic now.
+        popup.querySelector('#rcSaveDraftBtn')?.remove();
+        popup.querySelector('#rcLockSessionBtn')?.remove();
         popup.style.display = 'flex';
         popup.classList.add('ap-school-mode');
         document.body.classList.add('teacher-school-mode');
@@ -1307,6 +1311,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // ONLY local storage - NO DATABASE CALL!
+            persistDraft();
+        };
+
+        // Remarks are part of the same class/date draft and must survive
+        // closing and reopening Edit Attendance as well.
+        popupStudentList.oninput = function(e) {
+            const input = e.target.closest('[data-remark],[data-rc-remark]');
+            const row = e.target.closest('.student-row');
+            if (!input || !row) return;
+            const studentId = row.getAttribute('data-student-id');
+            if (!studentId) return;
+            attendanceData[studentId + '_remark'] = input.value;
             persistDraft();
         };
 
