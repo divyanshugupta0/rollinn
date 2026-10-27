@@ -6034,7 +6034,7 @@
         #attendancePopup .rc-attendance-table tbody { display: block !important; width: 100% !important; min-width: 0 !important; }
         #attendancePopup .rc-attendance-table .rc-student-row {
             display: grid !important;
-            grid-template-columns: 24px minmax(0, 1fr) 112px;
+            grid-template-columns: 24px 34px minmax(0, 1fr) 112px;
             align-items: center;
             gap: 8px;
             width: 100% !important;
@@ -6050,9 +6050,24 @@
             border: 0 !important;
         }
         #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(1) { grid-column: 1; }
-        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(2) { grid-column: 2; overflow: hidden; }
-        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(4) { grid-column: 3; }
-        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(3),
+        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(2) { grid-column: 3; overflow: hidden; }
+        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(3) {
+            grid-column: 2;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            min-height: 22px;
+            padding: 3px 2px !important;
+            border: 1px solid #bbf7d0 !important;
+            border-radius: 6px;
+            background: #eef6f1;
+            color: #166534;
+            font-size: 10px;
+            font-weight: 700;
+            box-sizing: border-box;
+        }
+        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(4) { grid-column: 4; }
         #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(5),
         #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(6) { display: none !important; }
         #attendancePopup .rc-attendance-table .rc-student-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
