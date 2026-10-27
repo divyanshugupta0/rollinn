@@ -6100,6 +6100,36 @@
         #attendancePopup .rc-attendance-table .rc-student-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
         #attendancePopup .rc-attendance-table .rc-student-row td small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #attendancePopup .rc-attendance-table [data-rc-status-select] { width: 112px; min-height: 38px; padding: 7px 8px; font-size: 12px; }
+
+        /* Final high-specificity override for the older three-column rules. */
+        #attendancePopup.ap-school-mode .attendance-table tr.student-row,
+        body.teacher-school-mode #attendancePopup .attendance-table tr.student-row {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) 92px !important;
+            grid-template-rows: auto !important;
+            width: 100% !important;
+            min-width: 0 !important;
+        }
+        #attendancePopup.ap-school-mode .attendance-table tr.student-row td.st-roll-cell,
+        body.teacher-school-mode #attendancePopup .attendance-table tr.student-row td.st-roll-cell {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        #attendancePopup.ap-school-mode .attendance-table tr.student-row td.st-name-cell,
+        body.teacher-school-mode #attendancePopup .attendance-table tr.student-row td.st-name-cell {
+            display: flex !important;
+            grid-column: 1 !important;
+            grid-row: 1 !important;
+            width: 100% !important;
+            min-width: 0 !important;
+        }
+        #attendancePopup.ap-school-mode .attendance-table tr.student-row td.st-actions-cell,
+        body.teacher-school-mode #attendancePopup .attendance-table tr.student-row td.st-actions-cell {
+            display: block !important;
+            grid-column: 2 !important;
+            grid-row: 1 !important;
+            width: 92px !important;
+        }
     }
     </style>
 
