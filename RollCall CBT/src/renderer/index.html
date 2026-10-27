@@ -395,6 +395,63 @@
                 </div>
             </div>
 
+            <!-- State 3: All Examinations Completed Screen (Shown when all roster candidates have finished) -->
+            <div class="station-completed-container" id="station-completed-view" style="display: none;">
+                <div class="station-completed-card">
+                    <div class="completed-emblem-wrap">
+                        <div class="completed-emblem-circle">
+                            <i class="fas fa-circle-check"></i>
+                        </div>
+                    </div>
+
+                    <div class="completed-status-badge">
+                        <span class="status-indicator-dot"></span>
+                        <span>EXAMINATION SESSION CONCLUDED</span>
+                    </div>
+
+                    <h2 class="completed-title">All Examinations Completed</h2>
+                    <p class="completed-description" id="completed-exam-desc">
+                        All candidates registered for this examination paper have completed and submitted their tests.
+                        Submissions have been securely sealed in the station vault and synced to RollCall ERP.
+                    </p>
+
+                    <!-- Session Statistics Strip -->
+                    <div class="completed-metrics-strip">
+                        <div class="completed-metric-box">
+                            <small>Paper / Subject</small>
+                            <strong id="completed-subject-text">Computer Science</strong>
+                        </div>
+                        <div class="completed-metric-box">
+                            <small>Paper Code</small>
+                            <strong id="completed-code-text">CBT-101</strong>
+                        </div>
+                        <div class="completed-metric-box">
+                            <small>Candidates Tested</small>
+                            <strong id="completed-count-text" style="color: #16a34a;">All Completed (100%)</strong>
+                        </div>
+                        <div class="completed-metric-box">
+                            <small>Vault Audit Status</small>
+                            <strong style="color: #0284c7;"><i class="fas fa-shield-halved"></i> Cryptographically Sealed</strong>
+                        </div>
+                    </div>
+
+                    <!-- Completion Actions -->
+                    <div class="completed-actions-bar">
+                        <button type="button" class="btn-erp-primary" id="btn-completed-records" style="padding: 10px 24px; font-weight: 700; background: #0f62fe;">
+                            <i class="fas fa-vault"></i> View Station Vault Records
+                        </button>
+                        <button type="button" class="btn-erp-light" id="btn-completed-new-exam" style="padding: 10px 24px; font-weight: 700; background: #f8fafc; border: 1.5px solid #cbd5e1;">
+                            <i class="fas fa-sliders"></i> Invigilator Exam Setup
+                        </button>
+                    </div>
+
+                    <div class="completed-footer-hint">
+                        <i class="fas fa-circle-info"></i>
+                        <span>Invigilator Controls: Press <kbd>Ctrl+Shift+S</kbd> to access the Exam Console or reschedule candidates.</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Hidden compatibility hooks required by existing JS -->
             <div hidden>
                 <div class="desk-countdown-banner" id="desk-countdown-banner">

@@ -271,6 +271,13 @@
         el.btnQuickAdminLogin = document.getElementById('btn-quick-admin-login');
         el.stationStandbyView = document.getElementById('station-standby-view');
         el.stationDeskView = document.getElementById('station-desk-view');
+        el.stationCompletedView = document.getElementById('station-completed-view');
+        el.completedExamDesc = document.getElementById('completed-exam-desc');
+        el.completedSubjectText = document.getElementById('completed-subject-text');
+        el.completedCodeText = document.getElementById('completed-code-text');
+        el.completedCountText = document.getElementById('completed-count-text');
+        el.btnCompletedRecords = document.getElementById('btn-completed-records');
+        el.btnCompletedNewExam = document.getElementById('btn-completed-new-exam');
         el.standbyStationCode = document.getElementById('standby-station-code');
 
         el.deskExamSubject = document.getElementById('desk-exam-subject');
@@ -599,6 +606,9 @@
                 if (state.visibleCandidates) {
                     renderCandidatesList(state.visibleCandidates);
                 }
+                if (areAllCandidatesCompleted()) {
+                    showAllExamsCompletedScreen();
+                }
             }).catch(e => console.warn('Could not sync station records:', e));
         }
 
@@ -661,6 +671,9 @@
 
         renderCandidateSectionTabs(candidates);
         applyCandidateFilters();
+        if (areAllCandidatesCompleted()) {
+            showAllExamsCompletedScreen();
+        }
 
         // Show container
         el.examInspectContainer.classList.remove('hidden');
@@ -775,6 +788,45 @@
         } catch (_) { return new Set(); }
     }
 
+    function areAllCandidatesCompleted() {
+        if (!state.activeExam) return false;
+        const list = (Array.isArray(state.visibleCandidates) && state.visibleCandidates.length > 0)
+            ? state.visibleCandidates
+            : (Array.isArray(state.activeExam.candidates) ? state.activeExam.candidates : []);
+        if (list.length === 0) return false;
+        return list.every(c => isCandidateCompleted(c));
+    }
+
+    function showAllExamsCompletedScreen() {
+        state.selectedCandidate = null;
+        state.candidateResponses = {};
+        state.questionStatus = {};
+
+        if (el.adminSetupSelectedSummary) el.adminSetupSelectedSummary.innerHTML = '';
+        if (el.btnAdminConfirmLoadCandidate) el.btnAdminConfirmLoadCandidate.disabled = true;
+
+        if (el.stationStandbyView) el.stationStandbyView.style.display = 'none';
+        if (el.stationDeskView) el.stationDeskView.style.display = 'none';
+        if (el.stationCompletedView) {
+            el.stationCompletedView.style.display = 'flex';
+
+            if (state.activeExam) {
+                if (el.completedSubjectText) el.completedSubjectText.textContent = (state.activeExam.subject || 'GENERAL').toUpperCase();
+                if (el.completedCodeText) el.completedCodeText.textContent = state.activeExam.code || 'CBT';
+                const list = (Array.isArray(state.visibleCandidates) && state.visibleCandidates.length > 0)
+                    ? state.visibleCandidates
+                    : (Array.isArray(state.activeExam.candidates) ? state.activeExam.candidates : []);
+                const total = list.length;
+                if (el.completedCountText) el.completedCountText.textContent = `${total} / ${total} Candidates Completed (100%)`;
+                if (el.completedExamDesc) {
+                    el.completedExamDesc.textContent = `All ${total} registered candidate(s) for "${state.activeExam.title || 'this examination'}" have completed and submitted their tests. Submissions are securely sealed in the station vault and synced to RollCall ERP.`;
+                }
+            }
+        }
+        document.body.classList.remove('exam-active');
+        switchView('setup');
+    }
+
     function isCandidateCompleted(candidate) {
         if (!candidate) return false;
         const keys = getCandidateCompletionKeys(candidate);
@@ -812,6 +864,7 @@
 
     function resetAllCompletedCandidates(silent = false) {
         state.completedCandidates = new Set();
+        if (el.stationCompletedView) el.stationCompletedView.style.display = 'none';
         try {
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
@@ -928,7 +981,11 @@
     function loadCandidateToDesk(candidate) {
         if (!candidate) return;
         if (isCandidateCompleted(candidate)) {
-            showToast(`Candidate ${candidate.name} has already submitted this examination and cannot be loaded.`, 'warning');
+            if (areAllCandidatesCompleted()) {
+                showAllExamsCompletedScreen();
+            } else {
+                showToast(`Candidate ${candidate.name} has already submitted this examination and cannot be loaded.`, 'warning');
+            }
             return;
         }
         state.selectedCandidate = candidate;
@@ -938,6 +995,7 @@
 
         if (el.stationStandbyView) el.stationStandbyView.style.display = 'none';
         if (el.stationDeskView) el.stationDeskView.style.display = 'block';
+        if (el.stationCompletedView) el.stationCompletedView.style.display = 'none';
 
         // Exam Paper Details
         if (state.activeExam) {
@@ -1076,7 +1134,12 @@
             loadCandidateToDesk(nextCandidate);
             showToast(`Loaded candidate #${nextCandidate.sectionSequence || nextCandidate.sequence || nextCandidate.rollNo}: ${nextCandidate.name}`, 'success');
         } else {
-            showToast('All candidates in the exam roster have completed their examination.', 'info');
+            if (areAllCandidatesCompleted()) {
+                showAllExamsCompletedScreen();
+                showToast('All candidates in the exam roster have completed their examination.', 'info');
+            } else {
+                showToast('All candidates in the exam roster have completed their examination.', 'info');
+            }
         }
     }
 
@@ -1088,7 +1151,12 @@
             : -1;
         let nextCandidate = candidates.slice(currentIdx + 1).find(c => !isCandidateCompleted(c));
         if (!nextCandidate) nextCandidate = candidates.slice(0, Math.max(currentIdx, 0)).find(c => !isCandidateCompleted(c));
-        if (!nextCandidate) return false;
+        if (!nextCandidate) {
+            if (areAllCandidatesCompleted()) {
+                showAllExamsCompletedScreen();
+            }
+            return false;
+        }
 
         selectCandidate(nextCandidate);
         loadCandidateToDesk(nextCandidate);
@@ -2087,16 +2155,29 @@
         };
         await saveStationRecord(stationRecord);
 
+        const allCompleted = areAllCandidatesCompleted();
         const nextCandidateLoaded = autoLoadNextCandidateAfterSubmission();
 
-        showToast(
-            nextCandidateLoaded
-                ? 'Exam submitted successfully. Next candidate is ready for the station transition timer.'
-                : showImmediateResult
-                ? 'Exam submitted successfully! Official scorecard generated.'
-                : 'Exam submitted successfully. Results are hidden by exam settings.',
-            'success'
-        );
+        if (allCompleted) {
+            if (!showImmediateResult) {
+                showAllExamsCompletedScreen();
+            }
+            showToast(
+                showImmediateResult
+                    ? 'Exam submitted successfully! Official scorecard generated. All registered candidates have completed their examination.'
+                    : 'Exam submitted successfully! All registered candidates have finished their examination. Session concluded.',
+                'success'
+            );
+        } else {
+            showToast(
+                nextCandidateLoaded
+                    ? 'Exam submitted successfully. Next candidate is ready for the station transition timer.'
+                    : showImmediateResult
+                    ? 'Exam submitted successfully! Official scorecard generated.'
+                    : 'Exam submitted successfully. Results are hidden by exam settings.',
+                'success'
+            );
+        }
     }
 
     function renderReviewList(items) {
@@ -3980,6 +4061,14 @@
             updateStartButtonState();
         });
 
+        // Completed View Actions
+        el.btnCompletedRecords?.addEventListener('click', () => {
+            openStationResultsModal();
+        });
+        el.btnCompletedNewExam?.addEventListener('click', () => {
+            openAdminExamSetupModal();
+        });
+
         // Enter Exam Hall Button
         el.btnEnterExamHall.addEventListener('click', () => {
             startExamSession();
@@ -4187,9 +4276,6 @@
             state.questionStatus = {};
             if (el.adminSetupSelectedSummary) el.adminSetupSelectedSummary.innerHTML = '';
             if (el.btnAdminConfirmLoadCandidate) el.btnAdminConfirmLoadCandidate.disabled = true;
-            if (el.stationStandbyView) el.stationStandbyView.style.display = 'block';
-            if (el.stationDeskView) el.stationDeskView.style.display = 'none';
-
             document.body.classList.remove('exam-active');
             if (state.activeExam) {
                 state.completedCandidates = loadCompletedCandidates();
@@ -4199,7 +4285,15 @@
                 el.examInspectContainer.classList.remove('hidden');
                 el.examDropzone.classList.add('hidden');
             }
-            switchView('setup');
+
+            if (areAllCandidatesCompleted()) {
+                showAllExamsCompletedScreen();
+            } else {
+                if (el.stationStandbyView) el.stationStandbyView.style.display = 'block';
+                if (el.stationDeskView) el.stationDeskView.style.display = 'none';
+                if (el.stationCompletedView) el.stationCompletedView.style.display = 'none';
+                switchView('setup');
+            }
         });
 
         // IPC Anti-cheat blur listener
