@@ -1203,6 +1203,29 @@
                     color: #6b8f77;
                 }
             }
+            @media (max-width: 480px) {
+                body.teacher-school-mode #testScoresSection .tts-shell { padding-left: 0; padding-right: 0; }
+                body.teacher-school-mode #ttsExamSettingsCard { margin: 5px 0 8px; padding: 8px; border-radius: 9px; }
+                body.teacher-school-mode #ttsExamSettingsCard .tts-settings-header { padding-bottom: 6px; margin-bottom: 7px; gap: 4px; }
+                body.teacher-school-mode #ttsExamSettingsCard .tts-settings-title { font-size: .7rem; gap: 4px; }
+                body.teacher-school-mode #ttsExamSettingsCard .tts-settings-title i { font-size: .68rem; }
+                body.teacher-school-mode #ttsExamSettingsCard .tts-settings-title::after { font-size: .5rem; }
+                body.teacher-school-mode #ttsExamSettingsCard .tts-settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+                body.teacher-school-mode #ttsExamSettingsCard .tts-field-group { padding: 5px; border-radius: 7px; }
+                body.teacher-school-mode #ttsExamSettingsCard .tts-field-group > label { font-size: .53rem; gap: 3px; }
+                body.teacher-school-mode #ttsExamSettingsCard .tts-field-group > input,
+                body.teacher-school-mode #ttsExamSettingsCard .tts-field-group > select { min-height: 28px; padding: 3px 4px; font-size: .66rem; border-radius: 6px; }
+                body.teacher-school-mode #ttsExamSettingsCard .tts-cutoff-pill { margin-top: 3px; padding: 3px 4px; font-size: .53rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                body.teacher-school-mode #ttsExamSettingsCard .tts-duration-chips { gap: 2px; }
+                body.teacher-school-mode #ttsExamSettingsCard .tts-duration-chip { padding: 2px 4px; font-size: .54rem; }
+                body.teacher-school-mode #ttsExamSettingsCard .tts-field-group:has(#ttsExamInstructions) textarea { min-height: 48px; font-size: .68rem; }
+                body.teacher-school-mode #ttsExamSettingsCard #ttsCloseSettingsBtn { padding: 4px 6px !important; min-height: 25px; }
+                body.teacher-school-mode #testScoresSection .tts-stats-row { gap: 5px; }
+                body.teacher-school-mode #testScoresSection .tts-stat-chip { min-height: 48px; padding: 6px; gap: 5px; border-radius: 8px; }
+                body.teacher-school-mode #testScoresSection .tts-stat-icon { width: 24px; height: 24px; font-size: .68rem; }
+                body.teacher-school-mode #testScoresSection .tts-stat-val { font-size: .9rem; }
+                body.teacher-school-mode #testScoresSection .tts-stat-lbl { font-size: .53rem; }
+            }
 
             /* Continuous CBT QR Scanner Overlay Styles */
             .tts-scanner-modal-overlay {
