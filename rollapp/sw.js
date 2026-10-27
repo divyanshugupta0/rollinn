@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rollcall-v2';
+const CACHE_NAME = 'rollcall-v3-navigation-safe';
 const START_URL = new URL('index.html', self.registration.scope).pathname;
 const PRECACHE_URLS = [START_URL];
 
@@ -8,7 +8,7 @@ self.addEventListener('install', (event) => {
       Promise.all(
         PRECACHE_URLS.map((url) =>
           fetch(url)
-            .then((res) => (res.ok ? cache.put(url, res) : null))
+            .then((res) => (res.ok && !res.redirected ? cache.put(url, res) : null))
             .catch(() => null)
         )
       )
@@ -27,9 +27,12 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Safari does not allow a service worker to serve a redirected navigation
+  // response. Let portal/document navigations go directly to the network.
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') return;
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      if (cached) return cached;
+      if (cached && !cached.redirected) return cached;
       return fetch(event.request).catch(() => caches.match(START_URL));
     })
   );

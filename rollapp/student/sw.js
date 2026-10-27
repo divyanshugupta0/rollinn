@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rollcall-student-portal-v2';
+const CACHE_NAME = 'rollcall-student-portal-v3-navigation-safe';
 const META_KEY = new URL('./__student-cache-meta__', self.registration.scope).pathname;
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
@@ -67,6 +67,9 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET' || !isStudentAsset(event.request)) return;
+  // Never return a cached/redirected HTML navigation from the worker on Safari.
+  // Static CSS/JS/images remain eligible for the offline cache below.
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') return;
 
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);

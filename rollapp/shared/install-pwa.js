@@ -81,9 +81,9 @@
     const isStudentPortal = /\/student(?:\/|$)/i.test(window.location.pathname);
     if (isStudentPortal) {
       const studentRoot = new URL('student/', appRoot);
-      navigator.serviceWorker.register(new URL('student/sw.js', appRoot), { scope: studentRoot.pathname }).catch(() => {});
+      navigator.serviceWorker.register(new URL('student/sw.js?v=20261027-navigation-safe', appRoot), { scope: studentRoot.pathname }).catch(() => {});
     } else {
-      navigator.serviceWorker.register(new URL('sw.js', appRoot)).catch(() => {});
+      navigator.serviceWorker.register(new URL('sw.js?v=20261027-navigation-safe', appRoot)).catch(() => {});
     }
   }
 })();
