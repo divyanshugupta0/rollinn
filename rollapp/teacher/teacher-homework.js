@@ -838,6 +838,48 @@
                 }
                 #thmDefaultersModal .thm-modal-footer > div:last-child { width: 100%; display: grid !important; grid-template-columns: 1fr 1.4fr; gap: 7px !important; }
                 #thmDefaultersModal .thm-modal-footer button { width: 100%; min-height: 38px; padding: 8px 5px; font-size: .75rem; }
+                #thmModal .thm-modal-card {
+                    max-width: none !important;
+                    width: 100%;
+                    height: 100dvh;
+                    max-height: 100dvh;
+                    border-radius: 0;
+                }
+                #thmModal .thm-modal-header {
+                    padding: 13px 15px;
+                    min-height: 56px;
+                    border-radius: 0;
+                }
+                #thmModal .thm-modal-header h3 { font-size: .95rem; }
+                #thmModal form { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+                #thmModal .thm-modal-body {
+                    flex: 1;
+                    min-height: 0;
+                    max-height: none;
+                    overflow-y: auto;
+                    padding: 14px 15px;
+                    gap: 12px;
+                }
+                #thmModal .thm-form-group { gap: 5px; }
+                #thmModal .thm-form-group label { font-size: .7rem; }
+                #thmModal .thm-input, #thmModal .thm-textarea {
+                    width: 100%;
+                    box-sizing: border-box;
+                    font-size: 16px;
+                }
+                #thmModal .thm-textarea { min-height: 130px; }
+                #thmModal .thm-modal-footer {
+                    padding: 10px 15px;
+                    border-radius: 0;
+                    gap: 7px;
+                }
+                #thmModal .thm-modal-footer .thm-btn-cancel,
+                #thmModal .thm-modal-footer .thm-btn-primary {
+                    flex: 1;
+                    min-height: 40px;
+                    padding: 9px 7px;
+                    font-size: .76rem;
+                }
             }
         `;
         document.head.appendChild(style);
