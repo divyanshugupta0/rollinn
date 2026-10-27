@@ -2919,17 +2919,21 @@
         const requestedSection = String(sectionId || '').replace(/^#/, '');
         const selectedSection = document.getElementById(requestedSection);
         const activeSection = selectedSection ? requestedSection : 'dashboard';
+        const shouldLoadPanel = selectedSection && (selectedSection.dataset.panelLoaded !== 'true' || options.forceReload === true);
         document.querySelectorAll('.main-content > section').forEach(section => { section.style.display = section.id === activeSection ? 'block' : 'none'; section.classList.toggle('active', section.id === activeSection); });
         document.querySelectorAll('.nav-links .nav-link').forEach(link => link.classList.toggle('active', link.getAttribute('href') === `#${activeSection}`));
         if (options.updateUrl !== false && window.location.hash !== `#${activeSection}`) history.pushState({ section: activeSection }, '', `#${activeSection}`);
-        if (activeSection === 'owner-pricing') { loadPricingPlans(); renderSubscriptionRows(); }
-        if (activeSection === 'owner-subscription-requests') document.getElementById('owner-subscription-requests')?._renderSubscriptionRequests?.();
-        if (activeSection === 'owner-custom-mail') document.getElementById('owner-custom-mail')?._onCustomMailOpen?.();
-        if (activeSection === 'owner-bulk-registrations') document.getElementById('owner-bulk-registrations')?._onBulkRegistrationsOpen?.();
-        if (activeSection === 'owner-bulk-profile-photos') document.getElementById('owner-bulk-profile-photos')?._onBulkPhotosOpen?.();
-        else document.getElementById('owner-bulk-profile-photos')?._onBulkPhotosClose?.();
-        if (activeSection === 'schools') refreshSchoolData();
-        if (activeSection === 'analytics' && typeof initializeAnalyticsCharts === 'function') initializeAnalyticsCharts();
+        if (shouldLoadPanel) {
+            if (activeSection === 'owner-pricing') { loadPricingPlans(); renderSubscriptionRows(); }
+            if (activeSection === 'owner-subscription-requests') document.getElementById('owner-subscription-requests')?._renderSubscriptionRequests?.();
+            if (activeSection === 'owner-custom-mail') document.getElementById('owner-custom-mail')?._onCustomMailOpen?.();
+            if (activeSection === 'owner-bulk-registrations') document.getElementById('owner-bulk-registrations')?._onBulkRegistrationsOpen?.();
+            if (activeSection === 'owner-bulk-profile-photos') document.getElementById('owner-bulk-profile-photos')?._onBulkPhotosOpen?.();
+            if (activeSection === 'schools') refreshSchoolData();
+            if (activeSection === 'analytics' && typeof initializeAnalyticsCharts === 'function') initializeAnalyticsCharts();
+            if (selectedSection) selectedSection.dataset.panelLoaded = 'true';
+        }
+        if (activeSection !== 'owner-bulk-profile-photos') document.getElementById('owner-bulk-profile-photos')?._onBulkPhotosClose?.();
         if (window.innerWidth <= 768) document.querySelector('.sidebar')?.classList.remove('show');
     }
 

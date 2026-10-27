@@ -7201,6 +7201,7 @@
         document.querySelectorAll('.sidebar-menu-item, .sidebar-menu-item-modern').forEach(item => {
             item.addEventListener('click', () => {
                 const section = item.dataset.section;
+                const shouldLoadSection = item.dataset.panelLoaded !== 'true';
                 if (sidebarSearchInput) {
                     sidebarSearchInput.value = '';
                     sidebarSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -7250,13 +7251,14 @@
                     document.querySelectorAll('.section-template').forEach(s => s.classList.add('hidden'));
                     adminPanel.classList.remove('hidden');
                 } else if (section === 'leave-requests') {
-                    if (typeof initLeaveRequestsSection === 'function') initLeaveRequestsSection();
+                    if (shouldLoadSection && typeof initLeaveRequestsSection === 'function') initLeaveRequestsSection();
                 } else if (section === 'accessibility') {
-                    loadAccessibilitySettings();
+                    if (shouldLoadSection) loadAccessibilitySettings();
                 } else if (section === 'logout') {
                     // Handle logout from sidebar
                     logoutBtn.click();
                 }
+                if (section !== 'logout') item.dataset.panelLoaded = 'true';
 
                 // Close sidebar on mobile after selection
                 if (window.innerWidth < 992) {

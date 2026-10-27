@@ -173,17 +173,22 @@
             }
         }
 
-        // 5. Section-specific hooks
-        try {
-            if (canonical === 'reports' && typeof window.initializeTeacherReports === 'function') {
-                window.initializeTeacherReports();
-            } else if (canonical === 'timetable') {
-                document.getElementById('ctRefresh')?.dispatchEvent(new Event('click'));
-            } else if (canonical === 'class-teacher-requests') {
-                document.getElementById('ctprRefresh')?.dispatchEvent(new Event('click'));
+        // 5. Load section data once. The section remains mounted and keeps its DOM state
+        // when the teacher navigates away, so returning to it does not refetch/reset it.
+        const shouldLoadPanel = target.dataset.panelLoaded !== 'true' || options.forceReload === true;
+        if (shouldLoadPanel) {
+            try {
+                if (canonical === 'reports' && typeof window.initializeTeacherReports === 'function') {
+                    window.initializeTeacherReports();
+                } else if (canonical === 'timetable') {
+                    document.getElementById('ctRefresh')?.dispatchEvent(new Event('click'));
+                } else if (canonical === 'class-teacher-requests') {
+                    document.getElementById('ctprRefresh')?.dispatchEvent(new Event('click'));
+                }
+                target.dataset.panelLoaded = 'true';
+            } catch (hookErr) {
+                console.warn('Teacher section hook error:', hookErr);
             }
-        } catch (hookErr) {
-            console.warn('Teacher section hook error:', hookErr);
         }
 
         return true;

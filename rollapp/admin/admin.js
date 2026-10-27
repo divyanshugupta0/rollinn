@@ -5523,22 +5523,11 @@ document.addEventListener('DOMContentLoaded', function () {
             // Add active class to clicked menu item
             this.classList.add('active');
 
-            // Remove any existing active sections first
-            const existingActiveSections = document.querySelectorAll('[id$="-section-active"]');
-            existingActiveSections.forEach(activeSection => {
-                if (activeSection.parentNode === contentWrapper) {
-                    contentWrapper.removeChild(activeSection);
-                    const sourceTemplate = activeSection.__sourceTemplate;
-                    const sourceParent = activeSection.__sourceTemplateParent;
-                    const sourceNextSibling = activeSection.__sourceTemplateNextSibling;
-                    if (sourceTemplate && sourceParent) {
-                        if (sourceNextSibling && sourceNextSibling.parentNode === sourceParent) {
-                            sourceParent.insertBefore(sourceTemplate, sourceNextSibling);
-                        } else {
-                            sourceParent.appendChild(sourceTemplate);
-                        }
-                    }
-                }
+            // Keep mounted panels in the DOM. Switching panels only hides the old
+            // panel, preserving loaded data, scroll position, filters, and form state.
+            document.querySelectorAll('[id$="-section-active"]').forEach(panel => {
+                panel.classList.add('hidden');
+                panel.style.display = 'none';
             });
 
             const currentAdminPanel = document.getElementById('admin-panel') || (typeof adminPanel !== 'undefined' ? adminPanel : null);
@@ -5554,15 +5543,21 @@ document.addEventListener('DOMContentLoaded', function () {
             // Handle other sections
             if (currentAdminPanel) currentAdminPanel.classList.add('hidden');
 
-            // Show the selected section template
+            // Reuse the already-mounted panel instead of cloning and reloading it.
+            const cachedPanel = document.getElementById(`${section}-section-active`);
+            if (cachedPanel && currentContentWrapper) {
+                cachedPanel.classList.remove('hidden');
+                cachedPanel.style.display = '';
+                if (window.innerWidth < 992) sidebar.classList.add('sidebar-collapsed');
+                return;
+            }
+
+            // Show the selected section template for its first visit.
             const templateToShow = document.getElementById(`${section}-section`);
             if (templateToShow && currentContentWrapper) {
                 const clonedTemplate = templateToShow.cloneNode(true);
                 clonedTemplate.classList.remove('hidden');
                 clonedTemplate.id = `${section}-section-active`;
-                clonedTemplate.__sourceTemplate = templateToShow;
-                clonedTemplate.__sourceTemplateParent = templateToShow.parentNode;
-                clonedTemplate.__sourceTemplateNextSibling = templateToShow.nextSibling;
                 templateToShow.remove();
                 currentContentWrapper.appendChild(clonedTemplate);
                 window.AdminPanelAPI?.mount(section, clonedTemplate);
@@ -5572,7 +5567,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     sidebar.classList.add('sidebar-collapsed');
                 }
 
-                // Initialize section specific functionality with safe error boundary
+                // Initialize section-specific functionality only on first load.
                 try {
                     if (section === 'manage-account') {
                         initManageAccountSection();
@@ -5591,18 +5586,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     } else if (section === 'device-locks') {
                         initDeviceLocksSection();
                     } else if (section === 'manage-batches') {
-                        if (typeof window.initManageBatchesSection === 'function') {
-                            window.initManageBatchesSection(clonedTemplate);
-                        }
+                        if (typeof window.initManageBatchesSection === 'function') window.initManageBatchesSection(clonedTemplate);
                     } else if (section === 'cbt-portal') {
-                        if (typeof window.initCbtPortalSection === 'function') {
-                            window.initCbtPortalSection(clonedTemplate);
-                        }
+                        if (typeof window.initCbtPortalSection === 'function') window.initCbtPortalSection(clonedTemplate);
                     }
                 } catch (initErr) {
-                console.error(`Error initializing section ${section}:`, initErr);
+                    console.error(`Error initializing section ${section}:`, initErr);
+                }
             }
-        }
     });
     });
 });

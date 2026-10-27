@@ -20,7 +20,8 @@
         studentTests: [],
         studentTestsFilter: 'all',
         studentTestsSubject: 'all',
-        studentTestsSearch: ''
+        studentTestsSearch: '',
+        loadedTabs: new Set()
     };
 
     function loadStableStudentReference(path, ttlMs, force = false) {
@@ -183,7 +184,10 @@
             panel.classList.toggle('active', panel.id === tabId);
         });
 
-        // Trigger tab specific data load
+        // Load each panel only on first visit; its rendered content remains cached while hidden.
+        const shouldLoadPanel = !state.loadedTabs.has(tabId) || options.forceReload === true;
+        if (!shouldLoadPanel) return;
+        state.loadedTabs.add(tabId);
         if (tabId === 'tab-overview' || tabId === 'tab-home') {
             loadFirebaseAnnouncements();
         } else if (tabId === 'tab-history') {
@@ -194,21 +198,15 @@
             renderSubjectAnalytics();
         } else if (tabId === 'tab-homework') {
             const curUser = state.currentUser || window.currentUser;
-            if (curUser && (!state.studentHomework || state.studentHomework.length === 0)) {
-                initStudentHomeworkSync(curUser);
-            }
+            if (curUser && (!state.studentHomework || state.studentHomework.length === 0)) initStudentHomeworkSync(curUser);
             renderStudentHomework();
         } else if (tabId === 'tab-tests') {
             const curUser = state.currentUser || window.currentUser;
-            if (curUser && (!state.studentTests || state.studentTests.length === 0)) {
-                initStudentTestsSync(curUser);
-            }
+            if (curUser && (!state.studentTests || state.studentTests.length === 0)) initStudentTestsSync(curUser);
             renderStudentTests();
         } else if (tabId === 'tab-profile') {
             renderProfileDetails();
-            if (typeof window.loadProfileData === 'function') {
-                window.loadProfileData();
-            }
+            if (typeof window.loadProfileData === 'function') window.loadProfileData();
         }
     }
     window.switchStudentTab = switchTab;
