@@ -710,6 +710,37 @@ function setupIpcHandlers() {
         }
     });
 
+    ipcMain.handle('cbt:confirmDialog', async (event, { title, message, detail, confirmLabel, cancelLabel }) => {
+        if (!mainWindow || mainWindow.isDestroyed()) return false;
+        const result = await dialog.showMessageBox(mainWindow, {
+            type: 'question',
+            buttons: [confirmLabel || 'OK', cancelLabel || 'Cancel'],
+            defaultId: 0,
+            cancelId: 1,
+            title: title || 'Confirmation',
+            message: message || '',
+            detail: detail || ''
+        });
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.focus();
+            mainWindow.webContents.focus();
+        }
+        return result.response === 0;
+    });
+
+    ipcMain.handle('cbt:resetFocus', async () => {
+        if (!mainWindow || mainWindow.isDestroyed()) return false;
+        try {
+            mainWindow.blur();
+            await new Promise(resolve => setTimeout(resolve, 60));
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.focus();
+                mainWindow.webContents.focus();
+            }
+        } catch (_) {}
+        return true;
+    });
+
     // Station Exam Records & Vault (.rollcbt)
     ipcMain.handle('cbt:get-station-records', async () => {
         try {

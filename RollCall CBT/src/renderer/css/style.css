@@ -818,14 +818,17 @@ button, input, select, textarea {
    ========================================================================== */
 .station-standby-container {
     min-height: calc(100vh - 56px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 100%;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     padding: 32px 20px;
+    box-sizing: border-box;
 }
 
 .station-standby-card {
     width: min(720px, 100%);
+    margin: auto !important;
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: var(--radius-lg);
@@ -3730,10 +3733,13 @@ body.exam-active .app-viewport {
 [hidden],
 .erp-modal-overlay[hidden],
 .erp-modal-overlay.hidden,
+.erp-modal-overlay[style*="display: none"],
+.erp-modal-overlay[style*="display:none"],
 div[hidden] {
     display: none !important;
     pointer-events: none !important;
     visibility: hidden !important;
+    z-index: -9999 !important;
 }
 
 /* Ensure question options and exam inputs are always interactive */
@@ -3749,11 +3755,42 @@ div[hidden] {
     cursor: text !important;
 }
 
-/* Ensure candidate desk inputs are always interactive */
+/* Setup Exam View Wrapper */
+#view-setup-exam.active {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    min-height: 100% !important;
+}
+
+/* Ensure candidate desk inputs and container are always interactive and properly placed */
+.station-standby-container,
+.station-desk-container,
+.station-completed-container {
+    min-height: calc(100vh - 56px);
+    width: 100%;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 32px 20px;
+    box-sizing: border-box;
+}
+
+.station-standby-card,
+.station-desk-card,
+.station-completed-card {
+    margin: auto !important;
+}
+
+#station-desk-view,
+.desk-candidate-panel,
+.desk-pin-verification,
+.desk-pin-input-group,
 #input-candidate-pin,
 #btn-verify-pin,
 #btn-enter-exam-hall,
-#btn-auto-load-next {
+#btn-auto-load-next,
+input, button, select, textarea {
     pointer-events: auto !important;
 }
 

@@ -1044,7 +1044,7 @@
             if (areAllCandidatesCompleted()) {
                 showAllExamsCompletedScreen();
             } else {
-                if (el.stationStandbyView) el.stationStandbyView.style.display = 'block';
+                if (el.stationStandbyView) el.stationStandbyView.style.display = 'flex';
                 showToast(`Candidate ${candidate.name} has already submitted this examination and cannot be loaded.`, 'warning');
             }
             return;
@@ -2999,6 +2999,22 @@
         } catch (_) {}
     }
 
+    async function promptConfirm(message, title = 'Confirmation', confirmLabel = 'Confirm') {
+        if (window.rollcallCBT && window.rollcallCBT.confirmDialog) {
+            return await window.rollcallCBT.confirmDialog({
+                title,
+                message,
+                confirmLabel,
+                cancelLabel: 'Cancel'
+            });
+        }
+        const res = window.confirm(message);
+        if (window.rollcallCBT && window.rollcallCBT.resetFocus) {
+            await window.rollcallCBT.resetFocus();
+        }
+        return res;
+    }
+
     async function rescheduleStationRecord(recordId) {
         const record = getStationRecords().find(r => String(r.id) === String(recordId));
         if (!record) {
@@ -3008,7 +3024,12 @@
 
         const candidateName = record.candidate?.name || 'this candidate';
         const examTitle = record.exam?.title || 'this examination';
-        if (!confirm(`Reschedule ${candidateName} for "${examTitle}"?\n\nThe current result will be removed, and the candidate will be allowed to retake the exam.`)) return;
+        const confirmed = await promptConfirm(
+            `The current result for ${candidateName} will be removed, and the candidate will be allowed to retake "${examTitle}".`,
+            `Reschedule ${candidateName}?`,
+            'Reschedule'
+        );
+        if (!confirmed) return;
 
         const deleteResult = await window.rollcallCBT.deleteStationRecord?.({
             recordId: record.id,
@@ -3098,13 +3119,14 @@
         }
 
         // 6. Close all modals and overlays that could intercept pointer events
-        if (el.modalStationResults) {
-            el.modalStationResults.hidden = true;
-            el.modalStationResults.style.display = 'none';
-        }
-        if (el.modalAdminPin) {
-            el.modalAdminPin.hidden = true;
-            el.modalAdminPin.style.display = 'none';
+        document.querySelectorAll('.erp-modal-overlay').forEach(overlay => {
+            overlay.hidden = true;
+            overlay.classList.add('hidden');
+            overlay.style.display = 'none';
+            overlay.style.pointerEvents = 'none';
+        });
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
         }
 
         // 7. Auto-load the rescheduled candidate onto the desk ready to take exam
@@ -3117,7 +3139,7 @@
             selectCandidate(candidateToLoad);
             loadCandidateToDesk(candidateToLoad);
         } else {
-            if (el.stationStandbyView) el.stationStandbyView.style.display = 'block';
+            if (el.stationStandbyView) el.stationStandbyView.style.display = 'flex';
             if (el.stationDeskView) el.stationDeskView.style.display = 'none';
         }
 
@@ -3126,7 +3148,10 @@
         showToast(`${candidateName} can now retake this examination. Station ready.`, 'success');
 
         // 8. Restore active window and input focus
-        setTimeout(() => {
+        setTimeout(async () => {
+            if (window.rollcallCBT && window.rollcallCBT.resetFocus) {
+                await window.rollcallCBT.resetFocus();
+            }
             window.focus();
             if (el.inputCandidatePin) {
                 el.inputCandidatePin.disabled = false;
@@ -4118,8 +4143,9 @@
         });
 
         // Exit App
-        el.btnExitApp.addEventListener('click', () => {
-            if (confirm('Are you sure you want to close RollCall CBT?')) {
+        el.btnExitApp.addEventListener('click', async () => {
+            const confirmed = await promptConfirm('Are you sure you want to close RollCall CBT?', 'Exit Application', 'Exit');
+            if (confirmed) {
                 window.rollcallCBT.exitApp();
             }
         });
@@ -4275,7 +4301,8 @@
         });
         el.btnClearStationRecords?.addEventListener('click', async () => {
             requireAdminPin(async () => {
-                if (confirm('Are you sure you want to clear all examination records stored on this machine?')) {
+                const confirmed = await promptConfirm('Are you sure you want to clear all examination records stored on this machine?', 'Clear Station Vault', 'Clear All Records');
+                if (confirmed) {
                     await clearStationRecords();
                     filterAndRenderStationRecords();
                     showToast('Station examination records cleared.', 'info');
@@ -4333,10 +4360,13 @@
             showToast('Scanned USB storage ports.', 'info');
         });
         el.btnDeactivateStation?.addEventListener('click', async () => {
-            if (confirm('Are you sure you want to deactivate this station? You will need an authorized USB license to reactivate it.')) {
+            const confirmed = await promptConfirm('Are you sure you want to deactivate this station? You will need an authorized USB license to reactivate it.', 'Deactivate Station', 'Deactivate');
+            if (confirmed) {
                 if (el.modalLicenseDetails) {
                     el.modalLicenseDetails.hidden = true;
+                    el.modalLicenseDetails.classList.add('hidden');
                     el.modalLicenseDetails.style.display = 'none';
+                    el.modalLicenseDetails.style.pointerEvents = 'none';
                 }
                 await window.rollcallCBT.deactivateLicense();
                 state.license = null;
@@ -4783,7 +4813,7 @@
             if (areAllCandidatesCompleted()) {
                 showAllExamsCompletedScreen();
             } else {
-                if (el.stationStandbyView) el.stationStandbyView.style.display = 'block';
+                if (el.stationStandbyView) el.stationStandbyView.style.display = 'flex';
                 if (el.stationDeskView) el.stationDeskView.style.display = 'none';
                 if (el.stationCompletedView) el.stationCompletedView.style.display = 'none';
                 switchView('setup');

@@ -60,5 +60,7 @@ contextBridge.exposeInMainWorld('rollcallCBT', {
     // Exit & Window controls
     minimizeWindow: () => ipcRenderer.invoke('cbt:minimize-window'),
     toggleMaximizeWindow: () => ipcRenderer.invoke('cbt:toggle-maximize-window'),
-    exitApp: () => ipcRenderer.invoke('cbt:exit-app')
+    exitApp: () => ipcRenderer.invoke('cbt:exit-app'),
+    confirmDialog: (options) => ipcRenderer.invoke('cbt:confirmDialog', options),
+    resetFocus: () => ipcRenderer.invoke('cbt:resetFocus')
 });
