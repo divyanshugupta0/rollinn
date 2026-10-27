@@ -1000,7 +1000,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update popup titles
         const popupTitle = document.getElementById('attendancePopupTitle');
         if (popupTitle) {
-            popupTitle.innerHTML = `<i class="fas fa-school" style="margin-right:6px;color:#a7f3d0;"></i> ${escapeHtml(card.name)} <span style="font-size:12px;font-weight:500;opacity:0.85;margin-left:6px;">Section: ${escapeHtml(card.section || 'A')}</span>`;
+            const section = String(card.section || 'A').replace(/^section\s+/i, '').trim();
+            const classLabel = card.className || String(card.name || 'Class').replace(/\s*[·•-]\s*Section\s+.*$/i, '').trim() || 'Class';
+            popupTitle.innerHTML = `<i class="fas fa-school" style="margin-right:6px;color:#a7f3d0;"></i> ${escapeHtml(classLabel)} <span style="font-size:12px;font-weight:500;opacity:0.85;margin-left:6px;">Section: ${escapeHtml(section)}</span>`;
         }
         const popupName = document.getElementById('popupClassName');
         if (popupName) popupName.textContent = card.name;
