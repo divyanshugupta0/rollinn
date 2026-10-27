@@ -1184,6 +1184,26 @@
                 #ttsExamSettingsCard .tts-field-group:has(#ttsExamInstructions) textarea { min-height: 62px; }
             }
 
+            /* School mode gets a simpler green academic treatment. */
+            body.teacher-school-mode #ttsExamSettingsCard {
+                border-color: #c9e5d2;
+                background: linear-gradient(145deg, #fbfffc, #f1faf4);
+                box-shadow: 0 5px 16px rgba(22, 101, 52, .07);
+            }
+            body.teacher-school-mode #ttsExamSettingsCard .tts-settings-header { border-bottom-color: #d9eddf; }
+            body.teacher-school-mode #ttsExamSettingsCard .tts-settings-title { color: #166534; }
+            body.teacher-school-mode #ttsExamSettingsCard .tts-field-group { border-color: #dceee1; background: #fff; }
+            body.teacher-school-mode #ttsExamSettingsCard .tts-field-group:has(#ttsNegativeMarking) { display: none !important; }
+            body.teacher-school-mode #ttsExamSettingsCard .tts-cutoff-pill { border-color: #b7dfc2; background: #effaf1; color: #166534; }
+            @media (max-width: 600px) {
+                body.teacher-school-mode #ttsExamSettingsCard .tts-settings-title::after {
+                    content: ' · School assessment';
+                    font-size: .58rem;
+                    font-weight: 600;
+                    color: #6b8f77;
+                }
+            }
+
             /* Continuous CBT QR Scanner Overlay Styles */
             .tts-scanner-modal-overlay {
                 position: fixed;
@@ -1755,7 +1775,7 @@
                         <!-- Dedicated Collapsible Exam Settings Section -->
                         <div id="ttsExamSettingsCard" class="tts-exam-settings-card" style="display:none;">
                             <div class="tts-settings-header">
-                                <div class="tts-settings-title">
+                                <div class="tts-settings-title" id="ttsSettingsTitle">
                                     <i class="fas fa-gear"></i> Exam Settings &amp; Assessment Rules
                                 </div>
                                 <div style="display:flex; gap:6px; align-items:center;">
