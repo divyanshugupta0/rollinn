@@ -173,9 +173,28 @@
             displayedRows = [];
             snapshots.forEach((snapshot, index) => {
                 const session = snapshot.val();
-                    if (!session || !session._meta || String(session._meta.schoolId || '') !== String(schoolId)) return;
                 const item = targetClasses[index];
-                Object.keys(session).forEach(key => {
+                if (!session || !session._meta || String(session._meta.schoolId || '') !== String(schoolId)) return;
+
+                // Build the list from the selected class/section roster, then
+                // overlay the saved statuses. Older attendance records may
+                // not contain an entry for every student (especially for
+                // unmarked students), which previously made this list appear
+                // incomplete or show the wrong students.
+                const rosterIds = Object.keys(studentsById).filter(id => {
+                    const student = studentsById[id] || {};
+                    const studentSection = String(student.section || student.classSection || student.assignedSection || '').trim().replace(/^section\s+/i, '').toLowerCase();
+                    const classSection = String(item.section || '').trim().replace(/^section\s+/i, '').toLowerCase();
+                    if (!studentSection || !classSection || studentSection !== classSection) return false;
+                    const studentClassIds = [student.classId, student.courseId, student.enrolledClassId, student.classID].map(value => String(value || '').trim()).filter(Boolean);
+                    const classId = String(item.classId || '').trim();
+                    if (classId && studentClassIds.length) return studentClassIds.includes(classId);
+                    const className = String(item.className || '').trim().toLowerCase();
+                    if (!className || className === 'class') return true;
+                    return [student.className, student.courseName, student.course, student.class].map(value => String(value || '').trim().toLowerCase()).includes(className);
+                });
+                const sessionIds = Object.keys(session).filter(key => !key.startsWith('_') && !key.endsWith('_record') && !key.endsWith('_remark') && !key.endsWith('_verification'));
+                [...new Set([...rosterIds, ...sessionIds])].forEach(key => {
                     if (key.startsWith('_') || key.endsWith('_record') || key.endsWith('_remark') || key.endsWith('_verification')) return;
                     const student = studentsById[key] || {};
                     const detail = session[key + '_record'] || {};

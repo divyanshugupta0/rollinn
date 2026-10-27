@@ -25,12 +25,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const studentClassIds = [student?.classId, student?.courseId, student?.enrolledClassId, student?.classID]
             .map(value => String(value || '').trim()).filter(Boolean);
         const cardClassId = String(card?.classId || '').trim();
-        if (cardClassId) return studentClassIds.includes(cardClassId);
-
         const cardClassName = String(card?.className || '').trim().toLowerCase();
-        if (!cardClassName || cardClassName === 'class') return true;
         const studentClassNames = [student?.className, student?.courseName, student?.course, student?.class]
             .map(value => String(value || '').trim().toLowerCase()).filter(Boolean);
+        // Prefer the stable class id when the student record has one. Older
+        // schoolUsers records only have a class name, so fall back to that
+        // instead of incorrectly excluding those students from the roster.
+        if (cardClassId && studentClassIds.length) return studentClassIds.includes(cardClassId);
+        if (!cardClassName || cardClassName === 'class') return true;
         return studentClassNames.includes(cardClassName);
     }
 
