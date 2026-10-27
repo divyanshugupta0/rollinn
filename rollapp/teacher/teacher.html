@@ -6019,6 +6019,38 @@
         #attendancePopup .ap-footer { flex-wrap: nowrap !important; }
         #attendancePopup .ap-footer-left { flex: 0 0 auto; }
         #attendancePopup #submitAttendancePopupBtn { flex: 1 1 auto; min-width: 0; }
+
+        /* The Load action uses the shared rc roster renderer. Keep its
+           mobile rows compact instead of allowing table cells to stack. */
+        #attendancePopup .rc-table-wrap { overflow: visible !important; border: 0 !important; border-radius: 0 !important; }
+        #attendancePopup .rc-attendance-table,
+        #attendancePopup .rc-attendance-table tbody { display: block !important; width: 100% !important; min-width: 0 !important; }
+        #attendancePopup .rc-attendance-table .rc-student-row {
+            display: grid !important;
+            grid-template-columns: 24px minmax(0, 1fr) 112px;
+            align-items: center;
+            gap: 8px;
+            width: 100% !important;
+            min-height: 68px;
+            padding: 9px 10px !important;
+            box-sizing: border-box;
+            border-bottom: 1px solid #edf2ee;
+        }
+        #attendancePopup .rc-attendance-table .rc-student-row > td {
+            display: block !important;
+            min-width: 0;
+            padding: 0 !important;
+            border: 0 !important;
+        }
+        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(1) { grid-column: 1; }
+        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(2) { grid-column: 2; overflow: hidden; }
+        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(4) { grid-column: 3; }
+        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(3),
+        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(5),
+        #attendancePopup .rc-attendance-table .rc-student-row > td:nth-child(6) { display: none !important; }
+        #attendancePopup .rc-attendance-table .rc-student-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+        #attendancePopup .rc-attendance-table .rc-student-row td small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #attendancePopup .rc-attendance-table [data-rc-status-select] { width: 112px; min-height: 38px; padding: 7px 8px; font-size: 12px; }
     }
     </style>
 
