@@ -937,9 +937,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     ${hasSubmitted ? 
                         `<button type="button" class="action-btn modify-btn" data-id="${card.id}">
                             <i class="fas fa-edit"></i> Edit Attendance
-                        </button>
-                        <button type="button" class="action-btn view-btn" data-id="${card.id}">
-                            <i class="fas fa-eye"></i> View Attendance
                         </button>` : 
                         `<button type="button" class="action-btn take-attendance-btn" data-id="${card.id}">
                             <i class="fas fa-clipboard-check"></i> Take Attendance
@@ -951,9 +948,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (hasSubmitted) {
                 cardElem.querySelector('.modify-btn')?.addEventListener('click', function() {
                     window.openSchoolClassAttendance(this.dataset.id, true);
-                });
-                cardElem.querySelector('.view-btn')?.addEventListener('click', function() {
-                    window.openSchoolClassAttendance(this.dataset.id, false);
                 });
             } else {
                 cardElem.querySelector('.take-attendance-btn')?.addEventListener('click', function() {
