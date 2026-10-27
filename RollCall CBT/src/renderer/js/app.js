@@ -3427,7 +3427,14 @@
             } else {
                 updateLanStatusUI(false, 'Disconnected');
                 if (!silent) {
-                    showToast(`Cannot reach RollCall ERP at ${hostUrl}. Ensure ERP is running and LAN Server is Started.`, 'error');
+                    const serverError = res?.data?.error || res?.error;
+                    if (res?.status === 401) {
+                        showToast(`LAN Pairing Failed: ${serverError || 'Invalid pairing code'}. Check the Pairing Code displayed in RollCall ERP.`, 'error');
+                    } else if (serverError) {
+                        showToast(`RollCall ERP (${hostUrl}): ${serverError}`, 'error');
+                    } else {
+                        showToast(`Cannot reach RollCall ERP at ${hostUrl}. Ensure ERP is running and LAN Server is Started.`, 'error');
+                    }
                 }
             }
         } catch (err) {
@@ -3468,11 +3475,13 @@
 
     async function autoDiscoverLanErp() {
         showToast('Scanning network for RollCall ERP host...', 'info');
+        const typedHost = el.inputLanHostUrl ? el.inputLanHostUrl.value.trim() : '';
         const probeHosts = [
+            typedHost,
+            state.lan.hostUrl,
             'http://localhost:8788',
-            'http://127.0.0.1:8788',
-            state.lan.hostUrl
-        ];
+            'http://127.0.0.1:8788'
+        ].filter(Boolean);
         const uniqueHosts = [...new Set(probeHosts.map(h => cleanLanHostUrl(h)))];
 
         let foundUrl = null;
@@ -3483,7 +3492,7 @@
                     method: 'GET',
                     timeoutMs: 2500
                 });
-                if (res && res.ok && res.data && res.data.cbtSupported) {
+                if (res && res.ok && res.data && (res.data.cbtSupported || res.data.server === 'RollCall ERP' || res.data.status === 'active')) {
                     foundUrl = host;
                     break;
                 }
@@ -3494,10 +3503,11 @@
 
         if (foundUrl) {
             if (el.inputLanHostUrl) el.inputLanHostUrl.value = foundUrl;
+            state.lan.hostUrl = foundUrl;
             showToast(`Found RollCall ERP host at ${foundUrl}! Synchronizing exam...`, 'success');
             await connectAndSyncLanExam(false);
         } else {
-            showToast('Could not automatically discover RollCall ERP. Please enter the host IP shown in RollCall ERP manually.', 'warning');
+            showToast('Could not reach RollCall ERP. Please verify that LAN Server is Started in RollCall ERP (Exams > CBT LAN Live Broadcast).', 'warning');
         }
     }
 
