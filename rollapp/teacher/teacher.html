@@ -6027,23 +6027,26 @@
         #attendancePopup .ap-footer-left { flex: 0 0 auto; }
         #attendancePopup #submitAttendancePopupBtn { flex: 1 1 auto; min-width: 0; }
 
-        /* Keep the roll badge attached to the student details in both the
-           Edit Attendance and Take Attendance mobile renderers. */
+        /* Keep one fixed roll badge beside each student in the school roster. */
         #attendancePopup .attendance-table tr.student-row {
-            grid-template-columns: minmax(0, 1fr) 92px !important;
-            grid-template-rows: auto !important;
+            grid-template-columns: 38px minmax(0, 1fr) 92px !important;
+            grid-template-rows: auto auto !important;
         }
-        #attendancePopup .attendance-table tr.student-row td.st-roll-cell { display: none !important; }
-        #attendancePopup .attendance-table tr.student-row td.st-name-cell {
+        #attendancePopup .attendance-table tr.student-row td.st-roll-cell {
+            display: block !important;
             grid-column: 1 !important;
+            grid-row: 1 / span 2 !important;
+            align-self: center !important;
+        }
+        #attendancePopup .attendance-table tr.student-row td.st-name-cell {
+            grid-column: 2 !important;
             grid-row: 1 !important;
             min-width: 0 !important;
         }
         #attendancePopup .attendance-table tr.student-row td.st-actions-cell {
-            grid-column: 2 !important;
-            grid-row: 1 !important;
+            grid-column: 3 !important;
+            grid-row: 1 / span 2 !important;
         }
-        #attendancePopup .mobile-roll-badge,
         #attendancePopup .rc-roll-badge {
             display: inline-flex !important;
             align-items: center;

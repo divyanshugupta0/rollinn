@@ -1250,7 +1250,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="st-name-cell" style="padding:10px 16px;text-align:left;vertical-align:middle;">
                         <div class="st-name" style="font-weight:700;color:#111827;font-size:14px;line-height:1.25;">${escapeHtml(name)}</div>
                         ${st.email ? `<small style="color:#6b7280;font-size:12px;display:block;margin-top:2px;">${escapeHtml(st.email)}</small>` : ''}
-                        <span class="mobile-roll-badge" style="display:none;">${escapeHtml(cleanRoll)}</span>
                     </td>
                     <td class="st-actions-cell" style="width:270px;text-align:center;padding:10px 28px 10px 12px;vertical-align:middle;">
                         <div class="attendance-buttons" style="display:inline-flex;gap:8px;justify-content:center;">
