@@ -75,11 +75,15 @@ document.addEventListener('DOMContentLoaded', function() {
             // Recent Activity is inside the dashboard lower-grid after the
             // redesign. Insert into its actual parent to avoid NotFoundError.
             const lowerGrid = dashboardSection.querySelector('.dashboard-lower-grid');
-            if (lowerGrid && lowerGrid.parentElement === dashboardSection) {
+            if (lowerGrid && lowerGrid.isConnected && lowerGrid.parentNode === dashboardSection) {
                 dashboardSection.insertBefore(quickActions, lowerGrid);
             } else {
-                const insertionParent = recentActivity.parentElement || dashboardSection;
-                insertionParent.insertBefore(quickActions, recentActivity);
+                const insertionParent = recentActivity.parentElement;
+                if (insertionParent && recentActivity.isConnected && recentActivity.parentNode === insertionParent) {
+                    insertionParent.insertBefore(quickActions, recentActivity);
+                } else if (dashboardSection.isConnected) {
+                    dashboardSection.appendChild(quickActions);
+                }
             }
             
             // Add event listeners
