@@ -7811,7 +7811,8 @@
             if (teacherInfo) {
                 teacherInfo.addEventListener('click', function(e) {
                     e.stopPropagation();
-                    headerDropdown.classList.toggle('show');
+                    const activeDropdown = teacherInfo.querySelector('.header-dropdown');
+                    if (activeDropdown) activeDropdown.classList.toggle('show');
                     
                     // Hide sidebar dropdown if open
                     if (sidebarUserDropdown) {

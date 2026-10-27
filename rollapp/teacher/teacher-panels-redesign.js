@@ -202,6 +202,13 @@ body.teacher-authenticated #settingsSection .teacher-setting-card .checkbox-grou
 }
 @media(max-width:680px) {
  body.teacher-authenticated #dashboardSection.teacher-dashboard-redesigned { padding:0 0 20px; }
+ body.teacher-authenticated .section-container > .header { display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;gap:8px!important;min-height:48px;margin:0 0 15px;padding:0 0 10px 52px!important; }
+ body.teacher-authenticated .section-container > .header h1 { flex:1 1 auto;min-width:0;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:18px!important;line-height:1.2; }
+ body.teacher-authenticated .section-container > .header h1 i { display:inline-grid;place-items:center;font-size:15px;margin-right:5px; }
+ body.teacher-authenticated .section-container > .header .teacher-info { flex:0 0 38px;width:38px;height:38px;margin:0!important;padding:0!important;display:grid;place-items:center;overflow:visible;border-radius:11px;font-size:0!important; }
+ body.teacher-authenticated .section-container > .header .teacher-info > i { display:grid;place-items:center;width:100%;height:100%;margin:0!important;font-size:13px; }
+ body.teacher-authenticated .section-container > .header .teacher-info .teacher-name { display:none!important; }
+ body.teacher-authenticated .section-container > .header .header-dropdown { right:0;top:calc(100% + 8px); }
  body.teacher-authenticated #dashboardSection > .header { display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;gap:8px!important;min-height:48px;margin:0 0 15px;padding:0 0 10px 52px!important; }
  body.teacher-authenticated #dashboardSection > .header h1 { flex:1 1 auto;min-width:0;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:18px!important;line-height:1.2; }
  body.teacher-authenticated #dashboardSection > .header h1 i { font-size:15px;margin-right:5px; }
