@@ -39,8 +39,10 @@ document.addEventListener('DOMContentLoaded', function() {
                (typeof currentTeacher !== 'undefined' && currentTeacher && (currentTeacher.isSchoolMode || currentTeacher.institutionType === 'school'));
     };
 
-    // Initialize attendance section
-    initAttendanceSection();
+    // Initialize after this script has finished registering the school-mode
+    // loader below. Calling immediately makes school mode hit the loader
+    // before window.loadSchoolClassCards exists.
+    setTimeout(() => initAttendanceSection(), 0);
     
     function initAttendanceSection() {
         const attendanceSection = document.getElementById('attendanceSection');
