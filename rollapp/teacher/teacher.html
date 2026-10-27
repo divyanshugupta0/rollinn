@@ -6691,6 +6691,7 @@
             firebase.database().ref(`schoolLocations/${currentTeacher.schoolId}`).once('value')
                 .then((snapshot) => {
                     let activeClassCount = 0;
+                    const schoolMode = document.body.classList.contains('teacher-school-mode') || currentTeacher?.isSchoolMode;
                     if (snapshot.exists()) {
                         const now = new Date();
                         
@@ -6719,13 +6720,23 @@
                         });
                     }
                     
+                    // School Mode cards are generated per class/section, so
+                    // use the same loaded source shown in Attendance.
+                    if (schoolMode && Array.isArray(activeClasses) && activeClasses.length) {
+                        activeClassCount = activeClasses.length;
+                    }
                     document.getElementById('todayClassCount').textContent = activeClassCount;
                 });
             
             // Get students count
             firebase.database().ref(`schoolUsers/${currentTeacher.schoolId}`).once('value')
                 .then((snapshot) => {
-                    const studentCount = snapshot.exists() ? snapshot.numChildren() : 0;
+                    let studentCount = 0;
+                    if (snapshot.exists()) snapshot.forEach(child => {
+                        const student = child.val() || {};
+                        const role = String(student.role || '').toLowerCase();
+                        if ((!role || role === 'student') && (!student.schoolId || String(student.schoolId) === String(currentTeacher.schoolId))) studentCount++;
+                    });
                     document.getElementById('totalStudentCount').textContent = studentCount;
                 });
             
