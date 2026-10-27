@@ -28,13 +28,22 @@
         const value = attendanceData && attendanceData[id];
         return statuses.includes(value) ? value : 'unmarked';
     }
-    function renderCounts() {
-        const counts = { total: (students || []).length, present: 0, absent: 0, late: 0, excused: 0, unmarked: 0 };
+    function renderCounts(statsOverride) {
+        const counts = statsOverride ? {
+            total: Number(statsOverride.total) || 0,
+            present: Number(statsOverride.present) || 0,
+            absent: Number(statsOverride.absent) || 0,
+            late: Number(statsOverride.late) || 0,
+            excused: Number(statsOverride.excused) || 0,
+            unmarked: Number(statsOverride.unmarked) || 0
+        } : { total: (students || []).length, present: 0, absent: 0, late: 0, excused: 0, unmarked: 0 };
+        if (!statsOverride) {
         (students || []).forEach(student => {
             const status = studentStatus(student.id);
             if (status === 'onDuty') counts.excused++;
             else if (Object.prototype.hasOwnProperty.call(counts, status)) counts[status]++;
         });
+        }
         const ids = { total: 'rcCountTotal', present: 'rcCountPresent', absent: 'rcCountAbsent', late: 'rcCountLate', excused: 'rcCountExcused', unmarked: 'rcCountUnmarked' };
         Object.keys(ids).forEach(key => { const el = document.getElementById(ids[key]); if (el) el.textContent = counts[key]; });
         const rate = counts.total ? Math.round((counts.present + counts.late) / counts.total * 100) : 0;
@@ -298,11 +307,21 @@
             try {
                 const record = await submitSession();
                 submittedAttendances[currentClassData.id] = record;
+                // Keep the in-memory roster aligned with the exact payload
+                // that was written. This prevents mobile stats from showing
+                // the old draft while the popup is being switched to read-only.
+                attendanceData = Object.assign({}, attendanceData, record);
                 window.rcSessionLocked = true;
                 const lockButton = document.getElementById('rcLockSessionBtn');
                 if (lockButton) lockButton.hidden = false;
                 showWorkspaceNotice('Attendance submitted. This session is now read-only.', false);
                 renderRoster(false);
+                renderCounts(record._meta && record._meta.stats);
+                if (typeof window.loadDashboardData === 'function') {
+                    Promise.resolve(window.loadDashboardData()).catch(refreshError => {
+                        console.warn('Could not refresh dashboard attendance stats:', refreshError);
+                    });
+                }
                 document.getElementById('attendanceSummary').style.display = 'grid';
                 document.getElementById('popupPresentCount').textContent = record._meta.stats.present;
                 document.getElementById('popupAbsentCount').textContent = record._meta.stats.absent;

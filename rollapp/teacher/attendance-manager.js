@@ -1429,12 +1429,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const cleanPayload = {};
         let presentCount = 0;
         let absentCount = 0;
+        let lateCount = 0;
+        let excusedCount = 0;
+        let unmarkedCount = 0;
         Object.keys(attendanceData).forEach(k => {
             if (!k || k === 'undefined' || k === 'null' || k === 'NaN' || k.startsWith('_') || !k.trim()) return;
             const val = attendanceData[k];
             cleanPayload[k] = val;
             if (val === 'present') presentCount++;
             else if (val === 'absent') absentCount++;
+            else if (val === 'late') lateCount++;
+            else if (val === 'excused' || val === 'onDuty') excusedCount++;
+            else if (val === 'unmarked') unmarkedCount++;
         });
 
         const validStudentCount = students.filter(st => {
@@ -1466,7 +1472,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 stats: {
                     total: validStudentCount || Object.keys(cleanPayload).length,
                     present: presentCount,
-                    absent: absentCount
+                    absent: absentCount,
+                    late: lateCount,
+                    excused: excusedCount,
+                    unmarked: unmarkedCount
                 }
             }
         };
@@ -1489,6 +1498,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update the class card immediately, then reconcile it from the
             // database in the background.
             window.updateSchoolClassCardStatus(classLocationId, payload, selectedDate);
+
+            // Refresh dashboard cards immediately after the write. On mobile
+            // the dashboard is often still mounted behind the popup, so
+            // waiting for a later navigation made Present Today/rate appear
+            // stale until the page was manually refreshed.
+            if (typeof window.loadDashboardData === 'function') {
+                Promise.resolve(window.loadDashboardData()).catch(refreshError => {
+                    console.warn('Could not refresh dashboard attendance stats:', refreshError);
+                });
+            }
 
             alert(`Attendance submitted successfully! (${presentCount} Present, ${absentCount} Absent)`);
 
