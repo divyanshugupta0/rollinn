@@ -200,6 +200,23 @@
             results.querySelectorAll('[data-uid]').forEach(button => button.addEventListener('click', () => beginAction(button.dataset.uid, button.dataset.action)));
         }
 
+        function updateStudentRow(uid) {
+            const student = state.students.find(item => item.id === uid);
+            const button = [...results.querySelectorAll('[data-uid]')].find(item => item.dataset.uid === uid);
+            const row = button?.closest('tr');
+            if (!student || !row) return;
+            const blocked = Boolean(student.blockRecord);
+            const statusCell = row.children[2];
+            const actionCell = row.children[3];
+            if (statusCell) statusCell.innerHTML = blocked
+                ? `<span class="tb-badge" title="${escapeHtml(student.blockRecord.reason || '')}">Blocked${student.blockRecord.reason ? ` · ${escapeHtml(student.blockRecord.reason)}` : ''}</span>`
+                : 'Active';
+            if (actionCell) {
+                actionCell.innerHTML = `<button type="button" class="tb-action ${blocked ? '' : 'danger'}" data-uid="${escapeHtml(uid)}" data-action="${blocked ? 'unblock' : 'block'}">${blocked ? 'Unblock' : 'Block'}</button>`;
+                actionCell.querySelector('[data-uid]')?.addEventListener('click', () => beginAction(uid, blocked ? 'unblock' : 'block'));
+            }
+        }
+
         function setModal(modal, visible) {
             modal.classList.toggle('visible', visible);
             modal.setAttribute('aria-hidden', String(!visible));
@@ -266,7 +283,8 @@
             state.pendingAction = null;
             status.classList.remove('tb-error');
             status.textContent = `${action === 'block' ? 'Blocking' : 'Unblocking'} student…`;
-            render();
+            const currentButton = [...results.querySelectorAll('[data-uid]')].find(item => item.dataset.uid === uid);
+            if (currentButton) { currentButton.disabled = true; currentButton.textContent = 'Saving…'; }
             try {
                 const user = firebase.auth().currentUser;
                 if (!user) throw new Error('Sign in again to manage student access.');
@@ -281,14 +299,17 @@
                 });
                 const result = await response.json().catch(() => ({}));
                 if (!response.ok) throw new Error(result.error || 'Student access could not be updated.');
+                student.blockRecord = action === 'block'
+                    ? { schoolId: student.schoolId, reason, blockedDate: Date.now() }
+                    : null;
                 status.textContent = `Student ${action === 'block' ? 'blocked' : 'unblocked'} successfully.`;
-                await load(firebase.auth().currentUser);
+                updateStudentRow(uid);
             } catch (error) {
                 status.classList.add('tb-error');
                 status.textContent = error.message || 'Student access could not be updated.';
             } finally {
                 state.busyUid = '';
-                render();
+                updateStudentRow(uid);
             }
         }
 
