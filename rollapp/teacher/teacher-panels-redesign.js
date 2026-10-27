@@ -43,7 +43,8 @@ function enhanceTeacherDashboard(dashboard) {
             if (typeof window.loadActiveClasses === 'function') window.loadActiveClasses();
             window.setTimeout(() => { refresh.disabled = false; refresh.classList.remove('is-loading'); }, 1200);
         });
-        header.insertBefore(refresh, teacherInfo);
+        if (teacherInfo.parentNode === header) header.insertBefore(refresh, teacherInfo);
+        else header.appendChild(refresh);
     }
 
     const welcome = dashboard.querySelector('#teacherWelcome');

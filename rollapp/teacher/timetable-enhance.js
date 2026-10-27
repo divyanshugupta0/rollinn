@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Insert before timetable
         const timetableElement = timetableContainer.querySelector('.timetable');
-        if (timetableElement) {
+        if (timetableElement && timetableElement.parentNode === timetableContainer) {
             timetableElement.parentNode.insertBefore(timeSlotControls, timetableElement);
         } else {
             timetableContainer.insertBefore(timeSlotControls, timetableContainer.firstChild);

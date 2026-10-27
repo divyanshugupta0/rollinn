@@ -3876,7 +3876,7 @@
                 
                 // Insert before upcoming-classes or recent-activity
                 const target = dashboard.querySelector('.upcoming-classes') || dashboard.querySelector('.recent-activity');
-                if (target) {
+                if (target && target.parentNode === dashboard && target.isConnected) {
                     dashboard.insertBefore(widget, target);
                 } else {
                     dashboard.appendChild(widget);

@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         // Insert before location manager
-        locationManager.parentNode.insertBefore(dateSelector, locationManager);
+        if (locationManager.parentNode) locationManager.parentNode.insertBefore(dateSelector, locationManager);
         
         // Set default date to today
         const today = new Date();
@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         // Insert before class manager
-        classManager.parentNode.insertBefore(dateSelector, classManager);
+        if (classManager.parentNode) classManager.parentNode.insertBefore(dateSelector, classManager);
         
         // Set default date to today
         const today = new Date();

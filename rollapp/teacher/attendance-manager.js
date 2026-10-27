@@ -1274,7 +1274,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                     <td class="st-name-cell" data-roll="${escapeHtml(cleanRoll)}" style="padding:10px 16px;text-align:left;vertical-align:middle;">
                         <div class="st-name" style="font-weight:700;color:#111827;font-size:14px;line-height:1.25;">${escapeHtml(name)}</div>
-                        <span class="mobile-attendance-percent" style="display:none;">${running.pct == null ? '—' : `${running.pct}% attendance`}</span>
+                        <span class="mobile-attendance-percent">${running.pct == null ? '—' : `${running.pct}% attendance`}</span>
                     </td>
                     <td class="st-actions-cell" style="width:270px;text-align:center;padding:10px 28px 10px 12px;vertical-align:middle;">
                         <div class="attendance-buttons" style="display:inline-flex;gap:8px;justify-content:center;">

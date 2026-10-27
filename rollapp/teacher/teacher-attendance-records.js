@@ -61,7 +61,7 @@
         else section.prepend(panel);
         setTimeout(() => {
             const currentManager = section.querySelector('.location-manager');
-            if (currentManager) section.insertBefore(panel, currentManager);
+            if (currentManager && currentManager.parentNode === section && panel.isConnected) section.insertBefore(panel, currentManager);
         }, 0);
         addStyles();
         document.getElementById('tarLoad').addEventListener('click', loadRecords);
