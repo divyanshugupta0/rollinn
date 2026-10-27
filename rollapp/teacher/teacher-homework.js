@@ -782,6 +782,62 @@
                 .thm-modal-body { padding: 15px; gap: 12px; overflow-y: auto; }
                 .thm-modal-footer { padding: 11px 15px; border-radius: 0; }
                 .thm-modal-footer .thm-btn-primary, .thm-modal-footer .thm-btn-cancel { flex: 1; }
+                #thmDefaultersModal .thm-modal-card {
+                    max-width: none !important;
+                    width: 100%;
+                    height: 100dvh;
+                    max-height: 100dvh;
+                    border-radius: 0;
+                }
+                #thmDefaultersModal .thm-modal-header {
+                    padding: 12px 14px;
+                    border-radius: 0;
+                    min-height: 58px;
+                }
+                #thmDefaultersModal .thm-modal-header h3 { font-size: .92rem !important; }
+                #thmDefaultersModal .thm-modal-header p { font-size: .68rem !important; }
+                #thmDefaultersModal .thm-modal-body {
+                    flex: 1;
+                    min-height: 0;
+                    max-height: none !important;
+                    overflow-y: auto;
+                    padding: 12px !important;
+                }
+                #thmDefaultersModal .thm-modal-body > div:first-child {
+                    flex-direction: column !important;
+                    align-items: stretch !important;
+                    gap: 8px !important;
+                }
+                #thmDefaultersModal .thm-modal-body > div:first-child > div:first-child { min-width: 0 !important; }
+                #thmDefaultersModal .thm-modal-body > div:first-child > div:last-child {
+                    width: 100%;
+                    display: grid !important;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 6px !important;
+                }
+                #thmDefaultersModal .thm-modal-body > div:first-child button {
+                    min-width: 0;
+                    padding: 7px 5px !important;
+                    font-size: .68rem !important;
+                }
+                #thmDefaultersModal .thm-modal-body > div:nth-child(2) {
+                    padding: 8px 9px !important;
+                    font-size: .7rem !important;
+                    align-items: flex-start !important;
+                }
+                #thmDefaultersModal .thm-def-student-item { padding: 9px 10px !important; gap: 7px; }
+                #thmDefaultersModal .thm-def-student-item > div:first-child { gap: 8px !important; }
+                #thmDefaultersModal .thm-def-student-item > div:first-child > div:first-child { width: 30px !important; height: 30px !important; }
+                #thmDefaultersModal .thm-def-status-pill { padding: 3px 6px !important; font-size: .62rem !important; }
+                #thmDefaultersModal .thm-modal-footer {
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 8px;
+                    padding: 10px 12px;
+                    border-radius: 0;
+                }
+                #thmDefaultersModal .thm-modal-footer > div:last-child { width: 100%; display: grid !important; grid-template-columns: 1fr 1.4fr; gap: 7px !important; }
+                #thmDefaultersModal .thm-modal-footer button { width: 100%; min-height: 38px; padding: 8px 5px; font-size: .75rem; }
             }
         `;
         document.head.appendChild(style);

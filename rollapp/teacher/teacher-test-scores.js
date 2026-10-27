@@ -1115,6 +1115,20 @@
                 .tts-stat-lbl {
                     font-size: 0.66rem;
                 }
+                #testScoresSection #ttsNewTestBtn {
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    text-align: center !important;
+                    gap: 6px !important;
+                }
+                #testScoresSection #ttsNewTestBtn i {
+                    display: inline-block;
+                    width: 1em;
+                    margin: 0 !important;
+                    line-height: 1;
+                    text-align: center;
+                }
             }
 
             /* Continuous CBT QR Scanner Overlay Styles */
