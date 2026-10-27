@@ -1,5 +1,18 @@
 // Attendance Fixes - Addresses issues with attendance functionality
 document.addEventListener('DOMContentLoaded', function() {
+    const normalizePopupValue = value => String(value || '').trim().replace(/^section\s+/i, '').toLowerCase();
+    const matchesPopupClassSection = (student, scope) => {
+        const section = normalizePopupValue(student?.section || student?.classSection || student?.assignedSection);
+        const selectedSections = (Array.isArray(scope?.section) ? scope.section : [scope?.section]).map(normalizePopupValue).filter(Boolean);
+        if (!section || !selectedSections.length || !selectedSections.includes(section)) return false;
+        const studentIds = [student?.classId, student?.courseId, student?.enrolledClassId, student?.classID].map(value => String(value || '').trim()).filter(Boolean);
+        const selectedId = String(scope?.classId || '').trim();
+        if (selectedId) return studentIds.includes(selectedId);
+        const selectedName = normalizePopupValue(scope?.className || scope?.name);
+        if (!selectedName || selectedName === 'class') return true;
+        return [student?.className, student?.courseName, student?.course, student?.class].map(value => normalizePopupValue(value)).includes(selectedName);
+    };
+
     // Remove refresh students button
     removeRefreshButton();
     
@@ -180,7 +193,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Convert to class data format expected by existing code
                         const classData = {
                             id: locationId,
+                            classId: locationData.classId || locationData.courseId || '',
                             name: locationData.className || locationData.name,
+                            className: locationData.className || locationData.name || '',
+                            section: locationData.section || '',
                             location: locationData.name,
                             startTime: locationData.startTime,
                             endTime: locationData.endTime,
@@ -254,6 +270,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (snapshot.exists()) {
                         const classData = snapshot.val();
                         classData.id = classId;
+                        classData.classId = classData.classId || classData.courseId || classId;
+                        classData.section = classData.section || classData.classSection || '';
                         
                         // Store the current class data
                         currentClassData = classData;
@@ -329,7 +347,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         snapshot.forEach((childSnapshot) => {
                             const student = childSnapshot.val();
                             student.id = childSnapshot.key;
-                            students.push(student);
+                            if (matchesPopupClassSection(student, currentClassData)) students.push(student);
                         });
                     }
                     

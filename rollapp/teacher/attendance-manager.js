@@ -13,6 +13,27 @@ document.addEventListener('DOMContentLoaded', function() {
         }[ch]));
     }
 
+    function normalizeStudentSection(value) {
+        return String(value || '').trim().replace(/^section\s+/i, '').toLowerCase();
+    }
+
+    function studentMatchesClassSection(student, card) {
+        const studentSection = normalizeStudentSection(student?.section || student?.classSection || student?.assignedSection);
+        const cardSection = normalizeStudentSection(card?.section);
+        if (!cardSection || !studentSection || studentSection !== cardSection) return false;
+
+        const studentClassIds = [student?.classId, student?.courseId, student?.enrolledClassId, student?.classID]
+            .map(value => String(value || '').trim()).filter(Boolean);
+        const cardClassId = String(card?.classId || '').trim();
+        if (cardClassId) return studentClassIds.includes(cardClassId);
+
+        const cardClassName = String(card?.className || '').trim().toLowerCase();
+        if (!cardClassName || cardClassName === 'class') return true;
+        const studentClassNames = [student?.className, student?.courseName, student?.course, student?.class]
+            .map(value => String(value || '').trim().toLowerCase()).filter(Boolean);
+        return studentClassNames.includes(cardClassName);
+    }
+
     window.isSchoolModeActive = function() {
         return document.body.classList.contains('teacher-school-mode') || 
                (typeof currentTeacher !== 'undefined' && currentTeacher && (currentTeacher.isSchoolMode || currentTeacher.institutionType === 'school'));
@@ -799,10 +820,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Calculate enrolled students in this section
                 const matchingStudents = allStudents.filter(st => {
-                    const sSec = normalizeSec(st.section || st.classSection || st.assignedSection);
-                    if (normSec && sSec && sSec !== normSec) return false;
-                    if (item.classId && st.classId && String(st.classId) !== String(item.classId)) return false;
-                    return true;
+                    return studentMatchesClassSection(st, item);
                 });
 
                 const card = {
@@ -1007,8 +1025,6 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const schoolId = teacherSchoolId();
             const snap = await firebase.database().ref(`schoolUsers/${schoolId}`).once('value');
-            const normSec = String(card.section || '').trim().replace(/^section\s+/i, '').toLowerCase();
-
             students = [];
             if (snap.exists()) {
                 snap.forEach(child => {
@@ -1019,9 +1035,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const role = String(st.role || '').toLowerCase();
                     if (role && role !== 'student') return;
 
-                    const sSec = String(st.section || st.classSection || st.assignedSection || '').trim().replace(/^section\s+/i, '').toLowerCase();
-                    if (normSec && sSec && sSec !== normSec) return;
-                    if (card.classId && st.classId && String(st.classId) !== String(card.classId)) return;
+                    if (!studentMatchesClassSection(st, card)) return;
 
                     students.push(st);
                 });
@@ -1138,6 +1152,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const popupStudentList = document.getElementById('popupStudentList');
         const submitBtn = document.getElementById('submitAttendancePopupBtn');
         if (!popupStudentList) return;
+
+        // Keep the popup scoped even when another loader supplies a broader roster.
+        studentsList = (studentsList || []).filter(student => studentMatchesClassSection(student, currentClassData));
 
         popupStudentList.style.display = 'block';
 
