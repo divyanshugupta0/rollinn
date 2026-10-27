@@ -60,6 +60,8 @@
 
         // Topbar
         el.appTopbar = document.getElementById('app-topbar');
+        el.topbarBrand = document.getElementById('topbar-brand');
+        el.topbarCenterInfo = document.getElementById('topbar-center-info');
         el.topbarStationBadge = document.getElementById('topbar-station-badge');
         el.topbarStationLabel = document.getElementById('topbar-station-label');
         el.topbarInstName = document.getElementById('topbar-institution-name');
@@ -409,9 +411,17 @@
         document.body.classList.toggle('exam-active', isExamHall);
         document.body.classList.toggle('view-license', isLicenseGate);
 
-        if (el.appTopbar) el.appTopbar.style.display = isLicenseGate ? 'none' : 'flex';
+        if (el.appTopbar) {
+            el.appTopbar.style.display = 'flex';
+            el.appTopbar.classList.toggle('activation-mode', isLicenseGate);
+        }
+        if (el.topbarBrand) el.topbarBrand.style.display = isLicenseGate ? 'none' : 'flex';
+        if (el.topbarCenterInfo) el.topbarCenterInfo.style.display = isLicenseGate ? 'none' : 'flex';
         if (el.topbarExamTools) el.topbarExamTools.style.display = isExamHall ? 'flex' : 'none';
-        if (el.topbarMainActions) el.topbarMainActions.style.display = (isExamHall || isLicenseGate) ? 'none' : 'flex';
+        if (el.topbarMainActions) el.topbarMainActions.style.display = isExamHall ? 'none' : 'flex';
+        if (el.btnAdminResults) el.btnAdminResults.style.display = isLicenseGate ? 'none' : 'inline-flex';
+        if (el.btnWindowMinimize) el.btnWindowMinimize.style.display = 'inline-flex';
+        if (el.btnExitApp) el.btnExitApp.style.display = 'inline-flex';
 
         if (viewName === 'license') el.viewLicenseGate.classList.add('active');
         else if (viewName === 'setup') el.viewSetupExam.classList.add('active');
@@ -4264,11 +4274,13 @@
             exportStationBatchQr();
         });
         el.btnClearStationRecords?.addEventListener('click', async () => {
-            if (confirm('Are you sure you want to clear all examination records stored on this machine?')) {
-                await clearStationRecords();
-                filterAndRenderStationRecords();
-                showToast('Station examination records cleared.', 'info');
-            }
+            requireAdminPin(async () => {
+                if (confirm('Are you sure you want to clear all examination records stored on this machine?')) {
+                    await clearStationRecords();
+                    filterAndRenderStationRecords();
+                    showToast('Station examination records cleared.', 'info');
+                }
+            }, 'Enter Supervisor PIN to clear station examination vault records.');
         });
 
         // Records Date Filter Tabs
@@ -4298,9 +4310,11 @@
             filterAndRenderStationRecords();
         });
 
-        // Reset Candidate Exam Flags
+        // Reset Candidate Exam Flags (Protected by Supervisor PIN)
         el.btnResetRosterFlags?.addEventListener('click', () => {
-            resetAllCompletedCandidates();
+            requireAdminPin(() => {
+                resetAllCompletedCandidates();
+            }, 'Enter Supervisor PIN to reset station candidate completion records.');
         });
 
         // Keyboard Shortcut Ctrl+Shift+S for Exam Setup
@@ -4410,21 +4424,25 @@
             showToast(`Exam loaded for ${state.selectedCandidate.name}. Station ready to start.`, 'success');
         });
 
-        // Auto-Load Next Candidate
+        // Auto-Load Next Candidate (Protected by Supervisor PIN)
         el.btnAutoLoadNext?.addEventListener('click', () => {
-            autoLoadNextCandidate();
+            requireAdminPin(() => {
+                autoLoadNextCandidate();
+            }, 'Enter Supervisor PIN to load the next candidate sequence.');
         });
 
-        // Exam File Dropzone
+        // Exam File Dropzone (Protected by Supervisor PIN)
         el.examDropzone.addEventListener('click', async () => {
-            const res = await window.rollcallCBT.openExamDialog();
-            if (res.canceled) return;
-            if (res.exam) {
-                loadExamIntoSetup(res.exam);
-                showToast(`Loaded exam: ${res.exam.title}`, 'success');
-            } else {
-                showToast(res.error || 'Could not load exam file.', 'error');
-            }
+            requireAdminPin(async () => {
+                const res = await window.rollcallCBT.openExamDialog();
+                if (res.canceled) return;
+                if (res.exam) {
+                    loadExamIntoSetup(res.exam);
+                    showToast(`Loaded exam: ${res.exam.title}`, 'success');
+                } else {
+                    showToast(res.error || 'Could not load exam file.', 'error');
+                }
+            }, 'Enter Supervisor PIN to load an examination package.');
         });
 
         el.btnBrowseExamFile.addEventListener('click', (e) => {
@@ -4542,9 +4560,12 @@
             requireAdminPin(() => openAdminExamSetupModal(), 'Enter Admin PIN to access Invigilator Exam Setup.');
         });
 
-        // Enter Exam Hall Button
+        // Enter Exam Hall Button (Protected by Supervisor PIN to execute examination)
         el.btnEnterExamHall.addEventListener('click', () => {
-            startExamSession();
+            if (el.btnEnterExamHall.disabled) return;
+            requireAdminPin(() => {
+                startExamSession();
+            }, 'Enter Supervisor PIN to execute and launch this examination session.');
         });
 
         // Question actions in Exam Hall
