@@ -6732,26 +6732,30 @@
             // Get present students count for today
             Promise.all((activeClasses || []).map(classData => firebase.database().ref(`attendance_by_location/${classData.id}/${today}`).once('value')))
                 .then((snapshots) => {
-                    let presentCount = 0;
+                    const presentStudentIds = new Set();
+                    const markedStudentIds = new Set();
                     snapshots.forEach(snapshot => { 
                         const record = snapshot.val(); 
-                        if (!record || !record._meta || record._meta.schoolId !== currentTeacher.schoolId) return; 
+                        if (!record || !record._meta || String(record._meta.schoolId || '') !== String(currentTeacher.schoolId)) return;
                         Object.keys(record).forEach(key => { 
                             if (!key.startsWith('_')) {
-                                const st = (typeof record[key] === 'object' && record[key] !== null) ? record[key].status : record[key];
-                                if (st === 'present') presentCount++;
+                                const statusValue = (typeof record[key] === 'object' && record[key] !== null) ? record[key].status : record[key];
+                                const st = String(statusValue || '').toLowerCase();
+                                if (!['present', 'absent', 'late', 'onduty', 'excused'].includes(st)) return;
+                                markedStudentIds.add(key);
+                                if (['present', 'late', 'onduty'].includes(st)) presentStudentIds.add(key);
                             }
                         }); 
                     });
-                    
+
+                    const presentCount = presentStudentIds.size;
                     document.getElementById('todayPresentCount').textContent = presentCount;
                     
                     // Calculate and update attendance rate
-                    const studentCount = document.getElementById('totalStudentCount').textContent;
-                    if (studentCount > 0) {
-                        const attendanceRate = Math.round((presentCount / parseInt(studentCount)) * 100);
-                        document.getElementById('attendanceRateCount').textContent = `${attendanceRate}%`;
-                    }
+                    const attendanceRate = markedStudentIds.size
+                        ? Math.min(100, Math.round((presentCount / markedStudentIds.size) * 100))
+                        : 0;
+                    document.getElementById('attendanceRateCount').textContent = `${attendanceRate}%`;
                 });
             
             // Load recent activity
