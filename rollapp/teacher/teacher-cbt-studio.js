@@ -250,24 +250,218 @@
 
     const modal = document.createElement('div');
     modal.id = 'teacherCbtStudioModal';
+    modal.className = 'teacher-cbt-studio-modal';
     modal.setAttribute('hidden', '');
     modal.style = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.75);backdrop-filter:blur(6px);padding:20px;overflow-y:auto;display:none;align-items:flex-start;justify-content:center;box-sizing:border-box;';
+    const studioStyles = document.createElement('style');
+    studioStyles.id = 'teacher-cbt-studio-responsive-styles';
+    studioStyles.textContent = `
+      .teacher-cbt-studio-modal .teacher-cbt-studio-page { min-width: 0; }
+      .teacher-cbt-studio-modal .cbt-mobile-back { display: none; }
+      @media (max-width: 700px) {
+        .teacher-cbt-studio-modal {
+          align-items: stretch !important;
+          justify-content: stretch !important;
+          padding: 0 !important;
+          background: #f8fafc !important;
+          backdrop-filter: none !important;
+        }
+        .teacher-cbt-studio-modal .teacher-cbt-studio-page {
+          width: 100% !important;
+          max-width: none !important;
+          min-height: 100dvh;
+          margin: 0 !important;
+          padding: 0 9px calc(16px + env(safe-area-inset-bottom)) !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+        }
+        .teacher-cbt-studio-modal .cbt-studio-header {
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          margin: 0 -9px 10px !important;
+          padding: 8px 9px !important;
+          background: rgba(255,255,255,.97);
+          box-shadow: 0 2px 10px rgba(15,23,42,.08);
+          align-items: center !important;
+        }
+        .teacher-cbt-studio-modal .cbt-studio-header-copy {
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+        .teacher-cbt-studio-modal .cbt-studio-header-copy > div:first-child {
+          margin-bottom: 3px !important;
+          font-size: .62rem !important;
+          padding: 2px 6px !important;
+        }
+        .teacher-cbt-studio-modal .cbt-studio-header-copy h2 {
+          font-size: 1rem !important;
+          line-height: 1.2;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .teacher-cbt-studio-modal .cbt-studio-header-copy p {
+          display: none;
+        }
+        .teacher-cbt-studio-modal .cbt-mobile-back {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+          flex: 0 0 auto;
+          min-height: 34px;
+          padding: 6px 9px;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          background: #f8fafc;
+          color: #334155;
+          font-size: .76rem;
+          font-weight: 800;
+          cursor: pointer;
+        }
+        .teacher-cbt-studio-modal .cbt-studio-close {
+          width: 32px !important;
+          height: 32px !important;
+          min-width: 32px !important;
+          min-height: 32px !important;
+          max-width: 32px !important;
+          max-height: 32px !important;
+          font-size: 1.05rem !important;
+        }
+        .teacher-cbt-studio-modal .cbt-basic-info-grid {
+          grid-template-columns: 1fr !important;
+          gap: 7px !important;
+          margin-bottom: 10px !important;
+        }
+        .teacher-cbt-studio-modal .tts-field-group label {
+          font-size: .66rem !important;
+          margin-bottom: 2px !important;
+        }
+        .teacher-cbt-studio-modal .tts-field-group input,
+        .teacher-cbt-studio-modal .tts-field-group select,
+        .teacher-cbt-studio-modal .tts-field-group textarea {
+          padding: 8px 9px !important;
+          font-size: .82rem !important;
+          min-height: 36px;
+        }
+        .teacher-cbt-studio-modal .cbt-basic-info-grid > .tts-field-group {
+          grid-column: 1 / -1 !important;
+        }
+        .teacher-cbt-studio-modal .cbt-exam-settings,
+        .teacher-cbt-studio-modal .cbt-class-selection-card {
+          margin: 9px 0 !important;
+          padding: 9px !important;
+          border-radius: 11px !important;
+        }
+        .teacher-cbt-studio-modal .cbt-exam-settings > div:first-child {
+          margin-bottom: 7px !important;
+        }
+        .teacher-cbt-studio-modal .cbt-exam-settings > div:first-child small,
+        .teacher-cbt-studio-modal .cbt-class-selection-card small,
+        .teacher-cbt-studio-modal .cbt-section-heading > div:first-child > span {
+          font-size: .68rem !important;
+        }
+        .teacher-cbt-studio-modal .cbt-exam-settings label {
+          min-height: 36px !important;
+          padding: 7px 8px !important;
+          font-size: .74rem !important;
+        }
+        .teacher-cbt-studio-modal .cbt-settings-grid {
+          grid-template-columns: 1fr !important;
+          gap: 7px !important;
+        }
+        .teacher-cbt-studio-modal .cbt-class-selection-grid {
+          grid-template-columns: 1fr !important;
+          gap: 10px !important;
+        }
+        .teacher-cbt-studio-modal .cbt-class-selection-actions,
+        .teacher-cbt-studio-modal .cbt-sections-actions {
+          width: 100%;
+        }
+        .teacher-cbt-studio-modal .cbt-class-selection-actions button,
+        .teacher-cbt-studio-modal .cbt-sections-actions button {
+          flex: 1 1 auto;
+        }
+        .teacher-cbt-studio-modal .cbt-section-heading {
+          align-items: flex-start !important;
+        }
+        .teacher-cbt-studio-modal .cbt-section-heading > div:first-child {
+          min-width: 0 !important;
+        }
+        .teacher-cbt-studio-modal .cbt-section-heading h3 {
+          font-size: .98rem !important;
+        }
+        .teacher-cbt-studio-modal .cbt-section-heading {
+          margin-bottom: 8px !important;
+        }
+        .teacher-cbt-studio-modal .cbt-section-heading > div:last-child {
+          width: 100%;
+        }
+        .teacher-cbt-studio-modal .cbt-section-heading > div:last-child button {
+          flex: 1 1 auto;
+        }
+        .teacher-cbt-studio-modal .cbt-studio-footer {
+          flex-direction: column-reverse !important;
+          align-items: stretch !important;
+          gap: 8px !important;
+        }
+        .teacher-cbt-studio-modal .cbt-studio-footer button {
+          width: 100% !important;
+        }
+        .teacher-cbt-studio-modal .cbt-section-card {
+          padding: 8px !important;
+          border-radius: 10px !important;
+        }
+        .teacher-cbt-studio-modal .cbt-section-card-header {
+          align-items: flex-start !important;
+        }
+        .teacher-cbt-studio-modal .cbt-section-card-header > div:first-child {
+          min-width: 0 !important;
+          flex-wrap: wrap;
+        }
+        .teacher-cbt-studio-modal .cbt-section-card-header .cbt-sec-name {
+          min-width: 140px !important;
+        }
+        .teacher-cbt-studio-modal .cbt-section-card-header {
+          margin-bottom: 7px !important;
+          padding-bottom: 7px !important;
+          gap: 6px !important;
+        }
+        .teacher-cbt-studio-modal .cbt-question-card {
+          padding: 8px !important;
+          margin-bottom: 7px !important;
+        }
+        .teacher-cbt-studio-modal .cbt-question-card input,
+        .teacher-cbt-studio-modal .cbt-question-card select {
+          padding: 6px 7px !important;
+          font-size: .78rem !important;
+        }
+        .teacher-cbt-studio-modal .cbt-studio-footer {
+          margin-top: 10px !important;
+          padding-top: 10px !important;
+        }
+      }
+    `;
+    (document.head || document.documentElement).appendChild(studioStyles);
     modal.innerHTML = `
-      <div style="width:100%;max-width:980px;margin:24px auto;background:#ffffff;border-radius:20px;padding:26px;box-shadow:0 25px 60px rgba(15,23,42,0.35);border:1px solid #e2e8f0;box-sizing:border-box;font-family:inherit;">
+      <div class="teacher-cbt-studio-page" style="width:100%;max-width:980px;margin:24px auto;background:#ffffff;border-radius:20px;padding:26px;box-shadow:0 25px 60px rgba(15,23,42,0.35);border:1px solid #e2e8f0;box-sizing:border-box;font-family:inherit;">
         <!-- Modal Header -->
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #e2e8f0;padding-bottom:16px;margin-bottom:18px;">
-          <div>
+        <div class="cbt-studio-header" style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #e2e8f0;padding-bottom:16px;margin-bottom:18px;">
+          <button class="cbt-mobile-back" id="teacherCbtBack" type="button"><i class="fas fa-arrow-left"></i> Back</button>
+          <div class="cbt-studio-header-copy">
             <div style="display:inline-flex;align-items:center;gap:6px;background:#e0f2fe;color:#0369a1;font-size:0.72rem;font-weight:800;padding:3px 9px;border-radius:6px;margin-bottom:6px;letter-spacing:0.04em;text-transform:uppercase;">
               <i class="fas fa-shield-halved"></i> CBT Exam Authoring Studio
             </div>
             <h2 style="margin:0 0 4px 0;font-size:1.35rem;font-weight:800;color:#0f172a;">CBT Offline Exam Package Generator</h2>
             <p style="margin:0;color:#64748b;font-size:0.84rem;line-height:1.45;">Select assigned classes and sections, organize questions into exam sections, and generate encrypted <code>.rollcbt</code> offline packages with candidate photos.</p>
           </div>
-          <button id="teacherCbtClose" type="button" aria-label="Close" style="width:36px !important;height:36px !important;min-width:36px !important;min-height:36px !important;max-width:36px !important;max-height:36px !important;padding:0 !important;border-radius:50% !important;border:1.5px solid #cbd5e1;background:#f8fafc;color:#64748b;font-size:1.3rem;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 36px !important;box-shadow:none;line-height:1;">&times;</button>
+          <button class="cbt-studio-close" id="teacherCbtClose" type="button" aria-label="Close" style="width:36px !important;height:36px !important;min-width:36px !important;min-height:36px !important;max-width:36px !important;max-height:36px !important;padding:0 !important;border-radius:50% !important;border:1.5px solid #cbd5e1;background:#f8fafc;color:#64748b;font-size:1.3rem;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 36px !important;box-shadow:none;line-height:1;">&times;</button>
         </div>
 
         <!-- Basic Exam Info Grid -->
-        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px;margin-bottom:16px;">
+        <div class="cbt-basic-info-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px;margin-bottom:16px;">
           <div class="tts-field-group" style="grid-column: span 2;">
             <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;"><i class="fas fa-heading" style="color:#0284c7;"></i> Exam Title</label>
             <input id="cbtTitle" placeholder="e.g. Unit Test - Algebra & Equations" style="padding:10px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:0.88rem;background:#f8fafc;width:100%;box-sizing:border-box;">
@@ -353,7 +547,7 @@
 
         <!-- Class & Section Selection Bar -->
         <div class="cbt-class-selection-card" style="margin:16px 0;padding:16px 18px;border:1.5px solid #cbd5e1;border-radius:14px;background:#f8fafc;box-sizing:border-box;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+          <div class="cbt-class-selection-actions" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
             <div>
               <label style="display:flex;align-items:center;gap:6px;font-weight:800;color:#0f172a;font-size:0.92rem;margin:0;">
                 <i class="fas fa-chalkboard-user" style="color:#0284c7;"></i>
@@ -371,7 +565,7 @@
             </div>
           </div>
 
-          <div style="display:grid;grid-template-columns:minmax(200px, 280px) 1fr;gap:14px;align-items:start;">
+          <div class="cbt-class-selection-grid" style="display:grid;grid-template-columns:minmax(200px, 280px) 1fr;gap:14px;align-items:start;">
             <div class="tts-field-group">
               <label style="font-size:0.74rem;font-weight:700;color:#475569;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
                 <i class="fas fa-layer-group" style="color:#0284c7;"></i> Class Filter
@@ -394,14 +588,14 @@
 
         <!-- Exam Sections & Question Paper Manager -->
         <div style="margin:22px 0 14px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+          <div class="cbt-section-heading" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
             <div>
               <h3 style="margin:0;font-size:1.1rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:7px;">
                 <i class="fas fa-layer-group" style="color:#0284c7;"></i> Exam Sections &amp; Questions
               </h3>
               <span style="font-size:0.78rem;color:#64748b;">Add multiple exam sections (e.g. Section A, Section B) with questions and answer keys.</span>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div class="cbt-sections-actions" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <button id="cbtOpenAiModalBtn" type="button" class="tts-btn-primary" style="width:auto !important;padding:8px 16px;font-size:0.82rem;min-height:36px;background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);border-color:#4f46e5;font-weight:800;box-shadow:0 3px 10px rgba(99,102,241,0.25);">
                 <i class="fas fa-wand-magic-sparkles"></i> AI Question Generator
               </button>
@@ -420,7 +614,7 @@
         <p id="cbtStatus" style="color:#0369a1;font-size:0.85rem;font-weight:600;margin:12px 0;min-height:18px;"></p>
 
         <!-- Footer Actions -->
-        <div style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #e2e8f0;padding-top:16px;margin-top:16px;">
+        <div class="cbt-studio-footer" style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid #e2e8f0;padding-top:16px;margin-top:16px;">
           <button id="cbtCancel" type="button" class="tts-btn-secondary" style="width:auto !important;padding:10px 20px;min-height:42px;">Cancel</button>
           <button id="cbtGenerate" type="button" class="tts-btn-primary" style="width:auto !important;padding:10px 24px;min-height:42px;">
             <i class="fas fa-file-export"></i> Save &amp; Download Section Exams
@@ -579,6 +773,8 @@
 
     const closeBtn = modal.querySelector('#teacherCbtClose');
     if (closeBtn) closeBtn.onclick = closeModal;
+    const backBtn = modal.querySelector('#teacherCbtBack');
+    if (backBtn) backBtn.onclick = closeModal;
     const cancelBtn = modal.querySelector('#cbtCancel');
     if (cancelBtn) cancelBtn.onclick = closeModal;
     modal.onclick = (e) => { if (e.target === modal) closeModal(e); };
@@ -691,7 +887,7 @@
       secCard.className = 'cbt-section-card';
       secCard.style = 'border:1.5px solid #cbd5e1;border-radius:14px;padding:16px;background:#f8fafc;box-shadow:0 2px 6px rgba(0,0,0,0.03);box-sizing:border-box;';
       secCard.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;border-bottom:1px solid #e2e8f0;padding-bottom:10px;">
+        <div class="cbt-section-card-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;border-bottom:1px solid #e2e8f0;padding-bottom:10px;">
           <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:260px;">
             <span class="cbt-sec-badge" style="background:#0284c7;color:#fff;font-size:0.75rem;font-weight:800;padding:3px 9px;border-radius:6px;letter-spacing:0.04em;">Section ${sIndex}</span>
             <input class="cbt-sec-name" value="${esc(title)}" placeholder="Section Name (e.g. Section A: Objective)" style="padding:6px 12px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.86rem;font-weight:700;color:#0f172a;background:#fff;flex:1;min-width:180px;box-sizing:border-box;">
