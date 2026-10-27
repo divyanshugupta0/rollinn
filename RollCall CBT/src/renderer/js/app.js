@@ -4061,12 +4061,12 @@
             updateStartButtonState();
         });
 
-        // Completed View Actions
+        // Completed View Actions (Admin PIN Protected)
         el.btnCompletedRecords?.addEventListener('click', () => {
-            openStationResultsModal();
+            requireAdminPin(() => openStationResultsModal(), 'Enter Admin PIN to view Station Vault Records.');
         });
         el.btnCompletedNewExam?.addEventListener('click', () => {
-            openAdminExamSetupModal();
+            requireAdminPin(() => openAdminExamSetupModal(), 'Enter Admin PIN to access Invigilator Exam Setup.');
         });
 
         // Enter Exam Hall Button
