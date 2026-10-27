@@ -1143,6 +1143,14 @@
         `;
         container.appendChild(panel);
 
+        // Keep modal overlays outside section containers. The teacher panel
+        // has mobile width/overflow rules that can otherwise constrain a
+        // fixed dialog to the content column instead of the device viewport.
+        ['thmModal', 'thmDefaultersModal'].forEach(id => {
+            const modal = panel.querySelector('#' + id);
+            if (modal) document.body.appendChild(modal);
+        });
+
         // Sidebar click handler
         nav.addEventListener('click', (e) => {
             e.preventDefault();
