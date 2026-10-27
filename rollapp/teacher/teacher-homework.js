@@ -711,11 +711,15 @@
                     display: grid !important;
                     place-items: center !important;
                     line-height: 1 !important;
+                    position: relative !important;
                 }
                 .thm-header-actions .thm-btn-primary i {
-                    display: block;
-                    width: 1em;
-                    height: 1em;
+                    position: absolute;
+                    inset: 0;
+                    display: grid;
+                    place-items: center;
+                    width: auto;
+                    height: auto;
                     margin: 0 !important;
                     font-size: .9rem;
                     line-height: 1 !important;
