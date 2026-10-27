@@ -890,6 +890,51 @@
                     font-size: .76rem;
                 }
             }
+            /* All homework dialogs use the full viewport on phones. Keep
+               this shared rule last so section/container styles cannot clip
+               the edit, create, or defaulter page. */
+            @media (max-width: 768px) {
+                #thmModal.active,
+                #thmDefaultersModal.active {
+                    position: fixed !important;
+                    inset: 0 !important;
+                    width: 100vw !important;
+                    height: 100svh !important;
+                    min-height: 100svh !important;
+                    max-height: 100svh !important;
+                    padding: 0 !important;
+                    display: flex !important;
+                    align-items: stretch !important;
+                    justify-content: stretch !important;
+                    overflow: hidden !important;
+                    z-index: 100000 !important;
+                }
+                #thmModal.active .thm-modal-card,
+                #thmDefaultersModal.active .thm-modal-card {
+                    width: 100% !important;
+                    max-width: none !important;
+                    height: 100svh !important;
+                    min-height: 100svh !important;
+                    max-height: 100svh !important;
+                    margin: 0 !important;
+                    border-radius: 0 !important;
+                    overflow: hidden !important;
+                }
+                #thmModal.active .thm-modal-body,
+                #thmDefaultersModal.active .thm-modal-body {
+                    flex: 1 1 auto !important;
+                    min-height: 0 !important;
+                    max-height: none !important;
+                    overflow-y: auto !important;
+                    -webkit-overflow-scrolling: touch;
+                }
+                #thmModal.active .thm-modal-footer,
+                #thmDefaultersModal.active .thm-modal-footer {
+                    flex: 0 0 auto !important;
+                    visibility: visible !important;
+                    padding-bottom: max(10px, env(safe-area-inset-bottom, 10px)) !important;
+                }
+            }
         `;
         document.head.appendChild(style);
 
