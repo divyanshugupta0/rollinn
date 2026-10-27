@@ -785,10 +785,15 @@
                 #thmDefaultersModal .thm-modal-card {
                     max-width: none !important;
                     width: 100%;
-                    height: 100dvh;
-                    max-height: 100dvh;
+                    height: 100svh !important;
+                    min-height: 100svh !important;
+                    max-height: 100svh !important;
                     border-radius: 0;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    overflow: hidden !important;
                 }
+                #thmDefaultersModal.active { align-items: stretch; padding: 0; }
                 #thmDefaultersModal .thm-modal-header {
                     padding: 12px 14px;
                     border-radius: 0;
@@ -797,7 +802,7 @@
                 #thmDefaultersModal .thm-modal-header h3 { font-size: .92rem !important; }
                 #thmDefaultersModal .thm-modal-header p { font-size: .68rem !important; }
                 #thmDefaultersModal .thm-modal-body {
-                    flex: 1;
+                    flex: 1 1 auto !important;
                     min-height: 0;
                     max-height: none !important;
                     overflow-y: auto;
@@ -830,6 +835,10 @@
                 #thmDefaultersModal .thm-def-student-item > div:first-child > div:first-child { width: 30px !important; height: 30px !important; }
                 #thmDefaultersModal .thm-def-status-pill { padding: 3px 6px !important; font-size: .62rem !important; }
                 #thmDefaultersModal .thm-modal-footer {
+                    flex: 0 0 auto !important;
+                    display: flex !important;
+                    position: relative;
+                    z-index: 2;
                     flex-direction: column;
                     align-items: stretch;
                     gap: 8px;
