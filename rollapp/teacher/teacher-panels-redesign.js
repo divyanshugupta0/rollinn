@@ -130,6 +130,11 @@ body.teacher-authenticated #dashboardSection > .header { position:relative;z-ind
 body.teacher-authenticated .section-container > .header { position:relative;z-index:30; }
 body.teacher-authenticated .section-container > .header .teacher-info { position:relative;z-index:31; }
 body.teacher-authenticated .section-container > .header .header-dropdown { z-index:9999!important; }
+body.teacher-authenticated .section-container > .header .header-dropdown,
+body.teacher-authenticated .section-container > .header .header-dropdown .dropdown-item,
+body.teacher-authenticated .section-container > .header .header-dropdown .dropdown-item span { font-size:13px!important;line-height:1.3; }
+body.teacher-authenticated .section-container > .header .header-dropdown .dropdown-item { display:flex!important;align-items:center;gap:10px;min-height:42px;white-space:nowrap; }
+body.teacher-authenticated .section-container > .header .header-dropdown .dropdown-item span { display:inline!important;color:#26372d!important;visibility:visible!important;opacity:1!important;font-weight:600; }
 body.teacher-authenticated #dashboardSection > .header .teacher-info { margin-left:auto; }
 body.teacher-authenticated #dashboardSection .dashboard-refresh-btn { display:inline-flex;width:auto!important;max-width:none;flex:0 0 auto;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid #dce9df;border-radius:11px;background:#fff;color:#246746;font:inherit;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer; }
 body.teacher-authenticated #dashboardSection .dashboard-refresh-btn:hover { background:#f0f8f2;border-color:#bad9c2; }
