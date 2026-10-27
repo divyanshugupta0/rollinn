@@ -10,6 +10,27 @@
     let classes = [];
     let studentsById = {};
     let displayedRows = [];
+    let institutionType = 'school';
+
+    function isSchoolMode() {
+        return institutionType === 'school' || institutionType === 'k12';
+    }
+
+    function updateModeCopy() {
+        const school = isSchoolMode();
+        const description = document.getElementById('tarDescription');
+        const locationLabel = document.getElementById('tarLocationLabel');
+        const locationSelect = document.getElementById('tarLocation');
+        if (description) description.textContent = school ? 'Manage daily attendance for your school' : 'Manage daily attendance for your college';
+        if (locationLabel) locationLabel.textContent = school ? 'Class / section' : 'Class / location';
+        if (locationSelect?.options?.[0]) locationSelect.options[0].textContent = school ? 'All classes and sections' : 'All classes and locations';
+    }
+
+    function belongsToSchool(item) {
+        if (!item || !schoolId) return false;
+        const owner = item.schoolId || item.institutionId || item.organizationId;
+        return !owner || String(owner) === String(schoolId);
+    }
 
     function makePanel() {
         const section = document.getElementById('attendanceSection');
@@ -19,12 +40,12 @@
         panel.className = 'teacher-admin-records';
         panel.innerHTML = `
             <header class="tar-header">
-                <div class="tar-title"><span class="tar-icon"><i class="fas fa-clipboard-list"></i></span><div><h2>Attendance Records</h2><p>Manage and view daily attendance for your school</p></div></div>
+                <div class="tar-title"><span class="tar-icon"><i class="fas fa-clipboard-list"></i></span><div><h2 id="tarTitle">Attendance Records</h2><p id="tarDescription">Manage daily attendance</p></div></div>
                 <button type="button" class="tar-button tar-button-light" id="tarExport"><i class="fas fa-file-export"></i> Export Data</button>
             </header>
             <div class="tar-filters">
                 <label><span><i class="fas fa-calendar-alt"></i> Select date</span><input type="date" id="tarDate"></label>
-                <label><span><i class="fas fa-map-marker-alt"></i> Location / class</span><select id="tarLocation"><option value="all">All classes and locations</option></select></label>
+                <label><span><i class="fas fa-map-marker-alt"></i> <span id="tarLocationLabel">Class / location</span></span><select id="tarLocation"><option value="all">All classes and locations</option></select></label>
                 <label><span><i class="fas fa-filter"></i> Status</span><select id="tarStatus"><option value="all">All statuses</option><option value="present">Present</option><option value="absent">Absent</option><option value="late">Late</option><option value="excused">Excused</option><option value="onDuty">On duty</option><option value="unmarked">Unmarked</option></select></label>
                 <button type="button" class="tar-button tar-button-primary" id="tarLoad"><i class="fas fa-search"></i> Load records</button>
             </div>
@@ -55,8 +76,8 @@
     function addStyles() {
         const style = document.createElement('style');
         style.textContent = `
-        .teacher-admin-records{margin:0 0 22px;padding:22px;background:#fff;border:1px solid #e0e9e2;border-radius:18px;box-shadow:0 8px 24px rgba(24,50,34,.055);color:#26372c}
-        .tar-header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}.tar-title{display:flex;align-items:center;gap:13px}.tar-icon{width:44px;height:44px;display:grid;place-items:center;border-radius:13px;background:#e8f4eb;color:#176b4d;font-size:18px}.tar-title h2{margin:0;font-size:20px;color:#22372a}.tar-title p{margin:4px 0 0;color:#78857c;font-size:13px}
+        .teacher-admin-records{margin:0 0 22px;padding:22px;background:#fff;border:1px solid #e0e9e2;border-radius:18px;box-shadow:0 8px 24px rgba(24,50,34,.055);color:#26372c;overflow:hidden}
+        .tar-header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}.tar-title{display:flex;align-items:center;gap:13px;min-width:0}.tar-icon{width:44px;height:44px;display:grid;place-items:center;border-radius:13px;background:#e8f4eb;color:#176b4d;font-size:18px;flex:0 0 auto}.tar-title h2{margin:0;font-size:20px;color:#22372a}.tar-title p{margin:4px 0 0;color:#78857c;font-size:13px}.tar-header .tar-button{width:auto!important;min-width:0!important;flex:0 0 auto!important;white-space:nowrap}
         .tar-button{min-height:42px;padding:0 15px;border-radius:10px;border:1px solid #dce6df;background:#fff;color:#33473b;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}.tar-button:hover{filter:brightness(.97)}.tar-button-primary{background:#176b4d;color:#fff;border-color:#176b4d}.tar-filters{display:grid;grid-template-columns:1fr 1.25fr 1fr auto;gap:12px;padding:16px;background:#f7faf8;border:1px solid #e7eee9;border-radius:14px;align-items:end}.tar-filters label{display:grid;gap:7px;min-width:0}.tar-filters label span{font-size:11px;font-weight:750;color:#5f7065}.tar-filters label i{color:#176b4d;margin-right:5px}.tar-filters input,.tar-filters select,.tar-search input{width:100%;height:43px;padding:0 12px;border:1px solid #dce6df;border-radius:9px;background:#fff;color:#27382e;font:inherit;min-width:0}.tar-summary{display:grid;grid-template-columns:repeat(6,minmax(90px,1fr));gap:10px;margin:16px 0}.tar-summary div{padding:14px;border:1px solid #e6ede8;border-radius:12px;background:#fff}.tar-summary span{display:block;color:#77847b;font-size:11px}.tar-summary strong{display:block;margin-top:5px;color:#1f3e2c;font-size:22px}.tar-search{display:flex;align-items:center;gap:9px;margin:10px 0 14px;padding:0 12px;border:1px solid #e1e9e3;border-radius:10px;background:#fff}.tar-search>i{color:#718078}.tar-search input{border:0;outline:0;flex:1}.tar-search span{white-space:nowrap;color:#758178;font-size:12px}.tar-results{overflow:auto}.tar-group{margin:14px 0 18px;border:1px solid #e3ebe5;border-radius:13px;overflow:hidden}.tar-group-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 16px;background:#f4f8f5}.tar-group-heading strong{font-size:14px}.tar-group-heading span{color:#758178;font-size:12px}.tar-table{width:100%;border-collapse:collapse;min-width:660px}.tar-table th{padding:11px 14px;text-align:left;background:#fbfcfb;color:#68776d;font-size:10px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e7ede8}.tar-table td{padding:12px 14px;border-bottom:1px solid #edf1ee;font-size:13px}.tar-table tr:last-child td{border-bottom:0}.tar-student{font-weight:700;color:#283b30}.tar-muted{display:block;color:#87928a;font-size:11px;margin-top:3px}.tar-badge{display:inline-flex;padding:5px 9px;border-radius:999px;background:#eef2ef;color:#59675e;font-size:11px;font-weight:750}.tar-badge.present{background:#e9f6ec;color:#176b4d}.tar-badge.absent{background:#fff0ee;color:#b14840}.tar-badge.late{background:#fff6df;color:#976911}.tar-empty{padding:38px 20px;text-align:center;color:#758178;border:1px dashed #dce6df;border-radius:13px}.tar-empty i{font-size:25px;color:#a3b2a7}.tar-empty h3{margin:10px 0 5px;color:#33443a;font-size:15px}.tar-empty p{margin:0;font-size:12px}
         @media(max-width:860px){.tar-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.tar-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
         @media(max-width:560px){.teacher-admin-records{padding:14px;border-radius:14px}.tar-header{align-items:flex-start;flex-direction:column}.tar-header .tar-button{width:100%}.tar-filters{grid-template-columns:1fr}.tar-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.tar-search{padding-left:9px}.tar-search span{font-size:10px}}
@@ -76,21 +97,29 @@
                 return;
             }
             schoolId = profile.schoolId;
-            const [locationsSnap, classesSnap, studentsSnap] = await Promise.all([
+            const [institutionSnap, locationsSnap, classesSnap, studentsSnap] = await Promise.all([
+                firebase.database().ref(`schools/${schoolId}`).once('value'),
                 firebase.database().ref(`schoolLocations/${schoolId}`).once('value'),
                 firebase.database().ref(`schoolClasses/${schoolId}`).once('value'),
                 firebase.database().ref(`schoolUsers/${schoolId}`).once('value')
             ]);
+            const institution = institutionSnap.val() || {};
+            institutionType = String(institution.type || institution.institutionType || profile.institutionType || 'school').toLowerCase();
+            updateModeCopy();
             classes = [];
             [locationsSnap, classesSnap].forEach(snapshot => snapshot.forEach(child => {
                 const item = child.val() || {};
                 item.id = item.id || child.key;
-                if (!classes.some(existing => existing.id === item.id)) classes.push(item);
+                if (belongsToSchool(item) && !classes.some(existing => existing.id === item.id)) classes.push(item);
             }));
             studentsById = {};
-            studentsSnap.forEach(child => { const student = child.val() || {}; studentsById[student.id || child.key] = student; });
+            studentsSnap.forEach(child => {
+                const student = child.val() || {};
+                if (!belongsToSchool(student)) return;
+                studentsById[student.id || child.key] = student;
+            });
             const select = document.getElementById('tarLocation');
-            select.innerHTML = '<option value="all">All classes and locations</option>';
+            select.innerHTML = `<option value="all">${isSchoolMode() ? 'All classes and sections' : 'All classes and locations'}</option>`;
             classes.sort((a, b) => String(a.name || a.className || '').localeCompare(String(b.name || b.className || ''))).forEach(item => {
                 const option = document.createElement('option');
                 option.value = item.id;
@@ -121,7 +150,7 @@
             displayedRows = [];
             snapshots.forEach((snapshot, index) => {
                 const session = snapshot.val();
-                if (!session || !session._meta || session._meta.schoolId !== schoolId) return;
+                    if (!session || !session._meta || String(session._meta.schoolId || '') !== String(schoolId)) return;
                 const item = targetClasses[index];
                 Object.keys(session).forEach(key => {
                     if (key.startsWith('_') || key.endsWith('_record') || key.endsWith('_remark') || key.endsWith('_verification')) return;
