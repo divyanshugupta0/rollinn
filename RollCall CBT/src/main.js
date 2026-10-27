@@ -338,6 +338,20 @@ function createWindow() {
         handleCommandLineFiles();
     });
 
+    // Allow toggling DevTools with F12 or Ctrl+Shift+I (or Cmd+Option+I on macOS)
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+        const isF12 = input.key === 'F12';
+        const isCtrlShiftI = (input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i';
+        if (input.type === 'keyDown' && (isF12 || isCtrlShiftI)) {
+            if (mainWindow.webContents.isDevToolsOpened()) {
+                mainWindow.webContents.closeDevTools();
+            } else {
+                mainWindow.webContents.openDevTools({ mode: 'detach' });
+            }
+            event.preventDefault();
+        }
+    });
+
     // Detect focus loss during exam (Anti-Cheat)
     mainWindow.on('blur', () => {
         if (isKioskModeActive && mainWindow && !mainWindow.isDestroyed()) {
@@ -543,6 +557,43 @@ function setupIpcHandlers() {
             return {
                 canceled: false,
                 error: error.message || 'Failed to inspect or verify exam file.'
+            };
+        }
+    });
+
+    // LAN Live Mode: HTTP proxy to communicate reliably with RollCall ERP on local subnet
+    ipcMain.handle('cbt:lan-fetch', async (event, options) => {
+        try {
+            const url = options.url;
+            const method = (options.method || 'GET').toUpperCase();
+            const headers = options.headers || {};
+            const body = options.body ? (typeof options.body === 'string' ? options.body : JSON.stringify(options.body)) : undefined;
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 8000);
+
+            const res = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...headers
+                },
+                body: ['GET', 'HEAD'].includes(method) ? undefined : body,
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            const data = await res.json().catch(() => ({}));
+            return {
+                ok: res.ok,
+                status: res.status,
+                data
+            };
+        } catch (error) {
+            return {
+                ok: false,
+                status: 0,
+                error: error.name === 'AbortError' ? 'Connection timed out. Check ERP host IP and port.' : error.message
             };
         }
     });

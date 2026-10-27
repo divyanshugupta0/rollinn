@@ -35,6 +35,15 @@
         recordsFromDate: '',
         recordsToDate: '',
         recordsSearch: '',
+        lan: {
+            mode: 'lan',
+            connected: false,
+            hostUrl: localStorage.getItem('rc_lan_host_url') || 'http://localhost:8788',
+            pairingCode: localStorage.getItem('rc_lan_pairing_code') || '',
+            activeExam: null,
+            heartbeatInterval: null,
+            deskStationId: localStorage.getItem('rc_station_desk_id') || ('DESK-' + Math.floor(100 + Math.random() * 900))
+        },
         stationRecords: []
     };
 
@@ -356,6 +365,27 @@
         el.cbtQrImg = document.getElementById('cbt-qr-img');
         el.cbtQrSummaryStats = document.getElementById('cbt-qr-summary-stats');
         el.btnCloseCbtQrSync = document.getElementById('btn-close-cbt-qr-sync');
+
+        // LAN Live Exam Elements
+        el.topbarLanPill = document.getElementById('topbar-lan-pill');
+        el.topbarLanText = document.getElementById('topbar-lan-text');
+        el.btnStandbySyncLan = document.getElementById('btn-standby-sync-lan');
+        el.btnTabSourceLan = document.getElementById('btn-tab-source-lan');
+        el.btnTabSourceFile = document.getElementById('btn-tab-source-file');
+        el.panelExamSourceLan = document.getElementById('panel-exam-source-lan');
+        el.lanStatusPill = document.getElementById('lan-status-pill');
+        el.lanStatusText = document.getElementById('lan-status-text');
+        el.inputLanHostUrl = document.getElementById('input-lan-host-url');
+        el.inputLanPairingCode = document.getElementById('input-lan-pairing-code');
+        el.btnLanAutoDiscover = document.getElementById('btn-lan-auto-discover');
+        el.btnLanConnectSync = document.getElementById('btn-lan-connect-sync');
+        el.lanLiveExamBanner = document.getElementById('lan-live-exam-banner');
+        el.lanPreviewSchool = document.getElementById('lan-preview-school');
+        el.lanPreviewExamTitle = document.getElementById('lan-preview-exam-title');
+        el.lanTagSubject = document.getElementById('lan-tag-subject');
+        el.lanTagDuration = document.getElementById('lan-tag-duration');
+        el.lanTagMarks = document.getElementById('lan-tag-marks');
+        el.lanTagCandidates = document.getElementById('lan-tag-candidates');
         el.btnDismissCbtQr = document.getElementById('btn-dismiss-cbt-qr');
     }
 
@@ -543,7 +573,8 @@
                 questions: exam.questions
             }];
         }
-        state.activeExam = exam;
+        state.rawExam = JSON.parse(JSON.stringify(exam));
+        state.activeExam = JSON.parse(JSON.stringify(exam));
         state.selectedCandidate = null;
         state.currentSectionIndex = 0;
         state.currentQuestionIndex = 0;
@@ -901,6 +932,9 @@
             return;
         }
         state.selectedCandidate = candidate;
+        state.sessionExamPrepared = false;
+        state.candidateResponses = {};
+        state.questionStatus = {};
 
         if (el.stationStandbyView) el.stationStandbyView.style.display = 'none';
         if (el.stationDeskView) el.stationDeskView.style.display = 'block';
@@ -1157,42 +1191,172 @@
         return items;
     }
 
+    function resolveCorrectOption(q, originalOptions) {
+        if (!Array.isArray(originalOptions) || originalOptions.length === 0) {
+            const val = q.correctAnswer !== undefined && q.correctAnswer !== null ? q.correctAnswer
+                : (q.correctOption !== undefined ? q.correctOption
+                : (q.correctIndex !== undefined ? q.correctIndex
+                : (q.answer !== undefined ? q.answer
+                : (q.correct_answer !== undefined ? q.correct_answer
+                : (q.key !== undefined ? q.key : null)))));
+            return {
+                type: 'text_or_number',
+                rawAnswer: val !== null && val !== undefined ? String(val).trim() : null,
+                originalIndex: -1
+            };
+        }
+
+        const rawVal = q.correctAnswer !== undefined && q.correctAnswer !== null ? q.correctAnswer
+            : (q.correctOption !== undefined ? q.correctOption
+            : (q.correctIndex !== undefined ? q.correctIndex
+            : (q.answer !== undefined ? q.answer
+            : (q.correct_answer !== undefined ? q.correct_answer
+            : (q.key !== undefined ? q.key : null)))));
+
+        if (rawVal === null || rawVal === undefined) {
+            return { type: 'unkeyed', rawAnswer: null, originalIndex: -1, text: null };
+        }
+
+        const norm = (s) => String(s || '').trim().toLowerCase();
+        const rawStr = String(rawVal).trim();
+
+        // 1. Exact text match with an original option
+        const textIdx = originalOptions.findIndex(opt => norm(opt) === norm(rawStr));
+        if (textIdx >= 0) {
+            return { type: 'option', originalIndex: textIdx, text: originalOptions[textIdx] };
+        }
+
+        // 2. Option label format: "Option A", "A.", "A)", "(A)", "A: ..."
+        const labelMatch = rawStr.match(/^(?:Option\s+)?\(?([A-Z])\)?[\.\:\-\)]?\s*(.*)$/i);
+        if (labelMatch) {
+            const letter = labelMatch[1].toUpperCase();
+            const letterIdx = letter.charCodeAt(0) - 65;
+            const remainderText = labelMatch[2] ? norm(labelMatch[2]) : '';
+
+            if (remainderText) {
+                const remIdx = originalOptions.findIndex(opt => norm(opt) === remainderText);
+                if (remIdx >= 0) {
+                    return { type: 'option', originalIndex: remIdx, text: originalOptions[remIdx] };
+                }
+            }
+            if (letterIdx >= 0 && letterIdx < originalOptions.length) {
+                return { type: 'option', originalIndex: letterIdx, text: originalOptions[letterIdx] };
+            }
+        }
+
+        // 3. Integer or numeric index (0-based or 1-based)
+        const num = Number(rawStr);
+        if (!Number.isNaN(num) && Number.isInteger(num)) {
+            if (num >= 0 && num < originalOptions.length) {
+                return { type: 'option', originalIndex: num, text: originalOptions[num] };
+            }
+            if (num >= 1 && num <= originalOptions.length) {
+                return { type: 'option', originalIndex: num - 1, text: originalOptions[num - 1] };
+            }
+        }
+
+        // 4. Substring partial match if rawStr is descriptive
+        if (rawStr.length >= 3) {
+            const partialIdx = originalOptions.findIndex(opt => {
+                const o = norm(opt);
+                const r = norm(rawStr);
+                return o === r || o.includes(r) || r.includes(o);
+            });
+            if (partialIdx >= 0) {
+                return { type: 'option', originalIndex: partialIdx, text: originalOptions[partialIdx] };
+            }
+        }
+
+        return { type: 'fallback', rawAnswer: rawStr, originalIndex: -1, text: null };
+    }
+
+    function shouldShowImmediateResult(exam) {
+        if (!exam) return false;
+        const rules = exam.rules || {};
+        const candidates = [
+            rules.showImmediateResult,
+            rules.showResult,
+            rules.showResults,
+            rules.instantResult,
+            rules.showScore,
+            rules.showScorecard,
+            exam.showImmediateResult,
+            exam.showResult,
+            exam.showResults,
+            exam.instantResult
+        ];
+
+        for (const val of candidates) {
+            if (val === false || val === 'false' || val === 0 || val === '0' || val === 'no' || val === 'off') {
+                return false;
+            }
+        }
+
+        for (const val of candidates) {
+            if (val === true || val === 'true' || val === 1 || val === '1' || val === 'yes' || val === 'on') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     function prepareExamForSession() {
-        if (!state.activeExam || state.sessionExamPrepared) return;
+        if (!state.activeExam) return;
+
+        // Restore pristine sections and questions from state.rawExam so shuffling never compounds
+        if (state.rawExam && Array.isArray(state.rawExam.sections) && state.rawExam.sections.length > 0) {
+            state.activeExam.sections = JSON.parse(JSON.stringify(state.rawExam.sections));
+        }
 
         const rules = state.activeExam.rules || {};
         state.activeExam.sections = (state.activeExam.sections || []).map(section => {
             let questions = (section.questions || []).map(question => {
                 const q = { ...question };
-                const originalOptions = (q.options || []).map(option => (
+                const rawOptions = Array.isArray(q.options) ? q.options : [];
+                const originalOptions = rawOptions.map(option => (
                     typeof option === 'object' && option !== null
                         ? (option.text || option.label || option.optionText || '')
                         : String(option)
                 ));
-                const keyedAnswer = q.correctAnswer;
-                let correctIndex = Number.isInteger(keyedAnswer)
-                    ? keyedAnswer
-                    : (typeof keyedAnswer === 'string' && /^[A-D]$/i.test(keyedAnswer.trim())
-                        ? keyedAnswer.trim().toUpperCase().charCodeAt(0) - 65
-                        : Number.parseInt(keyedAnswer, 10));
+                q._originalOptions = [...originalOptions];
 
-                if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= originalOptions.length) {
-                    correctIndex = -1;
-                }
+                const resolved = resolveCorrectOption(q, originalOptions);
 
-                const optionPairs = originalOptions.map((text, index) => ({ text, originalIndex: index }));
-                if (rules.randomizeOptions === true) shuffleInPlace(optionPairs);
-                q.options = optionPairs.map(pair => pair.text);
-                if (correctIndex >= 0) {
-                    const displayedIndex = optionPairs.findIndex(pair => pair.originalIndex === correctIndex);
-                    q.correctAnswer = displayedIndex >= 0 ? String.fromCharCode(65 + displayedIndex) : null;
+                if (resolved.type === 'option' && originalOptions.length > 0 && resolved.originalIndex >= 0) {
+                    const optionPairs = originalOptions.map((text, index) => ({
+                        text,
+                        originalIndex: index,
+                        isCorrect: index === resolved.originalIndex
+                    }));
+
+                    if (rules.randomizeOptions === true) {
+                        shuffleInPlace(optionPairs);
+                    }
+
+                    q.options = optionPairs.map(pair => pair.text);
+                    const displayedIdx = optionPairs.findIndex(pair => pair.isCorrect);
+                    if (displayedIdx >= 0) {
+                        q.correctAnswer = String.fromCharCode(65 + displayedIdx);
+                        q.correctOptionText = optionPairs[displayedIdx].text;
+                        q.correctOptionIndex = displayedIdx;
+                    } else {
+                        q.correctAnswer = null;
+                        q.correctOptionText = null;
+                    }
+                } else if (resolved.rawAnswer !== null && resolved.rawAnswer !== undefined) {
+                    q.correctAnswer = resolved.rawAnswer;
+                    q.correctOptionText = resolved.rawAnswer;
                 } else {
                     q.correctAnswer = null;
+                    q.correctOptionText = null;
                 }
                 return q;
             });
 
-            if (rules.randomizeQuestions === true) shuffleInPlace(questions);
+            if (rules.randomizeQuestions === true) {
+                shuffleInPlace(questions);
+            }
             return { ...section, questions };
         });
         state.sessionExamPrepared = true;
@@ -1207,6 +1371,13 @@
             showToast(`Candidate ${state.selectedCandidate.name} has already completed and submitted this examination. Re-attempts are prohibited.`, 'error');
             return;
         }
+
+        // Reset per-candidate session state
+        state.candidateResponses = {};
+        state.questionStatus = {};
+        state.antiCheatStrikes = 0;
+        state.antiCheatLog = [];
+        state.sessionExamPrepared = false;
 
         // Enable Kiosk Lockdown
         await window.rollcallCBT.setKioskMode(true);
@@ -1660,29 +1831,100 @@
                 const candidateAns = state.candidateResponses[q.id];
                 let isCorrect = false;
 
-                if (candidateAns === undefined || candidateAns === '') {
+                if (candidateAns === undefined || candidateAns === null || candidateAns === '') {
                     unattemptedCount++;
-                } else if (q.correctAnswer !== null && q.correctAnswer !== undefined) {
-                    if (String(candidateAns).trim().toUpperCase() === String(q.correctAnswer).trim().toUpperCase()) {
-                        isCorrect = true;
-                        correctCount++;
-                        totalScore += qMarks;
-                    } else {
-                        incorrectCount++;
-                        totalScore = Math.max(0, totalScore - qNeg);
-                    }
                 } else {
-                    // Descriptive or subjective questions without auto-key
-                    unattemptedCount++;
+                    const candStr = String(candidateAns).trim();
+                    const correctLetter = q.correctAnswer ? String(q.correctAnswer).trim().toUpperCase() : null;
+                    const correctText = q.correctOptionText ? String(q.correctOptionText).trim().toLowerCase() : null;
+
+                    if (q.type === 'multiple_select' && Array.isArray(candidateAns)) {
+                        const candArr = candidateAns.map(a => String(a).trim().toUpperCase()).sort();
+                        const correctArr = (Array.isArray(q.correctAnswer) ? q.correctAnswer : [q.correctAnswer])
+                            .map(a => String(a).trim().toUpperCase()).sort();
+                        if (candArr.length === correctArr.length && candArr.every((v, i) => v === correctArr[i])) {
+                            isCorrect = true;
+                        }
+                    } else if (correctLetter || correctText) {
+                        const candNorm = candStr.toLowerCase();
+                        const candLetter = candStr.toUpperCase();
+
+                        if (correctLetter && candLetter === correctLetter) {
+                            isCorrect = true;
+                        } else if (correctText && candNorm === correctText) {
+                            isCorrect = true;
+                        } else if (Array.isArray(q.options) && q.options.length > 0) {
+                            // Check if candidate answer is option text matching correct option
+                            const chosenIdx = q.options.findIndex(opt => {
+                                const o = typeof opt === 'object' && opt !== null ? (opt.text || opt.label || '') : String(opt);
+                                return o.trim().toLowerCase() === candNorm;
+                            });
+                            if (chosenIdx >= 0 && (String.fromCharCode(65 + chosenIdx) === correctLetter || (correctText && String(q.options[chosenIdx]).trim().toLowerCase() === correctText))) {
+                                isCorrect = true;
+                            }
+                            // Check if candidate answer was letter and its option text matches correctText
+                            const letterIdx = candLetter.charCodeAt(0) - 65;
+                            if (letterIdx >= 0 && letterIdx < q.options.length) {
+                                const optText = String(q.options[letterIdx]).trim().toLowerCase();
+                                if (correctText && optText === correctText) {
+                                    isCorrect = true;
+                                }
+                            }
+                        }
+
+                        // Numerical tolerance comparison if numerical or unlisted options
+                        if (!isCorrect && (q.type === 'numerical' || !q.options || q.options.length === 0)) {
+                            const cNum = Number(candStr);
+                            const kNum = Number(q.correctAnswer);
+                            if (!Number.isNaN(cNum) && !Number.isNaN(kNum) && Math.abs(cNum - kNum) < 1e-4) {
+                                isCorrect = true;
+                            }
+                        }
+
+                        if (isCorrect) {
+                            correctCount++;
+                            totalScore += qMarks;
+                        } else {
+                            incorrectCount++;
+                            totalScore = Math.max(0, totalScore - qNeg);
+                        }
+                    } else {
+                        // Descriptive or unkeyed question
+                        unattemptedCount++;
+                    }
+                }
+
+                let candidateAnsDisplay = 'Not Answered';
+                if (candidateAns !== undefined && candidateAns !== null && candidateAns !== '') {
+                    if (Array.isArray(q.options) && q.options.length > 0) {
+                        const candLetter = String(candidateAns).trim().toUpperCase();
+                        const candIdx = candLetter.charCodeAt(0) - 65;
+                        if (candIdx >= 0 && candIdx < q.options.length) {
+                            candidateAnsDisplay = `${candLetter}: ${q.options[candIdx]}`;
+                        } else {
+                            candidateAnsDisplay = String(candidateAns);
+                        }
+                    } else {
+                        candidateAnsDisplay = String(candidateAns);
+                    }
+                }
+
+                let correctAnsDisplay = 'Evaluated by Teacher';
+                if (q.correctAnswer !== null && q.correctAnswer !== undefined) {
+                    if (Array.isArray(q.options) && q.options.length > 0 && q.correctOptionText) {
+                        correctAnsDisplay = `${q.correctAnswer}: ${q.correctOptionText}`;
+                    } else {
+                        correctAnsDisplay = String(q.correctAnswer);
+                    }
                 }
 
                 reviewItems.push({
                     text: q.text,
-                    candidateAns: candidateAns || 'Not Answered',
-                    correctAns: q.correctAnswer || 'Evaluated by Teacher',
+                    candidateAns: candidateAnsDisplay,
+                    correctAns: correctAnsDisplay,
                     explanation: q.explanation || '',
                     isCorrect: isCorrect,
-                    isUnattempted: candidateAns === undefined || candidateAns === '',
+                    isUnattempted: candidateAns === undefined || candidateAns === null || candidateAns === '',
                     marks: qMarks,
                     negMarks: qNeg,
                     sectionTitle: sec.title || ''
@@ -1777,15 +2019,14 @@
                 : 'Anti-Cheat: 100% Clean';
         }
 
-        // Render Question Reviews
-        renderReviewList(reviewItems);
-
         // Respect the teacher's result-visibility setting. The score is still
-        // calculated and stored for authorized teacher/admin records.
-        const showImmediateResult = state.activeExam.rules?.showImmediateResult === true;
+        // calculated and stored in the encrypted station vault for authorized teacher/admin records.
+        const showImmediateResult = shouldShowImmediateResult(state.activeExam);
         if (showImmediateResult) {
+            renderReviewList(reviewItems);
             switchView('results');
         } else {
+            if (el.reviewQuestionsList) el.reviewQuestionsList.innerHTML = '';
             switchView('setup');
         }
 
@@ -2508,9 +2749,10 @@
             const rYMD = stationLocalDateYmd(r.timestamp || r.dateIso);
             return rYMD === todayYMD;
         });
-        state.recordsFilterMode = hasTodayRecords ? 'today' : 'all';
+        // Default to 'all' so supervisors can view all station records immediately
+        state.recordsFilterMode = 'all';
 
-        // Select initial folder: check active exam or multiple distinct exams
+        // Select initial folder: check active exam or folder list
         const activeExamKey = state.activeExam ? String(state.activeExam.examId || state.activeExam.code || '').trim() : '';
         const hasActiveExamRecords = activeExamKey && allRecords.some(r => {
             const k = String(r.exam?.id || r.exam?.code || r.exam?.title || '').trim();
@@ -2520,12 +2762,7 @@
         if (hasActiveExamRecords) {
             state.selectedExamFolder = activeExamKey;
         } else {
-            const distinctExams = new Set(allRecords.map(r => String(r.exam?.id || r.exam?.code || r.exam?.title || 'EXAM').trim()));
-            if (distinctExams.size === 1) {
-                state.selectedExamFolder = Array.from(distinctExams)[0];
-            } else {
-                state.selectedExamFolder = 'FOLDERS';
-            }
+            state.selectedExamFolder = 'FOLDERS';
         }
 
         const todayStr = todayYMD;
@@ -3058,6 +3295,239 @@
     }
 
     // =========================================================================
+    // LAN MODE & ROLLCALL ERP LIVE EXAM SYNCHRONIZATION
+    // =========================================================================
+    function setExamSourceMode(mode) {
+        state.lan.mode = mode;
+        if (mode === 'lan') {
+            if (el.btnTabSourceLan) {
+                el.btnTabSourceLan.style.border = '1.5px solid #0284c7';
+                el.btnTabSourceLan.style.background = '#f0f9ff';
+                el.btnTabSourceLan.style.color = '#0369a1';
+            }
+            if (el.btnTabSourceFile) {
+                el.btnTabSourceFile.style.border = '1.5px solid #cbd5e1';
+                el.btnTabSourceFile.style.background = '#ffffff';
+                el.btnTabSourceFile.style.color = '#475569';
+            }
+            if (el.panelExamSourceLan) el.panelExamSourceLan.style.display = 'block';
+            if (el.examDropzone) el.examDropzone.style.display = 'none';
+        } else {
+            if (el.btnTabSourceLan) {
+                el.btnTabSourceLan.style.border = '1.5px solid #cbd5e1';
+                el.btnTabSourceLan.style.background = '#ffffff';
+                el.btnTabSourceLan.style.color = '#475569';
+            }
+            if (el.btnTabSourceFile) {
+                el.btnTabSourceFile.style.border = '1.5px solid #0284c7';
+                el.btnTabSourceFile.style.background = '#f0f9ff';
+                el.btnTabSourceFile.style.color = '#0369a1';
+            }
+            if (el.panelExamSourceLan) el.panelExamSourceLan.style.display = 'none';
+            if (el.examDropzone) el.examDropzone.style.display = 'flex';
+        }
+    }
+
+    function cleanLanHostUrl(raw) {
+        let url = String(raw || '').trim();
+        if (!url) return 'http://localhost:8788';
+        if (!/^https?:\/\//i.test(url)) {
+            url = 'http://' + url;
+        }
+        return url.replace(/\/+$/, '');
+    }
+
+    function updateLanStatusUI(connected, statusText) {
+        state.lan.connected = connected;
+        if (connected) {
+            if (el.lanStatusPill) {
+                el.lanStatusPill.className = 'lan-status-pill connected';
+                el.lanStatusPill.style.background = '#dcfce7';
+                el.lanStatusPill.style.color = '#15803d';
+                el.lanStatusPill.style.borderColor = '#86efac';
+            }
+            if (el.lanStatusText) el.lanStatusText.textContent = statusText || 'Connected to ERP';
+            if (el.topbarLanPill) {
+                el.topbarLanPill.style.display = 'inline-flex';
+                let hostDisplay = cleanLanHostUrl(state.lan.hostUrl).replace(/^https?:\/\//, '');
+                if (el.topbarLanText) el.topbarLanText.textContent = `LAN: ${hostDisplay}`;
+            }
+        } else {
+            if (el.lanStatusPill) {
+                el.lanStatusPill.className = 'lan-status-pill disconnected';
+                el.lanStatusPill.style.background = '#f1f5f9';
+                el.lanStatusPill.style.color = '#64748b';
+                el.lanStatusPill.style.borderColor = '#cbd5e1';
+            }
+            if (el.lanStatusText) el.lanStatusText.textContent = statusText || 'Disconnected';
+            if (el.topbarLanPill) el.topbarLanPill.style.display = 'none';
+        }
+    }
+
+    async function connectAndSyncLanExam(silent = false) {
+        const rawHost = el.inputLanHostUrl ? el.inputLanHostUrl.value : state.lan.hostUrl;
+        const hostUrl = cleanLanHostUrl(rawHost);
+        const pairingCode = el.inputLanPairingCode ? el.inputLanPairingCode.value.trim() : state.lan.pairingCode;
+
+        state.lan.hostUrl = hostUrl;
+        state.lan.pairingCode = pairingCode;
+        localStorage.setItem('rc_lan_host_url', hostUrl);
+        localStorage.setItem('rc_lan_pairing_code', pairingCode);
+
+        if (!window.rollcallCBT || !window.rollcallCBT.lanFetch) {
+            if (!silent) showToast('LAN networking bridge is not available.', 'error');
+            return;
+        }
+
+        if (!silent) {
+            updateLanStatusUI(false, 'Connecting to ERP...');
+        }
+
+        try {
+            const queryParams = pairingCode ? `?code=${encodeURIComponent(pairingCode)}` : '';
+            const res = await window.rollcallCBT.lanFetch({
+                url: `${hostUrl}/api/cbt/active-exam${queryParams}`,
+                method: 'GET',
+                headers: {
+                    'x-cbt-pairing-code': pairingCode
+                },
+                timeoutMs: 6000
+            });
+
+            if (res && res.ok && res.data) {
+                const data = res.data;
+                if (data.active && data.exam) {
+                    const exam = data.exam;
+                    updateLanStatusUI(true, 'Connected (Live Exam Ready)');
+                    state.lan.activeExam = exam;
+
+                    if (el.lanPreviewSchool) el.lanPreviewSchool.textContent = exam.schoolName || 'RollCall ERP Institution';
+                    if (el.lanPreviewExamTitle) el.lanPreviewExamTitle.textContent = exam.title || 'Live Computer-Based Exam';
+                    if (el.lanTagSubject) el.lanTagSubject.innerHTML = `<i class="fas fa-book"></i> ${(exam.subject || 'General').toUpperCase()}`;
+                    if (el.lanTagDuration) el.lanTagDuration.innerHTML = `<i class="fas fa-clock"></i> ${exam.durationMinutes || 60} Mins`;
+                    if (el.lanTagMarks) el.lanTagMarks.innerHTML = `<i class="fas fa-trophy"></i> ${exam.totalMarks || 100} Marks`;
+                    const candCount = Array.isArray(exam.candidates) ? exam.candidates.length : 0;
+                    if (el.lanTagCandidates) el.lanTagCandidates.innerHTML = `<i class="fas fa-users"></i> ${candCount} Candidates Loaded`;
+                    if (el.lanLiveExamBanner) el.lanLiveExamBanner.style.display = 'block';
+
+                    loadExamIntoSetup(exam);
+                    startLanHeartbeat();
+
+                    if (!silent) {
+                        showToast(`Successfully synced "${exam.title}" directly from RollCall ERP over LAN! (No file upload needed)`, 'success');
+                    }
+                } else {
+                    updateLanStatusUI(true, 'Connected (No Live Exam Broadcasted)');
+                    if (el.lanLiveExamBanner) el.lanLiveExamBanner.style.display = 'none';
+                    startLanHeartbeat();
+                    if (!silent) {
+                        showToast('Connected to RollCall ERP. No exam is currently broadcasting. Start broadcast in ERP Exams > CBT LAN.', 'info');
+                    }
+                }
+            } else {
+                updateLanStatusUI(false, 'Disconnected');
+                if (!silent) {
+                    showToast(`Cannot reach RollCall ERP at ${hostUrl}. Ensure ERP is running and LAN Server is Started.`, 'error');
+                }
+            }
+        } catch (err) {
+            updateLanStatusUI(false, 'Connection Failed');
+            if (!silent) {
+                showToast(`LAN connection error: ${err.message}`, 'error');
+            }
+        }
+    }
+
+    function startLanHeartbeat() {
+        if (state.lan.heartbeatInterval) clearInterval(state.lan.heartbeatInterval);
+        const sendPing = async () => {
+            if (!state.lan.connected || !state.lan.hostUrl || !window.rollcallCBT?.lanFetch) return;
+            try {
+                const pairingCode = state.lan.pairingCode;
+                const queryParams = pairingCode ? `?code=${encodeURIComponent(pairingCode)}` : '';
+                await window.rollcallCBT.lanFetch({
+                    url: `${state.lan.hostUrl}/api/cbt/station-heartbeat${queryParams}`,
+                    method: 'POST',
+                    headers: { 'x-cbt-pairing-code': pairingCode },
+                    body: {
+                        stationId: state.lan.deskStationId,
+                        stationName: `Workstation ${state.lan.deskStationId}`,
+                        candidateRoll: state.selectedCandidate?.rollNo || state.selectedCandidate?.roll || null,
+                        candidateName: state.selectedCandidate?.name || null,
+                        status: document.body.classList.contains('exam-active') ? 'in_progress' : (state.selectedCandidate ? 'ready' : 'idle')
+                    },
+                    timeoutMs: 4000
+                });
+            } catch (e) {
+                // Heartbeat error
+            }
+        };
+        sendPing();
+        state.lan.heartbeatInterval = setInterval(sendPing, 15000);
+    }
+
+    async function autoDiscoverLanErp() {
+        showToast('Scanning network for RollCall ERP host...', 'info');
+        const probeHosts = [
+            'http://localhost:8788',
+            'http://127.0.0.1:8788',
+            state.lan.hostUrl
+        ];
+        const uniqueHosts = [...new Set(probeHosts.map(h => cleanLanHostUrl(h)))];
+
+        let foundUrl = null;
+        for (const host of uniqueHosts) {
+            try {
+                const res = await window.rollcallCBT.lanFetch({
+                    url: `${host}/api/cbt/lan-info`,
+                    method: 'GET',
+                    timeoutMs: 2500
+                });
+                if (res && res.ok && res.data && res.data.cbtSupported) {
+                    foundUrl = host;
+                    break;
+                }
+            } catch (e) {
+                // Ignore probe errors
+            }
+        }
+
+        if (foundUrl) {
+            if (el.inputLanHostUrl) el.inputLanHostUrl.value = foundUrl;
+            showToast(`Found RollCall ERP host at ${foundUrl}! Synchronizing exam...`, 'success');
+            await connectAndSyncLanExam(false);
+        } else {
+            showToast('Could not automatically discover RollCall ERP. Please enter the host IP shown in RollCall ERP manually.', 'warning');
+        }
+    }
+
+    async function postLanSubmissionRecord(stationRecord, rawSubmission) {
+        if (!state.lan.connected || !state.lan.hostUrl || !window.rollcallCBT?.lanFetch) return;
+        try {
+            const pairingCode = state.lan.pairingCode;
+            const queryParams = pairingCode ? `?code=${encodeURIComponent(pairingCode)}` : '';
+            const res = await window.rollcallCBT.lanFetch({
+                url: `${state.lan.hostUrl}/api/cbt/submit-record${queryParams}`,
+                method: 'POST',
+                headers: { 'x-cbt-pairing-code': pairingCode },
+                body: {
+                    stationId: state.lan.deskStationId,
+                    ...stationRecord,
+                    rawSubmission: rawSubmission || null
+                },
+                timeoutMs: 8000
+            });
+            if (res && res.ok) {
+                console.info('[LAN] Exam result synced directly to RollCall ERP database!');
+                showToast('Exam result successfully reported to RollCall ERP database over LAN.', 'success');
+            }
+        } catch (err) {
+            console.warn('[LAN] Failed to sync exam result to ERP:', err);
+        }
+    }
+
+
+    // =========================================================================
     // EVENT LISTENERS & SETUP
     // =========================================================================
     function setupEventListeners() {
@@ -3433,12 +3903,32 @@
             showToast('Loaded built-in demonstration exam package.', 'success');
         });
 
-        // Candidate Search
+        
+    // Candidate Search
         el.inputCandidateSearch.addEventListener('input', () => {
             applyCandidateFilters();
         });
 
         // Change Student
+        // LAN Mode Tab Switcher & Action Handlers
+        el.btnTabSourceLan?.addEventListener('click', () => setExamSourceMode('lan'));
+        el.btnTabSourceFile?.addEventListener('click', () => setExamSourceMode('file'));
+        el.btnLanConnectSync?.addEventListener('click', () => connectAndSyncLanExam(false));
+        el.btnLanAutoDiscover?.addEventListener('click', () => autoDiscoverLanErp());
+        el.btnStandbySyncLan?.addEventListener('click', () => {
+            requireAdminPin(() => {
+                openAdminExamSetupModal();
+                setExamSourceMode('lan');
+                connectAndSyncLanExam(false);
+            }, 'Enter Admin PIN to sync exam from RollCall ERP.');
+        });
+        el.topbarLanPill?.addEventListener('click', () => {
+            requireAdminPin(() => {
+                openAdminExamSetupModal();
+                setExamSourceMode('lan');
+            }, 'Enter Admin PIN to configure LAN exam distribution.');
+        });
+
         el.btnChangeStudent.addEventListener('click', () => {
             state.selectedCandidate = null;
             el.candidateConfirmBox.classList.add('hidden');
@@ -3765,5 +4255,11 @@
         switchView('license');
         checkLicenseStatus();
         initStationVaultRecords();
+
+        // Initialize LAN Live Sync Mode
+        if (el.inputLanHostUrl) el.inputLanHostUrl.value = state.lan.hostUrl;
+        if (el.inputLanPairingCode) el.inputLanPairingCode.value = state.lan.pairingCode;
+        setExamSourceMode('lan');
+        connectAndSyncLanExam(true);
     });
 })();

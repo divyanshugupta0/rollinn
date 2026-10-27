@@ -23,6 +23,10 @@
                 <i class="fas fa-building"></i>
                 <span id="topbar-institution-name">Station Not Activated</span>
             </div>
+            <div class="lan-topbar-pill" id="topbar-lan-pill" style="display: none;" title="RollCall ERP LAN Connection">
+                <span class="lan-pulse-dot"></span>
+                <span id="topbar-lan-text">LAN: Connected</span>
+            </div>
         </div>
 
         <div class="topbar-actions" id="topbar-main-actions">
@@ -276,6 +280,11 @@
                     </div>
 
                     <div class="standby-footer-bar">
+                        <div style="margin-bottom: 12px; display: flex; justify-content: center; gap: 10px;">
+                            <button type="button" class="btn-erp-light btn-sm" id="btn-standby-sync-lan" style="padding: 7px 16px; border-radius: 8px; font-weight: 700; color: #0284c7; background: #f0f9ff; border: 1.5px solid #bae6fd;">
+                                <i class="fas fa-network-wired"></i> Quick Sync from RollCall ERP (LAN)
+                            </button>
+                        </div>
                         <div class="standby-invigilator-hint">
                             <i class="fas fa-user-shield"></i>
                             <span>Invigilator Controls: Click <strong>Exam Setup</strong> in top header or press <code>Ctrl+Shift+S</code></span>
@@ -946,8 +955,94 @@
                 </div>
 
                 <div class="erp-modal-body" style="overflow-y: auto; flex: 1; padding: 22px 26px;">
-                    <!-- Step 1: Upload or Load Sample Exam -->
-                    <div class="erp-dropzone" id="exam-file-dropzone" style="margin-bottom: 20px;">
+                    <!-- Exam Distribution Mode Switcher -->
+                    <div class="exam-source-switcher" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 14px;">
+                        <button type="button" class="btn-source-tab active" id="btn-tab-source-lan" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 14px; border-radius: 8px; border: 1.5px solid #0284c7; background: #f0f9ff; color: #0369a1; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: all 0.2s;">
+                            <i class="fas fa-network-wired"></i> RollCall ERP LAN Mode
+                            <span style="font-size: 0.68rem; background: #0284c7; color: white; padding: 2px 7px; border-radius: 999px; text-transform: uppercase;">No File Needed</span>
+                        </button>
+                        <button type="button" class="btn-source-tab" id="btn-tab-source-file" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #475569; font-weight: 600; font-size: 0.88rem; cursor: pointer; transition: all 0.2s;">
+                            <i class="fas fa-file-shield"></i> Offline .rollcbt File Mode
+                        </button>
+                    </div>
+
+                    <!-- Mode A: LAN Sync from RollCall ERP -->
+                    <div class="lan-sync-container" id="panel-exam-source-lan" style="margin-bottom: 22px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 18px 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                            <div>
+                                <h4 style="margin: 0 0 3px; font-size: 1rem; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fas fa-wifi" style="color: #0284c7;"></i> RollCall ERP LAN Live Sync
+                                </h4>
+                                <p style="margin: 0; font-size: 0.80rem; color: #64748b;">
+                                    In LAN mode, no exam file is uploaded. The active exam is shared automatically from RollCall ERP over your local network.
+                                </p>
+                            </div>
+                            <div class="lan-status-pill disconnected" id="lan-status-pill" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 0.74rem; font-weight: 750; background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1;">
+                                <span class="lan-pulse-dot" style="width: 7px; height: 7px; border-radius: 50%; background: #94a3b8;"></span>
+                                <span id="lan-status-text">Disconnected</span>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 14px;">
+                            <div>
+                                <label style="display: block; font-size: 0.76rem; font-weight: 700; color: #475569; margin-bottom: 4px;">
+                                    ERP Host Address (IP:Port)
+                                </label>
+                                <div style="position: relative; display: flex; align-items: center;">
+                                    <i class="fas fa-server" style="position: absolute; left: 10px; color: #94a3b8; font-size: 0.85rem;"></i>
+                                    <input type="text" id="input-lan-host-url" placeholder="http://192.168.1.15:8788" value="http://localhost:8788" style="width: 100%; padding: 8px 12px 8px 32px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.84rem; font-family: monospace;">
+                                </div>
+                                <small style="display: block; font-size: 0.70rem; color: #94a3b8; margin-top: 3px;">
+                                    Shown in RollCall ERP &gt; Exams &gt; CBT LAN Live Broadcast
+                                </small>
+                            </div>
+
+                            <div>
+                                <label style="display: block; font-size: 0.76rem; font-weight: 700; color: #475569; margin-bottom: 4px;">
+                                    Pairing Code (Optional)
+                                </label>
+                                <div style="position: relative; display: flex; align-items: center;">
+                                    <i class="fas fa-key" style="position: absolute; left: 10px; color: #94a3b8; font-size: 0.85rem;"></i>
+                                    <input type="text" id="input-lan-pairing-code" placeholder="Optional" maxlength="12" style="width: 100%; padding: 8px 12px 8px 32px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.84rem; font-family: monospace; font-weight: 700; text-transform: uppercase;">
+                                </div>
+                                <small style="display: block; font-size: 0.70rem; color: #94a3b8; margin-top: 3px;">
+                                    Security code from ERP
+                                </small>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; justify-content: flex-end; align-items: center;">
+                            <button type="button" class="btn-erp-light btn-sm" id="btn-lan-auto-discover" style="padding: 7px 14px; font-size: 0.80rem;">
+                                <i class="fas fa-crosshairs"></i> Auto-Discover Host
+                            </button>
+                            <button type="button" class="btn-erp-primary" id="btn-lan-connect-sync" style="padding: 8px 18px; font-size: 0.84rem;">
+                                <i class="fas fa-rotate"></i> Connect &amp; Sync Live Exam
+                            </button>
+                        </div>
+
+                        <!-- Live Broadcast Exam Banner -->
+                        <div id="lan-live-exam-banner" style="display: none; margin-top: 14px; background: #ffffff; border: 1.5px solid #86efac; border-radius: 8px; padding: 14px 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <span style="font-size: 0.72rem; font-weight: 750; color: #16a34a; display: flex; align-items: center; gap: 5px;">
+                                    <i class="fas fa-circle-check"></i> LIVE EXAM RECEIVED FROM ERP
+                                </span>
+                                <span id="lan-preview-school" style="font-size: 0.75rem; color: #64748b; font-weight: 600;">RollCall Institution</span>
+                            </div>
+                            <h3 id="lan-preview-exam-title" style="margin: 0 0 8px; font-size: 1.05rem; color: #0f172a;">Computer-Based Examination</h3>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                                <span id="lan-tag-subject" style="background: #f1f5f9; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #334155;"><i class="fas fa-book"></i> General</span>
+                                <span id="lan-tag-duration" style="background: #f1f5f9; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #334155;"><i class="fas fa-clock"></i> 45 Mins</span>
+                                <span id="lan-tag-marks" style="background: #f1f5f9; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #334155;"><i class="fas fa-trophy"></i> 30 Marks</span>
+                                <span id="lan-tag-candidates" style="background: #e0f2fe; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; color: #0369a1;"><i class="fas fa-users"></i> 0 Candidates Loaded</span>
+                            </div>
+                            <p style="margin: 0; font-size: 0.78rem; color: #166534; background: #f0fdf4; padding: 6px 10px; border-radius: 6px; border: 1px solid #bbf7d0;">
+                                <i class="fas fa-shield-halved"></i> <strong>File upload completely bypassed:</strong> Candidate roster and question paper loaded directly from RollCall ERP into this station.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Step 1 (Alternative): Upload or Load Sample Exam -->
+                    <div class="erp-dropzone" id="exam-file-dropzone" style="display: none; margin-bottom: 20px;">
                         <input type="file" id="input-hidden-exam-file" accept=".rollcbt" hidden>
                         <div class="dropzone-icon-box">
                             <i class="fas fa-file-circle-check"></i>

@@ -1448,7 +1448,7 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
               randomizeOptions: modal.querySelector('#cbtShuffleOpt')?.checked === true,
               calculatorAllowed: modal.querySelector('#cbtCalculator')?.value || 'basic',
               scratchpadAllowed: modal.querySelector('#cbtScratchpad')?.checked !== false,
-              showImmediateResult: modal.querySelector('#cbtShowResult')?.checked !== false,
+              showImmediateResult: modal.querySelector('#cbtShowResult')?.checked === true,
               negativeMarkingPerQuestion: Number(modal.querySelector('#cbtNegative')?.value || 0)
             },
             candidates: assignedStudents,
@@ -1520,7 +1520,7 @@ Respond STRICTLY with a valid JSON array matching this exact schema:
               randomizeOptions: modal.querySelector('#cbtShuffleOpt')?.checked === true,
               calculatorAllowed: modal.querySelector('#cbtCalculator')?.value || 'basic',
               scratchpadAllowed: modal.querySelector('#cbtScratchpad')?.checked !== false,
-              showImmediateResult: modal.querySelector('#cbtShowResult')?.checked !== false,
+              showImmediateResult: modal.querySelector('#cbtShowResult')?.checked === true,
               negativeMarkingPerQuestion: Number(modal.querySelector('#cbtNegative')?.value || 0)
             },
             candidates: multiSectionCandidates,

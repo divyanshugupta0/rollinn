@@ -54,6 +54,9 @@ contextBridge.exposeInMainWorld('rollcallCBT', {
     deleteStationRecord: (payload) => ipcRenderer.invoke('cbt:delete-station-record', payload),
     clearStationRecords: () => ipcRenderer.invoke('cbt:clear-station-records'),
 
+    // LAN Live Mode (RollCall ERP Sync)
+    lanFetch: (options) => ipcRenderer.invoke('cbt:lan-fetch', options),
+
     // Exit & Window controls
     minimizeWindow: () => ipcRenderer.invoke('cbt:minimize-window'),
     toggleMaximizeWindow: () => ipcRenderer.invoke('cbt:toggle-maximize-window'),

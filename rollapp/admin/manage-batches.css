@@ -1,5 +1,16 @@
 /* Manage Batches Section Styles */
-:is(#manage-batches-section, #manage-batches-section-active) {
+#manage-batches-section,
+#manage-batches-section.hidden,
+#manage-batches-section-active.hidden,
+.section-template.batch-management-panel.hidden,
+body.login-view #manage-batches-section,
+body.login-view #manage-batches-section-active,
+body.login-view .batch-management-panel {
+    display: none !important;
+}
+
+#manage-batches-section-active:not(.hidden),
+#manage-batches-section:not(.hidden):not(.section-template) {
     min-height: 100% !important;
     height: auto !important;
     flex: 1 0 auto !important;

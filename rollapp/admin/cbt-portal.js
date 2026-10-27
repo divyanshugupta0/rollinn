@@ -138,17 +138,55 @@
                 ...section,
                 questions: (section.questions || []).map(q => {
                     const qCopy = { ...q };
-                    if (qCopy.correctAnswer !== undefined) {
+                    const ansVal = qCopy.correctAnswer !== undefined ? qCopy.correctAnswer
+                        : (qCopy.correctOption !== undefined ? qCopy.correctOption
+                        : (qCopy.correctIndex !== undefined ? qCopy.correctIndex
+                        : (qCopy.answer !== undefined ? qCopy.answer
+                        : (qCopy.correct_answer !== undefined ? qCopy.correct_answer
+                        : (qCopy.key !== undefined ? qCopy.key : undefined)))));
+                    if (ansVal !== undefined) {
                         answersMap[qCopy.id] = {
-                            correctAnswer: qCopy.correctAnswer,
+                            correctAnswer: ansVal,
                             explanation: qCopy.explanation || ''
                         };
                         delete qCopy.correctAnswer;
+                        delete qCopy.correctOption;
+                        delete qCopy.correctIndex;
+                        delete qCopy.answer;
+                        delete qCopy.correct_answer;
+                        delete qCopy.key;
                     }
                     return qCopy;
                 })
             };
         });
+
+        const isResultExplicitlyAllowed = (data) => {
+            if (!data) return false;
+            const r = data.rules || {};
+            const candidates = [
+                r.showImmediateResult,
+                r.showResult,
+                r.showResults,
+                r.instantResult,
+                r.showScore,
+                data.showImmediateResult,
+                data.showResult,
+                data.showResults,
+                data.instantResult
+            ];
+            for (const val of candidates) {
+                if (val === false || val === 'false' || val === 0 || val === '0' || val === 'no' || val === 'off') {
+                    return false;
+                }
+            }
+            for (const val of candidates) {
+                if (val === true || val === 'true' || val === 1 || val === '1' || val === 'yes' || val === 'on') {
+                    return true;
+                }
+            }
+            return false;
+        };
 
         const packagePayload = {
             magic: 'ROLLCBT',
@@ -172,7 +210,7 @@
                 randomizeOptions: !!examData.rules?.randomizeOptions,
                 calculatorAllowed: examData.rules?.calculatorAllowed || 'basic',
                 scratchpadAllowed: examData.rules?.scratchpadAllowed !== false,
-                showImmediateResult: examData.rules?.showImmediateResult !== false,
+                showImmediateResult: isResultExplicitlyAllowed(examData),
                 negativeMarkingPerQuestion: Number(examData.rules?.negativeMarkingPerQuestion || 0)
             },
             candidates: examData.candidates || [],
