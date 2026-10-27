@@ -1131,6 +1131,59 @@
                 }
             }
 
+            /* Focused exam settings: keep the controls needed for score entry
+               visible and move rarely used metadata out of the way. Their
+               fields remain in the DOM so saved-test compatibility is kept. */
+            #ttsExamSettingsCard {
+                border: 1px solid #d8e8f3;
+                border-radius: 14px;
+                background: linear-gradient(145deg, #fbfdff, #f4f9fc);
+                padding: 14px;
+                box-shadow: 0 5px 16px rgba(15, 86, 125, .06);
+            }
+            #ttsExamSettingsCard .tts-settings-header {
+                padding-bottom: 9px;
+                margin-bottom: 11px;
+                border-bottom: 1px solid #dcecf6;
+            }
+            #ttsExamSettingsCard .tts-settings-title {
+                font-size: .86rem;
+                color: #075985;
+            }
+            #ttsExamSettingsCard .tts-settings-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 9px;
+            }
+            #ttsExamSettingsCard .tts-field-group {
+                padding: 9px;
+                border: 1px solid #e1edf4;
+                border-radius: 10px;
+                background: rgba(255,255,255,.82);
+            }
+            #ttsExamSettingsCard .tts-field-group > label { font-size: .7rem; }
+            #ttsExamSettingsCard .tts-field-group > input,
+            #ttsExamSettingsCard .tts-field-group > select,
+            #ttsExamSettingsCard .tts-field-group > textarea { min-height: 35px; font-size: .78rem; }
+            #ttsExamSettingsCard .tts-field-group:has(#ttsGradingScale),
+            #ttsExamSettingsCard .tts-field-group:has(#ttsAssessmentComponent),
+            #ttsExamSettingsCard .tts-field-group:has(#ttsWeightage) { display: none !important; }
+            #ttsExamSettingsCard .tts-field-group:has(#ttsExamInstructions) { grid-column: 1 / -1; }
+            @media (max-width: 600px) {
+                #ttsExamSettingsCard { margin: 8px 0 12px; padding: 10px; border-radius: 11px; }
+                #ttsExamSettingsCard .tts-settings-header { align-items: flex-start; }
+                #ttsExamSettingsCard .tts-settings-title { font-size: .78rem; }
+                #ttsExamSettingsCard .tts-settings-header > div:last-child { gap: 4px !important; }
+                #ttsExamSettingsCard .tts-settings-header .tts-tab-pill { font-size: .58rem; padding: 3px 5px; }
+                #ttsExamSettingsCard .tts-settings-header #ttsCloseSettingsBtn { padding: 5px 7px !important; font-size: 0 !important; }
+                #ttsExamSettingsCard .tts-settings-header #ttsCloseSettingsBtn i { font-size: .7rem; margin: 0; }
+                #ttsExamSettingsCard .tts-settings-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+                #ttsExamSettingsCard .tts-field-group { padding: 7px; }
+                #ttsExamSettingsCard .tts-field-group > label { font-size: .6rem; line-height: 1.2; }
+                #ttsExamSettingsCard .tts-field-group > input,
+                #ttsExamSettingsCard .tts-field-group > select { min-height: 32px; padding: 5px 6px; font-size: .72rem; }
+                #ttsExamSettingsCard .tts-field-group:has(#ttsExamInstructions) textarea { min-height: 62px; }
+            }
+
             /* Continuous CBT QR Scanner Overlay Styles */
             .tts-scanner-modal-overlay {
                 position: fixed;
