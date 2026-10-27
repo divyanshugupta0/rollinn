@@ -6007,6 +6007,18 @@
             font-size: 9px !important;
             gap: 3px !important;
         }
+
+        /* Compact mobile attendance header/footer. Drafts are saved
+           automatically in localStorage; keep only navigation and submit. */
+        #attendancePopup .ap-header-icon,
+        #attendancePopup .ap-header-text h2 > i { display: none !important; }
+        #attendancePopup .ap-header-text { min-width: 0 !important; overflow: hidden; }
+        #attendancePopup .ap-header-text h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #attendancePopup .ap-footer-left #rcSaveDraftBtn,
+        #attendancePopup .ap-footer-left #rcLockSessionBtn { display: none !important; }
+        #attendancePopup .ap-footer { flex-wrap: nowrap !important; }
+        #attendancePopup .ap-footer-left { flex: 0 0 auto; }
+        #attendancePopup #submitAttendancePopupBtn { flex: 1 1 auto; min-width: 0; }
     }
     </style>
 
@@ -6131,8 +6143,6 @@
             <div class="ap-footer">
                 <div class="ap-footer-left">
                     <button type="button" id="backToClassesPopupBtn" class="ap-btn-ghost"><i class="fas fa-arrow-left"></i> Classes</button>
-                    <button type="button" id="rcSaveDraftBtn" class="ap-btn-ghost"><i class="fas fa-file-alt"></i> Save draft</button>
-                    <button type="button" id="rcLockSessionBtn" class="ap-btn-ghost" hidden><i class="fas fa-lock"></i> Lock</button>
                 </div>
                 <button id="submitAttendancePopupBtn" class="ap-btn-submit" style="display:none;">
                     <i class="fas fa-paper-plane"></i> Submit Attendance
