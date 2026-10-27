@@ -2,6 +2,10 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Add attendance rate calculation
     const calculateAttendanceRate = function() {
+        // The teacher dashboard owns this value and calculates it from
+        // unique marked attendance records. Do not overwrite it with the
+        // legacy present/students calculation.
+        if (document.getElementById('dashboardSection')) return;
         const presentCount = parseInt(document.getElementById('todayPresentCount')?.textContent || '0');
         const studentCount = parseInt(document.getElementById('totalStudentCount')?.textContent || '0');
         
@@ -68,8 +72,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
             
-            // Insert before recent activity
-            dashboardSection.insertBefore(quickActions, recentActivity);
+            // Recent Activity is inside the dashboard lower-grid after the
+            // redesign. Insert into its actual parent to avoid NotFoundError.
+            const insertionParent = recentActivity.parentElement || dashboardSection;
+            insertionParent.insertBefore(quickActions, recentActivity);
             
             // Add event listeners
             document.getElementById('quickTakeAttendanceBtn')?.addEventListener('click', function() {
