@@ -140,7 +140,7 @@ body.teacher-authenticated #dashboardSection > .teacher-welcome {
 body.teacher-authenticated #dashboardSection > .teacher-welcome h2 { font-size:clamp(25px,3vw,34px); letter-spacing:-.04em; }
 body.teacher-authenticated #dashboardSection > .teacher-welcome p:last-child { font-size:14px; }
 body.teacher-authenticated #dashboardSection .welcome-date { display:grid;grid-template-columns:auto 1fr;align-items:center;column-gap:9px;row-gap:4px; }
-body.teacher-authenticated #dashboardSection .dashboard-live-clock { grid-column:2;color:#718078;font-size:12px;font-weight:650; }
+body.teacher-authenticated #dashboardSection .dashboard-live-clock { grid-column:2;color:#fff!important;font-size:12px;font-weight:750; }
 body.teacher-authenticated #dashboardSection .dashboard-stats { gap:14px; }
 body.teacher-authenticated #dashboardSection .dashboard-stats .summary-card {
     min-height:118px; padding:20px; border:1px solid #e0e9e2; border-radius:16px;
