@@ -5639,41 +5639,6 @@
         }
     }
 
-    /* Student roster pagination and compact mobile controls */
-    #attendancePopup .roster-pagination {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        padding: 9px 18px;
-        border-top: 1px solid #e6eee8;
-        background: #fbfdfb;
-        color: #64756a;
-        font-size: 11px;
-        font-weight: 600;
-    }
-    #attendancePopup .roster-page-controls {
-        display: inline-flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 5px;
-    }
-    #attendancePopup .roster-page-btn {
-        min-width: 30px;
-        height: 29px;
-        padding: 0 8px;
-        border: 1px solid #c8ddd0;
-        border-radius: 7px;
-        background: #fff;
-        color: #286143;
-        font-size: 11px;
-        font-weight: 700;
-        cursor: pointer;
-    }
-    #attendancePopup .roster-page-btn:hover:not(:disabled) { background: #ecf8ef; border-color: #91c7a4; }
-    #attendancePopup .roster-page-btn:disabled { opacity: .42; cursor: not-allowed; }
-    #attendancePopup .roster-page-number { min-width: 78px; text-align: center; color: #315a43; }
-
     @media (max-width: 600px) {
         #attendancePopup {
             padding: 0 !important;
@@ -5691,6 +5656,19 @@
         #attendancePopup .ap-header {
             padding: 9px 11px !important;
             gap: 8px !important;
+        }
+        #attendancePopup .ap-sidebar-toggle {
+            display: flex !important;
+            width: 31px !important;
+            height: 31px !important;
+            flex: 0 0 31px !important;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255,255,255,.25);
+            border-radius: 8px;
+            background: rgba(255,255,255,.12);
+            color: #fff;
+            cursor: pointer;
         }
         #attendancePopup .ap-header-icon {
             width: 32px !important;
@@ -5746,17 +5724,6 @@
         #attendancePopup .attendance-table { min-width: 500px !important; font-size: 12px !important; }
         #attendancePopup .attendance-table th,
         #attendancePopup .attendance-table td { padding-top: 7px !important; padding-bottom: 7px !important; }
-        #attendancePopup .roster-pagination {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 6px;
-            padding: 7px 9px;
-            font-size: 10px;
-        }
-        #attendancePopup .roster-page-summary { text-align: center; }
-        #attendancePopup .roster-page-controls { justify-content: center; }
-        #attendancePopup .roster-page-btn { height: 28px; padding: 0 7px; font-size: 10px; }
-        #attendancePopup .roster-page-number { min-width: 68px; }
         #attendancePopup .ap-footer { padding: 7px 9px !important; gap: 6px !important; }
         #attendancePopup .ap-footer button { height: 34px !important; font-size: 11px !important; padding: 0 8px !important; }
     }
@@ -5767,6 +5734,7 @@
 
             <!-- Header -->
             <div class="ap-header">
+                <button id="attendanceSidebarToggleBtn" class="ap-sidebar-toggle" type="button" aria-label="Open sidebar" title="Open sidebar" style="display:none;"><i class="fas fa-bars"></i></button>
                 <div class="ap-header-icon"><i class="fas fa-clipboard-check"></i></div>
                 <div class="ap-header-text">
                     <h2 id="attendancePopupTitle">Attendance Management</h2>
@@ -5907,7 +5875,7 @@
     <script src="../shared/password-reset.js"></script>
     <script src="../shared/search-autofill.js"></script>
     <script src="teacher-settings-profile.js"></script>
-    <script src="attendance-manager.js?v=20261027-attendance-paging-v1"></script>
+    <script src="attendance-manager.js?v=20261027-attendance-page-view-v2"></script>
     <script src="class-manager.js"></script>
     <script src="timetable-cache.js"></script>
     <script src="classes-schedule.js"></script>
