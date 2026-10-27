@@ -5638,6 +5638,128 @@
             padding: 0 10px !important;
         }
     }
+
+    /* Student roster pagination and compact mobile controls */
+    #attendancePopup .roster-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 9px 18px;
+        border-top: 1px solid #e6eee8;
+        background: #fbfdfb;
+        color: #64756a;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    #attendancePopup .roster-page-controls {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 5px;
+    }
+    #attendancePopup .roster-page-btn {
+        min-width: 30px;
+        height: 29px;
+        padding: 0 8px;
+        border: 1px solid #c8ddd0;
+        border-radius: 7px;
+        background: #fff;
+        color: #286143;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    #attendancePopup .roster-page-btn:hover:not(:disabled) { background: #ecf8ef; border-color: #91c7a4; }
+    #attendancePopup .roster-page-btn:disabled { opacity: .42; cursor: not-allowed; }
+    #attendancePopup .roster-page-number { min-width: 78px; text-align: center; color: #315a43; }
+
+    @media (max-width: 600px) {
+        #attendancePopup {
+            padding: 0 !important;
+            align-items: stretch !important;
+            background: #f7faf8 !important;
+            backdrop-filter: none !important;
+        }
+        #attendancePopup .ap-shell {
+            width: 100% !important;
+            height: 100dvh !important;
+            max-height: 100dvh !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+        #attendancePopup .ap-header {
+            padding: 9px 11px !important;
+            gap: 8px !important;
+        }
+        #attendancePopup .ap-header-icon {
+            width: 32px !important;
+            height: 32px !important;
+            border-radius: 9px !important;
+            font-size: 14px !important;
+        }
+        #attendancePopup .ap-header-text h2 { font-size: 13px !important; }
+        #attendancePopup .ap-header-text p { display: none !important; }
+        #attendancePopup .ap-close {
+            width: 31px !important;
+            height: 31px !important;
+            border-radius: 8px !important;
+        }
+        #attendancePopup .ap-meta { padding: 6px 9px !important; gap: 5px !important; }
+        #attendancePopup .ap-meta-pill { padding: 4px 7px !important; font-size: 10px !important; }
+        #attendancePopup .ap-controls-row {
+            align-items: stretch !important;
+            flex-direction: column !important;
+            gap: 6px !important;
+            padding: 7px 9px !important;
+        }
+        #attendancePopup .ap-date-bar {
+            width: 100% !important;
+            overflow-x: auto !important;
+            padding: 0 !important;
+            scrollbar-width: none;
+        }
+        #attendancePopup .ap-date-bar::-webkit-scrollbar { display: none; }
+        #attendancePopup .ap-date-input { width: 112px !important; min-width: 112px !important; flex-basis: 112px !important; }
+        #attendancePopup .ap-date-bar button { padding: 0 8px !important; font-size: 10px !important; }
+        #attendancePopup .ap-search-wrap { width: 100% !important; flex-basis: auto !important; }
+        #attendancePopup .ap-workspace { padding: 6px 9px !important; }
+        #attendancePopup .ap-stats-strip { min-height: 45px; }
+        #attendancePopup .ap-stat { min-width: 48px !important; padding: 5px 3px !important; }
+        #attendancePopup .ap-stat strong { font-size: 13px !important; }
+        #attendancePopup .ap-stat span { font-size: 7px !important; }
+        #attendancePopup .school-roster-topbar {
+            align-items: flex-start !important;
+            flex-wrap: wrap !important;
+            padding: 7px 9px !important;
+            gap: 6px !important;
+        }
+        #attendancePopup .school-roster-topbar > div:first-child { font-size: 11px !important; width: 100%; }
+        #attendancePopup .school-roster-actions { width: 100% !important; justify-content: flex-end !important; gap: 4px !important; }
+        #attendancePopup .school-roster-actions button {
+            padding: 5px 7px !important;
+            font-size: 0 !important;
+            min-height: 29px !important;
+        }
+        #attendancePopup .school-roster-actions button i { font-size: 11px !important; margin: 0 !important; }
+        #attendancePopup .table-responsive { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+        #attendancePopup .attendance-table { min-width: 500px !important; font-size: 12px !important; }
+        #attendancePopup .attendance-table th,
+        #attendancePopup .attendance-table td { padding-top: 7px !important; padding-bottom: 7px !important; }
+        #attendancePopup .roster-pagination {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
+            padding: 7px 9px;
+            font-size: 10px;
+        }
+        #attendancePopup .roster-page-summary { text-align: center; }
+        #attendancePopup .roster-page-controls { justify-content: center; }
+        #attendancePopup .roster-page-btn { height: 28px; padding: 0 7px; font-size: 10px; }
+        #attendancePopup .roster-page-number { min-width: 68px; }
+        #attendancePopup .ap-footer { padding: 7px 9px !important; gap: 6px !important; }
+        #attendancePopup .ap-footer button { height: 34px !important; font-size: 11px !important; padding: 0 8px !important; }
+    }
     </style>
 
     <div id="attendancePopup" class="popup-overlay" role="dialog" aria-modal="true" aria-labelledby="attendancePopupTitle" style="display: none;">
@@ -5785,7 +5907,7 @@
     <script src="../shared/password-reset.js"></script>
     <script src="../shared/search-autofill.js"></script>
     <script src="teacher-settings-profile.js"></script>
-    <script src="attendance-manager.js"></script>
+    <script src="attendance-manager.js?v=20261027-attendance-paging-v1"></script>
     <script src="class-manager.js"></script>
     <script src="timetable-cache.js"></script>
     <script src="classes-schedule.js"></script>

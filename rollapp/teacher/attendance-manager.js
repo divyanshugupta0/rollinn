@@ -2,6 +2,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     const teacherSchoolId = () => typeof currentTeacher !== 'undefined' && currentTeacher && currentTeacher.schoolId ? currentTeacher.schoolId : null;
     const belongsToTeacherSchool = record => !!teacherSchoolId() && record && record.schoolId === teacherSchoolId();
+    const rosterPageSize = 20;
+    let rosterCurrentPage = 1;
 
     function escapeHtml(value) {
         return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
@@ -995,6 +997,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (attendanceSummary) attendanceSummary.style.display = 'none';
 
         try {
+            rosterCurrentPage = 1;
             const schoolId = teacherSchoolId();
             const snap = await firebase.database().ref(`schoolUsers/${schoolId}`).once('value');
             const normSec = String(card.section || '').trim().replace(/^section\s+/i, '').toLowerCase();
@@ -1189,12 +1192,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), undefined, { numeric: true, sensitivity: 'base' });
         });
 
+        const totalRosterPages = Math.max(1, Math.ceil(studentsList.length / rosterPageSize));
+        rosterCurrentPage = Math.min(Math.max(1, rosterCurrentPage), totalRosterPages);
+        const rosterStart = (rosterCurrentPage - 1) * rosterPageSize;
+        const visibleStudents = studentsList.slice(rosterStart, rosterStart + rosterPageSize);
+        const rosterEnd = Math.min(rosterStart + visibleStudents.length, studentsList.length);
+
         let tableHtml = `
             ${fromDraft ? '<div class="alert alert-info" style="display:flex;align-items:center;gap:8px;padding:8px 14px;margin-bottom:10px;background:#e8f4fd;color:#0c5460;border-radius:8px;font-size:12.5px;"><i class="fas fa-info-circle"></i> Restored unsaved attendance draft from your device.</div>' : ''}
             <div class="school-roster-topbar" style="display:flex;justify-content:space-between;align-items:center;padding:10px 24px;background:#f9fbf9;border-bottom:1px solid #e5ede7;flex-wrap:nowrap;gap:12px;">
                 <div style="font-weight:700;font-size:13.5px;color:#1e3d2b;white-space:nowrap;flex-shrink:0;">
                     <i class="fas fa-user-graduate" style="color:#15803d;margin-right:6px;"></i> Students Enrolled: 
                     <span class="badge" style="background:#e8f5ec;color:#15803d;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:700;">${studentsList.length}</span>
+                    <small class="roster-range" style="color:#6b7280;font-size:11px;font-weight:600;margin-left:5px;">Showing ${rosterStart + 1}-${rosterEnd}</small>
                 </div>
                 <div class="school-roster-actions" style="display:inline-flex !important;flex-direction:row !important;flex-wrap:nowrap !important;align-items:center !important;gap:8px !important;flex-shrink:0;">
                     <button type="button" id="markAllPresentBtn" class="secondary-btn" style="width:auto !important;flex:0 0 auto !important;white-space:nowrap !important;margin:0 !important;padding:6px 14px;font-size:12px;font-weight:700;background:#ecfdf5;color:#15803d;border:1.5px solid #86efac;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="fas fa-check-double"></i> All Present</button>
@@ -1215,10 +1225,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     <tbody>
         `;
 
-        studentsList.forEach((st, idx) => {
-            const rawRoll = st.classRoll || st.rollNo || st.roll || (idx + 1);
+        visibleStudents.forEach((st, idx) => {
+            const absoluteIndex = rosterStart + idx;
+            const rawRoll = st.classRoll || st.rollNo || st.roll || (absoluteIndex + 1);
             const cleanRoll = String(rawRoll).trim();
-            const name = st.name || st.email || `Student ${idx + 1}`;
+            const name = st.name || st.email || `Student ${absoluteIndex + 1}`;
             const currentStatus = attData[st.id] || '';
 
             tableHtml += `
@@ -1253,9 +1264,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     </tbody>
                 </table>
             </div>
+            <div class="roster-pagination" aria-label="Attendance student pages">
+                <span class="roster-page-summary">Showing ${rosterStart + 1}-${rosterEnd} of ${studentsList.length} students</span>
+                <div class="roster-page-controls">
+                    <button type="button" class="roster-page-btn" data-roster-page="1" ${rosterCurrentPage <= 1 ? 'disabled' : ''} aria-label="First page"><i class="fas fa-angles-left"></i></button>
+                    <button type="button" class="roster-page-btn" data-roster-page="${rosterCurrentPage - 1}" ${rosterCurrentPage <= 1 ? 'disabled' : ''} aria-label="Previous page"><i class="fas fa-chevron-left"></i> Prev</button>
+                    <span class="roster-page-number">Page ${rosterCurrentPage} of ${totalRosterPages}</span>
+                    <button type="button" class="roster-page-btn" data-roster-page="${rosterCurrentPage + 1}" ${rosterCurrentPage >= totalRosterPages ? 'disabled' : ''} aria-label="Next page">Next <i class="fas fa-chevron-right"></i></button>
+                    <button type="button" class="roster-page-btn" data-roster-page="${totalRosterPages}" ${rosterCurrentPage >= totalRosterPages ? 'disabled' : ''} aria-label="Last page"><i class="fas fa-angles-right"></i></button>
+                </div>
+            </div>
         `;
 
         popupStudentList.innerHTML = tableHtml;
+
+        popupStudentList.querySelectorAll('.roster-page-btn:not([disabled])').forEach(button => {
+            button.addEventListener('click', () => {
+                rosterCurrentPage = Number(button.dataset.rosterPage) || 1;
+                window.renderSchoolRosterTable(studentsList, attData, draftKey, editable, fromDraft, studentHistory);
+            });
+        });
 
         if (submitBtn) {
             submitBtn.style.display = 'inline-flex';
