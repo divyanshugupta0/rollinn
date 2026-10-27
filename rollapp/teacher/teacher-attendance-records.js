@@ -118,6 +118,29 @@
                 if (!belongsToSchool(student)) return;
                 studentsById[student.id || child.key] = student;
             });
+
+            // School Mode attendance is stored against the generated
+            // class-section card id (ct_<class>_<section>), not the raw
+            // schoolClasses key. Reuse the same card source used by the
+            // attendance sheet so records query the exact saved path.
+            if (isSchoolMode() && typeof window.loadSchoolClassCards === 'function') {
+                try {
+                    await window.loadSchoolClassCards();
+                    const generatedCards = Array.isArray(window._teacherClassCards) ? window._teacherClassCards : [];
+                    if (generatedCards.length) {
+                        classes = generatedCards
+                            .filter(card => belongsToSchool(card))
+                            .map(card => ({
+                                ...card,
+                                id: card.id,
+                                name: card.name || `${card.className || 'Class'} · Section ${card.section || ''}`,
+                                className: card.className || card.name || 'Class'
+                            }));
+                    }
+                } catch (error) {
+                    console.warn('Could not load generated school class cards for records:', error);
+                }
+            }
             const select = document.getElementById('tarLocation');
             select.innerHTML = `<option value="all">${isSchoolMode() ? 'All classes and sections' : 'All classes and locations'}</option>`;
             classes.sort((a, b) => String(a.name || a.className || '').localeCompare(String(b.name || b.className || ''))).forEach(item => {
