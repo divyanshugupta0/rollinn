@@ -865,6 +865,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Check submitted status for the selected date
             const dateInput = document.getElementById('attendanceFilterDate');
             const selectedDate = customDate || (dateInput?.value ? formatDateForDatabase(new Date(dateInput.value)) : formatDateForDatabase(new Date()));
+            // Keep the date represented by the currently rendered cards so a
+            // submission for another date cannot mark the visible cards.
+            window._teacherAttendanceCardsDate = selectedDate;
 
             const submittedAttendances = {};
             const promises = classCards.map(c => {
@@ -960,6 +963,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
             locationsContainer.appendChild(cardElem);
         });
+    };
+
+    // Update the submitted/pending state immediately after a successful save.
+    // The database refresh below is still performed to reconcile any remote
+    // changes, but the teacher should not have to wait for that round trip to
+    // see the class card change.
+    window.updateSchoolClassCardStatus = function(cardId, attendancePayload, attendanceDate) {
+        if (!cardId || !attendancePayload) return;
+
+        window.submittedAttendances = window.submittedAttendances || {};
+        window.submittedAttendances[cardId] = attendancePayload;
+
+        if (attendanceDate && window._teacherAttendanceCardsDate !== attendanceDate) return;
+
+        const cards = Array.isArray(window._teacherClassCards) ? window._teacherClassCards : [];
+        if (cards.length) {
+            window.renderSchoolClassCards(cards, window.submittedAttendances);
+        }
     };
 
     // Open School Class Attendance Sheet
@@ -1475,9 +1496,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Clear draft from localStorage upon successful write!
             try { localStorage.removeItem(draftKey); } catch (e) {}
 
-            // Update cache
-            window.submittedAttendances = window.submittedAttendances || {};
-            window.submittedAttendances[classLocationId] = payload;
+            // Update the class card immediately, then reconcile it from the
+            // database in the background.
+            window.updateSchoolClassCardStatus(classLocationId, payload, selectedDate);
 
             alert(`Attendance submitted successfully! (${presentCount} Present, ${absentCount} Absent)`);
 
@@ -1487,7 +1508,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Refresh cards
             if (typeof window.loadSchoolClassCards === 'function') {
-                window.loadSchoolClassCards(selectedDate);
+                window.loadSchoolClassCards(selectedDate).catch(refreshError => {
+                    console.warn('Could not refresh attendance cards:', refreshError);
+                });
             }
 
         } catch (err) {
