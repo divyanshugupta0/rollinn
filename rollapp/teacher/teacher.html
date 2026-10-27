@@ -4001,6 +4001,120 @@
             #locationModal #locationForm > .location-preview-panel { grid-column:1; }
             #locationModal #locationForm .form-row { display:grid; grid-template-columns:minmax(0,1fr); }
             #locationModal #locationForm > .modal-actions { grid-template-columns:1fr; }
+
+            /* Compact mobile Attendance records workspace */
+            body.teacher-authenticated #attendanceSection {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            body.teacher-authenticated #attendanceSection > .header {
+                min-height: 40px !important;
+                margin: 0 0 8px !important;
+                padding: 0 0 8px !important;
+            }
+            body.teacher-authenticated #attendanceSection > .header h1 {
+                font-size: 18px !important;
+                line-height: 1.2 !important;
+            }
+            body.teacher-authenticated #attendanceSection > .date-selector-container {
+                margin: 0 0 8px !important;
+                padding: 8px !important;
+                border-radius: 10px !important;
+                box-shadow: 0 2px 8px rgba(27,57,37,.04) !important;
+            }
+            body.teacher-authenticated #attendanceSection > .date-selector-container .date-selector {
+                gap: 6px !important;
+            }
+            body.teacher-authenticated #attendanceSection > .date-selector-container .date-selector label {
+                font-size: 10px !important;
+            }
+            body.teacher-authenticated #attendanceSection > .date-selector-container .date-selector input,
+            body.teacher-authenticated #attendanceSection > .date-selector-container #filterAttendanceByDateBtn {
+                min-height: 36px !important;
+                height: 36px !important;
+                padding: 6px 9px !important;
+                font-size: 11px !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-manager {
+                margin: 0 0 8px !important;
+                padding: 9px !important;
+                border-radius: 10px !important;
+                box-shadow: 0 2px 8px rgba(27,57,37,.035) !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-manager .section-header {
+                flex-direction: row !important;
+                align-items: center !important;
+                gap: 6px !important;
+                margin: 0 0 8px !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-manager .section-header h2 {
+                font-size: 14px !important;
+                line-height: 1.2 !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-manager #addLocationBtn {
+                width: auto !important;
+                min-height: 32px !important;
+                padding: 6px 8px !important;
+                font-size: 10px !important;
+                border-radius: 7px !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-filters {
+                gap: 6px !important;
+                margin: 0 0 8px !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-filters input,
+            body.teacher-authenticated #attendanceSection .location-filters select {
+                min-height: 34px !important;
+                height: 34px !important;
+                padding: 6px 8px !important;
+                font-size: 11px !important;
+            }
+            body.teacher-authenticated #attendanceSection .locations-container {
+                gap: 7px !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-card {
+                border-radius: 9px !important;
+                box-shadow: 0 2px 8px rgba(27,57,37,.04) !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-header,
+            body.teacher-authenticated #attendanceSection .location-card.inactive .location-header {
+                min-height: 40px !important;
+                padding: 8px 10px !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-header h3 {
+                font-size: 13px !important;
+                line-height: 1.2 !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-status {
+                font-size: 8px !important;
+                padding: 3px 6px !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-body {
+                gap: 4px !important;
+                padding: 8px 10px !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-class,
+            body.teacher-authenticated #attendanceSection .location-time,
+            body.teacher-authenticated #attendanceSection .location-coordinates,
+            body.teacher-authenticated #attendanceSection .location-expiry,
+            body.teacher-authenticated #attendanceSection .location-expired {
+                font-size: 10px !important;
+                line-height: 1.25 !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-actions {
+                gap: 4px !important;
+                padding: 6px 7px !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-actions .action-btn {
+                min-height: 34px !important;
+                padding: 5px 3px !important;
+                gap: 2px !important;
+                border-radius: 7px !important;
+                font-size: 8px !important;
+            }
+            body.teacher-authenticated #attendanceSection .location-actions .action-btn i {
+                font-size: 11px !important;
+            }
         }
         
 
