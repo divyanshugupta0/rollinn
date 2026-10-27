@@ -1091,14 +1091,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             attendanceData = {};
-            let studentHistory = {};
 
             try {
-                // Fetch today's attendance AND full class attendance history in parallel
-                const [attSnap, classAllSnap] = await Promise.all([
-                    firebase.database().ref(`attendance_by_location/${card.id}/${selectedDate}`).once('value'),
-                    firebase.database().ref(`attendance_by_location/${card.id}`).once('value')
-                ]);
+                // Only load the selected day. Historical records are available
+                // in the Attendance Records section.
+                const attSnap = await firebase.database().ref(`attendance_by_location/${card.id}/${selectedDate}`).once('value');
 
                 if (fromDraft && localDraft) {
                     Object.keys(localDraft).forEach(k => {
@@ -1113,31 +1110,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 }
 
-                // Compute historical baseline (excluding currently selected date so live selection adds to baseline)
-                if (classAllSnap && classAllSnap.exists()) {
-                    const allData = classAllSnap.val() || {};
-                    Object.keys(allData).forEach(dateKey => {
-                        if (dateKey === '_meta' || dateKey === selectedDate) return;
-                        const dayVal = allData[dateKey];
-                        if (!dayVal || typeof dayVal !== 'object') return;
-
-                        // Verify that attendance was actually recorded for this date
-                        const hasMarks = Object.keys(dayVal).some(k => !k.startsWith('_') && typeof dayVal[k] === 'string');
-                        if (!hasMarks) return;
-
-                        students.forEach(st => {
-                            if (!studentHistory[st.id]) studentHistory[st.id] = { present: 0, total: 0 };
-                            const rec = dayVal[st.id + '_record'] || {};
-                            const stStatus = String(rec.status || dayVal[st.id] || '').toLowerCase();
-                            if (['present', 'late', 'onduty'].includes(stStatus)) {
-                                studentHistory[st.id].present++;
-                                studentHistory[st.id].total++;
-                            } else if (stStatus === 'absent') {
-                                studentHistory[st.id].total++;
-                            }
-                        });
-                    });
-                }
             } catch (fetchErr) {
                 console.warn('Error reading attendance records:', fetchErr);
             }
@@ -1147,7 +1119,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadingAnimation.style.display = 'none';
             }
 
-            window.renderSchoolRosterTable(students, attendanceData, draftKey, editable, fromDraft, studentHistory);
+            window.renderSchoolRosterTable(students, attendanceData, draftKey, editable, fromDraft);
 
         } catch (err) {
             console.error('Error loading attendance sheet:', err);
@@ -1163,7 +1135,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     // Render Student Table for School Mode
-    window.renderSchoolRosterTable = function(studentsList, attData, draftKey, editable = true, fromDraft = false, studentHistory = {}) {
+    window.renderSchoolRosterTable = function(studentsList, attData, draftKey, editable = true, fromDraft = false) {
         const popupStudentList = document.getElementById('popupStudentList');
         const submitBtn = document.getElementById('submitAttendancePopupBtn');
         if (!popupStudentList) return;
@@ -1250,7 +1222,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         <tr style="background:#f4f7f5;border-bottom:2px solid #d9e5dc;text-align:left;">
                             <th class="st-roll-header" style="padding:11px 14px 11px 20px;width:95px;text-align:center;">Roll No</th>
                             <th class="st-name-header" style="padding:11px 16px;text-align:left;">Student Name</th>
-                            <th class="st-running-header" style="padding:11px 10px;width:150px;text-align:center;">Running Att.</th>
                             <th class="st-actions-header" style="padding:11px 28px 11px 12px;width:270px;text-align:center;">Attendance Status</th>
                         </tr>
                     </thead>
@@ -1271,9 +1242,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="st-name-cell" style="padding:10px 16px;text-align:left;vertical-align:middle;">
                         <div class="st-name" style="font-weight:700;color:#111827;font-size:14px;line-height:1.25;">${escapeHtml(name)}</div>
                         ${st.email ? `<small style="color:#6b7280;font-size:12px;display:block;margin-top:2px;">${escapeHtml(st.email)}</small>` : ''}
-                    </td>
-                    <td class="st-running-cell" id="runningAtt_${st.id}" style="width:150px;text-align:center;padding:10px 10px;vertical-align:middle;">
-                        ${computeRunningAtt(st.id, currentStatus).html}
                     </td>
                     <td class="st-actions-cell" style="width:270px;text-align:center;padding:10px 28px 10px 12px;vertical-align:middle;">
                         <div class="attendance-buttons" style="display:inline-flex;gap:8px;justify-content:center;">
@@ -1338,12 +1306,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 row.classList.toggle('is-absent', status === 'absent');
             }
 
-            // Live update of Running Attendance column
-            const runningCell = document.getElementById(`runningAtt_${studentId}`);
-            if (runningCell) {
-                runningCell.innerHTML = computeRunningAtt(studentId, status).html;
-            }
-
             // ONLY local storage - NO DATABASE CALL!
             persistDraft();
         };
@@ -1354,8 +1316,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const sid = st?.id || st?.uid;
                 if (sid && sid !== 'undefined' && sid !== 'null' && String(sid).trim()) {
                     attendanceData[sid] = 'present';
-                    const cell = document.getElementById(`runningAtt_${sid}`);
-                    if (cell) cell.innerHTML = computeRunningAtt(sid, 'present').html;
                 }
             });
             popupStudentList.querySelectorAll('.student-row').forEach(row => {
@@ -1373,8 +1333,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const sid = st?.id || st?.uid;
                 if (sid && sid !== 'undefined' && sid !== 'null' && String(sid).trim()) {
                     attendanceData[sid] = 'absent';
-                    const cell = document.getElementById(`runningAtt_${sid}`);
-                    if (cell) cell.innerHTML = computeRunningAtt(sid, 'absent').html;
                 }
             });
             popupStudentList.querySelectorAll('.student-row').forEach(row => {
@@ -1391,13 +1349,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!confirm('Clear all attendance selections and local draft for this class?')) return;
             attendanceData = {};
             try { localStorage.removeItem(draftKey); } catch (e) {}
-            studentsList.forEach(st => {
-                const sid = st?.id || st?.uid;
-                if (sid) {
-                    const cell = document.getElementById(`runningAtt_${sid}`);
-                    if (cell) cell.innerHTML = computeRunningAtt(sid, '').html;
-                }
-            });
             popupStudentList.querySelectorAll('.student-row').forEach(row => {
                 row.querySelectorAll('.attendance-btn').forEach(b => b.classList.remove('active'));
                 row.classList.remove('is-present', 'is-absent');

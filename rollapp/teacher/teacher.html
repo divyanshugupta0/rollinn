@@ -6751,7 +6751,16 @@
         function loadActiveClasses() {
             if (document.body.classList.contains('teacher-school-mode') || currentTeacher?.isSchoolMode) {
                 if (typeof window.loadSchoolClassCards === 'function') {
-                    window.loadSchoolClassCards();
+                    // School attendance is stored against generated class
+                    // section card ids. Keep the dashboard on that same
+                    // source so its counts and recent activity are accurate.
+                    window.loadSchoolClassCards().then(() => {
+                        activeClasses = Array.isArray(window._teacherClassCards) ? window._teacherClassCards : [];
+                        loadDashboardData();
+                    }).catch(error => {
+                        console.error('Unable to load school dashboard classes:', error);
+                        loadDashboardData();
+                    });
                 }
                 return;
             }
