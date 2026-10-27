@@ -126,7 +126,10 @@ body.teacher-authenticated #dashboardSection > .dashboard-stats,
 body.teacher-authenticated #dashboardSection > .quick-actions,
 body.teacher-authenticated #dashboardSection > .student-search { grid-column:1 / -1; }
 body.teacher-authenticated #dashboardSection > .header { margin-bottom:0; }
-body.teacher-authenticated #dashboardSection > .header { display:flex;align-items:center;gap:12px; }
+body.teacher-authenticated #dashboardSection > .header { position:relative;z-index:30;display:flex;align-items:center;gap:12px; }
+body.teacher-authenticated .section-container > .header { position:relative;z-index:30; }
+body.teacher-authenticated .section-container > .header .teacher-info { position:relative;z-index:31; }
+body.teacher-authenticated .section-container > .header .header-dropdown { z-index:9999!important; }
 body.teacher-authenticated #dashboardSection > .header .teacher-info { margin-left:auto; }
 body.teacher-authenticated #dashboardSection .dashboard-refresh-btn { display:inline-flex;width:auto!important;max-width:none;flex:0 0 auto;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border:1px solid #dce9df;border-radius:11px;background:#fff;color:#246746;font:inherit;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer; }
 body.teacher-authenticated #dashboardSection .dashboard-refresh-btn:hover { background:#f0f8f2;border-color:#bad9c2; }
