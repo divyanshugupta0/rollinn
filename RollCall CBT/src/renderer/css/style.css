@@ -3723,3 +3723,37 @@ body.exam-active .app-viewport {
     font-weight: 700;
     color: #475569;
 }
+
+/* ==========================================================================
+   Overlay & Input Protection: Prevent hidden overlays from blocking inputs/clicks
+   ========================================================================== */
+[hidden],
+.erp-modal-overlay[hidden],
+.erp-modal-overlay.hidden,
+div[hidden] {
+    display: none !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+}
+
+/* Ensure question options and exam inputs are always interactive */
+.option-choice-item,
+.option-choice-card {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+.input-short-answer {
+    pointer-events: auto !important;
+    user-select: text !important;
+    cursor: text !important;
+}
+
+/* Ensure candidate desk inputs are always interactive */
+#input-candidate-pin,
+#btn-verify-pin,
+#btn-enter-exam-hall,
+#btn-auto-load-next {
+    pointer-events: auto !important;
+}
+

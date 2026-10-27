@@ -332,9 +332,10 @@ function createWindow() {
     mainWindow.once('ready-to-show', () => {
         mainWindow.setFullScreen(true);
         mainWindow.show();
-        // Diagnostic build: keep Chromium DevTools visible so exam-file,
-        // submission, and station-vault failures can be identified directly.
-        mainWindow.webContents.openDevTools({ mode: 'detach' });
+        // Open DevTools only when requested via --dev flag
+        if (process.argv.includes('--dev')) {
+            mainWindow.webContents.openDevTools({ mode: 'detach' });
+        }
         handleCommandLineFiles();
     });
 
@@ -616,7 +617,9 @@ function setupIpcHandlers() {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.setFullScreen(isKioskModeActive);
             mainWindow.setKiosk(isKioskModeActive);
-            mainWindow.setAlwaysOnTop(isKioskModeActive, 'screen-saver');
+            mainWindow.setAlwaysOnTop(isKioskModeActive);
+            mainWindow.focus();
+            mainWindow.webContents.focus();
 
             if (isKioskModeActive) {
                 globalShortcut.register('CommandOrControl+W', () => {});

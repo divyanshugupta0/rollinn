@@ -1447,6 +1447,26 @@
         state.antiCheatLog = [];
         state.sessionExamPrepared = false;
 
+        // Close all modal overlays so they never block exam interaction
+        const allExamModals = [
+            el.modalStationResults,
+            el.modalAdminPin,
+            el.modalAdminExamSetup,
+            el.modalAntiCheat,
+            el.modalSubmitConfirm,
+            el.modalCalc,
+            el.modalScratch,
+            el.modalLicenseDetails,
+            el.modalSetAdminPin,
+            el.modalCbtQrSync
+        ];
+        allExamModals.forEach(m => {
+            if (m) {
+                m.hidden = true;
+                m.style.display = 'none';
+            }
+        });
+
         // Enable Kiosk Lockdown
         await window.rollcallCBT.setKioskMode(true);
 
@@ -1647,6 +1667,13 @@
 
         // Previous button state
         el.btnQPrev.disabled = (sectionIdx === 0 && questionIdx === 0);
+
+        // Ensure active focus on question / input
+        setTimeout(() => {
+            window.focus();
+            const input = el.qOptionsContainer?.querySelector('.input-short-answer');
+            if (input) input.focus();
+        }, 50);
     }
 
     function renderQuestionOptions(q) {
@@ -2756,7 +2783,7 @@
 
         const candidateName = record.candidate?.name || 'this candidate';
         const examTitle = record.exam?.title || 'this examination';
-        if (!confirm(`Reschedule ${candidateName} for "${examTitle}"?\n\nThe current result will be removed, and the candidate will be allowed to take the exam again.`)) return;
+        if (!confirm(`Reschedule ${candidateName} for "${examTitle}"?\n\nThe current result will be removed, and the candidate will be allowed to retake the exam.`)) return;
 
         const deleteResult = await window.rollcallCBT.deleteStationRecord?.({
             recordId: record.id,
@@ -2768,22 +2795,79 @@
         }
         state.stationRecords = state.stationRecords.filter(r => String(r?.id) !== String(record.id));
 
-        // Completion locks are scoped by exam. Remove the lock only from this
-        // exam so the candidate can be attempted again.
-        const examKey = String(record.exam?.id || record.exam?.code || 'exam').trim();
-        const storageKey = `rollcall-cbt-completed:${examKey}`;
-        try { localStorage.removeItem(storageKey); } catch (_) {}
+        // 1. Get candidate completion keys
+        const candKeys = record.candidate ? getCandidateCompletionKeys(record.candidate) : [];
 
+        // 2. Remove keys from in-memory Set so isCandidateCompleted immediately returns false
+        if (state.completedCandidates) {
+            candKeys.forEach(k => state.completedCandidates.delete(k));
+        }
+
+        // 3. Remove candidate from all completed keys in localStorage
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith('rollcall-cbt-completed:')) {
+                    const saved = JSON.parse(localStorage.getItem(k) || '[]');
+                    if (Array.isArray(saved)) {
+                        const updated = saved.filter(x => !candKeys.includes(x));
+                        localStorage.setItem(k, JSON.stringify(updated));
+                    }
+                }
+            }
+        } catch (_) {}
+
+        // 4. Update candidate filters & re-render candidate cards so cards are active and clickable
         if (state.activeExam) {
-            const activeKey = String(state.activeExam.examId || state.activeExam.code || '').trim();
-            if (activeKey && (activeKey === examKey || activeKey.includes(examKey) || examKey.includes(activeKey))) {
-                state.completedCandidates = loadCompletedCandidates();
-                if (state.visibleCandidates) applyCandidateFilters();
+            if (state.visibleCandidates) {
+                applyCandidateFilters();
+                renderCandidatesList(state.visibleCandidates);
+            } else if (state.activeExam.candidates) {
+                renderCandidatesList(state.activeExam.candidates);
             }
         }
 
+        // 5. Hide the completion screen since this candidate is now pending
+        if (el.stationCompletedView) {
+            el.stationCompletedView.style.display = 'none';
+        }
+
+        // 6. Close all modals and overlays that could intercept pointer events
+        if (el.modalStationResults) {
+            el.modalStationResults.hidden = true;
+            el.modalStationResults.style.display = 'none';
+        }
+        if (el.modalAdminPin) {
+            el.modalAdminPin.hidden = true;
+            el.modalAdminPin.style.display = 'none';
+        }
+
+        // 7. Auto-load the rescheduled candidate onto the desk ready to take exam
+        const candidateToLoad = state.activeExam?.candidates?.find(c => {
+            const keys = getCandidateCompletionKeys(c);
+            return candKeys.some(k => keys.includes(k));
+        }) || record.candidate;
+
+        if (candidateToLoad) {
+            selectCandidate(candidateToLoad);
+            loadCandidateToDesk(candidateToLoad);
+        } else {
+            if (el.stationStandbyView) el.stationStandbyView.style.display = 'block';
+            if (el.stationDeskView) el.stationDeskView.style.display = 'none';
+        }
+
+        switchView('setup');
         filterAndRenderStationRecords();
-        showToast(`${candidateName} can now be scheduled for another attempt.`, 'success');
+        showToast(`${candidateName} can now retake this examination. Station ready.`, 'success');
+
+        // 8. Restore active window and input focus
+        setTimeout(() => {
+            window.focus();
+            if (el.inputCandidatePin) {
+                el.inputCandidatePin.disabled = false;
+                el.inputCandidatePin.focus();
+            }
+        }, 80);
     }
 
     function stationLocalDateYmd(value = Date.now()) {
