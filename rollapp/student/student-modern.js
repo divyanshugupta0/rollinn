@@ -447,6 +447,15 @@
         return ['present', 'late'].includes(normalizeAttendanceStatus(value, 'absent'));
     }
 
+    function isMarkedAttendance(value) {
+        if (value === null || value === undefined || value === false) return false;
+        const raw = typeof value === 'object' && value !== null
+            ? (value.status ?? value.attendanceStatus)
+            : value;
+        const status = String(raw ?? '').trim().toLowerCase().replace(/[\s_-]+/g, '');
+        return ['present', 'absent', 'late', 'excused', 'onduty', 'ontime', 'attended', 'marked', 'verified'].includes(status);
+    }
+
     function loadStudentAttendanceRecords() {
         if (!state.currentUser || !window.firebase?.database) return;
         const db = firebase.database();
@@ -460,7 +469,10 @@
             const globalAtt = attSnap.val() || {};
             const locations = locSnap.val() || {};
 
-            let totalConducted = 0;
+            // Match the teacher portal: the denominator is this student's
+            // marked attendance records, not every class session conducted.
+            // Unmarked/missing student entries must not lower the rate.
+            let totalMarked = 0;
             let presentCount = 0;
             const subjectMap = {};
             const attendedDates = [];
@@ -482,10 +494,13 @@
 
                     Object.keys(locDates).forEach(dateStr => {
                         const sessionAttendees = locDates[dateStr];
-                        totalConducted++;
+                        const studentAttendance = sessionAttendees && sessionAttendees[uid];
+                        if (!isMarkedAttendance(studentAttendance)) return;
+
+                        totalMarked++;
                         subjectMap[subjectTitle].total++;
 
-                        if (sessionAttendees && isPresentAttendance(sessionAttendees[uid])) {
+                        if (isPresentAttendance(studentAttendance)) {
                             presentCount++;
                             subjectMap[subjectTitle].attended++;
                             attendedDates.push(new Date(dateStr).getTime());
@@ -495,8 +510,8 @@
             });
 
             // Calculate overall percentage
-            const percentage = totalConducted > 0 ? Math.round((presentCount / totalConducted) * 100) : 0;
-            state.overallStats = { attended: presentCount, total: totalConducted, percentage };
+            const percentage = totalMarked > 0 ? Math.round((presentCount / totalMarked) * 100) : 0;
+            state.overallStats = { attended: presentCount, total: totalMarked, percentage };
             state.subjectStats = subjectMap;
 
             // Compute consecutive streak
@@ -507,7 +522,7 @@
             }
 
             // Update KPI cards in Overview Tab
-            updateOverviewKPIs(presentCount, totalConducted, percentage, streak);
+            updateOverviewKPIs(presentCount, totalMarked, percentage, streak);
             if (state.schoolType !== 'school') {
                 renderSubjectAnalytics();
                 updateBunkPredictorOptions();
