@@ -265,6 +265,7 @@
           padding: 0 !important;
           background: #f8fafc !important;
           backdrop-filter: none !important;
+          overflow-x: hidden !important;
         }
         .teacher-cbt-studio-modal .teacher-cbt-studio-page {
           width: 100% !important;
@@ -275,8 +276,13 @@
           border: 0 !important;
           border-radius: 0 !important;
           box-shadow: none !important;
+          overflow-x: hidden;
         }
         .teacher-cbt-studio-modal .cbt-studio-header {
+          display: grid !important;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          grid-template-rows: auto auto;
+          grid-template-areas: "back spacer close" "title title title";
           position: sticky;
           top: 0;
           z-index: 10;
@@ -287,8 +293,11 @@
           align-items: center !important;
         }
         .teacher-cbt-studio-modal .cbt-studio-header-copy {
-          flex: 1 1 auto;
+          grid-area: title;
+          width: 100%;
+          flex: none;
           min-width: 0;
+          padding-top: 5px;
         }
         .teacher-cbt-studio-modal .cbt-studio-header-copy > div:first-child {
           margin-bottom: 3px !important;
@@ -306,6 +315,7 @@
           display: none;
         }
         .teacher-cbt-studio-modal .cbt-mobile-back {
+          grid-area: back;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -322,6 +332,8 @@
           cursor: pointer;
         }
         .teacher-cbt-studio-modal .cbt-studio-close {
+          grid-area: close;
+          justify-self: end;
           width: 32px !important;
           height: 32px !important;
           min-width: 32px !important;
