@@ -424,6 +424,22 @@
     /* ==========================================================================
        Load Real Attendance & Compute Stats from RTDB (Zero Dummy Data)
        ========================================================================== */
+    function normalizeAttendanceStatus(value, fallback = 'present') {
+        const raw = typeof value === 'object' && value !== null ? (value.status ?? value.attendanceStatus) : value;
+        if (typeof raw === 'boolean') return raw ? 'present' : 'absent';
+        const status = String(raw ?? '').trim().toLowerCase().replace(/[\s_-]+/g, '');
+        if (['absent', 'notpresent', 'notmarked', 'missed', 'unmarked', 'notattended'].includes(status)) return 'absent';
+        if (['late', 'delayed'].includes(status)) return 'late';
+        if (['present', 'attended', 'marked', 'ontime', 'verified'].includes(status)) return 'present';
+        return fallback;
+    }
+
+    function isPresentAttendance(value) {
+        if (value === null || value === undefined || value === false) return false;
+        if (typeof value === 'object' && value !== null && !('status' in value) && !('attendanceStatus' in value)) return true;
+        return ['present', 'late'].includes(normalizeAttendanceStatus(value, 'absent'));
+    }
+
     function loadStudentAttendanceRecords() {
         if (!state.currentUser || !window.firebase?.database) return;
         const db = firebase.database();
@@ -462,7 +478,7 @@
                         totalConducted++;
                         subjectMap[subjectTitle].total++;
 
-                        if (sessionAttendees && sessionAttendees[uid]) {
+                        if (sessionAttendees && isPresentAttendance(sessionAttendees[uid])) {
                             presentCount++;
                             subjectMap[subjectTitle].attended++;
                             attendedDates.push(new Date(dateStr).getTime());
@@ -965,7 +981,7 @@
             const loc = locations[id];
             const locSec = String(loc.section || '').trim().toLowerCase();
             
-            const attendedToday = !!(uid && (state.attendanceByLocation?.[id]?.[todayStr]?.[uid] || state.userAttendanceToday?.[id]));
+            const attendedToday = !!(uid && (isPresentAttendance(state.attendanceByLocation?.[id]?.[todayStr]?.[uid]) || isPresentAttendance(state.userAttendanceToday?.[id])));
             const matchesSection = attendedToday || !locSec || locSec === 'general' || locSec === 'all' || !studentSection || locSec.includes(studentSection) || studentSection.includes(locSec);
 
             if (matchesSection && isClassForToday({ id, ...loc }, todayStr)) {
@@ -995,9 +1011,14 @@
             const safeClassName = cls.name || 'Lecture Session';
 
             const locAttToday = (state.attendanceByLocation?.[cls.id]?.[todayStr]) || {};
-            const isMarkedInLoc = !!(uid && locAttToday[uid]);
-            const isMarkedInUser = !!(uid && state.userAttendanceToday?.[cls.id]);
+            const locAttendance = uid ? locAttToday[uid] : null;
+            const userAttendance = uid ? state.userAttendanceToday?.[cls.id] : null;
+            const attendanceRecord = locAttendance ?? userAttendance;
+            const hasAttendanceRecord = attendanceRecord !== null && attendanceRecord !== undefined;
+            const isMarkedInLoc = isPresentAttendance(locAttendance);
+            const isMarkedInUser = isPresentAttendance(userAttendance);
             const isMarked = isMarkedInLoc || isMarkedInUser;
+            const isExplicitlyAbsent = hasAttendanceRecord && normalizeAttendanceStatus(attendanceRecord, 'absent') === 'absent';
 
             const active = isClassActiveNow(cls);
             const upcoming = isClassUpcoming(cls);
@@ -1018,7 +1039,7 @@
                     </div>`;
                 cardClass += ' attended-card';
                 cardTitle = `Attendance Marked: Present for ${safeClassName}`;
-            } else if (active) {
+            } else if (active && !isExplicitlyAbsent) {
                 cardStatus = 'active';
                 statusTagHtml = '<span class="status-tag tag-now"><span class="school-flicker-dot"></span> Active Now</span>';
                 actionHtml = `
@@ -1029,7 +1050,7 @@
                 cardClass += ' active-now clickable-class-schedule-card school-running-flicker';
                 cardTitle = `Click to Mark Attendance for ${safeClassName}`;
                 canClickToMark = true;
-            } else if (upcoming) {
+            } else if (upcoming && !isExplicitlyAbsent) {
                 cardStatus = 'upcoming';
                 actionHtml = `
                     <div class="schedule-status-badge upcoming">
@@ -4262,7 +4283,7 @@
                     const teacher = record.teacherName || locMeta.teacherName || 'Faculty In-Charge';
                     const time = record.time || '09:00 AM';
                     const timestamp = record.timestamp || d.getTime();
-                    const status = String(record.status || 'present').toLowerCase();
+                    const status = normalizeAttendanceStatus(record, 'present');
                     const attendanceType = record.attendanceType || 'Face AI / Verified';
 
                     recordsMap.set(key, {
@@ -4327,10 +4348,10 @@
                         if (hasUserAttendee) {
                             const userAtt = attendees[uid];
                             if (typeof userAtt === 'string') {
-                                status = userAtt.toLowerCase();
+                                status = normalizeAttendanceStatus(userAtt, 'absent');
                                 attendanceType = 'Class Roll Call';
                             } else if (typeof userAtt === 'object' && userAtt !== null) {
-                                status = String(userAtt.status || 'present').toLowerCase();
+                                status = normalizeAttendanceStatus(userAtt, 'present');
                                 attendanceType = userAtt.attendanceType || 'Class Roll Call';
                                 if (userAtt.time) time = userAtt.time;
                                 if (userAtt.timestamp) timestamp = userAtt.timestamp;
